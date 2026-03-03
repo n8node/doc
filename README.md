@@ -34,27 +34,35 @@ npx prisma db seed
 npm run dev
 ```
 
-### Termius (сервер VPS)
+## Деплой на сервер
+
+**Без GitHub Secrets** — всё через твой SSH.
+
+1. Открой `deploy.sh` (Linux/Mac) или `deploy.ps1` (Windows) и укажи:
+   - `VPS_HOST` — IP или домен сервера
+   - `VPS_USER` — SSH-пользователь (например `root`)
+
+2. Запусти деплой:
+   - **Windows (PowerShell):** `.\deploy.ps1`
+   - **Linux/Mac:** `./deploy.sh` или `npm run deploy`
+
+Скрипт сделает: push на GitHub → SSH на сервер → git pull → npm ci → build → pm2 restart.
+
+### Подготовка сервера (один раз, через Termius)
 
 ```bash
-# Подготовка
-sudo apt update && sudo apt install -y docker.io docker-compose
-cd /opt/dropbox-ru
+# Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 
-# Деплой
-docker-compose pull
-docker-compose up -d
+# pm2
+sudo npm install -g pm2
+
+# PostgreSQL
+sudo apt install -y postgresql postgresql-contrib
+sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'postgres';"
+sudo -u postgres psql -c "CREATE DATABASE dropbox_ru OWNER postgres;"
 ```
-
-## Деплой одной командой
-
-```bash
-git push origin main
-```
-
-GitHub Actions собирает образ, пушит в registry и деплоит на VPS через SSH.
-
-**Секреты в GitHub**: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `REGISTRY_HOST`, `REGISTRY_USER`, `REGISTRY_PASSWORD`, `NEXTAUTH_SECRET`.
 
 ## Структура проекта
 

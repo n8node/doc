@@ -1,0 +1,6 @@
+# Скопируй в deploy.config и заполни
+# cp deploy.config.example deploy.config
+
+VPS_HOST="192.168.1.100"
+VPS_USER="root"
+REMOTE_DIR="/opt/dropbox-ru"

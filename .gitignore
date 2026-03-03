@@ -28,6 +28,7 @@ yarn-error.log*
 # local env files (по запросу .env в репо)
 .env*.local
 .env.production
+deploy.config
 
 # vercel
 .vercel
