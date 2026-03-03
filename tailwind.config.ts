@@ -15,10 +15,27 @@ const config: Config = {
           DEFAULT: "var(--primary)",
           foreground: "var(--primary-foreground)",
         },
+        sidebar: {
+          bg: "var(--sidebar-bg)",
+          active: "var(--sidebar-active)",
+          text: "var(--sidebar-text)",
+        },
         muted: {
           DEFAULT: "var(--muted)",
           foreground: "var(--muted-foreground)",
         },
+        card: {
+          DEFAULT: "var(--card)",
+          border: "var(--card-border)",
+        },
+      },
+      borderRadius: {
+        DEFAULT: "var(--radius)",
+        card: "0.75rem",
+      },
+      boxShadow: {
+        card: "var(--shadow-md)",
+        "card-hover": "var(--shadow-lg)",
       },
     },
   },
