@@ -662,9 +662,9 @@ export default function AdminStoragePage() {
                             {folder.name}
                           </button>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            {folder.directFilesCount} прямых файлов
-                            {folder.totalFilesRecursive > folder.directFilesCount && 
-                              `, +${folder.totalFilesRecursive - folder.directFilesCount} вложенных`
+                            {folder.filesCount} прямых файлов
+                            {folder.totalFilesRecursive > folder.filesCount && 
+                              `, +${folder.totalFilesRecursive - folder.filesCount} вложенных`
                             }
                             {folder.childFoldersCount > 0 && `, ${folder.childFoldersCount} папок`}
                           </div>
