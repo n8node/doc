@@ -68,6 +68,7 @@ export function FileManager() {
 
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [showUploadProgress, setShowUploadProgress] = useState(false);
+  const cancelUploadRef = useRef(false);
 
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
@@ -196,10 +197,20 @@ export function FileManager() {
       status: "pending" as const,
     }));
 
+    cancelUploadRef.current = false;
     setUploadingFiles(newUploadingFiles);
     setShowUploadProgress(true);
 
     for (let i = 0; i < filesArray.length; i++) {
+      if (cancelUploadRef.current) {
+        setUploadingFiles((prev) =>
+          prev.map((f) =>
+            f.status === "pending" ? { ...f, status: "cancelled" as const } : f
+          )
+        );
+        break;
+      }
+
       const file = filesArray[i];
       const uploadId = newUploadingFiles[i].id;
 
@@ -321,8 +332,11 @@ export function FileManager() {
     setUploadingFiles((currentFiles) => {
       const completed = currentFiles.filter((f) => f.status === "completed").length;
       const errors = currentFiles.filter((f) => f.status === "error").length;
+      const cancelled = currentFiles.filter((f) => f.status === "cancelled").length;
       
-      if (completed > 0 && errors === 0) {
+      if (cancelled > 0) {
+        toast.warning(`Загружено: ${completed}, отменено: ${cancelled}${errors > 0 ? `, ошибок: ${errors}` : ""}`);
+      } else if (completed > 0 && errors === 0) {
         toast.success(`Загружено файлов: ${completed}`);
       } else if (completed > 0 && errors > 0) {
         toast.warning(`Загружено: ${completed}, ошибок: ${errors}`);
@@ -537,6 +551,9 @@ export function FileManager() {
             {showUploadProgress && uploadingFiles.length > 0 && (
               <UploadProgress
                 files={uploadingFiles}
+                onCancel={() => {
+                  cancelUploadRef.current = true;
+                }}
                 onDismiss={() => {
                   setShowUploadProgress(false);
                   setUploadingFiles([]);

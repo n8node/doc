@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Loader2, AlertCircle } from "lucide-react";
+import { X, Check, Loader2, AlertCircle, Ban, StopCircle } from "lucide-react";
 import { cn, formatBytes } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +10,7 @@ export interface UploadingFile {
   name: string;
   size: number;
   progress: number;
-  status: "pending" | "uploading" | "completed" | "error";
+  status: "pending" | "uploading" | "completed" | "error" | "cancelled";
   error?: string;
 }
 
@@ -26,8 +26,10 @@ export function UploadProgress({ files, onCancel, onDismiss }: UploadProgressPro
 
   const completedCount = files.filter((f) => f.status === "completed").length;
   const errorCount = files.filter((f) => f.status === "error").length;
+  const cancelledCount = files.filter((f) => f.status === "cancelled").length;
   const totalCount = files.length;
-  const isAllDone = completedCount + errorCount === totalCount;
+  const isAllDone = completedCount + errorCount + cancelledCount === totalCount;
+  const hasCancelled = cancelledCount > 0;
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
   const uploadedSize = files.reduce((sum, f) => {
@@ -53,6 +55,10 @@ export function UploadProgress({ files, onCancel, onDismiss }: UploadProgressPro
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
               </div>
+            ) : hasCancelled && errorCount === 0 ? (
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10">
+                <Ban className="h-4 w-4 text-warning" />
+              </div>
             ) : errorCount > 0 ? (
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10">
                 <AlertCircle className="h-4 w-4 text-warning" />
@@ -66,6 +72,8 @@ export function UploadProgress({ files, onCancel, onDismiss }: UploadProgressPro
               <p className="text-sm font-medium text-foreground">
                 {!isAllDone
                   ? `Загрузка файлов (${completedCount} из ${totalCount})`
+                  : hasCancelled
+                  ? `Загрузка отменена`
                   : errorCount > 0
                   ? `Загружено с ошибками`
                   : `Загрузка завершена`}
@@ -78,7 +86,13 @@ export function UploadProgress({ files, onCancel, onDismiss }: UploadProgressPro
 
           <div className="flex items-center gap-2">
             {!isAllDone && onCancel && (
-              <Button size="sm" variant="ghost" onClick={onCancel}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onCancel}
+                className="gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
+              >
+                <StopCircle className="h-3.5 w-3.5" />
                 Отменить
               </Button>
             )}
@@ -154,6 +168,11 @@ export function UploadProgress({ files, onCancel, onDismiss }: UploadProgressPro
                 {file.status === "pending" && (
                   <div className="h-6 w-6 rounded-full border-2 border-border" />
                 )}
+                {file.status === "cancelled" && (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-warning/10">
+                    <Ban className="h-3.5 w-3.5 text-warning" />
+                  </div>
+                )}
                 {file.status === "error" && (
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-error/10">
                     <AlertCircle className="h-3.5 w-3.5 text-error" />
@@ -163,7 +182,12 @@ export function UploadProgress({ files, onCancel, onDismiss }: UploadProgressPro
 
               {/* File info */}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-foreground">{file.name}</p>
+                <p className={cn("truncate text-sm", file.status === "cancelled" ? "text-muted-foreground" : "text-foreground")}>
+                  {file.name}
+                </p>
+                {file.status === "cancelled" && (
+                  <p className="truncate text-xs text-warning">Отменено пользователем</p>
+                )}
                 {file.status === "error" && file.error && (
                   <p className="truncate text-xs text-error">{file.error}</p>
                 )}
@@ -187,8 +211,12 @@ export function UploadProgress({ files, onCancel, onDismiss }: UploadProgressPro
           <div className="border-t border-border bg-surface2/30 px-4 py-2.5">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">
-                {errorCount > 0
-                  ? `Успешно: ${completedCount}, ошибок: ${errorCount}`
+                {hasCancelled || errorCount > 0
+                  ? [
+                      completedCount > 0 && `Загружено: ${completedCount}`,
+                      cancelledCount > 0 && `Отменено: ${cancelledCount}`,
+                      errorCount > 0 && `Ошибок: ${errorCount}`,
+                    ].filter(Boolean).join(", ")
                   : `Все ${totalCount} файлов загружены`}
               </span>
               <span className="text-muted-foreground">{formatBytes(uploadedSize)}</span>
