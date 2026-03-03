@@ -142,15 +142,25 @@ export function FileManager() {
   const getMediaDuration = async (file: globalThis.File): Promise<number | null> => {
     const type = file.type || "";
     if (!type.startsWith("audio/") && !type.startsWith("video/")) return null;
+    
     return new Promise((resolve) => {
       const url = URL.createObjectURL(file);
       const el = document.createElement(type.startsWith("video/") ? "video" : "audio");
+      
+      // Таймаут 5 секунд на получение метаданных
+      const timeout = setTimeout(() => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      }, 5000);
+      
       el.preload = "metadata";
       el.onloadedmetadata = () => {
+        clearTimeout(timeout);
         URL.revokeObjectURL(url);
         resolve(Number.isFinite(el.duration) ? el.duration : null);
       };
       el.onerror = () => {
+        clearTimeout(timeout);
         URL.revokeObjectURL(url);
         resolve(null);
       };
@@ -161,7 +171,10 @@ export function FileManager() {
   const handleUpload = async (fileList: FileList) => {
     if (!fileList?.length) return;
 
-    const newUploadingFiles: UploadingFile[] = Array.from(fileList).map((f, i) => ({
+    // Конвертируем FileList в массив сразу, т.к. FileList - "живая" коллекция
+    const filesArray = Array.from(fileList);
+    
+    const newUploadingFiles: UploadingFile[] = filesArray.map((f, i) => ({
       id: `upload-${Date.now()}-${i}`,
       name: f.name,
       size: f.size,
@@ -172,8 +185,8 @@ export function FileManager() {
     setUploadingFiles(newUploadingFiles);
     setShowUploadProgress(true);
 
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
+    for (let i = 0; i < filesArray.length; i++) {
+      const file = filesArray[i];
       const uploadId = newUploadingFiles[i].id;
 
       setUploadingFiles((prev) =>
