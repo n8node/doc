@@ -58,12 +58,25 @@ export function StorageWidget() {
 
   if (!data) return null;
 
-  const percentage =
+  const rawPercentage =
     data.storageQuota > 0
-      ? Math.min(Math.round((data.storageUsed / data.storageQuota) * 100), 100)
+      ? Math.min((data.storageUsed / data.storageQuota) * 100, 100)
       : 0;
-  const isWarning = percentage > 80;
-  const isCritical = percentage > 95;
+
+  const displayPercentage =
+    rawPercentage === 0
+      ? "0"
+      : rawPercentage < 1
+      ? rawPercentage.toFixed(2)
+      : rawPercentage < 10
+      ? rawPercentage.toFixed(1)
+      : Math.round(rawPercentage).toString();
+
+  const barWidth =
+    data.storageUsed > 0 ? Math.max(rawPercentage, 1.5) : 0;
+
+  const isWarning = rawPercentage > 80;
+  const isCritical = rawPercentage > 95;
   const freeSpace = Math.max(0, data.storageQuota - data.storageUsed);
 
   return (
@@ -107,7 +120,7 @@ export function StorageWidget() {
         <div className="relative h-2.5 overflow-hidden rounded-full bg-surface2">
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: `${percentage}%` }}
+            animate={{ width: `${barWidth}%` }}
             transition={{ duration: 1, ease: "easeOut" }}
             className={cn(
               "h-full rounded-full",
@@ -131,7 +144,7 @@ export function StorageWidget() {
                 : "text-muted-foreground"
             )}
           >
-            {percentage}%
+            {displayPercentage}%
           </span>
           <span className="text-muted-foreground">
             Свободно: {formatBytes(freeSpace)}
