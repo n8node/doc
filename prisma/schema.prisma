@@ -30,23 +30,24 @@ model User {
 }
 
 model File {
-  id           String   @id @default(cuid()) @map("id")
-  name         String   @map("name")
-  mimeType     String   @map("mime_type")
-  size         BigInt   @map("size")
-  s3Key        String   @map("s3_key")
-  folderId     String?  @map("folder_id")
-  folder       Folder?  @relation(fields: [folderId], references: [id])
-  userId       String   @map("user_id")
-  user         User     @relation(fields: [userId], references: [id])
-  isShared     Boolean  @default(false) @map("is_shared")
-  sharedLink   String?  @unique @map("shared_link")
-  hasEmbedding Boolean  @default(false) @map("has_embedding")
-  aiMetadata    Json?               @map("ai_metadata") // { categories, entities, summary }
+  id            String   @id @default(cuid()) @map("id")
+  name          String   @map("name")
+  mimeType      String   @map("mime_type")
+  size          BigInt   @map("size")
+  s3Key         String   @map("s3_key")
+  folderId      String?  @map("folder_id")
+  folder        Folder?  @relation(fields: [folderId], references: [id])
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id])
+  isShared      Boolean  @default(false) @map("is_shared")
+  sharedLink    String?  @unique @map("shared_link")
+  hasEmbedding  Boolean  @default(false) @map("has_embedding")
+  aiMetadata    Json?    @map("ai_metadata") // { categories, entities, summary }
+  mediaMetadata Json?    @map("media_metadata") // { durationSeconds } для видео/аудио
   embeddings    DocumentEmbedding[]
   aiTasks       AiTask[]
-  createdAt     DateTime            @default(now()) @map("created_at")
-  updatedAt     DateTime            @updatedAt @map("updated_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("files")
   @@index([userId, folderId])
