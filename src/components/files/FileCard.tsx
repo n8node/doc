@@ -17,6 +17,7 @@ import {
   Trash2,
   Play,
   FolderOpen,
+  FolderInput,
   Clock,
   Check,
   Link2,
@@ -50,6 +51,7 @@ interface FileCardProps {
   onPlay?: () => void;
   onDownload: () => void;
   onShare: () => void;
+  onMove?: () => void;
   onShareLinksClick?: () => void;
   onDelete: () => void;
   index: number;
@@ -173,6 +175,7 @@ export function FileCard({
   onPlay,
   onDownload,
   onShare,
+  onMove,
   onShareLinksClick,
   onDelete,
   index,
@@ -180,7 +183,8 @@ export function FileCard({
   const { icon: Icon, color, bg } = getFileIcon(mimeType);
   const isMedia = mimeType.startsWith("video/") || mimeType.startsWith("audio/");
   const isVideo = mimeType.startsWith("video/");
-  const isAudio = mimeType.startsWith("audio/");
+  const actionButtonClass =
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-surface2 hover:text-foreground";
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -255,66 +259,95 @@ export function FileCard({
           </div>
         </div>
 
-        {/* Quick play button for media */}
-        {isMedia && onPlay && (
+        {/* Inline actions */}
+        <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+          {isMedia && onPlay && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPlay();
+                  }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-all hover:bg-primary hover:text-white"
+                >
+                  <Play className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{isVideo ? "Смотреть видео" : "Слушать аудио"}</TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onPlay();
+                  onDownload();
                 }}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary opacity-0 transition-all hover:bg-primary hover:text-white group-hover:opacity-100"
+                className={actionButtonClass}
               >
-                <Play className="h-4 w-4" />
+                <Download className="h-4 w-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent>
-              {isVideo ? "Смотреть видео" : "Слушать аудио"}
-            </TooltipContent>
+            <TooltipContent>Скачать</TooltipContent>
           </Tooltip>
-        )}
 
-        {/* Actions menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-all hover:bg-surface2 hover:text-foreground group-hover:opacity-100"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            {isVideo && onPlay && (
-              <DropdownMenuItem onClick={onPlay}>
-                <Play className="mr-2 h-4 w-4" />
-                Смотреть
-              </DropdownMenuItem>
-            )}
-            {isAudio && onPlay && (
-              <DropdownMenuItem onClick={onPlay}>
-                <Play className="mr-2 h-4 w-4" />
-                Слушать
-              </DropdownMenuItem>
-            )}
-            {isMedia && <DropdownMenuSeparator />}
-            <DropdownMenuItem onClick={onDownload}>
-              <Download className="mr-2 h-4 w-4" />
-              Скачать на устройство
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onShare}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Поделиться ссылкой
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete} className="text-error focus:text-error">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Удалить
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare();
+                }}
+                className={actionButtonClass}
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Поделиться</TooltipContent>
+          </Tooltip>
+
+          {onMove && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMove();
+                  }}
+                  className={actionButtonClass}
+                >
+                  <FolderInput className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Переместить</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className={cn(
+                  actionButtonClass,
+                  "text-error hover:bg-error/10 hover:text-error"
+                )}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Удалить</TooltipContent>
+          </Tooltip>
+        </div>
       </motion.div>
     </TooltipProvider>
   );

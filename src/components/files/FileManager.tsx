@@ -113,6 +113,7 @@ export function FileManager() {
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [moving, setMoving] = useState(false);
   const [allRootFolders, setAllRootFolders] = useState<FolderItem[]>([]);
+  const [singleMoveFile, setSingleMoveFile] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/folders?parentId=")
@@ -555,6 +556,40 @@ export function FileManager() {
     }
   };
 
+  const handleSingleMove = async (targetFolderId: string | null) => {
+    if (!singleMoveFile) return;
+
+    setMoving(true);
+    try {
+      const res = await fetch("/api/files/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: [singleMoveFile.id],
+          action: "move",
+          folderId: targetFolderId,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Move failed");
+      }
+
+      setMoveDialogOpen(false);
+      setSingleMoveFile(null);
+      loadData();
+      fetch("/api/folders?parentId=")
+        .then((r) => r.json())
+        .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
+        .catch(() => {});
+      toast.success("Файл перемещён");
+    } catch {
+      toast.error("Ошибка перемещения");
+    } finally {
+      setMoving(false);
+    }
+  };
+
   const handleFileSelect = (id: string, selected: boolean) => {
     setSelectedFiles((prev) => {
       const n = new Set(prev);
@@ -592,6 +627,7 @@ export function FileManager() {
     .filter((f) => selectedFiles.has(f.id))
     .reduce((sum, f) => sum + f.size, 0);
 
+  const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
   const isEmpty = folders.length === 0 && files.length === 0;
   const isSubfolder = currentFolderId !== null;
 
@@ -825,6 +861,14 @@ export function FileManager() {
                         onShare={() =>
                           setShareTarget({ type: "FILE", id: file.id, name: file.name })
                         }
+                        onMove={
+                          hasMoveTargets
+                            ? () => {
+                                setSingleMoveFile({ id: file.id, name: file.name });
+                                setMoveDialogOpen(true);
+                              }
+                            : undefined
+                        }
                         onShareLinksClick={() =>
                           setShareLinksTarget({ id: file.id, name: file.name })
                         }
@@ -866,8 +910,11 @@ export function FileManager() {
             : undefined
         }
         onMove={
-          (currentFolderId !== null || allRootFolders.length > 0)
-            ? () => setMoveDialogOpen(true)
+          hasMoveTargets
+            ? () => {
+                setSingleMoveFile(null);
+                setMoveDialogOpen(true);
+              }
             : undefined
         }
         onDelete={handleBulkDelete}
@@ -877,10 +924,13 @@ export function FileManager() {
       {/* Move dialog */}
       <MoveDialog
         open={moveDialogOpen}
-        onClose={() => setMoveDialogOpen(false)}
-        onMove={handleBulkMove}
+        onClose={() => {
+          setMoveDialogOpen(false);
+          setSingleMoveFile(null);
+        }}
+        onMove={singleMoveFile ? handleSingleMove : handleBulkMove}
         currentFolderId={currentFolderId}
-        excludeFolderIds={selectedFolders}
+        excludeFolderIds={singleMoveFile ? undefined : selectedFolders}
         moving={moving}
       />
 
