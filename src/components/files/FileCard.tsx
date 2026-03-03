@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   File,
@@ -67,6 +68,28 @@ interface FolderCardProps {
   onShare: () => void;
   onDelete: () => void;
   index: number;
+}
+
+const IMAGE_EXTENSIONS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "bmp",
+  "svg",
+  "avif",
+  "tif",
+  "tiff",
+  "ico",
+  "heic",
+  "heif",
+]);
+
+function isImageFile(mimeType: string, fileName: string) {
+  if (mimeType.startsWith("image/")) return true;
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  return !!ext && IMAGE_EXTENSIONS.has(ext);
 }
 
 function getFileIcon(mimeType: string) {
@@ -181,6 +204,8 @@ export function FileCard({
   index,
 }: FileCardProps) {
   const { icon: Icon, color, bg } = getFileIcon(mimeType);
+  const [thumbnailError, setThumbnailError] = useState(false);
+  const showThumbnail = isImageFile(mimeType, name) && !thumbnailError;
   const isMedia = mimeType.startsWith("video/") || mimeType.startsWith("audio/");
   const isVideo = mimeType.startsWith("video/");
   const actionButtonClass =
@@ -219,9 +244,25 @@ export function FileCard({
           </div>
         </div>
 
-        {/* Icon */}
-        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", bg)}>
-          <Icon className={cn("h-5 w-5", color)} />
+        {/* Icon / image thumbnail */}
+        <div
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl",
+            showThumbnail ? "bg-surface2" : bg
+          )}
+        >
+          {showThumbnail ? (
+            <img
+              src={`/api/files/${id}/stream`}
+              alt={name}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover"
+              onError={() => setThumbnailError(true)}
+            />
+          ) : (
+            <Icon className={cn("h-5 w-5", color)} />
+          )}
         </div>
 
         {/* Info */}
