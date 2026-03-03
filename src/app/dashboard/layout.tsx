@@ -20,7 +20,7 @@ export default async function DashboardLayout({
           title="Личный кабинет"
           subtitle="Управление файлами и настройками"
         />
-        <main className="min-h-[calc(100vh-3.5rem)] p-6">{children}</main>
+        <main className="min-h-[calc(100vh-4.5rem)] p-6">{children}</main>
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ export async function DashboardHeader({
   const initial = session?.user?.email?.[0]?.toUpperCase() ?? "?";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-surface/95 px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-18 items-center justify-between gap-4 border-b border-border bg-surface/95 px-6 backdrop-blur-md">
       <div>
         <h1 className="text-lg font-semibold text-foreground">{title}</h1>
         {subtitle && (
