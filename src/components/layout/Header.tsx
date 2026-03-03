@@ -1,44 +1,46 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { ThemeToggle } from "./ThemeToggle";
+import { Button } from "@/components/ui/button";
 
 export async function Header() {
   const session = await getServerSession(authOptions);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/95 shadow-soft backdrop-blur-md">
       <div className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 font-bold text-slate-800">
-          <span className="text-xl">qoqon.ru</span>
+        <Link
+          href="/"
+          className="text-xl font-bold text-foreground transition-opacity hover:opacity-80"
+        >
+          qoqon.ru
         </Link>
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-4">
           <Link
             href="/dashboard"
-            className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Личный кабинет
           </Link>
           {session?.user?.role === "ADMIN" && (
             <Link
               href="/admin"
-              className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               Админка
             </Link>
           )}
+          <ThemeToggle />
           {session ? (
-            <Link
-              href="/api/auth/signout"
-              className="text-sm font-medium text-slate-500 transition-colors hover:text-slate-800"
-            >
-              Выйти
+            <Link href="/api/auth/signout">
+              <Button variant="ghost" size="sm">
+                Выйти
+              </Button>
             </Link>
           ) : (
-            <Link
-              href="/login"
-              className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-            >
-              Вход
+            <Link href="/login">
+              <Button size="sm">Вход</Button>
             </Link>
           )}
         </nav>

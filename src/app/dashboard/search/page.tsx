@@ -1,10 +1,16 @@
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+
 export default function DashboardSearchPage() {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-2 text-lg font-semibold text-slate-800">Поиск</h2>
-      <p className="text-sm text-slate-500">
-        Полнотекстовый и AI-поиск по документам
-      </p>
-    </div>
+    <Card>
+      <CardHeader>
+        <h2 className="text-lg font-semibold">Поиск</h2>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+          Полнотекстовый и AI-поиск по документам
+        </p>
+      </CardContent>
+    </Card>
   );
 }

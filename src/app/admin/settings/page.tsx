@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { Card } from "@/components/ui/card";
 import { useState, Suspense } from "react";
 
 type Tab = "s3" | "yookassa" | "ai";
@@ -12,7 +13,7 @@ function AdminSettingsContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-2 border-b border-slate-200 pb-2">
+      <div className="flex gap-2 border-b border-border pb-2">
         {(["s3", "yookassa", "ai"] as const).map((t) => (
           <button
             key={t}
@@ -20,7 +21,7 @@ function AdminSettingsContent() {
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
               tab === t
                 ? "bg-primary text-primary-foreground"
-                : "text-slate-600 hover:bg-slate-100"
+                : "text-muted-foreground hover:bg-surface2"
             }`}
           >
             {t === "s3" ? "S3 хранилище" : t === "yookassa" ? "ЮKassa" : "AI-провайдеры"}
@@ -28,37 +29,37 @@ function AdminSettingsContent() {
         ))}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <Card className="p-6">
         {tab === "s3" && (
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">
+            <h2 className="text-lg font-semibold text-foreground">
               S3-совместимое хранилище
             </h2>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-muted-foreground">
               Yandex Cloud, SberCloud, Selectel
             </p>
             <div className="mt-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-foreground">
                   Endpoint
                 </label>
                 <input
                   type="text"
                   placeholder="https://storage.yandexcloud.net"
-                  className="mt-1 w-full max-w-md rounded-lg border border-slate-200 px-3 py-2.5 text-slate-800"
+                  className="mt-1 w-full max-w-md rounded-xl border border-border bg-surface px-4 py-2.5 text-foreground"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-foreground">
                   Bucket
                 </label>
                 <input
                   type="text"
                   placeholder="my-bucket"
-                  className="mt-1 w-full max-w-md rounded-lg border border-slate-200 px-3 py-2.5 text-slate-800"
+                  className="mt-1 w-full max-w-md rounded-xl border border-border bg-surface px-4 py-2.5 text-foreground"
                 />
               </div>
-              <button className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90">
+              <button className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-soft hover:bg-primary/90">
                 Тест подключения
               </button>
             </div>
@@ -66,32 +67,32 @@ function AdminSettingsContent() {
         )}
         {tab === "yookassa" && (
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">ЮKassa</h2>
-            <p className="mt-2 text-sm text-slate-500">
+            <h2 className="text-lg font-semibold text-foreground">ЮKassa</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               Настройки для приёма платежей
             </p>
             <div className="mt-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-foreground">
                   Shop ID
                 </label>
                 <input
                   type="text"
                   placeholder=""
-                  className="mt-1 w-full max-w-md rounded-lg border border-slate-200 px-3 py-2.5 text-slate-800"
+                  className="mt-1 w-full max-w-md rounded-xl border border-border bg-surface px-4 py-2.5 text-foreground"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-foreground">
                   Secret Key
                 </label>
                 <input
                   type="password"
                   placeholder="••••••••"
-                  className="mt-1 w-full max-w-md rounded-lg border border-slate-200 px-3 py-2.5 text-slate-800"
+                  className="mt-1 w-full max-w-md rounded-xl border border-border bg-surface px-4 py-2.5 text-foreground"
                 />
               </div>
-              <button className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90">
+              <button className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-soft hover:bg-primary/90">
                 Тест API
               </button>
             </div>
@@ -99,28 +100,28 @@ function AdminSettingsContent() {
         )}
         {tab === "ai" && (
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">
+            <h2 className="text-lg font-semibold text-foreground">
               AI-провайдеры
             </h2>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-muted-foreground">
               YandexGPT, GigaChat, Ollama и др.
             </p>
-            <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-600">
+            <div className="mt-6 rounded-xl border border-border bg-surface2 p-4">
+              <p className="text-sm text-muted-foreground">
                 Добавление и управление AI-провайдерами через API админки.
                 Эндпоинты: GET/POST /api/admin/ai/providers
               </p>
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
 
 export default function AdminSettingsPage() {
   return (
-    <Suspense fallback={<div className="animate-pulse rounded-xl border bg-slate-100 p-6">Загрузка...</div>}>
+    <Suspense fallback={<div className="animate-pulse rounded-xl border border-border bg-surface2 p-6">Загрузка...</div>}>
       <AdminSettingsContent />
     </Suspense>
   );
