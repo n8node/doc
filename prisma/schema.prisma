@@ -100,6 +100,8 @@ model Plan {
   features       Json?     @map("features") // { "video_player": true, "audio_player": true, ... }
   priceMonthly   Int?      @map("price_monthly")
   priceYearly    Int?      @map("price_yearly")
+  sortOrder      Int       @default(0) @map("sort_order")
+  isPopular      Boolean   @default(false) @map("is_popular")
   yookassaPlanId String?   @map("yookassa_plan_id")
   users          User[]
   payments       Payment[]

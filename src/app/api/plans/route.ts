@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const plans = await prisma.plan.findMany({
-    orderBy: { name: "asc" },
+    orderBy: { sortOrder: "asc" },
     select: {
       id: true,
       name: true,
@@ -15,6 +15,7 @@ export async function GET() {
       features: true,
       priceMonthly: true,
       priceYearly: true,
+      isPopular: true,
     },
   });
   return NextResponse.json({

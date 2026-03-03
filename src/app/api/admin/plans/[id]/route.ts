@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
   const { id } = await ctx.params;
   const body = await req.json();
-  const { name, isFree, storageQuota, maxFileSize, features, priceMonthly, priceYearly } = body;
+  const { name, isFree, storageQuota, maxFileSize, features, priceMonthly, priceYearly, isPopular } = body;
   const data: Record<string, unknown> = {};
   if (name != null) data.name = name;
   if (isFree != null) data.isFree = !!isFree;
@@ -28,6 +28,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (features != null) data.features = features;
   if (priceMonthly != null) data.priceMonthly = priceMonthly;
   if (priceYearly != null) data.priceYearly = priceYearly;
+  if (isPopular != null) {
+    data.isPopular = !!isPopular;
+    if (isPopular) {
+      await prisma.plan.updateMany({ where: { isPopular: true, id: { not: id } }, data: { isPopular: false } });
+    }
+  }
   const plan = await prisma.plan.update({ where: { id }, data });
   return NextResponse.json({
     ...plan,

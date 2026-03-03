@@ -16,6 +16,7 @@ interface PlanData {
   id?: string;
   name: string;
   isFree: boolean;
+  isPopular: boolean;
   storageQuota: number;
   maxFileSize: number;
   features: Record<string, boolean>;
@@ -48,6 +49,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
 
   const [name, setName] = useState("");
   const [isFree, setIsFree] = useState(false);
+  const [isPopular, setIsPopular] = useState(false);
   const [storageGb, setStorageGb] = useState("25");
   const [maxFileMb, setMaxFileMb] = useState("512");
   const [features, setFeatures] = useState<Record<string, boolean>>({
@@ -65,6 +67,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     if (plan) {
       setName(plan.name);
       setIsFree(plan.isFree);
+      setIsPopular(plan.isPopular ?? false);
       setStorageGb(String(bytesToGb(plan.storageQuota)));
       setMaxFileMb(String(bytesToMb(plan.maxFileSize)));
       setFeatures(plan.features || {});
@@ -73,6 +76,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     } else {
       setName("");
       setIsFree(false);
+      setIsPopular(false);
       setStorageGb("25");
       setMaxFileMb("512");
       setFeatures({
@@ -97,6 +101,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     const payload = {
       name: name.trim(),
       isFree,
+      isPopular,
       storageQuota: gbToBytes(parseFloat(storageGb) || 25),
       maxFileSize: mbToBytes(parseFloat(maxFileMb) || 512),
       features,
@@ -147,16 +152,28 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
             />
           </div>
 
-          {/* Бесплатный */}
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={isFree}
-              onChange={(e) => setIsFree(e.target.checked)}
-              className="h-4 w-4 rounded"
-            />
-            <span className="text-sm font-medium">Бесплатный тариф</span>
-          </label>
+          {/* Флаги */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={isFree}
+                onChange={(e) => setIsFree(e.target.checked)}
+                className="h-4 w-4 rounded"
+              />
+              <span className="text-sm font-medium">Бесплатный тариф</span>
+            </label>
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={isPopular}
+                onChange={(e) => setIsPopular(e.target.checked)}
+                className="h-4 w-4 rounded"
+              />
+              <span className="text-sm font-medium">Популярный</span>
+              <span className="text-xs text-muted-foreground">(снимется с других тарифов)</span>
+            </label>
+          </div>
 
           {/* Квота и лимит */}
           <div className="grid grid-cols-2 gap-4">

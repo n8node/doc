@@ -22,6 +22,7 @@ interface PlanItem {
   id: string;
   name: string;
   isFree: boolean;
+  isPopular: boolean;
   storageQuota: number;
   maxFileSize: number;
   features: Record<string, boolean>;
@@ -130,7 +131,7 @@ export default function DashboardPlansPage() {
       <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan, index) => {
           const current = isCurrent(plan.id);
-          const isPopular = !plan.isFree && plan.priceMonthly != null;
+          const isPopular = plan.isPopular;
 
           return (
             <motion.div

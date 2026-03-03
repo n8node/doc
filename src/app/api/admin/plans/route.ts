@@ -14,7 +14,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const plans = await prisma.plan.findMany({
-    orderBy: { name: "asc" },
+    orderBy: { sortOrder: "asc" },
     include: { _count: { select: { users: true } } },
   });
   return NextResponse.json({
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, isFree, storageQuota, maxFileSize, features, priceMonthly, priceYearly } = body;
+  const { name, isFree, storageQuota, maxFileSize, features, priceMonthly, priceYearly, isPopular } = body;
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Название обязательно" }, { status: 400 });
@@ -54,6 +54,13 @@ export async function POST(req: NextRequest) {
   let fileSizeValue = BigInt(maxFileSize || 512 * 1024 * 1024);
   if (fileSizeValue > MAX_ALLOWED_FILE_SIZE) fileSizeValue = MAX_ALLOWED_FILE_SIZE;
 
+  const lastPlan = await prisma.plan.findFirst({ orderBy: { sortOrder: "desc" } });
+  const nextOrder = (lastPlan?.sortOrder ?? -1) + 1;
+
+  if (isPopular) {
+    await prisma.plan.updateMany({ where: { isPopular: true }, data: { isPopular: false } });
+  }
+
   const plan = await prisma.plan.create({
     data: {
       name: name.trim(),
@@ -63,6 +70,8 @@ export async function POST(req: NextRequest) {
       features: features ?? {},
       priceMonthly: priceMonthly ?? null,
       priceYearly: priceYearly ?? null,
+      sortOrder: nextOrder,
+      isPopular: !!isPopular,
     },
   });
 
