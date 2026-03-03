@@ -24,7 +24,7 @@ export function RenameDialog({
   open,
   onClose,
   itemType,
-  itemId,
+  itemId: _itemId,
   currentName,
   onRename,
 }: RenameDialogProps) {

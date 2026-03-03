@@ -22,7 +22,7 @@ import {
   Files,
   FolderTree,
   Users,
-  Image,
+  Image as ImageIcon,
   Video,
   Music,
   FileText,
@@ -199,7 +199,8 @@ export default function AdminStoragePage() {
     loadData();
   }, [loadData]);
 
-  // Reset page when filters change
+  // Reset page when filters change (page intentionally excluded to avoid infinite loop)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (page !== 1) setPage(1);
   }, [userIdFilter, search, mimeTypeFilter, currentFolder]);
@@ -331,7 +332,7 @@ export default function AdminStoragePage() {
   };
 
   const getMimeTypeIcon = (mimeType: string) => {
-    if (mimeType.startsWith("image/")) return <Image className="h-4 w-4 text-green-500" />;
+    if (mimeType.startsWith("image/")) return <ImageIcon className="h-4 w-4 text-green-500" />;
     if (mimeType.startsWith("video/")) return <Video className="h-4 w-4 text-blue-500" />;
     if (mimeType.startsWith("audio/")) return <Music className="h-4 w-4 text-purple-500" />;
     if (mimeType.includes("pdf") || mimeType.includes("document") || mimeType.includes("text")) {
@@ -474,7 +475,7 @@ export default function AdminStoragePage() {
             {(search || userIdFilter || mimeTypeFilter !== "all" || currentFolder) && (
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Активные фильтры:</span>
-                {search && <Badge variant="secondary">Поиск: "{search}"</Badge>}
+                {search && <Badge variant="secondary">Поиск: &quot;{search}&quot;</Badge>}
                 {userIdFilter && (
                   <Badge variant="secondary">
                     Пользователь: {users.find(u => u.id === userIdFilter)?.email || userIdFilter}

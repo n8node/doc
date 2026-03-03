@@ -17,7 +17,6 @@ import {
   FolderOpen, 
   Share2, 
   Calendar,
-  HardDrive,
   Files,
   Link,
   Clock,
@@ -41,8 +40,8 @@ interface FileDetails {
     name: string;
   } | null;
   hasEmbedding: boolean;
-  aiMetadata: any;
-  mediaMetadata: any;
+  aiMetadata: Record<string, unknown> | null;
+  mediaMetadata: Record<string, unknown> | null;
   shareLinks: Array<{
     id: string;
     token: string;
@@ -93,31 +92,29 @@ export function ItemDetailsDialog({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (open && itemId) {
-      loadDetails();
-    }
-  }, [open, itemId, itemType]);
+    if (!open || !itemId) return;
 
-  const loadDetails = async () => {
-    if (!itemId) return;
-    
-    setLoading(true);
-    try {
-      const endpoint = itemType === "file" 
-        ? `/api/admin/files/${itemId}` 
-        : `/api/admin/folders/${itemId}`;
-      
-      const res = await fetch(endpoint);
-      if (res.ok) {
-        const data = await res.json();
-        setDetails(data);
+    const loadDetails = async () => {
+      setLoading(true);
+      try {
+        const endpoint = itemType === "file"
+          ? `/api/admin/files/${itemId}`
+          : `/api/admin/folders/${itemId}`;
+
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const data = await res.json();
+          setDetails(data);
+        }
+      } catch (error) {
+        console.error("Failed to load details:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to load details:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    loadDetails();
+  }, [open, itemId, itemType]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("ru");

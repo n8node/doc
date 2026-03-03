@@ -20,15 +20,28 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(100, Math.max(10, parseInt(searchParams.get("limit") || "50", 10)));
   const skip = (page - 1) * limit;
 
-  // Build where conditions
-  const baseWhere: any = {};
+  // Build where conditions using Prisma-compatible types
+  type NameFilter = { contains: string; mode: "insensitive" };
+  type MimeFilter = { startsWith: string } | { in: string[] };
+
+  const baseWhere: { userId?: string } = {};
   if (userId) baseWhere.userId = userId;
 
-  const fileWhere = { 
+  const fileWhere: {
+    userId?: string;
+    folderId: string | null;
+    name?: NameFilter;
+    mimeType?: MimeFilter;
+  } = {
     ...baseWhere,
     folderId: folderId || null,
   };
-  const folderWhere = { 
+
+  const folderWhere: {
+    userId?: string;
+    parentId: string | null;
+    name?: NameFilter;
+  } = {
     ...baseWhere,
     parentId: folderId || null,
   };
@@ -48,15 +61,15 @@ export async function GET(request: NextRequest) {
     } else if (mimeTypeFilter === "audio") {
       fileWhere.mimeType = { startsWith: "audio/" };
     } else if (mimeTypeFilter === "document") {
-      fileWhere.mimeType = { 
+      fileWhere.mimeType = {
         in: [
           "application/pdf",
-          "application/msword", 
+          "application/msword",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
           "application/vnd.ms-excel",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "text/plain"
-        ]
+          "text/plain",
+        ],
       };
     }
   }
@@ -155,7 +168,7 @@ export async function GET(request: NextRequest) {
           ...path,
         ];
       }
-    } catch (e) {
+    } catch {
       // Ignore breadcrumb errors, use default
     }
   }
