@@ -195,7 +195,7 @@ export function FileManager() {
       try {
         const xhr = new XMLHttpRequest();
         
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve) => {
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
               const progress = Math.round((e.loaded / e.total) * 100);
@@ -206,36 +206,51 @@ export function FileManager() {
           };
 
           xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              const data = JSON.parse(xhr.responseText);
-              setUploadingFiles((prev) =>
-                prev.map((f) =>
-                  f.id === uploadId ? { ...f, status: "completed" as const, progress: 100 } : f
-                )
-              );
-              setFiles((prev) => [
-                {
-                  id: data.id,
-                  name: data.name,
-                  mimeType: data.mimeType,
-                  size: data.size,
-                  folderId: data.folderId,
-                  mediaMetadata: data.mediaMetadata ?? null,
-                  createdAt: data.createdAt,
-                },
-                ...prev,
-              ]);
-              resolve();
-            } else {
-              const data = JSON.parse(xhr.responseText);
+            try {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                const data = JSON.parse(xhr.responseText);
+                setUploadingFiles((prev) =>
+                  prev.map((f) =>
+                    f.id === uploadId ? { ...f, status: "completed" as const, progress: 100 } : f
+                  )
+                );
+                setFiles((prev) => [
+                  {
+                    id: data.id,
+                    name: data.name,
+                    mimeType: data.mimeType,
+                    size: data.size,
+                    folderId: data.folderId,
+                    mediaMetadata: data.mediaMetadata ?? null,
+                    createdAt: data.createdAt,
+                  },
+                  ...prev,
+                ]);
+                resolve();
+              } else {
+                let errorMsg = "Ошибка загрузки";
+                try {
+                  const data = JSON.parse(xhr.responseText);
+                  errorMsg = data.error || errorMsg;
+                } catch {}
+                setUploadingFiles((prev) =>
+                  prev.map((f) =>
+                    f.id === uploadId
+                      ? { ...f, status: "error" as const, error: errorMsg }
+                      : f
+                  )
+                );
+                resolve();
+              }
+            } catch {
               setUploadingFiles((prev) =>
                 prev.map((f) =>
                   f.id === uploadId
-                    ? { ...f, status: "error" as const, error: data.error || "Ошибка загрузки" }
+                    ? { ...f, status: "error" as const, error: "Ошибка обработки ответа" }
                     : f
                 )
               );
-              reject(new Error(data.error));
+              resolve();
             }
           };
 
@@ -245,24 +260,39 @@ export function FileManager() {
                 f.id === uploadId ? { ...f, status: "error" as const, error: "Сетевая ошибка" } : f
               )
             );
-            reject(new Error("Network error"));
+            resolve();
           };
 
+          xhr.ontimeout = () => {
+            setUploadingFiles((prev) =>
+              prev.map((f) =>
+                f.id === uploadId ? { ...f, status: "error" as const, error: "Превышено время ожидания" } : f
+              )
+            );
+            resolve();
+          };
+
+          xhr.timeout = 300000; // 5 минут на файл
           xhr.open("POST", "/api/files/upload");
           xhr.send(formData);
         });
       } catch {}
     }
 
-    const completedCount = newUploadingFiles.length;
-    if (completedCount > 0) {
-      setTimeout(() => {
-        const errorCount = uploadingFiles.filter((f) => f.status === "error").length;
-        if (errorCount === 0) {
-          toast.success(`Загружено файлов: ${completedCount}`);
-        }
-      }, 500);
-    }
+    setUploadingFiles((currentFiles) => {
+      const completed = currentFiles.filter((f) => f.status === "completed").length;
+      const errors = currentFiles.filter((f) => f.status === "error").length;
+      
+      if (completed > 0 && errors === 0) {
+        toast.success(`Загружено файлов: ${completed}`);
+      } else if (completed > 0 && errors > 0) {
+        toast.warning(`Загружено: ${completed}, ошибок: ${errors}`);
+      } else if (errors > 0) {
+        toast.error(`Ошибка загрузки ${errors} файлов`);
+      }
+      
+      return currentFiles;
+    });
   };
 
   const handleCreateFolder = async () => {
