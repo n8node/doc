@@ -164,6 +164,7 @@ export function FileManager() {
   const activeSection = parseFilesSection(searchParams.get("section"));
   const isRecentSection = activeSection === "recent";
   const isPhotosSection = activeSection === "photos";
+  const isSharedSection = activeSection === "shared";
   const normalizedViewMode = parseViewMode(viewParam, isPhotosSection ? "grid" : "list");
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
@@ -311,12 +312,12 @@ export function FileManager() {
   }, [loadStorageInfo]);
 
   useEffect(() => {
-    if (isRecentSection || isPhotosSection) {
+    if (isRecentSection || isPhotosSection || isSharedSection) {
       setCurrentFolderId(null);
       return;
     }
     setCurrentFolderId(folderIdParam || null);
-  }, [folderIdParam, isRecentSection, isPhotosSection]);
+  }, [folderIdParam, isRecentSection, isPhotosSection, isSharedSection]);
 
   useEffect(() => {
     if (!selectedCustomDate) return;
@@ -331,7 +332,7 @@ export function FileManager() {
 
   const buildBaseFileFilterParams = useCallback(() => {
     const params = new URLSearchParams();
-    if (isRecentSection || isPhotosSection) {
+    if (isRecentSection || isPhotosSection || isSharedSection) {
       params.set("scope", "all");
     } else {
       params.set("folderId", currentFolderId || "");
@@ -341,7 +342,7 @@ export function FileManager() {
     } else if (filterType !== "all") {
       params.set("type", filterType);
     }
-    if (filterHasShareLink) params.set("hasShareLink", "true");
+    if (isSharedSection || filterHasShareLink) params.set("hasShareLink", "true");
     if (filterSize !== "all") {
       if (filterSize === "small") {
         params.set("sizeMax", String(10 * 1024 * 1024)); // 10 MB
@@ -353,7 +354,15 @@ export function FileManager() {
       }
     }
     return params;
-  }, [currentFolderId, isRecentSection, isPhotosSection, filterType, filterSize, filterHasShareLink]);
+  }, [
+    currentFolderId,
+    isRecentSection,
+    isPhotosSection,
+    isSharedSection,
+    filterType,
+    filterSize,
+    filterHasShareLink,
+  ]);
 
   const loadData = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -403,7 +412,7 @@ export function FileManager() {
       }
 
       const filesRes = await fetch(`/api/files?${filesParams.toString()}`);
-      const foldersRes = isRecentSection || isPhotosSection
+      const foldersRes = isRecentSection || isPhotosSection || isSharedSection
         ? null
         : await fetch(`/api/folders?parentId=${currentFolderId || ""}`);
 
@@ -414,7 +423,7 @@ export function FileManager() {
       if (foldersRes?.ok) {
         const d = await foldersRes.json();
         setFolders(d.folders ?? []);
-      } else if (isRecentSection || isPhotosSection) {
+      } else if (isRecentSection || isPhotosSection || isSharedSection) {
         setFolders([]);
       }
 
@@ -423,6 +432,8 @@ export function FileManager() {
         bc = [{ id: null, name: "Недавние файлы" }];
       } else if (isPhotosSection) {
         bc = [{ id: null, name: "Фото" }];
+      } else if (isSharedSection) {
+        bc = [{ id: null, name: "Общий доступ" }];
       } else if (currentFolderId) {
         const pathRes = await fetch(`/api/folders/${currentFolderId}/path`);
         if (pathRes.ok) {
@@ -448,6 +459,7 @@ export function FileManager() {
     currentFolderId,
     isRecentSection,
     isPhotosSection,
+    isSharedSection,
     buildBaseFileFilterParams,
     filterDate,
     selectedCustomDate,
@@ -1062,11 +1074,12 @@ export function FileManager() {
   );
 
   const typeFilterActive = !isPhotosSection && filterType !== "all";
+  const shareFilterActive = !isSharedSection && filterHasShareLink;
   const activeFiltersCount =
     (typeFilterActive ? 1 : 0) +
     (filterSize !== "all" ? 1 : 0) +
     (filterDate !== "all" ? 1 : 0) +
-    (filterHasShareLink ? 1 : 0);
+    (shareFilterActive ? 1 : 0);
   const hasActiveFilters = activeFiltersCount > 0;
   const resetFilters = () => {
     setFilterType("all");
@@ -1139,7 +1152,7 @@ export function FileManager() {
     router.replace(`/dashboard/files?${nextParams.toString()}`);
   };
 
-  const showFolders = !isRecentSection && !isPhotosSection;
+  const showFolders = !isRecentSection && !isPhotosSection && !isSharedSection;
   const showPhotoGrid = isPhotosSection && viewMode === "grid";
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
   const isEmpty = showFolders ? folders.length === 0 && files.length === 0 : files.length === 0;
@@ -1326,22 +1339,29 @@ export function FileManager() {
                     </DropdownMenuContent>
                   </DropdownMenu>
 
-                  <label
-                    className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition-colors ${
-                      filterHasShareLink
-                        ? "border-primary/60 bg-primary/10 text-primary"
-                        : "border-border/70 bg-background/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filterHasShareLink}
-                      onChange={(e) => setFilterHasShareLink(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <Link2 className="h-4 w-4" />
-                    <span className="whitespace-nowrap">С публичной ссылкой</span>
-                  </label>
+                  {isSharedSection ? (
+                    <div className="flex h-10 items-center gap-2 rounded-xl border border-primary/60 bg-primary/10 px-3 text-sm text-primary">
+                      <Link2 className="h-4 w-4" />
+                      <span className="whitespace-nowrap">Только с публичной ссылкой</span>
+                    </div>
+                  ) : (
+                    <label
+                      className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition-colors ${
+                        filterHasShareLink
+                          ? "border-primary/60 bg-primary/10 text-primary"
+                          : "border-border/70 bg-background/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filterHasShareLink}
+                        onChange={(e) => setFilterHasShareLink(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <Link2 className="h-4 w-4" />
+                      <span className="whitespace-nowrap">С публичной ссылкой</span>
+                    </label>
+                  )}
                 </div>
               </div>
             </div>
@@ -1570,7 +1590,7 @@ export function FileManager() {
                   ) : (
                     <div className="space-y-2">
                       <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Файлы ({files.length})
+                        {isSharedSection ? "Общий доступ" : "Файлы"} ({files.length})
                       </p>
                       <div className="space-y-1">
                         {files.map((file, index) => renderListFile(file, index + folders.length))}
