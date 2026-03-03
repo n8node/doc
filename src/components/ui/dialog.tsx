@@ -6,8 +6,29 @@ import { cn } from "@/lib/utils";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
-const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
+
+const DialogPortal = ({
+  className,
+  children,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Portal> & {
+  className?: string;
+}) => (
+  <DialogPrimitive.Portal
+    container={typeof document !== "undefined" ? document.body : undefined}
+    {...props}
+  >
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6",
+        className
+      )}
+    >
+      {children}
+    </div>
+  </DialogPrimitive.Portal>
+);
 
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
@@ -33,7 +54,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-1.5rem)] max-h-[calc(100vh-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-2xl modal-glass p-6",
+        "relative z-50 grid w-full max-h-[calc(100vh-1.5rem)] max-w-lg gap-4 overflow-y-auto rounded-2xl modal-glass p-6",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
         className
       )}
