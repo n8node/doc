@@ -596,7 +596,7 @@ export function FileManager() {
         onDownload={
           selectedFiles.size > 0
             ? async () => {
-                for (const id of selectedFiles) {
+                for (const id of Array.from(selectedFiles)) {
                   await handleDownload(id);
                 }
               }
