@@ -20,11 +20,29 @@ async function main() {
     where: { name: "Бесплатный" },
     create: {
       name: "Бесплатный",
-      storageQuota: BigInt(10 * 1024 * 1024 * 1024), // 10GB
+      isFree: true,
+      storageQuota: BigInt(25 * 1024 * 1024 * 1024), // 25GB
+      features: {
+        video_player: true,
+        audio_player: true,
+        share_links: true,
+        folder_share: true,
+        ai_search: false,
+      },
       priceMonthly: null,
       priceYearly: null,
     },
-    update: {},
+    update: {
+      isFree: true,
+      storageQuota: BigInt(25 * 1024 * 1024 * 1024),
+      features: {
+        video_player: true,
+        audio_player: true,
+        share_links: true,
+        folder_share: true,
+        ai_search: false,
+      },
+    },
   });
   console.log("Seed: plan", freePlan.name);
 }

@@ -11,67 +11,91 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid()) @map("id")
-  email        String    @unique @map("email")
-  passwordHash String    @map("password_hash")
-  role         Role      @default(USER) @map("role")
-  storageUsed  BigInt    @default(0) @map("storage_used")
-  storageQuota BigInt    @default(10737418240) @map("storage_quota") // 10GB
-  planId       String?   @map("plan_id")
-  plan         Plan?     @relation(fields: [planId], references: [id])
+  id           String      @id @default(cuid()) @map("id")
+  email        String      @unique @map("email")
+  passwordHash String      @map("password_hash")
+  role         Role        @default(USER) @map("role")
+  storageUsed  BigInt      @default(0) @map("storage_used")
+  storageQuota BigInt      @default(26843545600) @map("storage_quota") // 25GB
+  planId       String?     @map("plan_id")
+  plan         Plan?       @relation(fields: [planId], references: [id])
   files        File[]
   folders      Folder[]
   payments     Payment[]
   aiTasks      AiTask[]
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  shareLinks   ShareLink[]
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
   @@map("users")
 }
 
 model File {
-  id            String   @id @default(cuid()) @map("id")
-  name          String   @map("name")
-  mimeType      String   @map("mime_type")
-  size          BigInt   @map("size")
-  s3Key         String   @map("s3_key")
-  folderId      String?  @map("folder_id")
-  folder        Folder?  @relation(fields: [folderId], references: [id])
-  userId        String   @map("user_id")
-  user          User     @relation(fields: [userId], references: [id])
-  isShared      Boolean  @default(false) @map("is_shared")
-  sharedLink    String?  @unique @map("shared_link")
-  hasEmbedding  Boolean  @default(false) @map("has_embedding")
-  aiMetadata    Json?    @map("ai_metadata") // { categories, entities, summary }
-  mediaMetadata Json?    @map("media_metadata") // { durationSeconds } для видео/аудио
+  id            String      @id @default(cuid()) @map("id")
+  name          String      @map("name")
+  mimeType      String      @map("mime_type")
+  size          BigInt      @map("size")
+  s3Key         String      @map("s3_key")
+  folderId      String?     @map("folder_id")
+  folder        Folder?     @relation(fields: [folderId], references: [id])
+  userId        String      @map("user_id")
+  user          User        @relation(fields: [userId], references: [id])
+  isShared      Boolean     @default(false) @map("is_shared")
+  sharedLink    String?     @unique @map("shared_link")
+  hasEmbedding  Boolean     @default(false) @map("has_embedding")
+  aiMetadata    Json?       @map("ai_metadata")
+  mediaMetadata Json?       @map("media_metadata")
+  shareLinks    ShareLink[]
   embeddings    DocumentEmbedding[]
   aiTasks       AiTask[]
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
 
   @@map("files")
   @@index([userId, folderId])
 }
 
 model Folder {
-  id        String   @id @default(cuid()) @map("id")
-  name      String   @map("name")
-  parentId  String?  @map("parent_id")
-  parent    Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
-  children  Folder[] @relation("FolderHierarchy")
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
-  files     File[]
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String      @id @default(cuid()) @map("id")
+  name       String      @map("name")
+  parentId   String?     @map("parent_id")
+  parent     Folder?     @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children   Folder[]    @relation("FolderHierarchy")
+  userId     String      @map("user_id")
+  user       User        @relation(fields: [userId], references: [id])
+  files      File[]
+  shareLinks ShareLink[]
+  createdAt  DateTime    @default(now()) @map("created_at")
 
   @@map("folders")
   @@index([userId, parentId])
 }
 
+model ShareLink {
+  id          String    @id @default(cuid()) @map("id")
+  token       String    @unique @map("token")
+  targetType  String    @map("target_type") // "FILE" | "FOLDER"
+  fileId      String?   @map("file_id")
+  file        File?     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  folderId    String?   @map("folder_id")
+  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime? @map("expires_at")
+  oneTime     Boolean   @default(false) @map("one_time")
+  usedAt      DateTime? @map("used_at")
+  createdById String    @map("created_by_id")
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("share_links")
+  @@index([createdById])
+}
+
 model Plan {
   id             String    @id @default(cuid()) @map("id")
   name           String    @unique @map("name")
+  isFree         Boolean   @default(false) @map("is_free")
   storageQuota   BigInt    @map("storage_quota")
+  features       Json?     @map("features") // { "video_player": true, "audio_player": true, ... }
   priceMonthly   Int?      @map("price_monthly")
   priceYearly    Int?      @map("price_yearly")
   yookassaPlanId String?   @map("yookassa_plan_id")

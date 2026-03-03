@@ -1,4 +1,4 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, DeleteObjectCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Config } from "./s3-config";
 import { createS3Client } from "./s3";
 import { prisma } from "./prisma";
@@ -69,4 +69,77 @@ export async function uploadFile(input: UploadFileInput) {
   });
 
   return dbFile;
+}
+
+export async function deleteFile(id: string, userId: string) {
+  const file = await prisma.file.findFirst({
+    where: { id, userId },
+  });
+  if (!file) throw new Error("Файл не найден");
+
+  const config = await getS3Config();
+  const client = createS3Client({ ...config, forcePathStyle: true });
+  await client.send(
+    new DeleteObjectCommand({ Bucket: config.bucket, Key: file.s3Key })
+  );
+  await prisma.file.delete({ where: { id } });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { storageUsed: { decrement: file.size } },
+  });
+}
+
+export async function moveFile(id: string, folderId: string | null, userId: string) {
+  const file = await prisma.file.findFirst({
+    where: { id, userId },
+  });
+  if (!file) throw new Error("Файл не найден");
+
+  if (folderId) {
+    const folder = await prisma.folder.findFirst({
+      where: { id: folderId, userId },
+    });
+    if (!folder) throw new Error("Папка не найдена");
+  }
+
+  const config = await getS3Config();
+  const client = createS3Client({ ...config, forcePathStyle: true });
+
+  const ext = file.name.includes(".") ? file.name.split(".").pop() ?? "" : "";
+  const baseName = file.name
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[^a-zA-Z0-9_\-\u0400-\u04FF]/g, "_")
+    .slice(0, 100) || "file";
+  const safeName = ext ? `${baseName}.${ext}` : baseName;
+  const timestamp = Date.now();
+  const newS3Key = folderId
+    ? `users/${userId}/${folderId}/${timestamp}-${safeName}`
+    : `users/${userId}/${timestamp}-${safeName}`;
+
+  await client.send(
+    new CopyObjectCommand({
+      Bucket: config.bucket,
+      CopySource: `${config.bucket}/${file.s3Key}`,
+      Key: newS3Key,
+    })
+  );
+  await client.send(
+    new DeleteObjectCommand({ Bucket: config.bucket, Key: file.s3Key })
+  );
+
+  return prisma.file.update({
+    where: { id },
+    data: { folderId, s3Key: newS3Key },
+  });
+}
+
+export async function renameFile(id: string, name: string, userId: string) {
+  const file = await prisma.file.findFirst({
+    where: { id, userId },
+  });
+  if (!file) throw new Error("Файл не найден");
+  return prisma.file.update({
+    where: { id },
+    data: { name },
+  });
 }
