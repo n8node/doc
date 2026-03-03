@@ -3,6 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+const DOCUMENT_MIMES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+  "application/rtf",
+];
+
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -11,12 +21,54 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const folderId = searchParams.get("folderId");
+  const typeFilter = searchParams.get("type"); // image | video | audio | document | all
+  const sizeMin = searchParams.get("sizeMin");
+  const sizeMax = searchParams.get("sizeMax");
+  const dateFrom = searchParams.get("dateFrom");
+  const dateTo = searchParams.get("dateTo");
+  const hasShareLink = searchParams.get("hasShareLink"); // "true" | "false" | ""
+
+  const where: {
+    userId: string;
+    folderId: string | null;
+    mimeType?: { startsWith: string } | { in: string[] };
+    size?: { gte?: bigint; lte?: bigint };
+    createdAt?: { gte?: Date; lte?: Date };
+    shareLinks?: { some: { OR: Array<{ expiresAt: null } | { expiresAt: { gt: Date } }> } };
+  } = {
+    userId: session.user.id,
+    folderId: folderId || null,
+  };
+
+  if (typeFilter && typeFilter !== "all") {
+    if (typeFilter === "image") where.mimeType = { startsWith: "image/" };
+    else if (typeFilter === "video") where.mimeType = { startsWith: "video/" };
+    else if (typeFilter === "audio") where.mimeType = { startsWith: "audio/" };
+    else if (typeFilter === "document") where.mimeType = { in: DOCUMENT_MIMES };
+  }
+
+  if (sizeMin || sizeMax) {
+    where.size = {};
+    if (sizeMin) where.size.gte = BigInt(sizeMin);
+    if (sizeMax) where.size.lte = BigInt(sizeMax);
+  }
+
+  if (dateFrom || dateTo) {
+    where.createdAt = {};
+    if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+    if (dateTo) where.createdAt.lte = new Date(dateTo);
+  }
+
+  if (hasShareLink === "true") {
+    where.shareLinks = {
+      some: {
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+    };
+  }
 
   const files = await prisma.file.findMany({
-    where: {
-      userId: session.user.id,
-      folderId: folderId || null,
-    },
+    where,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -27,13 +79,26 @@ export async function GET(request: NextRequest) {
       folderId: true,
       mediaMetadata: true,
       createdAt: true,
+      shareLinks: {
+        where: {
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        select: { id: true },
+      },
     },
   });
 
   return NextResponse.json({
     files: files.map((f) => ({
-      ...f,
+      id: f.id,
+      name: f.name,
+      mimeType: f.mimeType,
       size: Number(f.size),
+      s3Key: f.s3Key,
+      folderId: f.folderId,
+      mediaMetadata: f.mediaMetadata,
+      createdAt: f.createdAt,
+      hasShareLink: f.shareLinks.length > 0,
     })),
   });
 }

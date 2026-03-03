@@ -9,6 +9,8 @@ import {
   LayoutGrid,
   LayoutList,
   RefreshCw,
+  Filter,
+  Link2,
 } from "lucide-react";
 import {
   Dialog,
@@ -40,6 +42,7 @@ interface FileItem {
   folderId: string | null;
   mediaMetadata: { durationSeconds?: number } | null;
   createdAt: string;
+  hasShareLink?: boolean;
 }
 
 interface FolderItem {
@@ -92,6 +95,12 @@ export function FileManager() {
 
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
+  // Filters
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterSize, setFilterSize] = useState<string>("all");
+  const [filterDate, setFilterDate] = useState<string>("all");
+  const [filterHasShareLink, setFilterHasShareLink] = useState(false);
+
   const [maxFileSize, setMaxFileSize] = useState<number>(512 * 1024 * 1024); // 512 MB default
 
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
@@ -125,8 +134,41 @@ export function FileManager() {
     else setLoading(true);
 
     try {
+      const filesParams = new URLSearchParams();
+      filesParams.set("folderId", currentFolderId || "");
+      if (filterType !== "all") filesParams.set("type", filterType);
+      if (filterHasShareLink) filesParams.set("hasShareLink", "true");
+      if (filterSize !== "all") {
+        if (filterSize === "small") {
+          filesParams.set("sizeMax", String(10 * 1024 * 1024)); // 10 MB
+        } else if (filterSize === "medium") {
+          filesParams.set("sizeMin", String(10 * 1024 * 1024));
+          filesParams.set("sizeMax", String(100 * 1024 * 1024)); // 100 MB
+        } else if (filterSize === "large") {
+          filesParams.set("sizeMin", String(100 * 1024 * 1024));
+        }
+      }
+      if (filterDate !== "all") {
+        const now = new Date();
+        if (filterDate === "today") {
+          const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          filesParams.set("dateFrom", start.toISOString());
+          filesParams.set("dateTo", now.toISOString());
+        } else if (filterDate === "week") {
+          const start = new Date(now);
+          start.setDate(start.getDate() - 7);
+          filesParams.set("dateFrom", start.toISOString());
+          filesParams.set("dateTo", now.toISOString());
+        } else if (filterDate === "month") {
+          const start = new Date(now);
+          start.setMonth(start.getMonth() - 1);
+          filesParams.set("dateFrom", start.toISOString());
+          filesParams.set("dateTo", now.toISOString());
+        }
+      }
+
       const [filesRes, foldersRes] = await Promise.all([
-        fetch(`/api/files?folderId=${currentFolderId || ""}`),
+        fetch(`/api/files?${filesParams.toString()}`),
         fetch(`/api/folders?parentId=${currentFolderId || ""}`),
       ]);
 
@@ -160,7 +202,7 @@ export function FileManager() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [currentFolderId]);
+  }, [currentFolderId, filterType, filterSize, filterDate, filterHasShareLink]);
 
   useEffect(() => {
     loadData();
@@ -597,6 +639,70 @@ export function FileManager() {
         </CardHeader>
 
         <CardContent className="space-y-6 p-6">
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface2/30 px-4 py-3">
+            <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              Фильтры:
+            </span>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            >
+              <option value="all">Все типы</option>
+              <option value="image">Изображения</option>
+              <option value="video">Видео</option>
+              <option value="audio">Аудио</option>
+              <option value="document">Документы</option>
+            </select>
+            <select
+              value={filterSize}
+              onChange={(e) => setFilterSize(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            >
+              <option value="all">Любой размер</option>
+              <option value="small">До 10 МБ</option>
+              <option value="medium">10–100 МБ</option>
+              <option value="large">Более 100 МБ</option>
+            </select>
+            <select
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            >
+              <option value="all">Любая дата</option>
+              <option value="today">Сегодня</option>
+              <option value="week">За неделю</option>
+              <option value="month">За месяц</option>
+            </select>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={filterHasShareLink}
+                onChange={(e) => setFilterHasShareLink(e.target.checked)}
+                className="rounded border-input"
+              />
+              <Link2 className="h-4 w-4 text-muted-foreground" />
+              С публичной ссылкой
+            </label>
+            {(filterType !== "all" || filterSize !== "all" || filterDate !== "all" || filterHasShareLink) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFilterType("all");
+                  setFilterSize("all");
+                  setFilterDate("all");
+                  setFilterHasShareLink(false);
+                }}
+                className="text-muted-foreground"
+              >
+                Сбросить
+              </Button>
+            )}
+          </div>
+
           {/* Upload zone */}
           <UploadZone
             onUpload={handleUpload}
@@ -694,6 +800,7 @@ export function FileManager() {
                         size={file.size}
                         createdAt={file.createdAt}
                         mediaMetadata={file.mediaMetadata}
+                        hasShareLink={file.hasShareLink}
                         selected={selectedFiles.has(file.id)}
                         onSelect={handleFileSelect}
                         onPlay={

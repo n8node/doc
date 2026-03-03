@@ -19,6 +19,7 @@ import {
   FolderOpen,
   Clock,
   Check,
+  Link2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -42,6 +43,7 @@ interface FileCardProps {
   size: number;
   createdAt: string;
   mediaMetadata?: { durationSeconds?: number } | null;
+  hasShareLink?: boolean;
   selected: boolean;
   onSelect: (id: string, selected: boolean) => void;
   onPlay?: () => void;
@@ -162,6 +164,7 @@ export function FileCard({
   size,
   createdAt,
   mediaMetadata,
+  hasShareLink = false,
   selected,
   onSelect,
   onPlay,
@@ -215,7 +218,15 @@ export function FileCard({
 
         {/* Info */}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">{name}</p>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-medium text-foreground">{name}</p>
+            {hasShareLink && (
+              <span className="flex shrink-0 items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+                <Link2 className="h-3 w-3" />
+                Публичная ссылка
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{formatBytes(size)}</span>
             {mediaMetadata?.durationSeconds != null && (
