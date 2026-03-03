@@ -10,12 +10,14 @@ import {
   Settings,
   LogOut,
   HardDrive,
+  Crown,
 } from "lucide-react";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
 
 const navItems = [
   { href: "/dashboard/files", icon: FolderOpen, label: "Файлы" },
   { href: "/dashboard/search", icon: Search, label: "Поиск" },
+  { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },
 ];
 
 export function Sidebar() {
@@ -40,7 +42,7 @@ export function Sidebar() {
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-6">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link key={item.href} href={item.href}>
                 <motion.div

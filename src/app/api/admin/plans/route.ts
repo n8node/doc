@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
+
+const MAX_ALLOWED_FILE_SIZE = BigInt(5 * 1024 * 1024 * 1024); // 5 GB
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -11,12 +13,62 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const plans = await prisma.plan.findMany({ orderBy: { name: "asc" } });
+  const plans = await prisma.plan.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { users: true } } },
+  });
   return NextResponse.json({
     plans: plans.map((p) => ({
       ...p,
       storageQuota: Number(p.storageQuota),
       maxFileSize: Number(p.maxFileSize),
+      usersCount: p._count.users,
+      _count: undefined,
     })),
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  try {
+    requireAdmin(session);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const { name, isFree, storageQuota, maxFileSize, features, priceMonthly, priceYearly } = body;
+
+  if (!name || typeof name !== "string" || !name.trim()) {
+    return NextResponse.json({ error: "Название обязательно" }, { status: 400 });
+  }
+  if (!storageQuota || Number(storageQuota) <= 0) {
+    return NextResponse.json({ error: "Квота хранилища обязательна" }, { status: 400 });
+  }
+
+  const existing = await prisma.plan.findUnique({ where: { name: name.trim() } });
+  if (existing) {
+    return NextResponse.json({ error: "Тариф с таким названием уже существует" }, { status: 409 });
+  }
+
+  let fileSizeValue = BigInt(maxFileSize || 512 * 1024 * 1024);
+  if (fileSizeValue > MAX_ALLOWED_FILE_SIZE) fileSizeValue = MAX_ALLOWED_FILE_SIZE;
+
+  const plan = await prisma.plan.create({
+    data: {
+      name: name.trim(),
+      isFree: !!isFree,
+      storageQuota: BigInt(storageQuota),
+      maxFileSize: fileSizeValue,
+      features: features ?? {},
+      priceMonthly: priceMonthly ?? null,
+      priceYearly: priceYearly ?? null,
+    },
+  });
+
+  return NextResponse.json({
+    ...plan,
+    storageQuota: Number(plan.storageQuota),
+    maxFileSize: Number(plan.maxFileSize),
   });
 }

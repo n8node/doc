@@ -4,10 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 
-export async function PATCH(
-  req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
-) {
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function PATCH(req: NextRequest, ctx: Ctx) {
   const session = await getServerSession(authOptions);
   try {
     requireAdmin(session);
@@ -22,20 +21,38 @@ export async function PATCH(
   if (isFree != null) data.isFree = !!isFree;
   if (storageQuota != null) data.storageQuota = BigInt(storageQuota);
   if (maxFileSize != null) {
-    const MAX_ALLOWED = BigInt(5 * 1024 * 1024 * 1024); // 5 GB
+    const MAX_ALLOWED = BigInt(5 * 1024 * 1024 * 1024);
     const value = BigInt(maxFileSize);
     data.maxFileSize = value > MAX_ALLOWED ? MAX_ALLOWED : value;
   }
   if (features != null) data.features = features;
   if (priceMonthly != null) data.priceMonthly = priceMonthly;
   if (priceYearly != null) data.priceYearly = priceYearly;
-  const plan = await prisma.plan.update({
-    where: { id },
-    data,
-  });
+  const plan = await prisma.plan.update({ where: { id }, data });
   return NextResponse.json({
     ...plan,
     storageQuota: Number(plan.storageQuota),
     maxFileSize: Number(plan.maxFileSize),
   });
+}
+
+export async function DELETE(_req: NextRequest, ctx: Ctx) {
+  const session = await getServerSession(authOptions);
+  try {
+    requireAdmin(session);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const { id } = await ctx.params;
+
+  const usersOnPlan = await prisma.user.count({ where: { planId: id } });
+  if (usersOnPlan > 0) {
+    return NextResponse.json(
+      { error: `Нельзя удалить: ${usersOnPlan} пользователей на этом тарифе` },
+      { status: 409 }
+    );
+  }
+
+  await prisma.plan.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }

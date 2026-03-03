@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 const navItems = [
   { href: "/admin/settings", label: "Настройки", icon: "⚙️" },
+  { href: "/admin/plans", label: "Тарифы", icon: "👑" },
   { href: "/admin/storage", label: "Storage", icon: "📁" },
   { href: "/admin/settings?tab=s3", label: "S3", icon: "☁️" },
   { href: "/admin/settings?tab=yookassa", label: "ЮKassa", icon: "💳" },
@@ -20,6 +21,7 @@ export function AdminSidebar() {
   const isActive = (href: string) => {
     if (pathname === "/admin/users" && href === "/admin/users") return true;
     if (pathname === "/admin/storage" && href === "/admin/storage") return true;
+    if (pathname === "/admin/plans" && href === "/admin/plans") return true;
     if (pathname === "/admin/settings") {
       if (href === "/admin/settings" && !tab) return true;
       if (tab && href.includes(`tab=${tab}`)) return true;
