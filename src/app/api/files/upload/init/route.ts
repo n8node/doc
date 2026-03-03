@@ -1,0 +1,109 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { getMaxFileSize } from "@/lib/plan-service";
+import { formatBytes } from "@/lib/utils";
+import { buildS3Key } from "@/lib/file-service";
+import { getPresignedUploadUrl } from "@/lib/s3-upload";
+import { createUploadSessionToken } from "@/lib/upload-session";
+
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
+  }
+
+  const parsed = body as {
+    name?: string;
+    size?: number;
+    mimeType?: string;
+    folderId?: string | null;
+    mediaDurationSeconds?: number | null;
+  };
+
+  const name = typeof parsed.name === "string" ? parsed.name.trim() : "";
+  const size = typeof parsed.size === "number" ? parsed.size : NaN;
+  const mimeType =
+    typeof parsed.mimeType === "string" && parsed.mimeType
+      ? parsed.mimeType
+      : "application/octet-stream";
+  const folderId =
+    parsed.folderId && typeof parsed.folderId === "string" ? parsed.folderId : null;
+  const mediaDurationSeconds =
+    typeof parsed.mediaDurationSeconds === "number" &&
+    Number.isFinite(parsed.mediaDurationSeconds) &&
+    parsed.mediaDurationSeconds >= 0
+      ? parsed.mediaDurationSeconds
+      : null;
+
+  if (!name) {
+    return NextResponse.json({ error: "Имя файла обязательно" }, { status: 400 });
+  }
+  if (!Number.isFinite(size) || size <= 0) {
+    return NextResponse.json({ error: "Некорректный размер файла" }, { status: 400 });
+  }
+
+  const maxSize = await getMaxFileSize(session.user.id);
+  if (BigInt(size) > maxSize) {
+    return NextResponse.json(
+      { error: `Файл слишком большой. Максимум: ${formatBytes(Number(maxSize))}` },
+      { status: 413 }
+    );
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { storageUsed: true, storageQuota: true },
+  });
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+  if (user.storageUsed + BigInt(size) > user.storageQuota) {
+    return NextResponse.json({ error: "Превышен лимит хранилища" }, { status: 403 });
+  }
+
+  if (folderId) {
+    const folder = await prisma.folder.findFirst({
+      where: { id: folderId, userId: session.user.id },
+      select: { id: true },
+    });
+    if (!folder) {
+      return NextResponse.json({ error: "Папка не найдена" }, { status: 404 });
+    }
+  }
+
+  const s3Key = buildS3Key({
+    userId: session.user.id,
+    fileName: name,
+    folderId,
+  });
+
+  const presigned = await getPresignedUploadUrl({
+    s3Key,
+    contentType: mimeType,
+  });
+
+  const uploadSessionToken = createUploadSessionToken({
+    userId: session.user.id,
+    s3Key,
+    name,
+    mimeType,
+    size,
+    folderId,
+    mediaDurationSeconds,
+  });
+
+  return NextResponse.json({
+    uploadUrl: presigned.url,
+    uploadHeaders: presigned.headers,
+    uploadSessionToken,
+  });
+}

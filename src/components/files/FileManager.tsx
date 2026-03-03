@@ -245,6 +245,16 @@ export function FileManager() {
     });
   };
 
+  const readErrorMessage = async (response: Response, fallback: string) => {
+    try {
+      const data = (await response.json()) as { error?: string };
+      if (typeof data.error === "string" && data.error.trim()) {
+        return data.error;
+      }
+    } catch {}
+    return fallback;
+  };
+
   const handleUpload = async (fileList: FileList) => {
     if (!fileList?.length) return;
 
@@ -292,22 +302,57 @@ export function FileManager() {
         prev.map((f) => (f.id === uploadId ? { ...f, status: "uploading" as const, progress: 0 } : f))
       );
 
-      const formData = new FormData();
-      formData.append("file", file);
-      if (currentFolderId) formData.append("folderId", currentFolderId);
-
       const mediaType = file.type.startsWith("audio/") || file.type.startsWith("video/");
+      let mediaDurationSeconds: number | null = null;
       if (mediaType) {
         try {
-          const dur = await getMediaDuration(file);
-          if (dur != null) formData.append("duration", String(dur));
+          mediaDurationSeconds = await getMediaDuration(file);
         } catch {}
       }
 
       try {
-        const xhr = new XMLHttpRequest();
-        
+        const initRes = await fetch("/api/files/upload/init", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: file.name,
+            size: file.size,
+            mimeType: file.type || "application/octet-stream",
+            folderId: currentFolderId,
+            mediaDurationSeconds,
+          }),
+        });
+
+        if (!initRes.ok) {
+          const errorMsg = await readErrorMessage(initRes, "Ошибка инициализации загрузки");
+          setUploadingFiles((prev) =>
+            prev.map((f) =>
+              f.id === uploadId ? { ...f, status: "error" as const, error: errorMsg } : f
+            )
+          );
+          continue;
+        }
+
+        const initData = (await initRes.json()) as {
+          uploadUrl: string;
+          uploadHeaders?: Record<string, string>;
+          uploadSessionToken: string;
+        };
+
+        if (!initData.uploadUrl || !initData.uploadSessionToken) {
+          setUploadingFiles((prev) =>
+            prev.map((f) =>
+              f.id === uploadId
+                ? { ...f, status: "error" as const, error: "Некорректный ответ сервера" }
+                : f
+            )
+          );
+          continue;
+        }
+
         await new Promise<void>((resolve) => {
+          const xhr = new XMLHttpRequest();
+
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
               const progress = Math.round((e.loaded / e.total) * 100);
@@ -317,13 +362,36 @@ export function FileManager() {
             }
           };
 
-          xhr.onload = () => {
+          xhr.onload = async () => {
             try {
               if (xhr.status >= 200 && xhr.status < 300) {
-                const data = JSON.parse(xhr.responseText);
+                const completeRes = await fetch("/api/files/upload/complete", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    uploadSessionToken: initData.uploadSessionToken,
+                  }),
+                });
+
+                if (!completeRes.ok) {
+                  const errorMsg = await readErrorMessage(completeRes, "Ошибка завершения загрузки");
+                  setUploadingFiles((prev) =>
+                    prev.map((f) =>
+                      f.id === uploadId
+                        ? { ...f, status: "error" as const, error: errorMsg }
+                        : f
+                    )
+                  );
+                  resolve();
+                  return;
+                }
+
+                const data = await completeRes.json();
                 setUploadingFiles((prev) =>
                   prev.map((f) =>
-                    f.id === uploadId ? { ...f, status: "completed" as const, progress: 100 } : f
+                    f.id === uploadId
+                      ? { ...f, status: "completed" as const, progress: 100 }
+                      : f
                   )
                 );
                 setFiles((prev) => [
@@ -340,11 +408,10 @@ export function FileManager() {
                 ]);
                 resolve();
               } else {
-                let errorMsg = "Ошибка загрузки";
-                try {
-                  const data = JSON.parse(xhr.responseText);
-                  errorMsg = data.error || errorMsg;
-                } catch {}
+                const errorMsg =
+                  xhr.status > 0
+                    ? `Ошибка загрузки в хранилище (${xhr.status})`
+                    : "Ошибка загрузки в хранилище";
                 setUploadingFiles((prev) =>
                   prev.map((f) =>
                     f.id === uploadId
@@ -369,7 +436,13 @@ export function FileManager() {
           xhr.onerror = () => {
             setUploadingFiles((prev) =>
               prev.map((f) =>
-                f.id === uploadId ? { ...f, status: "error" as const, error: "Сетевая ошибка" } : f
+                f.id === uploadId
+                  ? {
+                      ...f,
+                      status: "error" as const,
+                      error: "Сетевая ошибка или блокировка CORS при загрузке",
+                    }
+                  : f
               )
             );
             resolve();
@@ -384,9 +457,14 @@ export function FileManager() {
             resolve();
           };
 
-          xhr.timeout = 300000; // 5 минут на файл
-          xhr.open("POST", "/api/files/upload");
-          xhr.send(formData);
+          xhr.timeout = 30 * 60 * 1000; // 30 минут на файл
+          xhr.open("PUT", initData.uploadUrl);
+          if (initData.uploadHeaders) {
+            for (const [header, value] of Object.entries(initData.uploadHeaders)) {
+              xhr.setRequestHeader(header, value);
+            }
+          }
+          xhr.send(file);
         });
       } catch {}
     }
