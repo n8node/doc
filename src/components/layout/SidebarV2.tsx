@@ -54,21 +54,21 @@ export function SidebarV2() {
       initial={{ x: -100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="fixed left-0 top-0 z-40 h-screen w-72 border-r border-border glass-strong"
+      className="fixed left-0 top-0 z-40 h-screen w-72 p-3"
     >
-      <div className="flex h-full flex-col">
-        <div className="flex h-18 items-center gap-3 border-b border-border px-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-glow">
-            <HardDrive className="h-5 w-5 text-white" />
+      <div className="modal-glass flex h-full flex-col overflow-hidden rounded-3xl border border-border/70">
+        <div className="flex h-20 items-center gap-3 border-b border-border/70 px-6">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary shadow-glow">
+            <HardDrive className="h-5 w-5 text-white drop-shadow" />
           </div>
           <div className="min-w-0">
             <p className="truncate text-lg font-bold text-foreground">qoqon.ru</p>
-            <p className="text-xs text-muted-foreground">Sidebar v2 (beta)</p>
+            <p className="text-xs text-muted-foreground">Новая навигация (beta)</p>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-6">
-          <div className="space-y-1">
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
+          <div className="space-y-1.5">
             <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Файлы
             </p>
@@ -81,21 +81,24 @@ export function SidebarV2() {
                     whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.98 }}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                      "relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                       isActive
-                        ? "bg-primary/10 text-primary shadow-soft"
-                        : "text-muted-foreground hover:bg-surface hover:text-foreground"
+                        ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                        : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground"
                     )}
                   >
                     <item.icon className={cn("h-5 w-5", isActive && "text-primary")} />
                     <span className="flex-1">{item.label}</span>
+                    {isActive && (
+                      <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.16)]" />
+                    )}
                   </motion.div>
                 </Link>
               );
             })}
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Инструменты
             </p>
@@ -107,10 +110,10 @@ export function SidebarV2() {
                     whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.98 }}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                       isActive
-                        ? "bg-primary/10 text-primary shadow-soft"
-                        : "text-muted-foreground hover:bg-surface hover:text-foreground"
+                        ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                        : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground"
                     )}
                   >
                     <item.icon className={cn("h-5 w-5", isActive && "text-primary")} />
@@ -126,15 +129,15 @@ export function SidebarV2() {
           <StorageWidget />
         </div>
 
-        <div className="space-y-1 border-t border-border px-3 py-4">
+        <div className="space-y-1 border-t border-border/70 px-3 py-4">
           <Link href="/dashboard/settings">
             <motion.div
               whileHover={{ x: 4 }}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                 pathname === "/dashboard/settings"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-surface hover:text-foreground"
+                  ? "bg-primary/15 text-primary ring-1 ring-primary/35"
+                  : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground"
               )}
             >
               <Settings className="h-5 w-5" />
@@ -144,7 +147,7 @@ export function SidebarV2() {
           <Link href="/api/auth/signout">
             <motion.div
               whileHover={{ x: 4 }}
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-surface hover:text-foreground"
+              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-surface2/75 hover:text-foreground"
             >
               <LogOut className="h-5 w-5" />
               <span>Выйти</span>
