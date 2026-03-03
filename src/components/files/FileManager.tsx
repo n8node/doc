@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -11,6 +12,11 @@ import {
   RefreshCw,
   Filter,
   Link2,
+  Download,
+  Share2,
+  Trash2,
+  FolderInput,
+  FileImage,
   ChevronDown,
   RotateCcw,
   Check,
@@ -45,7 +51,7 @@ import { ShareLinksListDialog } from "./ShareLinksListDialog";
 import { MoveDialog } from "./MoveDialog";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
-import { formatBytes } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 import { buildDashboardFilesUrl, parseFilesSection } from "@/lib/files-navigation";
 
 interface FileItem {
@@ -144,13 +150,21 @@ function formatRecentGroupLabel(key: string) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+function parseViewMode(value: string | null | undefined, fallback: "list" | "grid" = "list") {
+  if (value === "list" || value === "grid") return value;
+  return fallback;
+}
+
 export function FileManager() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderIdParam = searchParams.get("folderId");
   const intentParam = searchParams.get("intent");
+  const viewParam = searchParams.get("view");
   const activeSection = parseFilesSection(searchParams.get("section"));
   const isRecentSection = activeSection === "recent";
+  const isPhotosSection = activeSection === "photos";
+  const normalizedViewMode = parseViewMode(viewParam, isPhotosSection ? "grid" : "list");
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(folderIdParam || null);
@@ -188,7 +202,7 @@ export function FileManager() {
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
 
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => normalizedViewMode);
 
   // Filters
   const [filterType, setFilterType] = useState<string>("all");
@@ -243,6 +257,22 @@ export function FileManager() {
   }, [activeSection, router, searchParams]);
 
   useEffect(() => {
+    if (viewMode === normalizedViewMode) return;
+    setViewMode(normalizedViewMode);
+  }, [normalizedViewMode, viewMode]);
+
+  useEffect(() => {
+    if (isPhotosSection) return;
+    const currentView = searchParams.get("view");
+    if (!currentView) return;
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("section", activeSection);
+    nextParams.delete("view");
+    router.replace(`/dashboard/files?${nextParams.toString()}`);
+  }, [isPhotosSection, activeSection, router, searchParams]);
+
+  useEffect(() => {
     const handleOpenUploadDialog = () => {
       openUploadPicker();
     };
@@ -281,12 +311,12 @@ export function FileManager() {
   }, [loadStorageInfo]);
 
   useEffect(() => {
-    if (isRecentSection) {
+    if (isRecentSection || isPhotosSection) {
       setCurrentFolderId(null);
       return;
     }
     setCurrentFolderId(folderIdParam || null);
-  }, [folderIdParam, isRecentSection]);
+  }, [folderIdParam, isRecentSection, isPhotosSection]);
 
   useEffect(() => {
     if (!selectedCustomDate) return;
@@ -294,14 +324,23 @@ export function FileManager() {
     setCalendarMonth(new Date(selected.getFullYear(), selected.getMonth(), 1));
   }, [selectedCustomDate]);
 
+  useEffect(() => {
+    setSelectedFiles(new Set());
+    setSelectedFolders(new Set());
+  }, [activeSection, currentFolderId]);
+
   const buildBaseFileFilterParams = useCallback(() => {
     const params = new URLSearchParams();
-    if (isRecentSection) {
+    if (isRecentSection || isPhotosSection) {
       params.set("scope", "all");
     } else {
       params.set("folderId", currentFolderId || "");
     }
-    if (filterType !== "all") params.set("type", filterType);
+    if (isPhotosSection) {
+      params.set("type", "image");
+    } else if (filterType !== "all") {
+      params.set("type", filterType);
+    }
     if (filterHasShareLink) params.set("hasShareLink", "true");
     if (filterSize !== "all") {
       if (filterSize === "small") {
@@ -314,7 +353,7 @@ export function FileManager() {
       }
     }
     return params;
-  }, [currentFolderId, isRecentSection, filterType, filterSize, filterHasShareLink]);
+  }, [currentFolderId, isRecentSection, isPhotosSection, filterType, filterSize, filterHasShareLink]);
 
   const loadData = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -364,7 +403,7 @@ export function FileManager() {
       }
 
       const filesRes = await fetch(`/api/files?${filesParams.toString()}`);
-      const foldersRes = isRecentSection
+      const foldersRes = isRecentSection || isPhotosSection
         ? null
         : await fetch(`/api/folders?parentId=${currentFolderId || ""}`);
 
@@ -375,13 +414,15 @@ export function FileManager() {
       if (foldersRes?.ok) {
         const d = await foldersRes.json();
         setFolders(d.folders ?? []);
-      } else if (isRecentSection) {
+      } else if (isRecentSection || isPhotosSection) {
         setFolders([]);
       }
 
       let bc: Breadcrumb[] = [{ id: null, name: "Мои файлы" }];
       if (isRecentSection) {
         bc = [{ id: null, name: "Недавние файлы" }];
+      } else if (isPhotosSection) {
+        bc = [{ id: null, name: "Фото" }];
       } else if (currentFolderId) {
         const pathRes = await fetch(`/api/folders/${currentFolderId}/path`);
         if (pathRes.ok) {
@@ -406,6 +447,7 @@ export function FileManager() {
   }, [
     currentFolderId,
     isRecentSection,
+    isPhotosSection,
     buildBaseFileFilterParams,
     filterDate,
     selectedCustomDate,
@@ -976,8 +1018,52 @@ export function FileManager() {
       })()
     : [];
 
+  const renderListFile = (file: FileItem, index: number) => (
+    <FileCard
+      key={file.id}
+      id={file.id}
+      name={file.name}
+      mimeType={file.mimeType}
+      size={file.size}
+      createdAt={file.createdAt}
+      mediaMetadata={file.mediaMetadata}
+      hasShareLink={file.hasShareLink}
+      shareLinksCount={file.shareLinksCount}
+      selected={selectedFiles.has(file.id)}
+      onSelect={handleFileSelect}
+      onPlay={
+        file.mimeType.startsWith("video/") || file.mimeType.startsWith("audio/")
+          ? () =>
+              setMediaModal({
+                type: file.mimeType.startsWith("video/") ? "video" : "audio",
+                id: file.id,
+                name: file.name,
+              })
+          : undefined
+      }
+      onDownload={() => handleDownload(file.id)}
+      onShare={() =>
+        setShareTarget({ type: "FILE", id: file.id, name: file.name })
+      }
+      onMove={
+        hasMoveTargets
+          ? () => {
+              setSingleMoveFile({ id: file.id, name: file.name });
+              setMoveDialogOpen(true);
+            }
+          : undefined
+      }
+      onShareLinksClick={() =>
+        setShareLinksTarget({ id: file.id, name: file.name })
+      }
+      onDelete={() => handleDeleteFile(file.id)}
+      index={index}
+    />
+  );
+
+  const typeFilterActive = !isPhotosSection && filterType !== "all";
   const activeFiltersCount =
-    (filterType !== "all" ? 1 : 0) +
+    (typeFilterActive ? 1 : 0) +
     (filterSize !== "all" ? 1 : 0) +
     (filterDate !== "all" ? 1 : 0) +
     (filterHasShareLink ? 1 : 0);
@@ -990,7 +1076,9 @@ export function FileManager() {
     setSelectedCustomDate(null);
   };
   const activeTypeLabel =
-    TYPE_FILTER_OPTIONS.find((option) => option.value === filterType)?.label ?? "Все типы";
+    isPhotosSection
+      ? "Изображения"
+      : TYPE_FILTER_OPTIONS.find((option) => option.value === filterType)?.label ?? "Все типы";
   const activeSizeLabel =
     SIZE_FILTER_OPTIONS.find((option) => option.value === filterSize)?.label ?? "Любой размер";
   const activeDateLabel =
@@ -1037,9 +1125,25 @@ export function FileManager() {
     setDatePickerOpen(true);
   };
 
+  const handleViewModeChange = (mode: "list" | "grid") => {
+    if (viewMode === mode) return;
+    setViewMode(mode);
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("section", activeSection);
+    if (isPhotosSection) {
+      nextParams.set("view", mode);
+    } else {
+      nextParams.delete("view");
+    }
+    router.replace(`/dashboard/files?${nextParams.toString()}`);
+  };
+
+  const showFolders = !isRecentSection && !isPhotosSection;
+  const showPhotoGrid = isPhotosSection && viewMode === "grid";
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
-  const isEmpty = folders.length === 0 && files.length === 0;
-  const isSubfolder = currentFolderId !== null;
+  const isEmpty = showFolders ? folders.length === 0 && files.length === 0 : files.length === 0;
+  const isSubfolder = showFolders && currentFolderId !== null;
 
   return (
     <>
@@ -1062,31 +1166,37 @@ export function FileManager() {
                 <span className="hidden sm:inline">Обновить</span>
               </Button>
 
-              <div className="flex items-center rounded-lg border border-border p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setViewMode("list")}
-                  className={`rounded-md p-1.5 transition-colors ${
-                    viewMode === "list" ? "bg-surface2 text-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  <LayoutList className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("grid")}
-                  className={`rounded-md p-1.5 transition-colors ${
-                    viewMode === "grid" ? "bg-surface2 text-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </button>
-              </div>
+              {isPhotosSection && (
+                <div className="flex items-center rounded-lg border border-border p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleViewModeChange("list")}
+                    className={`rounded-md p-1.5 transition-colors ${
+                      viewMode === "list" ? "bg-surface2 text-foreground" : "text-muted-foreground"
+                    }`}
+                    aria-label="Список"
+                  >
+                    <LayoutList className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleViewModeChange("grid")}
+                    className={`rounded-md p-1.5 transition-colors ${
+                      viewMode === "grid" ? "bg-surface2 text-foreground" : "text-muted-foreground"
+                    }`}
+                    aria-label="Плитка"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
 
-              <Button size="sm" onClick={() => setCreateFolderOpen(true)} className="gap-2">
-                <FolderPlus className="h-4 w-4" />
-                <span className="hidden sm:inline">Новая папка</span>
-              </Button>
+              {showFolders && (
+                <Button size="sm" onClick={() => setCreateFolderOpen(true)} className="gap-2">
+                  <FolderPlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Новая папка</span>
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -1125,31 +1235,38 @@ export function FileManager() {
 
               <div className="-mx-1 overflow-x-auto px-1 pb-1">
                 <div className="flex min-w-max items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className={getFilterTriggerClass(filterType !== "all")}
-                      >
-                        <span className="truncate">{activeTypeLabel}</span>
-                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-56">
-                      {TYPE_FILTER_OPTIONS.map((option) => (
-                        <DropdownMenuItem
-                          key={option.value}
-                          onClick={() => setFilterType(option.value)}
-                          className="justify-between"
+                  {isPhotosSection ? (
+                    <div className={getFilterTriggerClass(true)}>
+                      <span className="truncate">{activeTypeLabel}</span>
+                      <FileImage className="h-4 w-4 shrink-0 text-primary" />
+                    </div>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className={getFilterTriggerClass(filterType !== "all")}
                         >
-                          <span>{option.label}</span>
-                          {filterType === option.value && (
-                            <Check className="h-4 w-4 text-primary" />
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          <span className="truncate">{activeTypeLabel}</span>
+                          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56">
+                        {TYPE_FILTER_OPTIONS.map((option) => (
+                          <DropdownMenuItem
+                            key={option.value}
+                            onClick={() => setFilterType(option.value)}
+                            className="justify-between"
+                          >
+                            <span>{option.label}</span>
+                            {filterType === option.value && (
+                              <Check className="h-4 w-4 text-primary" />
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -1287,7 +1404,7 @@ export function FileManager() {
               className="space-y-2"
             >
               {/* Folders */}
-              {folders.length > 0 && (
+              {showFolders && folders.length > 0 && (
                 <div className="space-y-2">
                   <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Папки ({folders.length})
@@ -1324,54 +1441,131 @@ export function FileManager() {
                             {group.label} ({group.items.length})
                           </p>
                           <div className="space-y-1">
-                            {group.items.map((file, index) => (
-                              <FileCard
-                                key={file.id}
-                                id={file.id}
-                                name={file.name}
-                                mimeType={file.mimeType}
-                                size={file.size}
-                                createdAt={file.createdAt}
-                                mediaMetadata={file.mediaMetadata}
-                                hasShareLink={file.hasShareLink}
-                                shareLinksCount={file.shareLinksCount}
-                                selected={selectedFiles.has(file.id)}
-                                onSelect={handleFileSelect}
-                                onPlay={
-                                  file.mimeType.startsWith("video/") ||
-                                  file.mimeType.startsWith("audio/")
-                                    ? () =>
-                                        setMediaModal({
-                                          type: file.mimeType.startsWith("video/")
-                                            ? "video"
-                                            : "audio",
-                                          id: file.id,
-                                          name: file.name,
-                                        })
-                                    : undefined
-                                }
-                                onDownload={() => handleDownload(file.id)}
-                                onShare={() =>
-                                  setShareTarget({ type: "FILE", id: file.id, name: file.name })
-                                }
-                                onMove={
-                                  hasMoveTargets
-                                    ? () => {
-                                        setSingleMoveFile({ id: file.id, name: file.name });
-                                        setMoveDialogOpen(true);
-                                      }
-                                    : undefined
-                                }
-                                onShareLinksClick={() =>
-                                  setShareLinksTarget({ id: file.id, name: file.name })
-                                }
-                                onDelete={() => handleDeleteFile(file.id)}
-                                index={groupIndex * 100 + index}
-                              />
-                            ))}
+                            {group.items.map((file, index) =>
+                              renderListFile(file, groupIndex * 100 + index)
+                            )}
                           </div>
                         </div>
                       ))}
+                    </div>
+                  ) : showPhotoGrid ? (
+                    <div className="space-y-2">
+                      <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Фото ({files.length})
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                        {files.map((file, index) => {
+                          const selected = selectedFiles.has(file.id);
+                          const createdLabel = new Date(file.createdAt).toLocaleDateString("ru-RU", {
+                            day: "numeric",
+                            month: "short",
+                          });
+                          return (
+                            <motion.div
+                              key={file.id}
+                              initial={{ opacity: 0, y: 12 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.25, delay: index * 0.02 }}
+                              className={cn(
+                                "group relative overflow-hidden rounded-2xl border bg-surface2/35 transition-all",
+                                selected
+                                  ? "border-primary/70 bg-primary/5 shadow-[0_10px_28px_-18px_hsl(var(--primary)/0.9)]"
+                                  : "border-border/70 hover:border-primary/40 hover:bg-surface2/55"
+                              )}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleFileSelect(file.id, !selected)}
+                                className={cn(
+                                  "absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-md border transition-colors",
+                                  selected
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-border/80 bg-background/90 text-muted-foreground"
+                                )}
+                                aria-label="Выбрать файл"
+                              >
+                                {selected ? <Check className="h-3 w-3" /> : null}
+                              </button>
+
+                              {file.hasShareLink && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setShareLinksTarget({ id: file.id, name: file.name })
+                                  }
+                                  className="absolute right-2 top-2 z-10 rounded-full bg-primary/90 px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
+                                >
+                                  {file.shareLinksCount && file.shareLinksCount > 1
+                                    ? `Ссылок: ${file.shareLinksCount}`
+                                    : "Ссылка"}
+                                </button>
+                              )}
+
+                              <div className="relative aspect-square overflow-hidden bg-surface2">
+                                <Image
+                                  src={streamUrl(file.id)}
+                                  alt={file.name}
+                                  fill
+                                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                  unoptimized
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                                />
+                              </div>
+
+                              <div className="space-y-2 p-3">
+                                <p className="truncate text-sm font-medium text-foreground" title={file.name}>
+                                  {file.name}
+                                </p>
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                  <span>{formatBytes(file.size)}</span>
+                                  <span>{createdLabel}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-1 border-t border-border/60 pt-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownload(file.id)}
+                                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                    aria-label="Скачать"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setShareTarget({ type: "FILE", id: file.id, name: file.name })
+                                    }
+                                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                    aria-label="Поделиться"
+                                  >
+                                    <Share2 className="h-4 w-4" />
+                                  </button>
+                                  {hasMoveTargets && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSingleMoveFile({ id: file.id, name: file.name });
+                                        setMoveDialogOpen(true);
+                                      }}
+                                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                      aria-label="Переместить"
+                                    >
+                                      <FolderInput className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteFile(file.id)}
+                                    className="rounded-md p-1.5 text-error transition-colors hover:bg-error/10"
+                                    aria-label="Удалить"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1379,49 +1573,7 @@ export function FileManager() {
                         Файлы ({files.length})
                       </p>
                       <div className="space-y-1">
-                        {files.map((file, index) => (
-                          <FileCard
-                            key={file.id}
-                            id={file.id}
-                            name={file.name}
-                            mimeType={file.mimeType}
-                            size={file.size}
-                            createdAt={file.createdAt}
-                            mediaMetadata={file.mediaMetadata}
-                            hasShareLink={file.hasShareLink}
-                            shareLinksCount={file.shareLinksCount}
-                            selected={selectedFiles.has(file.id)}
-                            onSelect={handleFileSelect}
-                            onPlay={
-                              file.mimeType.startsWith("video/") ||
-                              file.mimeType.startsWith("audio/")
-                                ? () =>
-                                    setMediaModal({
-                                      type: file.mimeType.startsWith("video/") ? "video" : "audio",
-                                      id: file.id,
-                                      name: file.name,
-                                    })
-                                : undefined
-                            }
-                            onDownload={() => handleDownload(file.id)}
-                            onShare={() =>
-                              setShareTarget({ type: "FILE", id: file.id, name: file.name })
-                            }
-                            onMove={
-                              hasMoveTargets
-                                ? () => {
-                                    setSingleMoveFile({ id: file.id, name: file.name });
-                                    setMoveDialogOpen(true);
-                                  }
-                                : undefined
-                            }
-                            onShareLinksClick={() =>
-                              setShareLinksTarget({ id: file.id, name: file.name })
-                            }
-                            onDelete={() => handleDeleteFile(file.id)}
-                            index={index + folders.length}
-                          />
-                        ))}
+                        {files.map((file, index) => renderListFile(file, index + folders.length))}
                       </div>
                     </div>
                   )}
