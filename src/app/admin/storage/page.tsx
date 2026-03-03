@@ -3,8 +3,39 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { formatBytes } from "@/lib/utils";
-import { FolderOpen, File, Trash2, Loader2 } from "lucide-react";
+import { 
+  FolderOpen, 
+  File, 
+  Trash2, 
+  Loader2, 
+  Search,
+  ChevronRight,
+  Home,
+  Download,
+  Edit,
+  Info,
+  Share2,
+  HardDrive,
+  Files,
+  FolderTree,
+  Users,
+  Image,
+  Video,
+  Music,
+  FileText,
+  MoreVertical,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { RenameDialog } from "@/components/admin/RenameDialog";
+import { ItemDetailsDialog } from "@/components/admin/ItemDetailsDialog";
 
 interface StorageFile {
   id: string;
@@ -15,6 +46,8 @@ interface StorageFile {
   userEmail: string | null;
   folderId: string | null;
   createdAt: string;
+  hasShares: boolean;
+  shareLinksCount: number;
 }
 
 interface StorageFolder {
@@ -24,6 +57,15 @@ interface StorageFolder {
   userId: string;
   userEmail: string | null;
   createdAt: string;
+  filesCount: number;
+  childFoldersCount: number;
+  totalSize: number;
+  totalFilesRecursive: number;
+}
+
+interface Breadcrumb {
+  id: string | null;
+  name: string;
 }
 
 interface Pagination {
@@ -39,17 +81,65 @@ interface UserOption {
   email: string | null;
 }
 
+interface StorageStats {
+  totals: {
+    files: number;
+    folders: number;
+    storageUsed: number;
+    rootFiles: number;
+    sharedFiles: number;
+    recentFiles: number;
+  };
+  mimeTypes: {
+    images: number;
+    videos: number;
+    audio: number;
+    documents: number;
+    other: number;
+  };
+  topUsers: Array<{
+    id: string;
+    email: string | null;
+    storageUsed: number;
+    filesCount: number;
+  }>;
+}
+
 export default function AdminStoragePage() {
   const [files, setFiles] = useState<StorageFile[]>([]);
   const [folders, setFolders] = useState<StorageFolder[]>([]);
+  const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [stats, setStats] = useState<StorageStats | null>(null);
   const [users, setUsers] = useState<UserOption[]>([]);
+  
+  // Filters and search
   const [userIdFilter, setUserIdFilter] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
+  const [mimeTypeFilter, setMimeTypeFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
+  
+  // UI states
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
+  
+  // Dialog states
+  const [renameDialog, setRenameDialog] = useState<{
+    open: boolean;
+    type: "file" | "folder";
+    id: string | null;
+    name: string;
+  }>({ open: false, type: "file", id: null, name: "" });
+  
+  const [detailsDialog, setDetailsDialog] = useState<{
+    open: boolean;
+    type: "file" | "folder";
+    id: string | null;
+  }>({ open: false, type: "file", id: null });
 
   const loadUsers = useCallback(async () => {
     const res = await fetch("/api/admin/users");
@@ -59,33 +149,66 @@ export default function AdminStoragePage() {
     }
   }, []);
 
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const res = await fetch("/api/admin/storage/stats");
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (e) {
+      console.error("Failed to load stats:", e);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set("page", String(page));
-      params.set("limit", "25");
+      params.set("limit", "50");
       if (userIdFilter) params.set("userId", userIdFilter);
+      if (currentFolder) params.set("folderId", currentFolder);
+      if (search) params.set("search", search);
+      if (mimeTypeFilter !== "all") params.set("mimeType", mimeTypeFilter);
+      
       const res = await fetch(`/api/admin/storage?${params}`);
-      if (!res.ok) throw new Error("Ошибка загрузки");
+      if (!res.ok) throw new Error("Failed to load data");
+      
       const data = await res.json();
       setFiles(data.files ?? []);
       setFolders(data.folders ?? []);
+      setBreadcrumbs(data.breadcrumbs ?? []);
       setPagination(data.pagination ?? null);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [page, userIdFilter]);
+  }, [page, userIdFilter, currentFolder, search, mimeTypeFilter]);
 
   useEffect(() => {
     loadUsers();
-  }, [loadUsers]);
+    loadStats();
+  }, [loadUsers, loadStats]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    if (page !== 1) setPage(1);
+  }, [userIdFilter, search, mimeTypeFilter, currentFolder]);
+
+  const navigateToFolder = (folderId: string | null) => {
+    setCurrentFolder(folderId);
+    setSelectedFiles(new Set());
+    setSelectedFolders(new Set());
+  };
 
   const toggleFile = (id: string) => {
     setSelectedFiles((s) => {
@@ -105,11 +228,23 @@ export default function AdminStoragePage() {
     });
   };
 
+  const toggleSelectAll = () => {
+    const allSelected = selectedFiles.size === files.length && selectedFolders.size === folders.length;
+    if (allSelected) {
+      setSelectedFiles(new Set());
+      setSelectedFolders(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map(f => f.id)));
+      setSelectedFolders(new Set(folders.map(f => f.id)));
+    }
+  };
+
   const deleteSelected = async () => {
     const fileIds = Array.from(selectedFiles);
     const folderIds = Array.from(selectedFolders);
     if (fileIds.length === 0 && folderIds.length === 0) return;
     if (!confirm(`Удалить ${fileIds.length} файл(ов) и ${folderIds.length} папок(и)?`)) return;
+    
     setDeleting(true);
     try {
       if (fileIds.length > 0) {
@@ -118,15 +253,15 @@ export default function AdminStoragePage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ids: fileIds }),
         });
-        if (!res.ok) throw new Error("Ошибка удаления файлов");
+        if (!res.ok) throw new Error("Failed to delete files");
       }
       for (const id of folderIds) {
         const res = await fetch(`/api/admin/folders/${id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error(`Ошибка удаления папки ${id}`);
+        if (!res.ok) throw new Error(`Failed to delete folder ${id}`);
       }
       setSelectedFiles(new Set());
       setSelectedFolders(new Set());
-      await loadData();
+      await Promise.all([loadData(), loadStats()]);
     } catch (e) {
       console.error(e);
       alert("Ошибка при удалении");
@@ -135,28 +270,251 @@ export default function AdminStoragePage() {
     }
   };
 
+  const handleDownloadFile = async (fileId: string) => {
+    try {
+      const res = await fetch(`/api/files/${fileId}/download`);
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.open(data.url, "_blank");
+      } else {
+        alert("Ошибка получения ссылки для скачивания");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка при скачивании");
+    }
+  };
+
+  const openRenameDialog = (type: "file" | "folder", id: string, name: string) => {
+    setRenameDialog({ open: true, type, id, name });
+  };
+
+  const openDetailsDialog = (type: "file" | "folder", id: string) => {
+    setDetailsDialog({ open: true, type, id });
+  };
+
+  const handleRename = async (newName: string) => {
+    if (!renameDialog.id) return;
+    
+    const endpoint = renameDialog.type === "file"
+      ? `/api/admin/files/${renameDialog.id}`
+      : `/api/admin/folders/${renameDialog.id}`;
+    
+    const res = await fetch(endpoint, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName }),
+    });
+    
+    if (!res.ok) throw new Error("Rename failed");
+    
+    // Refresh data
+    await loadData();
+  };
+
+  const handleDeleteSingle = async (type: "file" | "folder", id: string, name: string) => {
+    if (!confirm(`Удалить ${type === "file" ? "файл" : "папку"} "${name}"?`)) return;
+    
+    try {
+      const endpoint = type === "file"
+        ? `/api/admin/files/${id}`
+        : `/api/admin/folders/${id}`;
+      
+      const res = await fetch(endpoint, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      
+      await Promise.all([loadData(), loadStats()]);
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка при удалении");
+    }
+  };
+
+  const getMimeTypeIcon = (mimeType: string) => {
+    if (mimeType.startsWith("image/")) return <Image className="h-4 w-4 text-green-500" />;
+    if (mimeType.startsWith("video/")) return <Video className="h-4 w-4 text-blue-500" />;
+    if (mimeType.startsWith("audio/")) return <Music className="h-4 w-4 text-purple-500" />;
+    if (mimeType.includes("pdf") || mimeType.includes("document") || mimeType.includes("text")) {
+      return <FileText className="h-4 w-4 text-orange-500" />;
+    }
+    return <File className="h-4 w-4 text-slate-500" />;
+  };
+
   const totalSelected = selectedFiles.size + selectedFolders.size;
+  const allSelected = totalSelected > 0 && selectedFiles.size === files.length && selectedFolders.size === folders.length;
+  const someSelected = totalSelected > 0 && !allSelected;
 
   return (
     <div className="space-y-6">
+      {/* Statistics Widgets */}
+      {statsLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1,2,3,4].map(i => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-4 bg-muted rounded w-20"></div>
+                  <div className="h-8 bg-muted rounded w-16"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : stats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <HardDrive className="h-4 w-4 text-muted-foreground" />
+                <div className="text-sm font-medium">Общий объём</div>
+              </div>
+              <div className="text-2xl font-bold">{formatBytes(stats.totals.storageUsed)}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Files className="h-4 w-4 text-muted-foreground" />
+                <div className="text-sm font-medium">Всего файлов</div>
+              </div>
+              <div className="text-2xl font-bold">{stats.totals.files.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">
+                {stats.totals.recentFiles} за 24ч
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <FolderTree className="h-4 w-4 text-muted-foreground" />
+                <div className="text-sm font-medium">Всего папок</div>
+              </div>
+              <div className="text-2xl font-bold">{stats.totals.folders.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">
+                {stats.totals.rootFiles} в корне
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Share2 className="h-4 w-4 text-muted-foreground" />
+                <div className="text-sm font-medium">Расшарено</div>
+              </div>
+              <div className="text-2xl font-bold">{stats.totals.sharedFiles.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">
+                активных ссылок
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Main Storage Browser */}
       <Card>
         <CardHeader>
-          <CardTitle>Storage</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Файлы и папки всех пользователей. Фильтр по пользователю, массовое удаление.
-          </p>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span>Файловый менеджер</span>
+              {currentFolder && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateToFolder(breadcrumbs[breadcrumbs.length - 2]?.id || null)}
+                  className="gap-2"
+                >
+                  ← Назад
+                </Button>
+              )}
+            </div>
+            <div className="text-sm font-normal text-muted-foreground">
+              {pagination && (
+                <div className="text-right">
+                  <div>{pagination.totalFiles} файлов, {pagination.totalFolders} папок</div>
+                  {currentFolder ? (
+                    <div className="text-xs">в текущей папке</div>
+                  ) : (
+                    <div className="text-xs">всего в системе</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardTitle>
+          
+          {/* Breadcrumbs */}
+          <nav className="flex items-center space-x-1 text-sm text-muted-foreground">
+            {breadcrumbs.map((crumb, index) => (
+              <div key={crumb.id || 'root'} className="flex items-center">
+                {index > 0 && <ChevronRight className="h-4 w-4 mx-1" />}
+                <button
+                  onClick={() => navigateToFolder(crumb.id)}
+                  className="hover:text-foreground hover:underline"
+                >
+                  {index === 0 ? (
+                    <div className="flex items-center gap-1">
+                      <Home className="h-4 w-4" />
+                      {crumb.name}
+                    </div>
+                  ) : (
+                    crumb.name
+                  )}
+                </button>
+              </div>
+            ))}
+          </nav>
         </CardHeader>
+        
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-4">
+          {/* Filters and Search */}
+          <div className="space-y-4">
+            {/* Active filters indicator */}
+            {(search || userIdFilter || mimeTypeFilter !== "all" || currentFolder) && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Активные фильтры:</span>
+                {search && <Badge variant="secondary">Поиск: "{search}"</Badge>}
+                {userIdFilter && (
+                  <Badge variant="secondary">
+                    Пользователь: {users.find(u => u.id === userIdFilter)?.email || userIdFilter}
+                  </Badge>
+                )}
+                {mimeTypeFilter !== "all" && <Badge variant="secondary">Тип: {mimeTypeFilter}</Badge>}
+                {currentFolder && <Badge variant="secondary">В папке</Badge>}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearch("");
+                    setUserIdFilter("");
+                    setMimeTypeFilter("all");
+                    setCurrentFolder(null);
+                  }}
+                  className="h-6 px-2 text-xs"
+                >
+                  Сбросить все
+                </Button>
+              </div>
+            )}
+            
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Поиск по имени..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-64"
+                />
+              </div>
+            
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium">Пользователь:</label>
               <select
                 className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
                 value={userIdFilter}
-                onChange={(e) => {
-                  setUserIdFilter(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setUserIdFilter(e.target.value)}
               >
                 <option value="">Все</option>
                 {users.map((u) => (
@@ -166,20 +524,89 @@ export default function AdminStoragePage() {
                 ))}
               </select>
             </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">Тип:</label>
+              <select
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+                value={mimeTypeFilter}
+                onChange={(e) => setMimeTypeFilter(e.target.value)}
+              >
+                <option value="all">Все файлы</option>
+                <option value="image">Изображения</option>
+                <option value="video">Видео</option>
+                <option value="audio">Аудио</option>
+                <option value="document">Документы</option>
+              </select>
+            </div>
+            
             <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Обновить"}
             </Button>
+            
+            {/* Quick select buttons */}
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    Быстрый выбор
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedFiles(new Set(files.map(f => f.id)));
+                  }}>
+                    Все файлы ({files.length})
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedFolders(new Set(folders.map(f => f.id)));
+                  }}>
+                    Все папки ({folders.length})
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    const imageFiles = files.filter(f => f.mimeType.startsWith("image/"));
+                    setSelectedFiles(new Set(imageFiles.map(f => f.id)));
+                  }}>
+                    Все изображения ({files.filter(f => f.mimeType.startsWith("image/")).length})
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    const videoFiles = files.filter(f => f.mimeType.startsWith("video/"));
+                    setSelectedFiles(new Set(videoFiles.map(f => f.id)));
+                  }}>
+                    Все видео ({files.filter(f => f.mimeType.startsWith("video/")).length})
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    const sharedFiles = files.filter(f => f.hasShares);
+                    setSelectedFiles(new Set(sharedFiles.map(f => f.id)));
+                  }}>
+                    Расшаренные файлы ({files.filter(f => f.hasShares).length})
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
             {totalSelected > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={deleteSelected}
-                disabled={deleting}
-              >
-                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                Удалить выбранные ({totalSelected})
-              </Button>
+              <div className="ml-auto flex items-center gap-2">
+                <div className="text-sm text-muted-foreground">
+                  Выбрано: {selectedFiles.size} файлов, {selectedFolders.size} папок
+                  {selectedFiles.size > 0 && (
+                    <span className="ml-2">
+                      ({formatBytes(files.filter(f => selectedFiles.has(f.id)).reduce((sum, f) => sum + f.size, 0))})
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={deleteSelected}
+                  disabled={deleting}
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                  Удалить
+                </Button>
+              </div>
             )}
+            </div>
           </div>
 
           {loading ? (
@@ -192,68 +619,180 @@ export default function AdminStoragePage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="w-10 px-3 py-2 text-left"></th>
-                      <th className="px-3 py-2 text-left">Тип</th>
+                      <th className="w-10 px-3 py-2 text-left">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = someSelected;
+                          }}
+                          onChange={toggleSelectAll}
+                          className="rounded"
+                          title={`Выбрать все (${files.length + folders.length})`}
+                        />
+                      </th>
+                      <th className="w-10 px-3 py-2 text-left">Тип</th>
                       <th className="px-3 py-2 text-left">Имя</th>
                       <th className="px-3 py-2 text-left">Пользователь</th>
                       <th className="px-3 py-2 text-right">Размер</th>
-                      <th className="px-3 py-2 text-left">Дата</th>
+                      <th className="px-3 py-2 text-left">Дата создания</th>
+                      <th className="w-10 px-3 py-2 text-left">Действия</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {folders.map((f) => (
-                      <tr key={`f-${f.id}`} className="border-b">
+                    {folders.map((folder) => (
+                      <tr key={`folder-${folder.id}`} className="border-b hover:bg-muted/30">
                         <td className="px-3 py-2">
                           <input
                             type="checkbox"
-                            checked={selectedFolders.has(f.id)}
-                            onChange={() => toggleFolder(f.id)}
+                            checked={selectedFolders.has(folder.id)}
+                            onChange={() => toggleFolder(folder.id)}
                             className="rounded"
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <FolderOpen className="inline h-4 w-4 text-amber-500" />
+                          <FolderOpen className="h-4 w-4 text-amber-500" />
                         </td>
-                        <td className="px-3 py-2 font-medium">{f.name}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{f.userEmail ?? f.userId}</td>
-                        <td className="px-3 py-2 text-right">—</td>
+                        <td className="px-3 py-2">
+                          <button
+                            onClick={() => navigateToFolder(folder.id)}
+                            className="font-medium hover:text-primary hover:underline text-left"
+                          >
+                            {folder.name}
+                          </button>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {folder.directFilesCount} прямых файлов
+                            {folder.totalFilesRecursive > folder.directFilesCount && 
+                              `, +${folder.totalFilesRecursive - folder.directFilesCount} вложенных`
+                            }
+                            {folder.childFoldersCount > 0 && `, ${folder.childFoldersCount} папок`}
+                          </div>
+                        </td>
                         <td className="px-3 py-2 text-muted-foreground">
-                          {new Date(f.createdAt).toLocaleString("ru")}
+                          {folder.userEmail ?? folder.userId}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <div>{formatBytes(folder.totalSize)}</div>
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {new Date(folder.createdAt).toLocaleString("ru")}
+                        </td>
+                        <td className="px-3 py-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => navigateToFolder(folder.id)}>
+                                <FolderOpen className="h-4 w-4 mr-2" />
+                                Открыть
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openRenameDialog("folder", folder.id, folder.name)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Переименовать
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openDetailsDialog("folder", folder.id)}>
+                                <Info className="h-4 w-4 mr-2" />
+                                Детали
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => handleDeleteSingle("folder", folder.id, folder.name)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Удалить
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     ))}
-                    {files.map((f) => (
-                      <tr key={`file-${f.id}`} className="border-b">
+                    
+                    {files.map((file) => (
+                      <tr key={`file-${file.id}`} className="border-b hover:bg-muted/30">
                         <td className="px-3 py-2">
                           <input
                             type="checkbox"
-                            checked={selectedFiles.has(f.id)}
-                            onChange={() => toggleFile(f.id)}
+                            checked={selectedFiles.has(file.id)}
+                            onChange={() => toggleFile(file.id)}
                             className="rounded"
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <File className="inline h-4 w-4 text-slate-500" />
+                          {getMimeTypeIcon(file.mimeType)}
                         </td>
-                        <td className="px-3 py-2 font-medium">{f.name}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{f.userEmail ?? f.userId}</td>
-                        <td className="px-3 py-2 text-right">{formatBytes(f.size)}</td>
+                        <td className="px-3 py-2">
+                          <div className="font-medium">{file.name}</div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {file.hasShares && (
+                              <Badge variant="outline" className="text-xs">
+                                <Share2 className="h-2.5 w-2.5 mr-1" />
+                                {file.shareLinksCount}
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-3 py-2 text-muted-foreground">
-                          {new Date(f.createdAt).toLocaleString("ru")}
+                          {file.userEmail ?? file.userId}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {formatBytes(file.size)}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {new Date(file.createdAt).toLocaleString("ru")}
+                        </td>
+                        <td className="px-3 py-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleDownloadFile(file.id)}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Скачать
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openRenameDialog("file", file.id, file.name)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Переименовать
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openDetailsDialog("file", file.id)}>
+                                <Info className="h-4 w-4 mr-2" />
+                                Детали
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => handleDeleteSingle("file", file.id, file.name)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Удалить
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                
                 {files.length === 0 && folders.length === 0 && !loading && (
-                  <div className="py-12 text-center text-muted-foreground">Нет данных</div>
+                  <div className="py-12 text-center text-muted-foreground">
+                    {search || userIdFilter || mimeTypeFilter !== "all" 
+                      ? "Ничего не найдено" 
+                      : "Папка пуста"
+                    }
+                  </div>
                 )}
               </div>
 
-              {pagination && (pagination.totalFiles > 0 || pagination.totalFolders > 0) && (
+              {/* Pagination */}
+              {pagination && pagination.total > 0 && (
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>
-                    Страница {pagination.page}, всего: файлов {pagination.totalFiles}, папок {pagination.totalFolders}
+                    Страница {pagination.page}, всего: {pagination.total} элементов
                   </span>
                   <div className="flex gap-2">
                     <Button
@@ -267,9 +806,7 @@ export default function AdminStoragePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={
-                        (pagination.totalFiles + pagination.totalFolders) <= pagination.limit * pagination.page
-                      }
+                      disabled={pagination.total <= pagination.limit * pagination.page}
                       onClick={() => setPage((p) => p + 1)}
                     >
                       Вперёд
@@ -281,6 +818,55 @@ export default function AdminStoragePage() {
           )}
         </CardContent>
       </Card>
+      
+      {/* Top Users by Storage (if stats loaded) */}
+      {stats && stats.topUsers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Топ пользователей по занятому месту
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {stats.topUsers.map((user, index) => (
+                <div key={user.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className="font-medium">{user.email ?? user.id}</div>
+                      <div className="text-xs text-muted-foreground">{user.filesCount} файлов</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">{formatBytes(user.storageUsed)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dialogs */}
+      <RenameDialog
+        open={renameDialog.open}
+        onClose={() => setRenameDialog({ open: false, type: "file", id: null, name: "" })}
+        itemType={renameDialog.type}
+        itemId={renameDialog.id}
+        currentName={renameDialog.name}
+        onRename={handleRename}
+      />
+
+      <ItemDetailsDialog
+        open={detailsDialog.open}
+        onClose={() => setDetailsDialog({ open: false, type: "file", id: null })}
+        itemType={detailsDialog.type}
+        itemId={detailsDialog.id}
+      />
     </div>
   );
 }
