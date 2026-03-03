@@ -11,6 +11,8 @@ import {
   RefreshCw,
   Filter,
   Link2,
+  ChevronDown,
+  RotateCcw,
 } from "lucide-react";
 import {
   Dialog,
@@ -732,6 +734,19 @@ export function FileManager() {
     .filter((f) => selectedFiles.has(f.id))
     .reduce((sum, f) => sum + f.size, 0);
 
+  const activeFiltersCount =
+    (filterType !== "all" ? 1 : 0) +
+    (filterSize !== "all" ? 1 : 0) +
+    (filterDate !== "all" ? 1 : 0) +
+    (filterHasShareLink ? 1 : 0);
+  const hasActiveFilters = activeFiltersCount > 0;
+  const resetFilters = () => {
+    setFilterType("all");
+    setFilterSize("all");
+    setFilterDate("all");
+    setFilterHasShareLink(false);
+  };
+
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
   const isEmpty = folders.length === 0 && files.length === 0;
   const isSubfolder = currentFolderId !== null;
@@ -788,67 +803,100 @@ export function FileManager() {
 
         <CardContent className="space-y-6 p-6">
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface2/30 px-4 py-3">
-            <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Filter className="h-4 w-4" />
-              Фильтры:
-            </span>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            >
-              <option value="all">Все типы</option>
-              <option value="image">Изображения</option>
-              <option value="video">Видео</option>
-              <option value="audio">Аудио</option>
-              <option value="document">Документы</option>
-            </select>
-            <select
-              value={filterSize}
-              onChange={(e) => setFilterSize(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            >
-              <option value="all">Любой размер</option>
-              <option value="small">До 10 МБ</option>
-              <option value="medium">10–100 МБ</option>
-              <option value="large">Более 100 МБ</option>
-            </select>
-            <select
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            >
-              <option value="all">Любая дата</option>
-              <option value="today">Сегодня</option>
-              <option value="week">За неделю</option>
-              <option value="month">За месяц</option>
-            </select>
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={filterHasShareLink}
-                onChange={(e) => setFilterHasShareLink(e.target.checked)}
-                className="rounded border-input"
-              />
-              <Link2 className="h-4 w-4 text-muted-foreground" />
-              С публичной ссылкой
-            </label>
-            {(filterType !== "all" || filterSize !== "all" || filterDate !== "all" || filterHasShareLink) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setFilterType("all");
-                  setFilterSize("all");
-                  setFilterDate("all");
-                  setFilterHasShareLink(false);
-                }}
-                className="text-muted-foreground"
-              >
-                Сбросить
-              </Button>
-            )}
+          <div className="rounded-2xl modal-glass p-3 sm:p-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Filter className="h-4 w-4" />
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">Фильтры файлов</span>
+                    {hasActiveFilters && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        {activeFiltersCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetFilters}
+                    className="h-8 gap-1.5 rounded-lg text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Сбросить
+                  </Button>
+                )}
+              </div>
+
+              <div className="-mx-1 overflow-x-auto px-1 pb-1">
+                <div className="flex min-w-max items-center gap-2">
+                  <div className="relative">
+                    <select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value)}
+                      className="h-10 min-w-[150px] appearance-none rounded-xl border border-border/70 bg-background/70 pl-3 pr-9 text-sm text-foreground shadow-sm transition-colors hover:border-primary/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="all">Все типы</option>
+                      <option value="image">Изображения</option>
+                      <option value="video">Видео</option>
+                      <option value="audio">Аудио</option>
+                      <option value="document">Документы</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={filterSize}
+                      onChange={(e) => setFilterSize(e.target.value)}
+                      className="h-10 min-w-[150px] appearance-none rounded-xl border border-border/70 bg-background/70 pl-3 pr-9 text-sm text-foreground shadow-sm transition-colors hover:border-primary/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="all">Любой размер</option>
+                      <option value="small">До 10 МБ</option>
+                      <option value="medium">10–100 МБ</option>
+                      <option value="large">Более 100 МБ</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={filterDate}
+                      onChange={(e) => setFilterDate(e.target.value)}
+                      className="h-10 min-w-[150px] appearance-none rounded-xl border border-border/70 bg-background/70 pl-3 pr-9 text-sm text-foreground shadow-sm transition-colors hover:border-primary/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="all">Любая дата</option>
+                      <option value="today">Сегодня</option>
+                      <option value="week">За неделю</option>
+                      <option value="month">За месяц</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+
+                  <label
+                    className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition-colors ${
+                      filterHasShareLink
+                        ? "border-primary/60 bg-primary/10 text-primary"
+                        : "border-border/70 bg-background/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={filterHasShareLink}
+                      onChange={(e) => setFilterHasShareLink(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <Link2 className="h-4 w-4" />
+                    <span className="whitespace-nowrap">С публичной ссылкой</span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Upload zone */}
