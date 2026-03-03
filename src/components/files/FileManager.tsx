@@ -1,40 +1,34 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
-  Upload,
-  File as FileIcon,
-  FolderOpen,
-  Loader2,
-  Music,
-  Video,
-  MoreVertical,
-  Download,
-  Trash2,
-  Share2,
-  Play,
+  FolderPlus,
+  LayoutGrid,
+  LayoutList,
+  RefreshCw,
 } from "lucide-react";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { UploadZone } from "./UploadZone";
+import { EmptyState } from "./EmptyState";
+import { FileCard, FolderCard } from "./FileCard";
+import { UploadProgress, UploadingFile } from "./UploadProgress";
+import { SelectionBar } from "./SelectionBar";
+import { Breadcrumbs } from "./Breadcrumbs";
+import { ShareDialog } from "./ShareDialog";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
-import { ShareDialog } from "./ShareDialog";
-import { formatBytes } from "@/lib/utils";
-import { cn } from "@/lib/utils";
 
 interface FileItem {
   id: string;
@@ -58,49 +52,57 @@ interface Breadcrumb {
   name: string;
 }
 
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
 export function FileManager() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderIdParam = searchParams.get("folderId");
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(
-    folderIdParam || null
-  );
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(folderIdParam || null);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
-  const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
+  const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([{ id: null, name: "Мои файлы" }]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  const [showUploadProgress, setShowUploadProgress] = useState(false);
+
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
+
   const [mediaModal, setMediaModal] = useState<{
     type: "video" | "audio";
     id: string;
     name: string;
   } | null>(null);
+
   const [shareTarget, setShareTarget] = useState<{
     type: "FILE" | "FOLDER";
     id: string;
     name: string;
   } | null>(null);
 
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+
   useEffect(() => {
     setCurrentFolderId(folderIdParam || null);
   }, [folderIdParam]);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true);
+    else setLoading(true);
+
     try {
       const [filesRes, foldersRes] = await Promise.all([
         fetch(`/api/files?folderId=${currentFolderId || ""}`),
         fetch(`/api/folders?parentId=${currentFolderId || ""}`),
       ]);
+
       if (filesRes.ok) {
         const d = await filesRes.json();
         setFiles(d.files ?? []);
@@ -109,19 +111,27 @@ export function FileManager() {
         const d = await foldersRes.json();
         setFolders(d.folders ?? []);
       }
-      let bc: Breadcrumb[] = [{ id: null, name: "Файлы" }];
+
+      let bc: Breadcrumb[] = [{ id: null, name: "Мои файлы" }];
       if (currentFolderId) {
         const pathRes = await fetch(`/api/folders/${currentFolderId}/path`);
         if (pathRes.ok) {
           const { path } = await pathRes.json();
-          bc = [{ id: null, name: "Файлы" }, ...(path || []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name }))];
+          bc = [
+            { id: null, name: "Мои файлы" },
+            ...(path || []).map((p: { id: string; name: string }) => ({
+              id: p.id,
+              name: p.name,
+            })),
+          ];
         }
       }
       setBreadcrumbs(bc);
     } catch {
-      toast.error("Ошибка загрузки");
+      toast.error("Ошибка загрузки данных");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [currentFolderId]);
 
@@ -134,9 +144,7 @@ export function FileManager() {
     if (!type.startsWith("audio/") && !type.startsWith("video/")) return null;
     return new Promise((resolve) => {
       const url = URL.createObjectURL(file);
-      const el = document.createElement(
-        type.startsWith("video/") ? "video" : "audio"
-      );
+      const el = document.createElement(type.startsWith("video/") ? "video" : "audio");
       el.preload = "metadata";
       el.onloadedmetadata = () => {
         URL.revokeObjectURL(url);
@@ -150,59 +158,136 @@ export function FileManager() {
     });
   };
 
-  const handleUpload = async (fileList: FileList | null) => {
-    if (!fileList?.length || uploading) return;
-    setUploading(true);
-    let ok = 0;
+  const handleUpload = async (fileList: FileList) => {
+    if (!fileList?.length) return;
+
+    const newUploadingFiles: UploadingFile[] = Array.from(fileList).map((f, i) => ({
+      id: `upload-${Date.now()}-${i}`,
+      name: f.name,
+      size: f.size,
+      progress: 0,
+      status: "pending" as const,
+    }));
+
+    setUploadingFiles(newUploadingFiles);
+    setShowUploadProgress(true);
+
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
+      const uploadId = newUploadingFiles[i].id;
+
+      setUploadingFiles((prev) =>
+        prev.map((f) => (f.id === uploadId ? { ...f, status: "uploading" as const, progress: 0 } : f))
+      );
+
       const formData = new FormData();
       formData.append("file", file);
       if (currentFolderId) formData.append("folderId", currentFolderId);
-      const mediaType =
-        file.type.startsWith("audio/") || file.type.startsWith("video/");
+
+      const mediaType = file.type.startsWith("audio/") || file.type.startsWith("video/");
       if (mediaType) {
         try {
           const dur = await getMediaDuration(file);
           if (dur != null) formData.append("duration", String(dur));
-        } catch {
-          /* ignore */
-        }
+        } catch {}
       }
+
       try {
-        const res = await fetch("/api/files/upload", { method: "POST", body: formData });
-        const data = await res.json();
-        if (res.ok) {
-          ok++;
-          setFiles((prev) => [
-            { id: data.id, name: data.name, mimeType: data.mimeType, size: data.size, folderId: data.folderId, mediaMetadata: data.mediaMetadata ?? null, createdAt: data.createdAt },
-            ...prev,
-          ]);
-        } else toast.error(data.error || `Ошибка: ${file.name}`);
-      } catch {
-        toast.error(`Ошибка: ${file.name}`);
-      }
+        const xhr = new XMLHttpRequest();
+        
+        await new Promise<void>((resolve, reject) => {
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const progress = Math.round((e.loaded / e.total) * 100);
+              setUploadingFiles((prev) =>
+                prev.map((f) => (f.id === uploadId ? { ...f, progress } : f))
+              );
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const data = JSON.parse(xhr.responseText);
+              setUploadingFiles((prev) =>
+                prev.map((f) =>
+                  f.id === uploadId ? { ...f, status: "completed" as const, progress: 100 } : f
+                )
+              );
+              setFiles((prev) => [
+                {
+                  id: data.id,
+                  name: data.name,
+                  mimeType: data.mimeType,
+                  size: data.size,
+                  folderId: data.folderId,
+                  mediaMetadata: data.mediaMetadata ?? null,
+                  createdAt: data.createdAt,
+                },
+                ...prev,
+              ]);
+              resolve();
+            } else {
+              const data = JSON.parse(xhr.responseText);
+              setUploadingFiles((prev) =>
+                prev.map((f) =>
+                  f.id === uploadId
+                    ? { ...f, status: "error" as const, error: data.error || "Ошибка загрузки" }
+                    : f
+                )
+              );
+              reject(new Error(data.error));
+            }
+          };
+
+          xhr.onerror = () => {
+            setUploadingFiles((prev) =>
+              prev.map((f) =>
+                f.id === uploadId ? { ...f, status: "error" as const, error: "Сетевая ошибка" } : f
+              )
+            );
+            reject(new Error("Network error"));
+          };
+
+          xhr.open("POST", "/api/files/upload");
+          xhr.send(formData);
+        });
+      } catch {}
     }
-    if (ok > 0) toast.success(`Загружено: ${ok}`);
-    setUploading(false);
+
+    const completedCount = newUploadingFiles.length;
+    if (completedCount > 0) {
+      setTimeout(() => {
+        const errorCount = uploadingFiles.filter((f) => f.status === "error").length;
+        if (errorCount === 0) {
+          toast.success(`Загружено файлов: ${completedCount}`);
+        }
+      }, 500);
+    }
   };
 
   const handleCreateFolder = async () => {
-    const name = prompt("Имя папки");
-    if (!name?.trim()) return;
+    if (!newFolderName.trim()) return;
+    setCreatingFolder(true);
+
     try {
       const res = await fetch("/api/folders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), parentId: currentFolderId }),
+        body: JSON.stringify({ name: newFolderName.trim(), parentId: currentFolderId }),
       });
       const data = await res.json();
       if (res.ok) {
-        setFolders((prev) => [...prev, data]);
+        setFolders((prev) => [data, ...prev]);
         toast.success("Папка создана");
-      } else toast.error(data.error || "Ошибка");
+        setCreateFolderOpen(false);
+        setNewFolderName("");
+      } else {
+        toast.error(data.error || "Ошибка");
+      }
     } catch {
       toast.error("Ошибка создания папки");
+    } finally {
+      setCreatingFolder(false);
     }
   };
 
@@ -218,11 +303,16 @@ export function FileManager() {
   };
 
   const handleDeleteFile = async (id: string) => {
-    if (!confirm("Удалить файл?")) return;
+    if (!confirm("Удалить этот файл?")) return;
     try {
       const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
       if (res.ok) {
         setFiles((prev) => prev.filter((f) => f.id !== id));
+        setSelectedFiles((prev) => {
+          const n = new Set(prev);
+          n.delete(id);
+          return n;
+        });
         toast.success("Файл удалён");
       } else {
         const d = await res.json();
@@ -234,13 +324,17 @@ export function FileManager() {
   };
 
   const handleDeleteFolder = async (id: string) => {
-    if (!confirm("Удалить папку и всё содержимое?")) return;
+    if (!confirm("Удалить папку и всё её содержимое?")) return;
     try {
       const res = await fetch(`/api/folders/${id}`, { method: "DELETE" });
       if (res.ok) {
         setFolders((prev) => prev.filter((f) => f.id !== id));
+        setSelectedFolders((prev) => {
+          const n = new Set(prev);
+          n.delete(id);
+          return n;
+        });
         if (currentFolderId === id) router.push("/dashboard/files");
-        loadData();
         toast.success("Папка удалена");
       } else {
         const d = await res.json();
@@ -254,236 +348,309 @@ export function FileManager() {
   const handleBulkDelete = async () => {
     const fileIds = Array.from(selectedFiles);
     const folderIds = Array.from(selectedFolders);
-    if (fileIds.length === 0 && folderIds.length === 0) return;
-    if (!confirm(`Удалить ${fileIds.length + folderIds.length} элементов?`)) return;
+    const total = fileIds.length + folderIds.length;
+    if (total === 0) return;
+    if (!confirm(`Удалить ${total} элементов?`)) return;
+
     for (const id of fileIds) {
       await fetch(`/api/files/${id}`, { method: "DELETE" });
     }
     for (const id of folderIds) {
       await fetch(`/api/folders/${id}`, { method: "DELETE" });
     }
+
     setSelectedFiles(new Set());
     setSelectedFolders(new Set());
     loadData();
     toast.success("Удалено");
   };
 
-  const streamUrl = (id: string) => `/api/files/${id}/stream`;
-
-  const fileIcon = (mime: string) => {
-    if (mime.startsWith("video/")) return <Video className="h-5 w-5 text-primary" />;
-    if (mime.startsWith("audio/")) return <Music className="h-5 w-5 text-primary" />;
-    return <FileIcon className="h-5 w-5 text-muted-foreground" />;
+  const handleFileSelect = (id: string, selected: boolean) => {
+    setSelectedFiles((prev) => {
+      const n = new Set(prev);
+      if (selected) n.add(id);
+      else n.delete(id);
+      return n;
+    });
   };
 
-  const isVideo = (mime: string) => mime.startsWith("video/");
-  const isAudio = (mime: string) => mime.startsWith("audio/");
+  const handleFolderSelect = (id: string, selected: boolean) => {
+    setSelectedFolders((prev) => {
+      const n = new Set(prev);
+      if (selected) n.add(id);
+      else n.delete(id);
+      return n;
+    });
+  };
 
-  const hasSelection = selectedFiles.size > 0 || selectedFolders.size > 0;
+  const clearSelection = () => {
+    setSelectedFiles(new Set());
+    setSelectedFolders(new Set());
+  };
+
+  const navigateToFolder = (id: string | null) => {
+    if (id) {
+      router.push(`/dashboard/files?folderId=${id}`);
+    } else {
+      router.push("/dashboard/files");
+    }
+  };
+
+  const streamUrl = (id: string) => `/api/files/${id}/stream`;
+
+  const selectedSize = files
+    .filter((f) => selectedFiles.has(f.id))
+    .reduce((sum, f) => sum + f.size, 0);
+
+  const isEmpty = folders.length === 0 && files.length === 0;
+  const isSubfolder = currentFolderId !== null;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          {breadcrumbs.map((b, i) => (
-            <span key={b.id ?? "root"}>
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(b.id ? `/dashboard/files?folderId=${b.id}` : "/dashboard/files")
-                }
-                className="text-sm font-medium text-muted-foreground hover:text-foreground"
-              >
-                {b.name}
-              </button>
-              {i < breadcrumbs.length - 1 && (
-                <span className="mx-1 text-muted-foreground">/</span>
-              )}
-            </span>
-          ))}
-        </div>
-        <Button size="sm" onClick={handleCreateFolder}>
-          Новая папка
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            handleUpload(e.dataTransfer.files);
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          className={cn(
-            "relative flex min-h-[100px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors",
-            dragOver ? "border-primary bg-primary/5" : "border-border bg-surface2/50 hover:bg-surface2"
-          )}
-        >
-          <input
-            type="file"
-            multiple
-            className="absolute inset-0 cursor-pointer opacity-0"
-            onChange={(e) => handleUpload(e.target.files)}
-            disabled={uploading}
-          />
-          {uploading ? (
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          ) : (
-            <Upload className="h-8 w-8 text-muted-foreground" />
-          )}
-        </div>
+    <>
+      <Card className="overflow-hidden">
+        {/* Header */}
+        <CardHeader className="space-y-4 border-b border-border bg-surface2/30">
+          {/* Top row: breadcrumbs + actions */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <Breadcrumbs items={breadcrumbs} onNavigate={navigateToFolder} />
 
-        {hasSelection && (
-          <div className="flex items-center gap-2 rounded-lg bg-surface2 px-3 py-2">
-            <span className="text-sm text-muted-foreground">
-              Выбрано: {selectedFiles.size + selectedFolders.size}
-            </span>
-            <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
-              Удалить
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setSelectedFiles(new Set()); setSelectedFolders(new Set()); }}>
-              Снять выбор
-            </Button>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex items-center gap-2 py-8 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Загрузка...
-          </div>
-        ) : (
-          <ul className="space-y-1">
-            {folders.map((f) => (
-              <li
-                key={f.id}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-surface2/50"
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => loadData(true)}
+                disabled={refreshing}
+                className="gap-2"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedFolders.has(f.id)}
-                  onChange={(e) => {
-                    setSelectedFolders((prev) => {
-                      const n = new Set(prev);
-                      if (e.target.checked) n.add(f.id);
-                      else n.delete(f.id);
-                      return n;
-                    });
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Обновить</span>
+              </Button>
+
+              <div className="flex items-center rounded-lg border border-border p-0.5">
                 <button
                   type="button"
-                  className="flex flex-1 items-center gap-3 text-left"
-                  onClick={() => router.push(`/dashboard/files?folderId=${f.id}`)}
+                  onClick={() => setViewMode("list")}
+                  className={`rounded-md p-1.5 transition-colors ${
+                    viewMode === "list" ? "bg-surface2 text-foreground" : "text-muted-foreground"
+                  }`}
                 >
-                  <FolderOpen className="h-5 w-5 text-primary" />
-                  <span className="font-medium">{f.name}</span>
+                  <LayoutList className="h-4 w-4" />
                 </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button type="button" className="rounded p-1 hover:bg-surface2">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setShareTarget({ type: "FOLDER", id: f.id, name: f.name })}>
-                      <Share2 className="mr-2 h-4 w-4" /> Поделиться
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDeleteFolder(f.id)}>
-                      <Trash2 className="mr-2 h-4 w-4" /> Удалить
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </li>
-            ))}
-            {files.map((file) => (
-              <li
-                key={file.id}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-surface2/50"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedFiles.has(file.id)}
-                  onChange={(e) => {
-                    setSelectedFiles((prev) => {
-                      const n = new Set(prev);
-                      if (e.target.checked) n.add(file.id);
-                      else n.delete(file.id);
-                      return n;
-                    });
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                {fileIcon(file.mimeType)}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatBytes(file.size)}
-                    {file.mediaMetadata?.durationSeconds != null &&
-                      ` · ${formatDuration(file.mediaMetadata.durationSeconds)}`}
-                  </p>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  className={`rounded-md p-1.5 transition-colors ${
+                    viewMode === "grid" ? "bg-surface2 text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
+
+              <Button size="sm" onClick={() => setCreateFolderOpen(true)} className="gap-2">
+                <FolderPlus className="h-4 w-4" />
+                <span className="hidden sm:inline">Новая папка</span>
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-6 p-6">
+          {/* Upload zone */}
+          <UploadZone
+            onUpload={handleUpload}
+            uploading={uploadingFiles.some((f) => f.status === "uploading")}
+          />
+
+          {/* Upload progress */}
+          <AnimatePresence>
+            {showUploadProgress && uploadingFiles.length > 0 && (
+              <UploadProgress
+                files={uploadingFiles}
+                onDismiss={() => {
+                  setShowUploadProgress(false);
+                  setUploadingFiles([]);
+                }}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Loading state */}
+          {loading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-4 rounded-xl bg-surface2/30 p-4">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-3 w-1/4" />
+                  </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button type="button" className="rounded p-1 hover:bg-surface2">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {isVideo(file.mimeType) && (
-                      <DropdownMenuItem onClick={() => setMediaModal({ type: "video", id: file.id, name: file.name })}>
-                        <Play className="mr-2 h-4 w-4" /> Смотреть
-                      </DropdownMenuItem>
-                    )}
-                    {isAudio(file.mimeType) && (
-                      <DropdownMenuItem onClick={() => setMediaModal({ type: "audio", id: file.id, name: file.name })}>
-                        <Play className="mr-2 h-4 w-4" /> Слушать
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onClick={() => handleDownload(file.id)}>
-                      <Download className="mr-2 h-4 w-4" /> Скачать
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShareTarget({ type: "FILE", id: file.id, name: file.name })}>
-                      <Share2 className="mr-2 h-4 w-4" /> Поделиться
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDeleteFile(file.id)}>
-                      <Trash2 className="mr-2 h-4 w-4" /> Удалить
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </li>
-            ))}
-          </ul>
-        )}
+              ))}
+            </div>
+          )}
 
-        {folders.length === 0 && files.length === 0 && !loading && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Папка пуста
-          </p>
-        )}
-      </CardContent>
+          {/* Empty state */}
+          {!loading && isEmpty && (
+            <EmptyState
+              isSubfolder={isSubfolder}
+              onUploadClick={() => uploadInputRef.current?.click()}
+              onCreateFolder={() => setCreateFolderOpen(true)}
+            />
+          )}
 
+          {/* File/folder list */}
+          {!loading && !isEmpty && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-2"
+            >
+              {/* Folders */}
+              {folders.length > 0 && (
+                <div className="space-y-2">
+                  <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Папки ({folders.length})
+                  </p>
+                  <div className="space-y-1">
+                    {folders.map((folder, index) => (
+                      <FolderCard
+                        key={folder.id}
+                        id={folder.id}
+                        name={folder.name}
+                        createdAt={folder.createdAt}
+                        selected={selectedFolders.has(folder.id)}
+                        onSelect={handleFolderSelect}
+                        onClick={() => navigateToFolder(folder.id)}
+                        onShare={() =>
+                          setShareTarget({ type: "FOLDER", id: folder.id, name: folder.name })
+                        }
+                        onDelete={() => handleDeleteFolder(folder.id)}
+                        index={index}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Files */}
+              {files.length > 0 && (
+                <div className="space-y-2">
+                  <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Файлы ({files.length})
+                  </p>
+                  <div className="space-y-1">
+                    {files.map((file, index) => (
+                      <FileCard
+                        key={file.id}
+                        id={file.id}
+                        name={file.name}
+                        mimeType={file.mimeType}
+                        size={file.size}
+                        createdAt={file.createdAt}
+                        mediaMetadata={file.mediaMetadata}
+                        selected={selectedFiles.has(file.id)}
+                        onSelect={handleFileSelect}
+                        onPlay={
+                          file.mimeType.startsWith("video/") || file.mimeType.startsWith("audio/")
+                            ? () =>
+                                setMediaModal({
+                                  type: file.mimeType.startsWith("video/") ? "video" : "audio",
+                                  id: file.id,
+                                  name: file.name,
+                                })
+                            : undefined
+                        }
+                        onDownload={() => handleDownload(file.id)}
+                        onShare={() =>
+                          setShareTarget({ type: "FILE", id: file.id, name: file.name })
+                        }
+                        onDelete={() => handleDeleteFile(file.id)}
+                        index={index + folders.length}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Hidden file input for EmptyState button */}
+      <input
+        ref={uploadInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) handleUpload(e.target.files);
+          e.target.value = "";
+        }}
+      />
+
+      {/* Selection bar */}
+      <SelectionBar
+        selectedCount={selectedFiles.size + selectedFolders.size}
+        selectedSize={selectedSize}
+        onDownload={
+          selectedFiles.size > 0
+            ? async () => {
+                for (const id of selectedFiles) {
+                  await handleDownload(id);
+                }
+              }
+            : undefined
+        }
+        onDelete={handleBulkDelete}
+        onClear={clearSelection}
+      />
+
+      {/* Create folder dialog */}
+      <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Создать папку</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Название папки</label>
+              <Input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Новая папка"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFolder();
+                }}
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setCreateFolderOpen(false)}>
+                Отмена
+              </Button>
+              <Button onClick={handleCreateFolder} disabled={creatingFolder || !newFolderName.trim()}>
+                {creatingFolder ? "Создание..." : "Создать"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Media modal */}
       {mediaModal && (
         <Dialog open onOpenChange={() => setMediaModal(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>{mediaModal.name}</DialogTitle>
             </DialogHeader>
-            {mediaModal.type === "video" && (
-              <VideoPlayer src={streamUrl(mediaModal.id)} />
-            )}
-            {mediaModal.type === "audio" && (
-              <AudioPlayer src={streamUrl(mediaModal.id)} />
-            )}
+            {mediaModal.type === "video" && <VideoPlayer src={streamUrl(mediaModal.id)} />}
+            {mediaModal.type === "audio" && <AudioPlayer src={streamUrl(mediaModal.id)} />}
           </DialogContent>
         </Dialog>
       )}
 
+      {/* Share dialog */}
       {shareTarget && (
         <ShareDialog
           targetType={shareTarget.type}
@@ -492,6 +659,6 @@ export function FileManager() {
           onClose={() => setShareTarget(null)}
         />
       )}
-    </Card>
+    </>
   );
 }

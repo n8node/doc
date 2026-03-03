@@ -6,13 +6,13 @@
   --background: 224 71% 97%;
   --foreground: 224 71% 4%;
   --surface: 0 0% 100%;
-  --surface2: 224 71% 99%;
+  --surface2: 224 71% 96%;
   --primary: 221 83% 53%;
   --primary-foreground: 0 0% 100%;
   --secondary: 262 83% 58%;
   --secondary-foreground: 0 0% 100%;
   --muted: 224 71% 45%;
-  --muted-foreground: 224 71% 35%;
+  --muted-foreground: 224 71% 45%;
   --border: 224 71% 89%;
   --border-subtle: 224 71% 93%;
   --success: 142 76% 36%;
@@ -35,13 +35,17 @@
   --secondary: 262 83% 63%;
   --secondary-foreground: 0 0% 100%;
   --muted: 224 71% 65%;
-  --muted-foreground: 224 71% 75%;
+  --muted-foreground: 224 71% 65%;
   --border: 224 71% 16%;
   --border-subtle: 224 71% 12%;
 
   --glass-bg: hsl(224 71% 8% / 0.7);
   --glass-border: hsl(224 71% 16% / 0.5);
   --glass-shadow: 0 8px 32px hsl(0 0% 0% / 0.3);
+}
+
+* {
+  border-color: hsl(var(--border));
 }
 
 body {
@@ -74,8 +78,128 @@ body {
   border: 1px solid hsl(var(--border-subtle));
 }
 
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Selection */
+::selection {
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--foreground));
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* Animation utilities */
+@layer utilities {
+  .animate-in {
+    animation-duration: 150ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-fill-mode: both;
+  }
+  
+  .animate-out {
+    animation-duration: 150ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-fill-mode: both;
+  }
+  
+  .fade-in-0 {
+    animation-name: fade-in;
+    --tw-enter-opacity: 0;
+  }
+  
+  .fade-out-0 {
+    animation-name: fade-out;
+    --tw-exit-opacity: 0;
+  }
+  
+  .zoom-in-95 {
+    animation-name: zoom-in;
+    --tw-enter-scale: 0.95;
+  }
+  
+  .zoom-out-95 {
+    animation-name: zoom-out;
+    --tw-exit-scale: 0.95;
+  }
+  
+  .slide-in-from-top-2 {
+    animation-name: slide-in-from-top;
+    --tw-enter-translate-y: -0.5rem;
+  }
+  
+  .slide-in-from-bottom-2 {
+    animation-name: slide-in-from-bottom;
+    --tw-enter-translate-y: 0.5rem;
+  }
+  
+  .slide-in-from-left-2 {
+    --tw-enter-translate-x: -0.5rem;
+  }
+  
+  .slide-in-from-right-2 {
+    --tw-enter-translate-x: 0.5rem;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: var(--tw-enter-opacity, 0); }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: var(--tw-exit-opacity, 0); }
+}
+
+@keyframes zoom-in {
+  from { 
+    opacity: var(--tw-enter-opacity, 0); 
+    transform: scale(var(--tw-enter-scale, 0.95)); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+}
+
+@keyframes zoom-out {
+  from { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+  to { 
+    opacity: var(--tw-exit-opacity, 0); 
+    transform: scale(var(--tw-exit-scale, 0.95)); 
+  }
+}
+
+@keyframes slide-in-from-top {
+  from { transform: translateY(var(--tw-enter-translate-y, -100%)); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slide-in-from-bottom {
+  from { transform: translateY(var(--tw-enter-translate-y, 100%)); }
+  to { transform: translateY(0); }
 }
