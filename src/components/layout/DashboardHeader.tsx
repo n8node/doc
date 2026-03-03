@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { Bell } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Input } from "@/components/ui/input";
+import { UserMenu } from "./UserMenu";
 
 export async function DashboardHeader({
   title,
@@ -13,6 +14,7 @@ export async function DashboardHeader({
 }) {
   const session = await getServerSession(authOptions);
   const initial = session?.user?.email?.[0]?.toUpperCase() ?? "?";
+  const isAdmin = session?.user?.role === "ADMIN";
 
   return (
     <header className="sticky top-0 z-30 flex h-18 items-center justify-between gap-4 border-b border-border bg-surface/95 px-6 backdrop-blur-md">
@@ -37,16 +39,11 @@ export async function DashboardHeader({
           <Bell className="h-5 w-5" />
         </button>
         <ThemeToggle />
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface2 px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
-            {initial}
-          </div>
-          <div className="hidden text-left md:block">
-            <p className="text-sm font-medium text-foreground">
-              {session?.user?.email}
-            </p>
-          </div>
-        </div>
+        <UserMenu
+          initial={initial}
+          email={session?.user?.email}
+          isAdmin={isAdmin}
+        />
       </div>
     </header>
   );
