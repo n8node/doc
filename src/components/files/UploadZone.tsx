@@ -10,9 +10,18 @@ interface UploadZoneProps {
   uploading: boolean;
   disabled?: boolean;
   maxFileSize?: number;
+  storageUsed?: number | null;
+  storageQuota?: number | null;
 }
 
-export function UploadZone({ onUpload, uploading, disabled, maxFileSize }: UploadZoneProps) {
+export function UploadZone({
+  onUpload,
+  uploading,
+  disabled,
+  maxFileSize,
+  storageUsed,
+  storageQuota,
+}: UploadZoneProps) {
   const [dragOver, setDragOver] = useState(false);
   const [dragCountRef] = useState({ current: 0 });
 
@@ -186,6 +195,16 @@ export function UploadZone({ onUpload, uploading, disabled, maxFileSize }: Uploa
               Максимальный размер файла: {formatBytes(maxFileSize)}
             </p>
           )}
+
+          {!uploading &&
+            typeof storageUsed === "number" &&
+            typeof storageQuota === "number" &&
+            storageQuota > 0 && (
+              <p className="text-xs text-muted-foreground/70">
+                Доступно сейчас: {formatBytes(Math.max(storageQuota - storageUsed, 0))} из{" "}
+                {formatBytes(storageQuota)}
+              </p>
+            )}
         </div>
       </div>
 

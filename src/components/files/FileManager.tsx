@@ -109,11 +109,29 @@ export function FileManager() {
   const [filterHasShareLink, setFilterHasShareLink] = useState(false);
 
   const [maxFileSize, setMaxFileSize] = useState<number>(512 * 1024 * 1024); // 512 MB default
+  const [storageUsed, setStorageUsed] = useState<number | null>(null);
+  const [storageQuota, setStorageQuota] = useState<number | null>(null);
 
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [moving, setMoving] = useState(false);
   const [allRootFolders, setAllRootFolders] = useState<FolderItem[]>([]);
   const [singleMoveFile, setSingleMoveFile] = useState<{ id: string; name: string } | null>(null);
+
+  const loadStorageInfo = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user/storage");
+      const data = await res.json();
+      if (typeof data.maxFileSize === "number") {
+        setMaxFileSize(data.maxFileSize);
+      }
+      if (typeof data.storageUsed === "number") {
+        setStorageUsed(data.storageUsed);
+      }
+      if (typeof data.storageQuota === "number") {
+        setStorageQuota(data.storageQuota);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetch("/api/folders?parentId=")
@@ -123,15 +141,8 @@ export function FileManager() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/plans/me")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.maxFileSize && typeof data.maxFileSize === "number") {
-          setMaxFileSize(data.maxFileSize);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    loadStorageInfo();
+  }, [loadStorageInfo]);
 
   useEffect(() => {
     setCurrentFolderId(folderIdParam || null);
@@ -204,13 +215,14 @@ export function FileManager() {
         }
       }
       setBreadcrumbs(bc);
+      loadStorageInfo();
     } catch {
       toast.error("Ошибка загрузки данных");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [currentFolderId, filterType, filterSize, filterDate, filterHasShareLink]);
+  }, [currentFolderId, filterType, filterSize, filterDate, filterHasShareLink, loadStorageInfo]);
 
   useEffect(() => {
     loadData();
@@ -406,6 +418,11 @@ export function FileManager() {
                   },
                   ...prev,
                 ]);
+                if (typeof data.size === "number") {
+                  setStorageUsed((prev) =>
+                    typeof prev === "number" ? prev + data.size : prev
+                  );
+                }
                 resolve();
               } else {
                 const errorMsg =
@@ -528,6 +545,7 @@ export function FileManager() {
 
   const handleDeleteFile = async (id: string) => {
     if (!confirm("Удалить этот файл?")) return;
+    const fileToDelete = files.find((f) => f.id === id);
     try {
       const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -537,6 +555,13 @@ export function FileManager() {
           n.delete(id);
           return n;
         });
+        if (fileToDelete) {
+          setStorageUsed((prev) =>
+            typeof prev === "number" ? Math.max(prev - fileToDelete.size, 0) : prev
+          );
+        } else {
+          loadStorageInfo();
+        }
         toast.success("Файл удалён");
       } else {
         const d = await res.json();
@@ -558,6 +583,7 @@ export function FileManager() {
           n.delete(id);
           return n;
         });
+        loadStorageInfo();
         if (currentFolderId === id) router.push("/dashboard/files");
         toast.success("Папка удалена");
       } else {
@@ -586,6 +612,7 @@ export function FileManager() {
     setSelectedFiles(new Set());
     setSelectedFolders(new Set());
     loadData();
+    loadStorageInfo();
     toast.success("Удалено");
   };
 
@@ -829,6 +856,8 @@ export function FileManager() {
             onUpload={handleUpload}
             uploading={uploadingFiles.some((f) => f.status === "uploading")}
             maxFileSize={maxFileSize}
+            storageUsed={storageUsed}
+            storageQuota={storageQuota}
           />
 
           {/* Upload progress */}

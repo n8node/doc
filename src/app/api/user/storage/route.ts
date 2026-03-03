@@ -22,6 +22,7 @@ export async function GET() {
           name: true,
           isFree: true,
           storageQuota: true,
+          maxFileSize: true,
         },
       },
       _count: { select: { files: true } },
@@ -33,6 +34,7 @@ export async function GET() {
   }
 
   const currentQuota = user.plan ? user.plan.storageQuota : user.storageQuota;
+  const currentMaxFileSize = user.plan ? user.plan.maxFileSize : user.maxFileSize;
 
   const nextPlan = await prisma.plan.findFirst({
     where: {
@@ -50,8 +52,8 @@ export async function GET() {
 
   return NextResponse.json({
     storageUsed: Number(user.storageUsed),
-    storageQuota: Number(user.storageQuota),
-    maxFileSize: Number(user.maxFileSize),
+    storageQuota: Number(currentQuota),
+    maxFileSize: Number(currentMaxFileSize),
     filesCount: user._count.files,
     plan: user.plan
       ? {
