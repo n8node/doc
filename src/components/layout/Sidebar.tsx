@@ -13,6 +13,7 @@ import {
   Crown,
 } from "lucide-react";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
+import { SidebarFolderTree } from "./SidebarFolderTree";
 
 const navItems = [
   { href: "/dashboard/files", icon: FolderOpen, label: "Файлы" },
@@ -63,6 +64,7 @@ export function Sidebar() {
               </Link>
             );
           })}
+          <SidebarFolderTree />
         </nav>
 
         <div className="px-4 pb-4">

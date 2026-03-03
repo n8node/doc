@@ -4,6 +4,22 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteFolderRecursive, moveFolder } from "@/lib/folder-service";
 
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function GET(_req: NextRequest, ctx: Ctx) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await ctx.params;
+  const folder = await prisma.folder.findFirst({
+    where: { id, userId: session.user.id },
+    select: { id: true, name: true, parentId: true },
+  });
+  if (!folder)
+    return NextResponse.json({ error: "Folder not found" }, { status: 404 });
+  return NextResponse.json(folder);
+}
+
 export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
