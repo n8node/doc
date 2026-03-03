@@ -27,6 +27,7 @@ import { UploadProgress, UploadingFile } from "./UploadProgress";
 import { SelectionBar } from "./SelectionBar";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { ShareDialog } from "./ShareDialog";
+import { MoveDialog } from "./MoveDialog";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { formatBytes } from "@/lib/utils";
@@ -92,6 +93,17 @@ export function FileManager() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   const [maxFileSize, setMaxFileSize] = useState<number>(512 * 1024 * 1024); // 512 MB default
+
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [allRootFolders, setAllRootFolders] = useState<FolderItem[]>([]);
+
+  useEffect(() => {
+    fetch("/api/folders?parentId=")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/plans/me")
@@ -361,6 +373,7 @@ export function FileManager() {
       const data = await res.json();
       if (res.ok) {
         setFolders((prev) => [data, ...prev]);
+        if (!currentFolderId) setAllRootFolders((prev) => [...prev, data]);
         toast.success("Папка создана");
         setCreateFolderOpen(false);
         setNewFolderName("");
@@ -446,6 +459,51 @@ export function FileManager() {
     setSelectedFolders(new Set());
     loadData();
     toast.success("Удалено");
+  };
+
+  const handleBulkMove = async (targetFolderId: string | null) => {
+    const fileIds = Array.from(selectedFiles);
+    const folderIds = Array.from(selectedFolders);
+    if (fileIds.length === 0 && folderIds.length === 0) return;
+
+    setMoving(true);
+    try {
+      const promises: Promise<Response>[] = [];
+      if (fileIds.length > 0) {
+        promises.push(
+          fetch("/api/files/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: fileIds, action: "move", folderId: targetFolderId }),
+          })
+        );
+      }
+      if (folderIds.length > 0) {
+        promises.push(
+          fetch("/api/folders/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: folderIds, action: "move", parentId: targetFolderId }),
+          })
+        );
+      }
+      await Promise.all(promises);
+
+      setSelectedFiles(new Set());
+      setSelectedFolders(new Set());
+      setMoveDialogOpen(false);
+      loadData();
+      // Обновляем список корневых папок (дерево в сайдбаре)
+      fetch("/api/folders?parentId=")
+        .then((r) => r.json())
+        .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
+        .catch(() => {});
+      toast.success("Элементы перемещены");
+    } catch {
+      toast.error("Ошибка перемещения");
+    } finally {
+      setMoving(false);
+    }
   };
 
   const handleFileSelect = (id: string, selected: boolean) => {
@@ -689,8 +747,23 @@ export function FileManager() {
               }
             : undefined
         }
+        onMove={
+          (currentFolderId !== null || allRootFolders.length > 0)
+            ? () => setMoveDialogOpen(true)
+            : undefined
+        }
         onDelete={handleBulkDelete}
         onClear={clearSelection}
+      />
+
+      {/* Move dialog */}
+      <MoveDialog
+        open={moveDialogOpen}
+        onClose={() => setMoveDialogOpen(false)}
+        onMove={handleBulkMove}
+        currentFolderId={currentFolderId}
+        excludeFolderIds={selectedFolders}
+        moving={moving}
       />
 
       {/* Create folder dialog */}

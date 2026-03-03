@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, Trash2 } from "lucide-react";
+import { X, Download, Trash2, FolderInput } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ export function SelectionBar({
   selectedCount,
   selectedSize,
   onDownload,
+  onMove,
   onDelete,
   onClear,
 }: SelectionBarProps) {
@@ -65,6 +66,18 @@ export function SelectionBar({
                 >
                   <Download className="h-4 w-4" />
                   <span className="hidden sm:inline">Скачать</span>
+                </Button>
+              )}
+
+              {onMove && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onMove}
+                  className="gap-2"
+                >
+                  <FolderInput className="h-4 w-4" />
+                  <span className="hidden sm:inline">Переместить</span>
                 </Button>
               )}
 
