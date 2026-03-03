@@ -399,7 +399,7 @@ export default function AdminUsersPage() {
                             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                           </div>
                           {user.isBlocked && (
-                            <Badge variant="destructive" className="ml-1 text-[10px]">
+                            <Badge variant="error" className="ml-1 text-[10px]">
                               <Ban className="mr-0.5 h-2.5 w-2.5" />
                               Заблокирован
                             </Badge>

@@ -147,7 +147,7 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
                       {user.role}
                     </Badge>
                     {user.isBlocked && (
-                      <Badge variant="destructive" className="text-[10px]">
+                      <Badge variant="error" className="text-[10px]">
                         <Ban className="mr-0.5 h-2.5 w-2.5" />
                         Заблокирован
                       </Badge>
