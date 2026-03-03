@@ -2,10 +2,11 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ComponentType } from "react";
 import {
   FolderOpen,
+  Upload,
   ImageIcon,
   Share2,
   History,
@@ -44,10 +45,19 @@ const extraNavItems = [
 ];
 
 export function SidebarV2() {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeSection = parseFilesSection(searchParams.get("section"));
   const isFilesPage = pathname === "/dashboard/files" || pathname.startsWith("/dashboard/files");
+
+  const handleUploadClick = () => {
+    if (isFilesPage && activeSection === "my-files") {
+      window.dispatchEvent(new CustomEvent("files:open-upload-dialog"));
+      return;
+    }
+    router.push(buildDashboardFilesUrl({ section: "my-files", intent: "upload" }));
+  };
 
   return (
     <motion.aside
@@ -65,6 +75,17 @@ export function SidebarV2() {
             <p className="truncate text-lg font-bold text-foreground">qoqon.ru</p>
             <p className="text-xs text-muted-foreground">Новая навигация (beta)</p>
           </div>
+        </div>
+
+        <div className="px-3 pt-4">
+          <button
+            type="button"
+            onClick={handleUploadClick}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-secondary px-4 py-3 text-sm font-semibold text-white shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.99]"
+          >
+            <Upload className="h-4 w-4" />
+            Загрузить
+          </button>
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">

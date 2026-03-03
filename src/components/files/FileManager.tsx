@@ -131,6 +131,7 @@ export function FileManager() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderIdParam = searchParams.get("folderId");
+  const intentParam = searchParams.get("intent");
   const activeSection = parseFilesSection(searchParams.get("section"));
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
@@ -194,6 +195,10 @@ export function FileManager() {
   const [allRootFolders, setAllRootFolders] = useState<FolderItem[]>([]);
   const [singleMoveFile, setSingleMoveFile] = useState<{ id: string; name: string } | null>(null);
 
+  const openUploadPicker = useCallback(() => {
+    uploadInputRef.current?.click();
+  }, []);
+
   const loadStorageInfo = useCallback(async () => {
     try {
       const res = await fetch("/api/user/storage");
@@ -218,6 +223,33 @@ export function FileManager() {
     nextParams.set("section", activeSection);
     router.replace(`/dashboard/files?${nextParams.toString()}`);
   }, [activeSection, router, searchParams]);
+
+  useEffect(() => {
+    const handleOpenUploadDialog = () => {
+      openUploadPicker();
+    };
+
+    window.addEventListener("files:open-upload-dialog", handleOpenUploadDialog);
+    return () => {
+      window.removeEventListener("files:open-upload-dialog", handleOpenUploadDialog);
+    };
+  }, [openUploadPicker]);
+
+  useEffect(() => {
+    if (intentParam !== "upload") return;
+
+    const timerId = window.setTimeout(() => {
+      openUploadPicker();
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.set("section", activeSection);
+      nextParams.delete("intent");
+      router.replace(`/dashboard/files?${nextParams.toString()}`);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [intentParam, openUploadPicker, activeSection, router, searchParams]);
 
   useEffect(() => {
     fetch("/api/folders?parentId=")
@@ -1194,7 +1226,7 @@ export function FileManager() {
           {!loading && isEmpty && (
             <EmptyState
               isSubfolder={isSubfolder}
-              onUploadClick={() => uploadInputRef.current?.click()}
+              onUploadClick={openUploadPicker}
               onCreateFolder={() => setCreateFolderOpen(true)}
             />
           )}
