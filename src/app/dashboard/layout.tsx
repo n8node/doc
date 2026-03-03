@@ -2,7 +2,9 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { SidebarV2 } from "@/components/layout/SidebarV2";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { sidebarV2Enabled } from "@/lib/feature-flags";
 
 export default async function DashboardLayout({
   children,
@@ -14,7 +16,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
+      {sidebarV2Enabled ? <SidebarV2 /> : <Sidebar />}
       <div className="pl-72">
         <DashboardHeader
           title="Личный кабинет"

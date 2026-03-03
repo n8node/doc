@@ -6,6 +6,11 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, FolderOpen, Home, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  buildDashboardFilesUrl,
+  DEFAULT_FILES_SECTION,
+  parseFilesSection,
+} from "@/lib/files-navigation";
 
 interface FolderItem {
   id: string;
@@ -17,6 +22,8 @@ export function SidebarFolderTree() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const folderIdParam = searchParams.get("folderId") ?? null;
+  const activeSection = parseFilesSection(searchParams.get("section"));
+  const isMyFilesSection = activeSection === DEFAULT_FILES_SECTION;
 
   const [rootFolders, setRootFolders] = useState<FolderItem[]>([]);
   const [childrenByParentId, setChildrenByParentId] = useState<Record<string, FolderItem[]>>({});
@@ -97,6 +104,7 @@ export function SidebarFolderTree() {
   };
 
   const isActive = (id: string | null) => {
+    if (!isMyFilesSection) return false;
     if (folderIdParam === null && id === null) return true;
     if (folderIdParam === id) return true;
     if (id !== null && id === pathSecondLevelId && folderIdParam !== pathSecondLevelId)
@@ -104,7 +112,7 @@ export function SidebarFolderTree() {
     return false;
   };
 
-  if (!isFilesPage) return null;
+  if (!isFilesPage || !isMyFilesSection) return null;
 
   return (
     <div className="space-y-0.5 px-1">
@@ -113,7 +121,7 @@ export function SidebarFolderTree() {
       </div>
 
       <Link
-        href="/dashboard/files"
+        href={buildDashboardFilesUrl({ section: DEFAULT_FILES_SECTION })}
         className={cn(
           "flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
           isActive(null)
@@ -155,7 +163,10 @@ export function SidebarFolderTree() {
                     </motion.span>
                   </button>
                   <Link
-                    href={`/dashboard/files?folderId=${folder.id}`}
+                    href={buildDashboardFilesUrl({
+                      section: DEFAULT_FILES_SECTION,
+                      folderId: folder.id,
+                    })}
                     className={cn(
                       "flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition-all",
                       isRootActive
@@ -188,7 +199,10 @@ export function SidebarFolderTree() {
                           return (
                             <li key={child.id} className="list-none">
                               <Link
-                                href={`/dashboard/files?folderId=${child.id}`}
+                                href={buildDashboardFilesUrl({
+                                  section: DEFAULT_FILES_SECTION,
+                                  folderId: child.id,
+                                })}
                                 className={cn(
                                   "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all",
                                   isChildActive

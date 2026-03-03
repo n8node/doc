@@ -46,6 +46,7 @@ import { MoveDialog } from "./MoveDialog";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { formatBytes } from "@/lib/utils";
+import { buildDashboardFilesUrl, parseFilesSection } from "@/lib/files-navigation";
 
 interface FileItem {
   id: string;
@@ -130,6 +131,7 @@ export function FileManager() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderIdParam = searchParams.get("folderId");
+  const activeSection = parseFilesSection(searchParams.get("section"));
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(folderIdParam || null);
@@ -207,6 +209,15 @@ export function FileManager() {
       }
     } catch {}
   }, []);
+
+  useEffect(() => {
+    const currentSection = searchParams.get("section");
+    if (currentSection === activeSection) return;
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("section", activeSection);
+    router.replace(`/dashboard/files?${nextParams.toString()}`);
+  }, [activeSection, router, searchParams]);
 
   useEffect(() => {
     fetch("/api/folders?parentId=")
@@ -734,7 +745,9 @@ export function FileManager() {
           return n;
         });
         loadStorageInfo();
-        if (currentFolderId === id) router.push("/dashboard/files");
+        if (currentFolderId === id) {
+          router.push(buildDashboardFilesUrl({ section: activeSection }));
+        }
         toast.success("Папка удалена");
       } else {
         const d = await res.json();
@@ -869,11 +882,12 @@ export function FileManager() {
   };
 
   const navigateToFolder = (id: string | null) => {
-    if (id) {
-      router.push(`/dashboard/files?folderId=${id}`);
-    } else {
-      router.push("/dashboard/files");
-    }
+    router.push(
+      buildDashboardFilesUrl({
+        section: activeSection,
+        folderId: id,
+      })
+    );
   };
 
   const streamUrl = (id: string) => `/api/files/${id}/stream`;
