@@ -14,7 +14,11 @@ model User {
   id           String      @id @default(cuid()) @map("id")
   email        String      @unique @map("email")
   passwordHash String      @map("password_hash")
+  name         String?     @map("name")
   role         Role        @default(USER) @map("role")
+  isBlocked    Boolean     @default(false) @map("is_blocked")
+  blockedAt    DateTime?   @map("blocked_at")
+  lastLoginAt  DateTime?   @map("last_login_at")
   storageUsed  BigInt      @default(0) @map("storage_used")
   storageQuota BigInt      @default(26843545600) @map("storage_quota") // 25GB
   maxFileSize  BigInt      @default(536870912) @map("max_file_size") // 512MB

@@ -17,23 +17,41 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         });
         if (!user || !user.passwordHash) return null;
+        if (user.isBlocked) return null;
         const valid = await compare(credentials.password, user.passwordHash);
         if (!valid) return null;
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        });
+
         return {
           id: user.id,
           email: user.email,
           role: user.role,
-          name: user.email,
+          name: user.name || user.email,
         };
       },
     }),
   ],
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   callbacks: {
-    jwt: ({ token, user }) => {
+    jwt: async ({ token, user, trigger }) => {
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: "USER" | "ADMIN" }).role;
+      }
+      if (trigger === "update" || !token.checkedAt || Date.now() - (token.checkedAt as number) > 5 * 60 * 1000) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { isBlocked: true, role: true },
+        });
+        if (dbUser) {
+          token.isBlocked = dbUser.isBlocked;
+          token.role = dbUser.role;
+        }
+        token.checkedAt = Date.now();
       }
       return token;
     },
