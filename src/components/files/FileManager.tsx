@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Upload, File as FileIcon, Loader2, Music, Video } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 

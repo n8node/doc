@@ -62,7 +62,7 @@ export function S3SettingsForm() {
       } else {
         toast.error(data.message ?? "Ошибка подключения");
       }
-    } catch (e) {
+    } catch {
       toast.error("Ошибка запроса");
     } finally {
       setTesting(false);

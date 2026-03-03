@@ -17,7 +17,7 @@ export async function uploadFile(input: UploadFileInput) {
   const ext = file.name.includes(".") ? file.name.split(".").pop() ?? "" : "";
   const baseName = file.name
     .replace(/\.[^/.]+$/, "")
-    .replace(/[^a-zA-Z0-9_\-\p{L}]/gu, "_")
+    .replace(/[^a-zA-Z0-9_\-\u0400-\u04FF]/g, "_")
     .slice(0, 100) || "file";
   const safeName = ext ? `${baseName}.${ext}` : baseName;
   const timestamp = Date.now();
@@ -59,7 +59,7 @@ export async function uploadFile(input: UploadFileInput) {
       s3Key,
       folderId: folderId ?? null,
       userId,
-      mediaMetadata,
+      ...(mediaMetadata && { mediaMetadata }),
     },
   });
 
