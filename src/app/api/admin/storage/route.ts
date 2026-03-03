@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
       
       if (folder) {
         const path = [];
-        let currentFolder = folder;
+        let currentFolder: { id: string; name: string; parentId: string | null } | null = folder;
         
         // Build path by walking up the parent chain
         while (currentFolder) {
