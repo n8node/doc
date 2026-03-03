@@ -3,12 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createShareLink, listShareLinks } from "@/lib/share-service";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const links = await listShareLinks(session.user.id);
+  const { searchParams } = new URL(request.url);
+  const fileId = searchParams.get("fileId");
+  const folderId = searchParams.get("folderId");
+
+  const links = await listShareLinks(session.user.id, { fileId, folderId });
   return NextResponse.json({
     links: links.map((l) => ({
       id: l.id,

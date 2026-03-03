@@ -58,9 +58,18 @@ export async function markShareLinkUsed(id: string) {
   });
 }
 
-export async function listShareLinks(userId: string) {
+export async function listShareLinks(
+  userId: string,
+  filters?: { fileId?: string | null; folderId?: string | null }
+) {
+  const where: { createdById: string; fileId?: string; folderId?: string } = {
+    createdById: userId,
+  };
+  if (filters?.fileId) where.fileId = filters.fileId;
+  if (filters?.folderId) where.folderId = filters.folderId;
+
   return prisma.shareLink.findMany({
-    where: { createdById: userId },
+    where,
     include: { file: true, folder: true },
     orderBy: { createdAt: "desc" },
   });

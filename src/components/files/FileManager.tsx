@@ -29,6 +29,7 @@ import { UploadProgress, UploadingFile } from "./UploadProgress";
 import { SelectionBar } from "./SelectionBar";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { ShareDialog } from "./ShareDialog";
+import { ShareLinksListDialog } from "./ShareLinksListDialog";
 import { MoveDialog } from "./MoveDialog";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
@@ -43,6 +44,7 @@ interface FileItem {
   mediaMetadata: { durationSeconds?: number } | null;
   createdAt: string;
   hasShareLink?: boolean;
+  shareLinksCount?: number;
 }
 
 interface FolderItem {
@@ -85,6 +87,11 @@ export function FileManager() {
 
   const [shareTarget, setShareTarget] = useState<{
     type: "FILE" | "FOLDER";
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const [shareLinksTarget, setShareLinksTarget] = useState<{
     id: string;
     name: string;
   } | null>(null);
@@ -801,6 +808,7 @@ export function FileManager() {
                         createdAt={file.createdAt}
                         mediaMetadata={file.mediaMetadata}
                         hasShareLink={file.hasShareLink}
+                        shareLinksCount={file.shareLinksCount}
                         selected={selectedFiles.has(file.id)}
                         onSelect={handleFileSelect}
                         onPlay={
@@ -816,6 +824,9 @@ export function FileManager() {
                         onDownload={() => handleDownload(file.id)}
                         onShare={() =>
                           setShareTarget({ type: "FILE", id: file.id, name: file.name })
+                        }
+                        onShareLinksClick={() =>
+                          setShareLinksTarget({ id: file.id, name: file.name })
                         }
                         onDelete={() => handleDeleteFile(file.id)}
                         index={index + folders.length}
@@ -926,6 +937,17 @@ export function FileManager() {
           onClose={() => setShareTarget(null)}
         />
       )}
+
+      {/* Share links list dialog */}
+      <ShareLinksListDialog
+        open={!!shareLinksTarget}
+        onClose={() => {
+          setShareLinksTarget(null);
+          loadData();
+        }}
+        fileId={shareLinksTarget?.id ?? null}
+        fileName={shareLinksTarget?.name ?? ""}
+      />
     </>
   );
 }

@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RenameDialog } from "@/components/admin/RenameDialog";
 import { ItemDetailsDialog } from "@/components/admin/ItemDetailsDialog";
+import { ShareLinksListDialog } from "@/components/files/ShareLinksListDialog";
 
 interface StorageFile {
   id: string;
@@ -140,6 +141,12 @@ export default function AdminStoragePage() {
     type: "file" | "folder";
     id: string | null;
   }>({ open: false, type: "file", id: null });
+
+  const [shareLinksDialog, setShareLinksDialog] = useState<{
+    open: boolean;
+    fileId: string | null;
+    fileName: string;
+  }>({ open: false, fileId: null, fileName: "" });
 
   const loadUsers = useCallback(async () => {
     const res = await fetch("/api/admin/users");
@@ -728,10 +735,19 @@ export default function AdminStoragePage() {
                           <div className="font-medium">{file.name}</div>
                           <div className="flex items-center gap-1 mt-0.5">
                             {file.hasShares && (
-                              <Badge variant="outline" className="text-xs">
-                                <Share2 className="h-2.5 w-2.5 mr-1" />
-                                {file.shareLinksCount}
-                              </Badge>
+                              <button
+                                type="button"
+                                onClick={() => setShareLinksDialog({
+                                  open: true,
+                                  fileId: file.id,
+                                  fileName: file.name,
+                                })}
+                              >
+                                <Badge variant="outline" className="text-xs cursor-pointer hover:bg-primary/10 transition-colors">
+                                  <Share2 className="h-2.5 w-2.5 mr-1" />
+                                  {file.shareLinksCount} {file.shareLinksCount === 1 ? "ссылка" : "ссылок"}
+                                </Badge>
+                              </button>
                             )}
                           </div>
                         </td>
@@ -867,6 +883,17 @@ export default function AdminStoragePage() {
         onClose={() => setDetailsDialog({ open: false, type: "file", id: null })}
         itemType={detailsDialog.type}
         itemId={detailsDialog.id}
+      />
+
+      <ShareLinksListDialog
+        open={shareLinksDialog.open}
+        onClose={() => {
+          setShareLinksDialog({ open: false, fileId: null, fileName: "" });
+          loadData();
+        }}
+        fileId={shareLinksDialog.fileId}
+        fileName={shareLinksDialog.fileName}
+        isAdmin
       />
     </div>
   );

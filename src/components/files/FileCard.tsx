@@ -44,11 +44,13 @@ interface FileCardProps {
   createdAt: string;
   mediaMetadata?: { durationSeconds?: number } | null;
   hasShareLink?: boolean;
+  shareLinksCount?: number;
   selected: boolean;
   onSelect: (id: string, selected: boolean) => void;
   onPlay?: () => void;
   onDownload: () => void;
   onShare: () => void;
+  onShareLinksClick?: () => void;
   onDelete: () => void;
   index: number;
 }
@@ -165,11 +167,13 @@ export function FileCard({
   createdAt,
   mediaMetadata,
   hasShareLink = false,
+  shareLinksCount = 0,
   selected,
   onSelect,
   onPlay,
   onDownload,
   onShare,
+  onShareLinksClick,
   onDelete,
   index,
 }: FileCardProps) {
@@ -218,15 +222,7 @@ export function FileCard({
 
         {/* Info */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-medium text-foreground">{name}</p>
-            {hasShareLink && (
-              <span className="flex shrink-0 items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
-                <Link2 className="h-3 w-3" />
-                Публичная ссылка
-              </span>
-            )}
-          </div>
+          <p className="truncate text-sm font-medium text-foreground">{name}</p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{formatBytes(size)}</span>
             {mediaMetadata?.durationSeconds != null && (
@@ -240,6 +236,22 @@ export function FileCard({
               <Clock className="h-3 w-3" />
               {formatRelativeDate(createdAt)}
             </span>
+            {hasShareLink && (
+              <>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShareLinksClick?.();
+                  }}
+                  className="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary transition-colors hover:bg-primary/20"
+                >
+                  <Link2 className="h-3 w-3" />
+                  Ссылка{shareLinksCount > 1 ? ` (${shareLinksCount})` : ""}
+                </button>
+              </>
+            )}
           </div>
         </div>
 

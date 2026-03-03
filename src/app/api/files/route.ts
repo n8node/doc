@@ -99,6 +99,7 @@ export async function GET(request: NextRequest) {
       mediaMetadata: f.mediaMetadata,
       createdAt: f.createdAt,
       hasShareLink: f.shareLinks.length > 0,
+      shareLinksCount: f.shareLinks.length,
     })),
   });
 }
