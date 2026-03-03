@@ -11,6 +11,7 @@ export async function GET() {
       name: true,
       isFree: true,
       storageQuota: true,
+      maxFileSize: true,
       features: true,
       priceMonthly: true,
       priceYearly: true,
@@ -20,6 +21,7 @@ export async function GET() {
     plans: plans.map((p) => ({
       ...p,
       storageQuota: Number(p.storageQuota),
+      maxFileSize: Number(p.maxFileSize),
     })),
   });
 }

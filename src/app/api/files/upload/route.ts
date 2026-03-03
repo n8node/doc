@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/file-service";
+import { getMaxFileSize } from "@/lib/plan-service";
+import { formatBytes } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -19,6 +21,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Файл не передан" },
       { status: 400 }
+    );
+  }
+
+  const maxSize = await getMaxFileSize(session.user.id);
+  if (BigInt(file.size) > maxSize) {
+    return NextResponse.json(
+      { error: `Файл слишком большой. Максимум: ${formatBytes(Number(maxSize))}` },
+      { status: 413 }
     );
   }
 

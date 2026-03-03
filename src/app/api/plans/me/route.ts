@@ -15,5 +15,6 @@ export async function GET() {
   return NextResponse.json({
     ...plan,
     storageQuota: Number(plan.storageQuota),
+    maxFileSize: Number(plan.maxFileSize),
   });
 }

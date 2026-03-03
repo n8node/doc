@@ -22,6 +22,7 @@ async function main() {
       name: "Бесплатный",
       isFree: true,
       storageQuota: BigInt(25 * 1024 * 1024 * 1024), // 25GB
+      maxFileSize: BigInt(512 * 1024 * 1024), // 512MB
       features: {
         video_player: true,
         audio_player: true,
@@ -35,6 +36,7 @@ async function main() {
     update: {
       isFree: true,
       storageQuota: BigInt(25 * 1024 * 1024 * 1024),
+      maxFileSize: BigInt(512 * 1024 * 1024),
       features: {
         video_player: true,
         audio_player: true,

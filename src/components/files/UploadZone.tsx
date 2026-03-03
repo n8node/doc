@@ -3,15 +3,16 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, Cloud, FileImage, FileVideo, FileAudio, FileText, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 
 interface UploadZoneProps {
   onUpload: (files: FileList) => void;
   uploading: boolean;
   disabled?: boolean;
+  maxFileSize?: number;
 }
 
-export function UploadZone({ onUpload, uploading, disabled }: UploadZoneProps) {
+export function UploadZone({ onUpload, uploading, disabled, maxFileSize }: UploadZoneProps) {
   const [dragOver, setDragOver] = useState(false);
   const [dragCountRef] = useState({ current: 0 });
 
@@ -180,9 +181,9 @@ export function UploadZone({ onUpload, uploading, disabled }: UploadZoneProps) {
           )}
 
           {/* Size limit hint */}
-          {!uploading && (
+          {!uploading && maxFileSize && (
             <p className="text-xs text-muted-foreground/70">
-              Максимальный размер файла: 2 ГБ
+              Максимальный размер файла: {formatBytes(maxFileSize)}
             </p>
           )}
         </div>

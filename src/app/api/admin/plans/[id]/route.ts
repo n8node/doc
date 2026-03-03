@@ -16,11 +16,16 @@ export async function PATCH(
   }
   const { id } = await ctx.params;
   const body = await req.json();
-  const { name, isFree, storageQuota, features, priceMonthly, priceYearly } = body;
+  const { name, isFree, storageQuota, maxFileSize, features, priceMonthly, priceYearly } = body;
   const data: Record<string, unknown> = {};
   if (name != null) data.name = name;
   if (isFree != null) data.isFree = !!isFree;
   if (storageQuota != null) data.storageQuota = BigInt(storageQuota);
+  if (maxFileSize != null) {
+    const MAX_ALLOWED = BigInt(5 * 1024 * 1024 * 1024); // 5 GB
+    const value = BigInt(maxFileSize);
+    data.maxFileSize = value > MAX_ALLOWED ? MAX_ALLOWED : value;
+  }
   if (features != null) data.features = features;
   if (priceMonthly != null) data.priceMonthly = priceMonthly;
   if (priceYearly != null) data.priceYearly = priceYearly;
@@ -31,5 +36,6 @@ export async function PATCH(
   return NextResponse.json({
     ...plan,
     storageQuota: Number(plan.storageQuota),
+    maxFileSize: Number(plan.maxFileSize),
   });
 }

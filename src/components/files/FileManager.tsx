@@ -29,6 +29,7 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { ShareDialog } from "./ShareDialog";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
+import { formatBytes } from "@/lib/utils";
 
 interface FileItem {
   id: string;
@@ -88,6 +89,19 @@ export function FileManager() {
   const [creatingFolder, setCreatingFolder] = useState(false);
 
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+
+  const [maxFileSize, setMaxFileSize] = useState<number>(512 * 1024 * 1024); // 512 MB default
+
+  useEffect(() => {
+    fetch("/api/plans/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.maxFileSize && typeof data.maxFileSize === "number") {
+          setMaxFileSize(data.maxFileSize);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setCurrentFolderId(folderIdParam || null);
@@ -188,6 +202,18 @@ export function FileManager() {
     for (let i = 0; i < filesArray.length; i++) {
       const file = filesArray[i];
       const uploadId = newUploadingFiles[i].id;
+
+      if (file.size > maxFileSize) {
+        setUploadingFiles((prev) =>
+          prev.map((f) =>
+            f.id === uploadId
+              ? { ...f, status: "error" as const, error: `Превышен лимит ${formatBytes(maxFileSize)}` }
+              : f
+          )
+        );
+        toast.error(`${file.name}: превышен лимит ${formatBytes(maxFileSize)}`);
+        continue;
+      }
 
       setUploadingFiles((prev) =>
         prev.map((f) => (f.id === uploadId ? { ...f, status: "uploading" as const, progress: 0 } : f))
@@ -503,6 +529,7 @@ export function FileManager() {
           <UploadZone
             onUpload={handleUpload}
             uploading={uploadingFiles.some((f) => f.status === "uploading")}
+            maxFileSize={maxFileSize}
           />
 
           {/* Upload progress */}

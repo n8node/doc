@@ -13,6 +13,10 @@ export async function GET() {
   }
   const plans = await prisma.plan.findMany({ orderBy: { name: "asc" } });
   return NextResponse.json({
-    plans: plans.map((p) => ({ ...p, storageQuota: Number(p.storageQuota) })),
+    plans: plans.map((p) => ({
+      ...p,
+      storageQuota: Number(p.storageQuota),
+      maxFileSize: Number(p.maxFileSize),
+    })),
   });
 }

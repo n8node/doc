@@ -1,7 +1,10 @@
 import { prisma } from "./prisma";
 
+const ABSOLUTE_MAX_FILE_SIZE = BigInt(5 * 1024 * 1024 * 1024); // 5 GB — жёсткий потолок
+
 const FREE_PLAN_DEFAULTS = {
   storageQuota: BigInt(25 * 1024 * 1024 * 1024), // 25 GB
+  maxFileSize: BigInt(512 * 1024 * 1024), // 512 MB
   features: {
     video_player: true,
     audio_player: true,
@@ -22,6 +25,7 @@ export async function getUserPlan(userId: string) {
       id: user.plan.id,
       name: user.plan.name,
       storageQuota: user.plan.storageQuota,
+      maxFileSize: user.plan.maxFileSize,
       features: (user.plan.features as Record<string, boolean>) ?? {},
     };
   }
@@ -29,8 +33,19 @@ export async function getUserPlan(userId: string) {
     id: "free",
     name: "Бесплатный",
     storageQuota: user.storageQuota,
+    maxFileSize: user.maxFileSize,
     features: FREE_PLAN_DEFAULTS.features,
   };
+}
+
+export async function getMaxFileSize(userId: string): Promise<bigint> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { plan: true },
+  });
+  if (!user) return FREE_PLAN_DEFAULTS.maxFileSize;
+  const limit = user.plan ? user.plan.maxFileSize : user.maxFileSize;
+  return limit > ABSOLUTE_MAX_FILE_SIZE ? ABSOLUTE_MAX_FILE_SIZE : limit;
 }
 
 export async function hasFeature(
