@@ -14,6 +14,9 @@ import {
   ChevronDown,
   RotateCcw,
   Check,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   Dialog,
@@ -93,7 +96,30 @@ const DATE_FILTER_OPTIONS: FilterOption[] = [
   { value: "today", label: "Сегодня" },
   { value: "week", label: "За неделю" },
   { value: "month", label: "За месяц" },
+  { value: "custom", label: "Выбор даты" },
 ];
+
+const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateKey(key: string) {
+  return new Date(`${key}T00:00:00`);
+}
+
+function formatDateKeyLabel(key: string) {
+  const date = parseDateKey(key);
+  return date.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 export function FileManager() {
   const router = useRouter();
@@ -143,6 +169,12 @@ export function FileManager() {
   const [filterSize, setFilterSize] = useState<string>("all");
   const [filterDate, setFilterDate] = useState<string>("all");
   const [filterHasShareLink, setFilterHasShareLink] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [selectedCustomDate, setSelectedCustomDate] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   const [maxFileSize, setMaxFileSize] = useState<number>(512 * 1024 * 1024); // 512 MB default
   const [storageUsed, setStorageUsed] = useState<number | null>(null);
@@ -184,6 +216,12 @@ export function FileManager() {
     setCurrentFolderId(folderIdParam || null);
   }, [folderIdParam]);
 
+  useEffect(() => {
+    if (!selectedCustomDate) return;
+    const selected = parseDateKey(selectedCustomDate);
+    setCalendarMonth(new Date(selected.getFullYear(), selected.getMonth(), 1));
+  }, [selectedCustomDate]);
+
   const loadData = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
     else setLoading(true);
@@ -219,6 +257,28 @@ export function FileManager() {
           start.setMonth(start.getMonth() - 1);
           filesParams.set("dateFrom", start.toISOString());
           filesParams.set("dateTo", now.toISOString());
+        } else if (filterDate === "custom" && selectedCustomDate) {
+          const selected = parseDateKey(selectedCustomDate);
+          const start = new Date(
+            selected.getFullYear(),
+            selected.getMonth(),
+            selected.getDate(),
+            0,
+            0,
+            0,
+            0
+          );
+          const end = new Date(
+            selected.getFullYear(),
+            selected.getMonth(),
+            selected.getDate(),
+            23,
+            59,
+            59,
+            999
+          );
+          filesParams.set("dateFrom", start.toISOString());
+          filesParams.set("dateTo", end.toISOString());
         }
       }
 
@@ -258,7 +318,15 @@ export function FileManager() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [currentFolderId, filterType, filterSize, filterDate, filterHasShareLink, loadStorageInfo]);
+  }, [
+    currentFolderId,
+    filterType,
+    filterSize,
+    filterDate,
+    selectedCustomDate,
+    filterHasShareLink,
+    loadStorageInfo,
+  ]);
 
   useEffect(() => {
     loadData();
@@ -779,13 +847,55 @@ export function FileManager() {
     setFilterSize("all");
     setFilterDate("all");
     setFilterHasShareLink(false);
+    setSelectedCustomDate(null);
   };
   const activeTypeLabel =
     TYPE_FILTER_OPTIONS.find((option) => option.value === filterType)?.label ?? "Все типы";
   const activeSizeLabel =
     SIZE_FILTER_OPTIONS.find((option) => option.value === filterSize)?.label ?? "Любой размер";
   const activeDateLabel =
-    DATE_FILTER_OPTIONS.find((option) => option.value === filterDate)?.label ?? "Любая дата";
+    filterDate === "custom" && selectedCustomDate
+      ? formatDateKeyLabel(selectedCustomDate)
+      : DATE_FILTER_OPTIONS.find((option) => option.value === filterDate)?.label ?? "Любая дата";
+
+  const getFilterTriggerClass = (active: boolean) =>
+    `relative z-[1] flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-xl border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 ${
+      active
+        ? "border-primary/60 bg-primary/10 text-primary shadow-sm"
+        : "border-border bg-surface2 text-foreground hover:bg-surface2/80"
+    }`;
+
+  const monthStart = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+  const monthLabel = monthStart.toLocaleDateString("ru-RU", {
+    month: "long",
+    year: "numeric",
+  });
+  const monthWeekdayOffset = (monthStart.getDay() + 6) % 7;
+  const calendarGridStart = new Date(monthStart);
+  calendarGridStart.setDate(monthStart.getDate() - monthWeekdayOffset);
+  const calendarDays = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(calendarGridStart);
+    date.setDate(calendarGridStart.getDate() + index);
+    return {
+      date,
+      dateKey: toDateKey(date),
+      inCurrentMonth: date.getMonth() === monthStart.getMonth(),
+    };
+  });
+
+  const handleCustomDateSelect = (date: Date) => {
+    setSelectedCustomDate(toDateKey(date));
+    setFilterDate("custom");
+    setDatePickerOpen(false);
+  };
+
+  const openCustomDatePicker = () => {
+    if (selectedCustomDate) {
+      const selected = parseDateKey(selectedCustomDate);
+      setCalendarMonth(new Date(selected.getFullYear(), selected.getMonth(), 1));
+    }
+    setDatePickerOpen(true);
+  };
 
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
   const isEmpty = folders.length === 0 && files.length === 0;
@@ -843,7 +953,7 @@ export function FileManager() {
 
         <CardContent className="space-y-6 p-6">
           {/* Filters */}
-          <div className="rounded-2xl modal-glass p-3 sm:p-4">
+          <div className="rounded-2xl modal-glass-soft p-3 sm:p-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -879,7 +989,7 @@ export function FileManager() {
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className="flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-xl border border-border bg-surface2 px-3 text-sm text-foreground transition-colors hover:bg-surface2/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-background"
+                        className={getFilterTriggerClass(filterType !== "all")}
                       >
                         <span className="truncate">{activeTypeLabel}</span>
                         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -905,7 +1015,7 @@ export function FileManager() {
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className="flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-xl border border-border bg-surface2 px-3 text-sm text-foreground transition-colors hover:bg-surface2/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-background"
+                        className={getFilterTriggerClass(filterSize !== "all")}
                       >
                         <span className="truncate">{activeSizeLabel}</span>
                         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -931,7 +1041,7 @@ export function FileManager() {
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className="flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-xl border border-border bg-surface2 px-3 text-sm text-foreground transition-colors hover:bg-surface2/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-background"
+                        className={getFilterTriggerClass(filterDate !== "all")}
                       >
                         <span className="truncate">{activeDateLabel}</span>
                         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -941,7 +1051,13 @@ export function FileManager() {
                       {DATE_FILTER_OPTIONS.map((option) => (
                         <DropdownMenuItem
                           key={option.value}
-                          onClick={() => setFilterDate(option.value)}
+                          onClick={() => {
+                            if (option.value === "custom") {
+                              openCustomDatePicker();
+                              return;
+                            }
+                            setFilterDate(option.value);
+                          }}
                           className="justify-between"
                         >
                           <span>{option.label}</span>
@@ -1190,6 +1306,112 @@ export function FileManager() {
               <Button onClick={handleCreateFolder} disabled={creatingFolder || !newFolderName.trim()}>
                 {creatingFolder ? "Создание..." : "Создать"}
               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Date filter picker dialog */}
+      <Dialog open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              Выбор даты загрузки
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() =>
+                  setCalendarMonth(
+                    (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+                  )
+                }
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <p className="text-sm font-semibold capitalize">{monthLabel}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() =>
+                  setCalendarMonth(
+                    (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+                  )
+                }
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+              {WEEKDAY_LABELS.map((weekday) => (
+                <div key={weekday} className="py-1 font-medium">
+                  {weekday}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {calendarDays.map((day) => {
+                const isSelected = selectedCustomDate === day.dateKey && filterDate === "custom";
+                const isToday = day.dateKey === toDateKey(new Date());
+                return (
+                  <button
+                    key={day.dateKey}
+                    type="button"
+                    disabled={!day.inCurrentMonth}
+                    onClick={() => handleCustomDateSelect(day.date)}
+                    className={`h-9 rounded-lg text-sm transition-colors ${
+                      !day.inCurrentMonth
+                        ? "cursor-not-allowed text-muted-foreground/35"
+                        : isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : isToday
+                        ? "border border-primary/40 bg-primary/10 text-primary"
+                        : "hover:bg-surface2"
+                    }`}
+                  >
+                    {day.date.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleCustomDateSelect(new Date())}
+              >
+                Сегодня
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedCustomDate(null);
+                    if (filterDate === "custom") setFilterDate("all");
+                    setDatePickerOpen(false);
+                  }}
+                >
+                  Очистить
+                </Button>
+                <Button type="button" size="sm" onClick={() => setDatePickerOpen(false)}>
+                  Готово
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
