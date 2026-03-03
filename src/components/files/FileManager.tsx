@@ -13,6 +13,7 @@ import {
   Link2,
   ChevronDown,
   RotateCcw,
+  Check,
 } from "lucide-react";
 import {
   Dialog,
@@ -24,6 +25,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { UploadZone } from "./UploadZone";
 import { EmptyState } from "./EmptyState";
 import { FileCard, FolderCard } from "./FileCard";
@@ -60,6 +67,33 @@ interface Breadcrumb {
   id: string | null;
   name: string;
 }
+
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
+const TYPE_FILTER_OPTIONS: FilterOption[] = [
+  { value: "all", label: "Все типы" },
+  { value: "image", label: "Изображения" },
+  { value: "video", label: "Видео" },
+  { value: "audio", label: "Аудио" },
+  { value: "document", label: "Документы" },
+];
+
+const SIZE_FILTER_OPTIONS: FilterOption[] = [
+  { value: "all", label: "Любой размер" },
+  { value: "small", label: "До 10 МБ" },
+  { value: "medium", label: "10–100 МБ" },
+  { value: "large", label: "Более 100 МБ" },
+];
+
+const DATE_FILTER_OPTIONS: FilterOption[] = [
+  { value: "all", label: "Любая дата" },
+  { value: "today", label: "Сегодня" },
+  { value: "week", label: "За неделю" },
+  { value: "month", label: "За месяц" },
+];
 
 export function FileManager() {
   const router = useRouter();
@@ -746,6 +780,12 @@ export function FileManager() {
     setFilterDate("all");
     setFilterHasShareLink(false);
   };
+  const activeTypeLabel =
+    TYPE_FILTER_OPTIONS.find((option) => option.value === filterType)?.label ?? "Все типы";
+  const activeSizeLabel =
+    SIZE_FILTER_OPTIONS.find((option) => option.value === filterSize)?.label ?? "Любой размер";
+  const activeDateLabel =
+    DATE_FILTER_OPTIONS.find((option) => option.value === filterDate)?.label ?? "Любая дата";
 
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
   const isEmpty = folders.length === 0 && files.length === 0;
@@ -835,48 +875,83 @@ export function FileManager() {
 
               <div className="-mx-1 overflow-x-auto px-1 pb-1">
                 <div className="flex min-w-max items-center gap-2">
-                  <div className="relative">
-                    <select
-                      value={filterType}
-                      onChange={(e) => setFilterType(e.target.value)}
-                      className="h-10 min-w-[150px] appearance-none rounded-xl border border-border/70 bg-background/70 pl-3 pr-9 text-sm text-foreground shadow-sm transition-colors hover:border-primary/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      <option value="all">Все типы</option>
-                      <option value="image">Изображения</option>
-                      <option value="video">Видео</option>
-                      <option value="audio">Аудио</option>
-                      <option value="document">Документы</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-xl border border-border bg-surface2 px-3 text-sm text-foreground transition-colors hover:bg-surface2/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-background"
+                      >
+                        <span className="truncate">{activeTypeLabel}</span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      {TYPE_FILTER_OPTIONS.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          onClick={() => setFilterType(option.value)}
+                          className="justify-between"
+                        >
+                          <span>{option.label}</span>
+                          {filterType === option.value && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-                  <div className="relative">
-                    <select
-                      value={filterSize}
-                      onChange={(e) => setFilterSize(e.target.value)}
-                      className="h-10 min-w-[150px] appearance-none rounded-xl border border-border/70 bg-background/70 pl-3 pr-9 text-sm text-foreground shadow-sm transition-colors hover:border-primary/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      <option value="all">Любой размер</option>
-                      <option value="small">До 10 МБ</option>
-                      <option value="medium">10–100 МБ</option>
-                      <option value="large">Более 100 МБ</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-xl border border-border bg-surface2 px-3 text-sm text-foreground transition-colors hover:bg-surface2/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-background"
+                      >
+                        <span className="truncate">{activeSizeLabel}</span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      {SIZE_FILTER_OPTIONS.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          onClick={() => setFilterSize(option.value)}
+                          className="justify-between"
+                        >
+                          <span>{option.label}</span>
+                          {filterSize === option.value && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-                  <div className="relative">
-                    <select
-                      value={filterDate}
-                      onChange={(e) => setFilterDate(e.target.value)}
-                      className="h-10 min-w-[150px] appearance-none rounded-xl border border-border/70 bg-background/70 pl-3 pr-9 text-sm text-foreground shadow-sm transition-colors hover:border-primary/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      <option value="all">Любая дата</option>
-                      <option value="today">Сегодня</option>
-                      <option value="week">За неделю</option>
-                      <option value="month">За месяц</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-xl border border-border bg-surface2 px-3 text-sm text-foreground transition-colors hover:bg-surface2/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-background"
+                      >
+                        <span className="truncate">{activeDateLabel}</span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      {DATE_FILTER_OPTIONS.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          onClick={() => setFilterDate(option.value)}
+                          className="justify-between"
+                        >
+                          <span>{option.label}</span>
+                          {filterDate === option.value && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
                   <label
                     className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition-colors ${
