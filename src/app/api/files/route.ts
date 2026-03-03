@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const folderId = searchParams.get("folderId");
+  const scope = searchParams.get("scope"); // "all" | ""
   const typeFilter = searchParams.get("type"); // image | video | audio | document | all
   const sizeMin = searchParams.get("sizeMin");
   const sizeMax = searchParams.get("sizeMax");
@@ -30,15 +31,18 @@ export async function GET(request: NextRequest) {
 
   const where: {
     userId: string;
-    folderId: string | null;
+    folderId?: string | null;
     mimeType?: { startsWith: string } | { in: string[] };
     size?: { gte?: bigint; lte?: bigint };
     createdAt?: { gte?: Date; lte?: Date };
     shareLinks?: { some: { OR: Array<{ expiresAt: null } | { expiresAt: { gt: Date } }> } };
   } = {
     userId: session.user.id,
-    folderId: folderId || null,
   };
+
+  if (scope !== "all") {
+    where.folderId = folderId || null;
+  }
 
   if (typeFilter && typeFilter !== "all") {
     if (typeFilter === "image") where.mimeType = { startsWith: "image/" };

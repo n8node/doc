@@ -127,12 +127,30 @@ function formatDateKeyLabel(key: string) {
   });
 }
 
+function formatRecentGroupLabel(key: string) {
+  const todayKey = toDateKey(new Date());
+  if (key === todayKey) return "Сегодня";
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (key === toDateKey(yesterday)) return "Вчера";
+
+  const date = parseDateKey(key);
+  const label = date.toLocaleDateString("ru-RU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 export function FileManager() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderIdParam = searchParams.get("folderId");
   const intentParam = searchParams.get("intent");
   const activeSection = parseFilesSection(searchParams.get("section"));
+  const isRecentSection = activeSection === "recent";
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(folderIdParam || null);
@@ -263,8 +281,12 @@ export function FileManager() {
   }, [loadStorageInfo]);
 
   useEffect(() => {
+    if (isRecentSection) {
+      setCurrentFolderId(null);
+      return;
+    }
     setCurrentFolderId(folderIdParam || null);
-  }, [folderIdParam]);
+  }, [folderIdParam, isRecentSection]);
 
   useEffect(() => {
     if (!selectedCustomDate) return;
@@ -274,7 +296,11 @@ export function FileManager() {
 
   const buildBaseFileFilterParams = useCallback(() => {
     const params = new URLSearchParams();
-    params.set("folderId", currentFolderId || "");
+    if (isRecentSection) {
+      params.set("scope", "all");
+    } else {
+      params.set("folderId", currentFolderId || "");
+    }
     if (filterType !== "all") params.set("type", filterType);
     if (filterHasShareLink) params.set("hasShareLink", "true");
     if (filterSize !== "all") {
@@ -288,7 +314,7 @@ export function FileManager() {
       }
     }
     return params;
-  }, [currentFolderId, filterType, filterSize, filterHasShareLink]);
+  }, [currentFolderId, isRecentSection, filterType, filterSize, filterHasShareLink]);
 
   const loadData = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -337,22 +363,26 @@ export function FileManager() {
         }
       }
 
-      const [filesRes, foldersRes] = await Promise.all([
-        fetch(`/api/files?${filesParams.toString()}`),
-        fetch(`/api/folders?parentId=${currentFolderId || ""}`),
-      ]);
+      const filesRes = await fetch(`/api/files?${filesParams.toString()}`);
+      const foldersRes = isRecentSection
+        ? null
+        : await fetch(`/api/folders?parentId=${currentFolderId || ""}`);
 
       if (filesRes.ok) {
         const d = await filesRes.json();
         setFiles(d.files ?? []);
       }
-      if (foldersRes.ok) {
+      if (foldersRes?.ok) {
         const d = await foldersRes.json();
         setFolders(d.folders ?? []);
+      } else if (isRecentSection) {
+        setFolders([]);
       }
 
       let bc: Breadcrumb[] = [{ id: null, name: "Мои файлы" }];
-      if (currentFolderId) {
+      if (isRecentSection) {
+        bc = [{ id: null, name: "Недавние файлы" }];
+      } else if (currentFolderId) {
         const pathRes = await fetch(`/api/folders/${currentFolderId}/path`);
         if (pathRes.ok) {
           const { path } = await pathRes.json();
@@ -375,6 +405,7 @@ export function FileManager() {
     }
   }, [
     currentFolderId,
+    isRecentSection,
     buildBaseFileFilterParams,
     filterDate,
     selectedCustomDate,
@@ -928,6 +959,23 @@ export function FileManager() {
     .filter((f) => selectedFiles.has(f.id))
     .reduce((sum, f) => sum + f.size, 0);
 
+  const recentFileGroups = isRecentSection
+    ? (() => {
+        const grouped = new Map<string, FileItem[]>();
+        for (const file of files) {
+          const dateKey = toDateKey(new Date(file.createdAt));
+          const items = grouped.get(dateKey) ?? [];
+          items.push(file);
+          grouped.set(dateKey, items);
+        }
+        return Array.from(grouped.entries()).map(([dateKey, items]) => ({
+          dateKey,
+          label: formatRecentGroupLabel(dateKey),
+          items,
+        }));
+      })()
+    : [];
+
   const activeFiltersCount =
     (filterType !== "all" ? 1 : 0) +
     (filterSize !== "all" ? 1 : 0) +
@@ -1267,55 +1315,117 @@ export function FileManager() {
 
               {/* Files */}
               {files.length > 0 && (
-                <div className="space-y-2">
-                  <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Файлы ({files.length})
-                  </p>
-                  <div className="space-y-1">
-                    {files.map((file, index) => (
-                      <FileCard
-                        key={file.id}
-                        id={file.id}
-                        name={file.name}
-                        mimeType={file.mimeType}
-                        size={file.size}
-                        createdAt={file.createdAt}
-                        mediaMetadata={file.mediaMetadata}
-                        hasShareLink={file.hasShareLink}
-                        shareLinksCount={file.shareLinksCount}
-                        selected={selectedFiles.has(file.id)}
-                        onSelect={handleFileSelect}
-                        onPlay={
-                          file.mimeType.startsWith("video/") || file.mimeType.startsWith("audio/")
-                            ? () =>
-                                setMediaModal({
-                                  type: file.mimeType.startsWith("video/") ? "video" : "audio",
-                                  id: file.id,
-                                  name: file.name,
-                                })
-                            : undefined
-                        }
-                        onDownload={() => handleDownload(file.id)}
-                        onShare={() =>
-                          setShareTarget({ type: "FILE", id: file.id, name: file.name })
-                        }
-                        onMove={
-                          hasMoveTargets
-                            ? () => {
-                                setSingleMoveFile({ id: file.id, name: file.name });
-                                setMoveDialogOpen(true);
-                              }
-                            : undefined
-                        }
-                        onShareLinksClick={() =>
-                          setShareLinksTarget({ id: file.id, name: file.name })
-                        }
-                        onDelete={() => handleDeleteFile(file.id)}
-                        index={index + folders.length}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <>
+                  {isRecentSection ? (
+                    <div className="space-y-4">
+                      {recentFileGroups.map((group, groupIndex) => (
+                        <div key={group.dateKey} className="space-y-2">
+                          <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            {group.label} ({group.items.length})
+                          </p>
+                          <div className="space-y-1">
+                            {group.items.map((file, index) => (
+                              <FileCard
+                                key={file.id}
+                                id={file.id}
+                                name={file.name}
+                                mimeType={file.mimeType}
+                                size={file.size}
+                                createdAt={file.createdAt}
+                                mediaMetadata={file.mediaMetadata}
+                                hasShareLink={file.hasShareLink}
+                                shareLinksCount={file.shareLinksCount}
+                                selected={selectedFiles.has(file.id)}
+                                onSelect={handleFileSelect}
+                                onPlay={
+                                  file.mimeType.startsWith("video/") ||
+                                  file.mimeType.startsWith("audio/")
+                                    ? () =>
+                                        setMediaModal({
+                                          type: file.mimeType.startsWith("video/")
+                                            ? "video"
+                                            : "audio",
+                                          id: file.id,
+                                          name: file.name,
+                                        })
+                                    : undefined
+                                }
+                                onDownload={() => handleDownload(file.id)}
+                                onShare={() =>
+                                  setShareTarget({ type: "FILE", id: file.id, name: file.name })
+                                }
+                                onMove={
+                                  hasMoveTargets
+                                    ? () => {
+                                        setSingleMoveFile({ id: file.id, name: file.name });
+                                        setMoveDialogOpen(true);
+                                      }
+                                    : undefined
+                                }
+                                onShareLinksClick={() =>
+                                  setShareLinksTarget({ id: file.id, name: file.name })
+                                }
+                                onDelete={() => handleDeleteFile(file.id)}
+                                index={groupIndex * 100 + index}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Файлы ({files.length})
+                      </p>
+                      <div className="space-y-1">
+                        {files.map((file, index) => (
+                          <FileCard
+                            key={file.id}
+                            id={file.id}
+                            name={file.name}
+                            mimeType={file.mimeType}
+                            size={file.size}
+                            createdAt={file.createdAt}
+                            mediaMetadata={file.mediaMetadata}
+                            hasShareLink={file.hasShareLink}
+                            shareLinksCount={file.shareLinksCount}
+                            selected={selectedFiles.has(file.id)}
+                            onSelect={handleFileSelect}
+                            onPlay={
+                              file.mimeType.startsWith("video/") ||
+                              file.mimeType.startsWith("audio/")
+                                ? () =>
+                                    setMediaModal({
+                                      type: file.mimeType.startsWith("video/") ? "video" : "audio",
+                                      id: file.id,
+                                      name: file.name,
+                                    })
+                                : undefined
+                            }
+                            onDownload={() => handleDownload(file.id)}
+                            onShare={() =>
+                              setShareTarget({ type: "FILE", id: file.id, name: file.name })
+                            }
+                            onMove={
+                              hasMoveTargets
+                                ? () => {
+                                    setSingleMoveFile({ id: file.id, name: file.name });
+                                    setMoveDialogOpen(true);
+                                  }
+                                : undefined
+                            }
+                            onShareLinksClick={() =>
+                              setShareLinksTarget({ id: file.id, name: file.name })
+                            }
+                            onDelete={() => handleDeleteFile(file.id)}
+                            index={index + folders.length}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </motion.div>
           )}
