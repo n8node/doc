@@ -76,6 +76,11 @@ interface FilterOption {
   label: string;
 }
 
+interface CalendarActivityDay {
+  date: string;
+  count: number;
+}
+
 const TYPE_FILTER_OPTIONS: FilterOption[] = [
   { value: "all", label: "Все типы" },
   { value: "image", label: "Изображения" },
@@ -175,6 +180,8 @@ export function FileManager() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [calendarActivity, setCalendarActivity] = useState<Record<string, number>>({});
+  const [calendarActivityLoading, setCalendarActivityLoading] = useState(false);
 
   const [maxFileSize, setMaxFileSize] = useState<number>(512 * 1024 * 1024); // 512 MB default
   const [storageUsed, setStorageUsed] = useState<number | null>(null);
@@ -222,25 +229,30 @@ export function FileManager() {
     setCalendarMonth(new Date(selected.getFullYear(), selected.getMonth(), 1));
   }, [selectedCustomDate]);
 
+  const buildBaseFileFilterParams = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set("folderId", currentFolderId || "");
+    if (filterType !== "all") params.set("type", filterType);
+    if (filterHasShareLink) params.set("hasShareLink", "true");
+    if (filterSize !== "all") {
+      if (filterSize === "small") {
+        params.set("sizeMax", String(10 * 1024 * 1024)); // 10 MB
+      } else if (filterSize === "medium") {
+        params.set("sizeMin", String(10 * 1024 * 1024));
+        params.set("sizeMax", String(100 * 1024 * 1024)); // 100 MB
+      } else if (filterSize === "large") {
+        params.set("sizeMin", String(100 * 1024 * 1024));
+      }
+    }
+    return params;
+  }, [currentFolderId, filterType, filterSize, filterHasShareLink]);
+
   const loadData = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
     else setLoading(true);
 
     try {
-      const filesParams = new URLSearchParams();
-      filesParams.set("folderId", currentFolderId || "");
-      if (filterType !== "all") filesParams.set("type", filterType);
-      if (filterHasShareLink) filesParams.set("hasShareLink", "true");
-      if (filterSize !== "all") {
-        if (filterSize === "small") {
-          filesParams.set("sizeMax", String(10 * 1024 * 1024)); // 10 MB
-        } else if (filterSize === "medium") {
-          filesParams.set("sizeMin", String(10 * 1024 * 1024));
-          filesParams.set("sizeMax", String(100 * 1024 * 1024)); // 100 MB
-        } else if (filterSize === "large") {
-          filesParams.set("sizeMin", String(100 * 1024 * 1024));
-        }
-      }
+      const filesParams = buildBaseFileFilterParams();
       if (filterDate !== "all") {
         const now = new Date();
         if (filterDate === "today") {
@@ -320,17 +332,51 @@ export function FileManager() {
     }
   }, [
     currentFolderId,
-    filterType,
-    filterSize,
+    buildBaseFileFilterParams,
     filterDate,
     selectedCustomDate,
-    filterHasShareLink,
     loadStorageInfo,
   ]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const loadCalendarActivity = useCallback(async () => {
+    if (!datePickerOpen) return;
+    setCalendarActivityLoading(true);
+    try {
+      const activityParams = buildBaseFileFilterParams();
+      const monthKey = `${calendarMonth.getFullYear()}-${String(
+        calendarMonth.getMonth() + 1
+      ).padStart(2, "0")}`;
+      activityParams.set("month", monthKey);
+      activityParams.set("tzOffsetMinutes", String(new Date().getTimezoneOffset()));
+
+      const activityRes = await fetch(`/api/files/activity?${activityParams.toString()}`);
+      if (!activityRes.ok) {
+        setCalendarActivity({});
+        return;
+      }
+
+      const activityData = (await activityRes.json()) as { days?: CalendarActivityDay[] };
+      const nextActivity: Record<string, number> = {};
+      for (const day of activityData.days ?? []) {
+        if (!day?.date || typeof day.count !== "number" || day.count <= 0) continue;
+        nextActivity[day.date] = day.count;
+      }
+      setCalendarActivity(nextActivity);
+    } catch {
+      setCalendarActivity({});
+    } finally {
+      setCalendarActivityLoading(false);
+    }
+  }, [datePickerOpen, buildBaseFileFilterParams, calendarMonth]);
+
+  useEffect(() => {
+    if (!datePickerOpen) return;
+    loadCalendarActivity();
+  }, [datePickerOpen, loadCalendarActivity]);
 
   const getMediaDuration = async (file: globalThis.File): Promise<number | null> => {
     const type = file.type || "";
@@ -1360,27 +1406,45 @@ export function FileManager() {
               ))}
             </div>
 
+            <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
+                Есть загрузки
+              </span>
+              {calendarActivityLoading ? (
+                <span className="animate-pulse">Обновляем активность...</span>
+              ) : null}
+            </div>
+
             <div className="grid grid-cols-7 gap-1">
               {calendarDays.map((day) => {
                 const isSelected = selectedCustomDate === day.dateKey && filterDate === "custom";
                 const isToday = day.dateKey === toDateKey(new Date());
+                const dayActivityCount = day.inCurrentMonth ? (calendarActivity[day.dateKey] ?? 0) : 0;
+                const hasActivity = dayActivityCount > 0;
                 return (
                   <button
                     key={day.dateKey}
                     type="button"
                     disabled={!day.inCurrentMonth}
                     onClick={() => handleCustomDateSelect(day.date)}
-                    className={`h-9 rounded-lg text-sm transition-colors ${
+                    title={hasActivity ? `Загрузок в этот день: ${dayActivityCount}` : undefined}
+                    className={`relative h-9 rounded-lg text-sm transition-colors ${
                       !day.inCurrentMonth
                         ? "cursor-not-allowed text-muted-foreground/35"
                         : isSelected
                         ? "bg-primary text-primary-foreground"
+                        : hasActivity
+                        ? "border border-emerald-500/45 bg-emerald-500/12 text-foreground hover:bg-emerald-500/18"
                         : isToday
                         ? "border border-primary/40 bg-primary/10 text-primary"
                         : "hover:bg-surface2"
                     }`}
                   >
-                    {day.date.getDate()}
+                    <span className="pointer-events-none relative z-[1]">{day.date.getDate()}</span>
+                    {hasActivity && !isSelected ? (
+                      <span className="pointer-events-none absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-emerald-500/90" />
+                    ) : null}
                   </button>
                 );
               })}
