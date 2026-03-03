@@ -10,6 +10,7 @@ export interface UploadSessionPayload {
   size: number;
   folderId: string | null;
   mediaDurationSeconds: number | null;
+  clientBatchId?: string | null;
   expiresAt: number;
 }
 
@@ -60,6 +61,14 @@ export function verifyUploadSessionToken(token: string): UploadSessionPayload | 
       typeof parsed.mimeType !== "string" ||
       typeof parsed.size !== "number" ||
       typeof parsed.expiresAt !== "number"
+    ) {
+      return null;
+    }
+
+    if (
+      parsed.clientBatchId !== undefined &&
+      parsed.clientBatchId !== null &&
+      typeof parsed.clientBatchId !== "string"
     ) {
       return null;
     }

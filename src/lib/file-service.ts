@@ -2,6 +2,7 @@ import { PutObjectCommand, DeleteObjectCommand, CopyObjectCommand } from "@aws-s
 import { getS3Config } from "./s3-config";
 import { createS3Client } from "./s3";
 import { prisma } from "./prisma";
+import { recordHistoryEvent } from "./history-service";
 
 export interface UploadFileInput {
   userId: string;
@@ -18,6 +19,7 @@ export interface CreateFileRecordInput {
   s3Key: string;
   folderId?: string | null;
   mediaDurationSeconds?: number | null;
+  clientBatchId?: string | null;
 }
 
 function buildSafeFileName(fileName: string) {
@@ -43,18 +45,20 @@ export function buildS3Key(input: {
 }
 
 export async function createFileRecordFromS3Object(input: CreateFileRecordInput) {
-  const { userId, name, mimeType, size, s3Key, folderId, mediaDurationSeconds } = input;
+  const { userId, name, mimeType, size, s3Key, folderId, mediaDurationSeconds, clientBatchId } = input;
 
   if (!Number.isFinite(size) || size <= 0) {
     throw new Error("Некорректный размер файла");
   }
 
+  let folderName: string | null = null;
   if (folderId) {
     const folder = await prisma.folder.findFirst({
       where: { id: folderId, userId },
-      select: { id: true },
+      select: { id: true, name: true },
     });
     if (!folder) throw new Error("Папка не найдена");
+    folderName = folder.name;
   }
 
   const mediaMetadata =
@@ -62,7 +66,7 @@ export async function createFileRecordFromS3Object(input: CreateFileRecordInput)
       ? { durationSeconds: Math.round(mediaDurationSeconds) }
       : null;
 
-  return prisma.$transaction(async (tx) => {
+  const createdFile = await prisma.$transaction(async (tx) => {
     const existing = await tx.file.findFirst({
       where: { userId, s3Key },
     });
@@ -105,6 +109,28 @@ export async function createFileRecordFromS3Object(input: CreateFileRecordInput)
       },
     });
   });
+
+  try {
+    await recordHistoryEvent({
+      userId,
+      action: "upload",
+      summary: `Вы загрузили файл "${createdFile.name}"`,
+      batchId: clientBatchId ?? null,
+      payload: {
+        file: {
+          id: createdFile.id,
+          name: createdFile.name,
+          size: Number(createdFile.size),
+        },
+        folderId: createdFile.folderId,
+        folderName,
+      },
+    });
+  } catch {
+    // history must not break core file operations
+  }
+
+  return createdFile;
 }
 
 export async function uploadFile(input: UploadFileInput) {
@@ -155,6 +181,15 @@ export async function deleteFile(id: string, userId: string) {
   });
   if (!file) throw new Error("Файл не найден");
 
+  let folderName: string | null = null;
+  if (file.folderId) {
+    const folder = await prisma.folder.findFirst({
+      where: { id: file.folderId, userId },
+      select: { name: true },
+    });
+    folderName = folder?.name ?? null;
+  }
+
   const config = await getS3Config();
   const client = createS3Client({ ...config, forcePathStyle: true });
   await client.send(
@@ -165,6 +200,25 @@ export async function deleteFile(id: string, userId: string) {
     where: { id: userId },
     data: { storageUsed: { decrement: file.size } },
   });
+
+  try {
+    await recordHistoryEvent({
+      userId,
+      action: "delete",
+      summary: `Вы удалили файл "${file.name}"`,
+      payload: {
+        file: {
+          id: file.id,
+          name: file.name,
+          size: Number(file.size),
+        },
+        folderId: file.folderId,
+        folderName,
+      },
+    });
+  } catch {
+    // history must not break core file operations
+  }
 }
 
 export async function moveFile(id: string, folderId: string | null, userId: string) {
@@ -173,11 +227,24 @@ export async function moveFile(id: string, folderId: string | null, userId: stri
   });
   if (!file) throw new Error("Файл не найден");
 
+  let fromFolderName: string | null = null;
+  if (file.folderId) {
+    const folder = await prisma.folder.findFirst({
+      where: { id: file.folderId, userId },
+      select: { name: true },
+    });
+    fromFolderName = folder?.name ?? null;
+  }
+
+  let toFolderName: string | null = null;
+
   if (folderId) {
     const folder = await prisma.folder.findFirst({
       where: { id: folderId, userId },
+      select: { id: true, name: true },
     });
     if (!folder) throw new Error("Папка не найдена");
+    toFolderName = folder.name;
   }
 
   const config = await getS3Config();
@@ -205,10 +272,36 @@ export async function moveFile(id: string, folderId: string | null, userId: stri
     new DeleteObjectCommand({ Bucket: config.bucket, Key: file.s3Key })
   );
 
-  return prisma.file.update({
+  const updated = await prisma.file.update({
     where: { id },
     data: { folderId, s3Key: newS3Key },
   });
+
+  try {
+    await recordHistoryEvent({
+      userId,
+      action: "move",
+      summary:
+        toFolderName != null
+          ? `Вы переместили файл "${file.name}" в папку "${toFolderName}"`
+          : `Вы переместили файл "${file.name}" в корневую папку`,
+      payload: {
+        file: {
+          id: updated.id,
+          name: updated.name,
+          size: Number(updated.size),
+        },
+        fromFolderId: file.folderId,
+        fromFolderName,
+        toFolderId: updated.folderId,
+        toFolderName,
+      },
+    });
+  } catch {
+    // history must not break core file operations
+  }
+
+  return updated;
 }
 
 export async function renameFile(id: string, name: string, userId: string) {

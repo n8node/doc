@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Config } from "./s3-config";
 import { createS3Client } from "./s3";
+import { recordHistoryEvent } from "./history-service";
 
 export async function createFolder(
   name: string,
@@ -14,9 +15,25 @@ export async function createFolder(
     });
     if (!parent) throw new Error("Родительская папка не найдена");
   }
-  return prisma.folder.create({
+  const created = await prisma.folder.create({
     data: { name, parentId, userId },
   });
+
+  try {
+    await recordHistoryEvent({
+      userId,
+      action: "folder_create",
+      summary: `Вы создали папку "${created.name}"`,
+      payload: {
+        folder: { id: created.id, name: created.name },
+        parentId: created.parentId,
+      },
+    });
+  } catch {
+    // history must not break core folder operations
+  }
+
+  return created;
 }
 
 async function collectFileIdsRecursive(folderId: string): Promise<string[]> {
@@ -80,7 +97,25 @@ export async function deleteFolderRecursive(id: string, userId: string) {
     data: { storageUsed: { decrement: totalFreed } },
   });
 
-  return { deletedFiles: fileIds.length, deletedFolders: folderIds.length };
+  const result = { deletedFiles: fileIds.length, deletedFolders: folderIds.length };
+
+  try {
+    await recordHistoryEvent({
+      userId,
+      action: "folder_delete",
+      summary: `Вы удалили папку "${folder.name}"`,
+      payload: {
+        folder: { id: folder.id, name: folder.name },
+        deletedFiles: result.deletedFiles,
+        deletedFolders: result.deletedFolders,
+        freedBytes: Number(totalFreed),
+      },
+    });
+  } catch {
+    // history must not break core folder operations
+  }
+
+  return result;
 }
 
 async function isDescendantOf(
@@ -106,16 +141,39 @@ export async function moveFolder(
   });
   if (!folder) throw new Error("Папка не найдена");
   if (id === newParentId) throw new Error("Нельзя переместить папку в саму себя");
+  let newParentName: string | null = null;
   if (newParentId) {
     if (await isDescendantOf(newParentId, id))
       throw new Error("Нельзя переместить папку в свою дочернюю папку");
     const parent = await prisma.folder.findFirst({
       where: { id: newParentId, userId },
+      select: { id: true, name: true },
     });
     if (!parent) throw new Error("Целевая папка не найдена");
+    newParentName = parent.name;
   }
-  return prisma.folder.update({
+  const updated = await prisma.folder.update({
     where: { id },
     data: { parentId: newParentId },
   });
+
+  try {
+    await recordHistoryEvent({
+      userId,
+      action: "folder_move",
+      summary:
+        newParentName != null
+          ? `Вы переместили папку "${updated.name}" в "${newParentName}"`
+          : `Вы переместили папку "${updated.name}" в корень`,
+      payload: {
+        folder: { id: updated.id, name: updated.name },
+        toParentId: updated.parentId,
+        toParentName: newParentName,
+      },
+    });
+  } catch {
+    // history must not break core folder operations
+  }
+
+  return updated;
 }

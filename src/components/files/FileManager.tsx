@@ -66,6 +66,18 @@ interface FileItem {
   shareLinksCount?: number;
 }
 
+interface HistoryEntry {
+  id: string;
+  action: string;
+  createdAt: string;
+  summary: string;
+  files: Array<{
+    id: string | null;
+    name: string;
+    size: number | null;
+  }>;
+}
+
 interface FolderItem {
   id: string;
   name: string;
@@ -165,12 +177,14 @@ export function FileManager() {
   const isRecentSection = activeSection === "recent";
   const isPhotosSection = activeSection === "photos";
   const isSharedSection = activeSection === "shared";
+  const isHistorySection = activeSection === "history";
   const normalizedViewMode = parseViewMode(viewParam, isPhotosSection ? "grid" : "list");
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(folderIdParam || null);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([{ id: null, name: "Мои файлы" }]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -312,12 +326,12 @@ export function FileManager() {
   }, [loadStorageInfo]);
 
   useEffect(() => {
-    if (isRecentSection || isPhotosSection || isSharedSection) {
+    if (isRecentSection || isPhotosSection || isSharedSection || isHistorySection) {
       setCurrentFolderId(null);
       return;
     }
     setCurrentFolderId(folderIdParam || null);
-  }, [folderIdParam, isRecentSection, isPhotosSection, isSharedSection]);
+  }, [folderIdParam, isRecentSection, isPhotosSection, isSharedSection, isHistorySection]);
 
   useEffect(() => {
     if (!selectedCustomDate) return;
@@ -332,7 +346,7 @@ export function FileManager() {
 
   const buildBaseFileFilterParams = useCallback(() => {
     const params = new URLSearchParams();
-    if (isRecentSection || isPhotosSection || isSharedSection) {
+    if (isRecentSection || isPhotosSection || isSharedSection || isHistorySection) {
       params.set("scope", "all");
     } else {
       params.set("folderId", currentFolderId || "");
@@ -359,6 +373,7 @@ export function FileManager() {
     isRecentSection,
     isPhotosSection,
     isSharedSection,
+    isHistorySection,
     filterType,
     filterSize,
     filterHasShareLink,
@@ -369,6 +384,22 @@ export function FileManager() {
     else setLoading(true);
 
     try {
+      if (isHistorySection) {
+        const historyRes = await fetch("/api/files/history?limit=300");
+        if (historyRes.ok) {
+          const historyData = (await historyRes.json()) as { events?: HistoryEntry[] };
+          setHistoryEntries(Array.isArray(historyData.events) ? historyData.events : []);
+        } else {
+          setHistoryEntries([]);
+        }
+        setFiles([]);
+        setFolders([]);
+        setBreadcrumbs([{ id: null, name: "История" }]);
+        loadStorageInfo();
+        return;
+      }
+
+      setHistoryEntries([]);
       const filesParams = buildBaseFileFilterParams();
       if (filterDate !== "all") {
         const now = new Date();
@@ -460,6 +491,7 @@ export function FileManager() {
     isRecentSection,
     isPhotosSection,
     isSharedSection,
+    isHistorySection,
     buildBaseFileFilterParams,
     filterDate,
     selectedCustomDate,
@@ -550,6 +582,10 @@ export function FileManager() {
 
     // Конвертируем FileList в массив сразу, т.к. FileList - "живая" коллекция
     const filesArray = Array.from(fileList);
+    const uploadBatchId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `batch-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     
     const newUploadingFiles: UploadingFile[] = filesArray.map((f, i) => ({
       id: `upload-${Date.now()}-${i}`,
@@ -610,6 +646,7 @@ export function FileManager() {
             mimeType: file.type || "application/octet-stream",
             folderId: currentFolderId,
             mediaDurationSeconds,
+            clientBatchId: uploadBatchId,
           }),
         });
 
@@ -1030,6 +1067,23 @@ export function FileManager() {
       })()
     : [];
 
+  const historyGroups = isHistorySection
+    ? (() => {
+        const grouped = new Map<string, HistoryEntry[]>();
+        for (const entry of historyEntries) {
+          const dateKey = toDateKey(new Date(entry.createdAt));
+          const items = grouped.get(dateKey) ?? [];
+          items.push(entry);
+          grouped.set(dateKey, items);
+        }
+        return Array.from(grouped.entries()).map(([dateKey, items]) => ({
+          dateKey,
+          label: formatRecentGroupLabel(dateKey),
+          items,
+        }));
+      })()
+    : [];
+
   const renderListFile = (file: FileItem, index: number) => (
     <FileCard
       key={file.id}
@@ -1152,7 +1206,8 @@ export function FileManager() {
     router.replace(`/dashboard/files?${nextParams.toString()}`);
   };
 
-  const showFolders = !isRecentSection && !isPhotosSection && !isSharedSection;
+  const showFolders =
+    !isRecentSection && !isPhotosSection && !isSharedSection && !isHistorySection;
   const showPhotoGrid = isPhotosSection && viewMode === "grid";
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
   const isEmpty = showFolders ? folders.length === 0 && files.length === 0 : files.length === 0;
@@ -1215,166 +1270,170 @@ export function FileManager() {
         </CardHeader>
 
         <CardContent className="space-y-6 p-6">
-          {/* Filters */}
-          <div className="rounded-2xl modal-glass-soft p-3 sm:p-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Filter className="h-4 w-4" />
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">Фильтры файлов</span>
-                    {hasActiveFilters && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        {activeFiltersCount}
+          {!isHistorySection && (
+            <>
+              {/* Filters */}
+              <div className="rounded-2xl modal-glass-soft p-3 sm:p-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <Filter className="h-4 w-4" />
                       </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">Фильтры файлов</span>
+                        {hasActiveFilters && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            {activeFiltersCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {hasActiveFilters && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetFilters}
+                        className="h-8 gap-1.5 rounded-lg text-muted-foreground hover:text-foreground"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Сбросить
+                      </Button>
                     )}
                   </div>
-                </div>
 
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={resetFilters}
-                    className="h-8 gap-1.5 rounded-lg text-muted-foreground hover:text-foreground"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Сбросить
-                  </Button>
-                )}
-              </div>
-
-              <div className="-mx-1 overflow-x-auto px-1 pb-1">
-                <div className="flex min-w-max items-center gap-2">
-                  {isPhotosSection ? (
-                    <div className={getFilterTriggerClass(true)}>
-                      <span className="truncate">{activeTypeLabel}</span>
-                      <FileImage className="h-4 w-4 shrink-0 text-primary" />
-                    </div>
-                  ) : (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className={getFilterTriggerClass(filterType !== "all")}
-                        >
+                  <div className="-mx-1 overflow-x-auto px-1 pb-1">
+                    <div className="flex min-w-max items-center gap-2">
+                      {isPhotosSection ? (
+                        <div className={getFilterTriggerClass(true)}>
                           <span className="truncate">{activeTypeLabel}</span>
-                          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-56">
-                        {TYPE_FILTER_OPTIONS.map((option) => (
-                          <DropdownMenuItem
-                            key={option.value}
-                            onClick={() => setFilterType(option.value)}
-                            className="justify-between"
+                          <FileImage className="h-4 w-4 shrink-0 text-primary" />
+                        </div>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className={getFilterTriggerClass(filterType !== "all")}
+                            >
+                              <span className="truncate">{activeTypeLabel}</span>
+                              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-56">
+                            {TYPE_FILTER_OPTIONS.map((option) => (
+                              <DropdownMenuItem
+                                key={option.value}
+                                onClick={() => setFilterType(option.value)}
+                                className="justify-between"
+                              >
+                                <span>{option.label}</span>
+                                {filterType === option.value && (
+                                  <Check className="h-4 w-4 text-primary" />
+                                )}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className={getFilterTriggerClass(filterSize !== "all")}
                           >
-                            <span>{option.label}</span>
-                            {filterType === option.value && (
-                              <Check className="h-4 w-4 text-primary" />
-                            )}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                            <span className="truncate">{activeSizeLabel}</span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                          {SIZE_FILTER_OPTIONS.map((option) => (
+                            <DropdownMenuItem
+                              key={option.value}
+                              onClick={() => setFilterSize(option.value)}
+                              className="justify-between"
+                            >
+                              <span>{option.label}</span>
+                              {filterSize === option.value && (
+                                <Check className="h-4 w-4 text-primary" />
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className={getFilterTriggerClass(filterSize !== "all")}
-                      >
-                        <span className="truncate">{activeSizeLabel}</span>
-                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-56">
-                      {SIZE_FILTER_OPTIONS.map((option) => (
-                        <DropdownMenuItem
-                          key={option.value}
-                          onClick={() => setFilterSize(option.value)}
-                          className="justify-between"
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className={getFilterTriggerClass(filterDate !== "all")}
+                          >
+                            <span className="truncate">{activeDateLabel}</span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                          {DATE_FILTER_OPTIONS.map((option) => (
+                            <DropdownMenuItem
+                              key={option.value}
+                              onClick={() => {
+                                if (option.value === "custom") {
+                                  openCustomDatePicker();
+                                  return;
+                                }
+                                setFilterDate(option.value);
+                              }}
+                              className="justify-between"
+                            >
+                              <span>{option.label}</span>
+                              {filterDate === option.value && (
+                                <Check className="h-4 w-4 text-primary" />
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {isSharedSection ? (
+                        <div className="flex h-10 items-center gap-2 rounded-xl border border-primary/60 bg-primary/10 px-3 text-sm text-primary">
+                          <Link2 className="h-4 w-4" />
+                          <span className="whitespace-nowrap">Только с публичной ссылкой</span>
+                        </div>
+                      ) : (
+                        <label
+                          className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition-colors ${
+                            filterHasShareLink
+                              ? "border-primary/60 bg-primary/10 text-primary"
+                              : "border-border/70 bg-background/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                          }`}
                         >
-                          <span>{option.label}</span>
-                          {filterSize === option.value && (
-                            <Check className="h-4 w-4 text-primary" />
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className={getFilterTriggerClass(filterDate !== "all")}
-                      >
-                        <span className="truncate">{activeDateLabel}</span>
-                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-56">
-                      {DATE_FILTER_OPTIONS.map((option) => (
-                        <DropdownMenuItem
-                          key={option.value}
-                          onClick={() => {
-                            if (option.value === "custom") {
-                              openCustomDatePicker();
-                              return;
-                            }
-                            setFilterDate(option.value);
-                          }}
-                          className="justify-between"
-                        >
-                          <span>{option.label}</span>
-                          {filterDate === option.value && (
-                            <Check className="h-4 w-4 text-primary" />
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {isSharedSection ? (
-                    <div className="flex h-10 items-center gap-2 rounded-xl border border-primary/60 bg-primary/10 px-3 text-sm text-primary">
-                      <Link2 className="h-4 w-4" />
-                      <span className="whitespace-nowrap">Только с публичной ссылкой</span>
+                          <input
+                            type="checkbox"
+                            checked={filterHasShareLink}
+                            onChange={(e) => setFilterHasShareLink(e.target.checked)}
+                            className="sr-only"
+                          />
+                          <Link2 className="h-4 w-4" />
+                          <span className="whitespace-nowrap">С публичной ссылкой</span>
+                        </label>
+                      )}
                     </div>
-                  ) : (
-                    <label
-                      className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition-colors ${
-                        filterHasShareLink
-                          ? "border-primary/60 bg-primary/10 text-primary"
-                          : "border-border/70 bg-background/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filterHasShareLink}
-                        onChange={(e) => setFilterHasShareLink(e.target.checked)}
-                        className="sr-only"
-                      />
-                      <Link2 className="h-4 w-4" />
-                      <span className="whitespace-nowrap">С публичной ссылкой</span>
-                    </label>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Upload zone */}
-          <UploadZone
-            onUpload={handleUpload}
-            uploading={uploadingFiles.some((f) => f.status === "uploading")}
-            maxFileSize={maxFileSize}
-            storageUsed={storageUsed}
-            storageQuota={storageQuota}
-          />
+              {/* Upload zone */}
+              <UploadZone
+                onUpload={handleUpload}
+                uploading={uploadingFiles.some((f) => f.status === "uploading")}
+                maxFileSize={maxFileSize}
+                storageUsed={storageUsed}
+                storageQuota={storageQuota}
+              />
+            </>
+          )}
 
           {/* Upload progress */}
           <AnimatePresence>
@@ -1408,7 +1467,7 @@ export function FileManager() {
           )}
 
           {/* Empty state */}
-          {!loading && isEmpty && (
+          {!loading && !isHistorySection && isEmpty && (
             <EmptyState
               isSubfolder={isSubfolder}
               onUploadClick={openUploadPicker}
@@ -1416,8 +1475,64 @@ export function FileManager() {
             />
           )}
 
+          {/* History timeline */}
+          {!loading && isHistorySection && (
+            <>
+              {historyEntries.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-surface2/30 px-6 py-14 text-center">
+                  <p className="text-base font-medium text-foreground">История пока пуста</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Здесь будут показаны загрузки, перемещения, удаления и операции с доступом.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {historyGroups.map((group) => (
+                    <div key={group.dateKey} className="space-y-2">
+                      <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        {group.label}
+                      </p>
+                      <div className="space-y-2">
+                        {group.items.map((entry) => (
+                          <div
+                            key={entry.id}
+                            className="rounded-xl border border-border/70 bg-surface2/30 p-4"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-sm font-medium text-foreground">{entry.summary}</p>
+                              <span className="shrink-0 text-xs text-muted-foreground">
+                                {new Date(entry.createdAt).toLocaleTimeString("ru-RU", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                            {entry.files.length > 0 && (
+                              <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+                                {entry.files.slice(0, 12).map((file, index) => (
+                                  <li key={`${entry.id}-${file.id ?? file.name}-${index}`} className="truncate">
+                                    • {file.name}
+                                  </li>
+                                ))}
+                                {entry.files.length > 12 && (
+                                  <li className="text-xs text-muted-foreground/80">
+                                    и еще {entry.files.length - 12}
+                                  </li>
+                                )}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
           {/* File/folder list */}
-          {!loading && !isEmpty && (
+          {!loading && !isHistorySection && !isEmpty && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1617,42 +1732,46 @@ export function FileManager() {
       />
 
       {/* Selection bar */}
-      <SelectionBar
-        selectedCount={selectedFiles.size + selectedFolders.size}
-        selectedSize={selectedSize}
-        onDownload={
-          selectedFiles.size > 0
-            ? async () => {
-                for (const id of Array.from(selectedFiles)) {
-                  await handleDownload(id);
+      {!isHistorySection && (
+        <SelectionBar
+          selectedCount={selectedFiles.size + selectedFolders.size}
+          selectedSize={selectedSize}
+          onDownload={
+            selectedFiles.size > 0
+              ? async () => {
+                  for (const id of Array.from(selectedFiles)) {
+                    await handleDownload(id);
+                  }
                 }
-              }
-            : undefined
-        }
-        onMove={
-          hasMoveTargets
-            ? () => {
-                setSingleMoveFile(null);
-                setMoveDialogOpen(true);
-              }
-            : undefined
-        }
-        onDelete={handleBulkDelete}
-        onClear={clearSelection}
-      />
+              : undefined
+          }
+          onMove={
+            hasMoveTargets
+              ? () => {
+                  setSingleMoveFile(null);
+                  setMoveDialogOpen(true);
+                }
+              : undefined
+          }
+          onDelete={handleBulkDelete}
+          onClear={clearSelection}
+        />
+      )}
 
       {/* Move dialog */}
-      <MoveDialog
-        open={moveDialogOpen}
-        onClose={() => {
-          setMoveDialogOpen(false);
-          setSingleMoveFile(null);
-        }}
-        onMove={singleMoveFile ? handleSingleMove : handleBulkMove}
-        currentFolderId={currentFolderId}
-        excludeFolderIds={singleMoveFile ? undefined : selectedFolders}
-        moving={moving}
-      />
+      {!isHistorySection && (
+        <MoveDialog
+          open={moveDialogOpen}
+          onClose={() => {
+            setMoveDialogOpen(false);
+            setSingleMoveFile(null);
+          }}
+          onMove={singleMoveFile ? handleSingleMove : handleBulkMove}
+          currentFolderId={currentFolderId}
+          excludeFolderIds={singleMoveFile ? undefined : selectedFolders}
+          moving={moving}
+        />
+      )}
 
       {/* Create folder dialog */}
       <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>

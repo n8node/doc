@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     mimeType?: string;
     folderId?: string | null;
     mediaDurationSeconds?: number | null;
+    clientBatchId?: string | null;
   };
 
   const name = typeof parsed.name === "string" ? parsed.name.trim() : "";
@@ -42,6 +43,10 @@ export async function POST(request: NextRequest) {
     Number.isFinite(parsed.mediaDurationSeconds) &&
     parsed.mediaDurationSeconds >= 0
       ? parsed.mediaDurationSeconds
+      : null;
+  const clientBatchId =
+    typeof parsed.clientBatchId === "string" && parsed.clientBatchId.trim()
+      ? parsed.clientBatchId.trim().slice(0, 128)
       : null;
 
   if (!name) {
@@ -99,6 +104,7 @@ export async function POST(request: NextRequest) {
     size,
     folderId,
     mediaDurationSeconds,
+    clientBatchId,
   });
 
   return NextResponse.json({

@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { prisma } from "./prisma";
+import { recordHistoryEvent } from "./history-service";
 
 export interface CreateShareLinkInput {
   targetType: "FILE" | "FOLDER";
@@ -12,22 +13,26 @@ export interface CreateShareLinkInput {
 
 export async function createShareLink(input: CreateShareLinkInput) {
   const { targetType, fileId, folderId, expiresAt, oneTime, userId } = input;
+  let fileName: string | null = null;
+  let folderName: string | null = null;
 
   if (targetType === "FILE") {
     const file = await prisma.file.findFirst({
       where: { id: fileId!, userId },
     });
     if (!file) throw new Error("Файл не найден");
+    fileName = file.name;
   } else {
     const folder = await prisma.folder.findFirst({
       where: { id: folderId!, userId },
     });
     if (!folder) throw new Error("Папка не найдена");
+    folderName = folder.name;
   }
 
   const token = nanoid(12);
 
-  return prisma.shareLink.create({
+  const created = await prisma.shareLink.create({
     data: {
       token,
       targetType,
@@ -38,6 +43,30 @@ export async function createShareLink(input: CreateShareLinkInput) {
       createdById: userId,
     },
   });
+
+  try {
+    await recordHistoryEvent({
+      userId,
+      action: "share_create",
+      summary:
+        targetType === "FILE"
+          ? `Вы создали публичную ссылку для файла "${fileName ?? "файл"}"`
+          : `Вы создали публичную ссылку для папки "${folderName ?? "папка"}"`,
+      payload: {
+        targetType,
+        fileId: created.fileId,
+        folderId: created.folderId,
+        fileName,
+        folderName,
+        oneTime: created.oneTime,
+        expiresAt: created.expiresAt?.toISOString() ?? null,
+      },
+    });
+  } catch {
+    // history must not break share operations
+  }
+
+  return created;
 }
 
 export async function resolveShareLink(token: string) {
@@ -78,9 +107,35 @@ export async function listShareLinks(
 export async function deleteShareLink(id: string, userId: string) {
   const link = await prisma.shareLink.findFirst({
     where: { id, createdById: userId },
+    include: {
+      file: { select: { name: true } },
+      folder: { select: { name: true } },
+    },
   });
   if (!link) throw new Error("Ссылка не найдена");
-  return prisma.shareLink.delete({ where: { id } });
+  const deleted = await prisma.shareLink.delete({ where: { id } });
+
+  try {
+    await recordHistoryEvent({
+      userId,
+      action: "share_delete",
+      summary:
+        link.targetType === "FILE"
+          ? `Вы удалили публичную ссылку для файла "${link.file?.name ?? "файл"}"`
+          : `Вы удалили публичную ссылку для папки "${link.folder?.name ?? "папка"}"`,
+      payload: {
+        targetType: link.targetType,
+        fileId: link.fileId,
+        folderId: link.folderId,
+        fileName: link.file?.name ?? null,
+        folderName: link.folder?.name ?? null,
+      },
+    });
+  } catch {
+    // history must not break share operations
+  }
+
+  return deleted;
 }
 
 export async function canAccessFileViaShare(

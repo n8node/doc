@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       s3Key: payload.s3Key,
       folderId: payload.folderId,
       mediaDurationSeconds: payload.mediaDurationSeconds,
+      clientBatchId: payload.clientBatchId ?? null,
     });
 
     return NextResponse.json({
