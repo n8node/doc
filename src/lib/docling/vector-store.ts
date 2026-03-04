@@ -24,7 +24,7 @@ export async function insertEmbedding(params: {
     VALUES (
       ${params.id},
       ${params.fileId},
-      ${vectorStr}::vector(1536),
+      ${vectorStr}::vector,
       ${params.chunkText},
       ${params.contentHash},
       ${params.chunkIndex},
@@ -57,14 +57,14 @@ export async function findSimilar(
       de.file_id AS "fileId",
       de.chunk_text AS "chunkText",
       de.chunk_index AS "chunkIndex",
-      1 - (de.vector <=> ${vectorStr}::vector(1536)) AS similarity,
+      1 - (de.vector <=> ${vectorStr}::vector) AS similarity,
       de.metadata
     FROM document_embeddings de
     JOIN files f ON f.id = de.file_id
     WHERE f.user_id = ${userId}
       AND f.deleted_at IS NULL
-      AND 1 - (de.vector <=> ${vectorStr}::vector(1536)) >= ${threshold}
-    ORDER BY de.vector <=> ${vectorStr}::vector(1536)
+      AND 1 - (de.vector <=> ${vectorStr}::vector) >= ${threshold}
+    ORDER BY de.vector <=> ${vectorStr}::vector
     LIMIT ${limit}
   `;
 

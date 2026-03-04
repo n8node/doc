@@ -186,7 +186,7 @@ model DocumentEmbedding {
   id          String                    @id @default(cuid()) @map("id")
   fileId      String                    @map("file_id")
   file        File                      @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  vector      Unsupported("vector(1536)") @map("vector")
+  vector      Unsupported("vector") @map("vector")
   chunkText   String                    @map("chunk_text")
   contentHash String                    @map("content_hash")
   chunkIndex  Int                       @map("chunk_index")

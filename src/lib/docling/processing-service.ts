@@ -1,11 +1,10 @@
-import { PrismaClient } from "@prisma/client";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Config } from "../s3-config";
 import { createS3Client } from "../s3";
 import { getDoclingClient } from "./client";
+import { runEmbeddingPipeline } from "../ai/embedding-pipeline";
+import { prisma } from "../prisma";
 import type { DocumentProcessingResult, ProcessingStatus } from "./types";
-
-const prisma = new PrismaClient();
 
 const PROCESSABLE_MIMES = new Set([
   "application/pdf",
@@ -89,6 +88,12 @@ export async function processDocument(
         },
       },
     });
+
+    try {
+      await runEmbeddingPipeline(fileId, result.text, result.content_hash, userId);
+    } catch (embErr) {
+      console.error(`[Docling] Embedding pipeline failed for ${fileId}:`, embErr);
+    }
 
     return {
       fileId,
