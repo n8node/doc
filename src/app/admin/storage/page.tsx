@@ -207,9 +207,9 @@ export default function AdminStoragePage() {
   }, [loadData]);
 
   // Reset page when filters change (page intentionally excluded to avoid infinite loop)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (page !== 1) setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userIdFilter, search, mimeTypeFilter, currentFolder]);
 
   const navigateToFolder = (folderId: string | null) => {

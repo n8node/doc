@@ -71,7 +71,7 @@ export default function DashboardSettingsPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
 
   useEffect(() => {
     fetch("/api/user/me")
