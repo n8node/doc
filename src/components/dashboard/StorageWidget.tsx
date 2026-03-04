@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   Check,
   Files,
+  Trash2,
 } from "lucide-react";
 
 interface StorageData {
@@ -19,6 +20,8 @@ interface StorageData {
   storageQuota: number;
   maxFileSize: number;
   filesCount: number;
+  trashSize: number;
+  trashRetentionDays: number;
   plan: {
     id: string;
     name: string;
@@ -58,9 +61,22 @@ export function StorageWidget() {
 
   if (!data) return null;
 
+  const trashSize = data.trashSize ?? 0;
+  const activeSize = data.storageUsed - trashSize;
+
   const rawPercentage =
     data.storageQuota > 0
       ? Math.min((data.storageUsed / data.storageQuota) * 100, 100)
+      : 0;
+
+  const activePercentage =
+    data.storageQuota > 0
+      ? Math.min((Math.max(0, activeSize) / data.storageQuota) * 100, 100)
+      : 0;
+
+  const trashPercentage =
+    data.storageQuota > 0
+      ? Math.min((trashSize / data.storageQuota) * 100, 100 - activePercentage)
       : 0;
 
   const displayPercentage =
@@ -72,12 +88,20 @@ export function StorageWidget() {
       ? rawPercentage.toFixed(1)
       : Math.round(rawPercentage).toString();
 
-  const barWidth =
-    data.storageUsed > 0 ? Math.max(rawPercentage, 1.5) : 0;
+  const activeBarWidth =
+    activeSize > 0 ? Math.max(activePercentage, 1) : 0;
+  const trashBarWidth =
+    trashSize > 0 ? Math.max(trashPercentage, 0.5) : 0;
 
   const isWarning = rawPercentage > 80;
   const isCritical = rawPercentage > 95;
   const freeSpace = Math.max(0, data.storageQuota - data.storageUsed);
+
+  const barColorClass = isCritical
+    ? "bg-error"
+    : isWarning
+    ? "bg-warning"
+    : "bg-primary";
 
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-surface2/30 p-4">
@@ -120,17 +144,19 @@ export function StorageWidget() {
         <div className="relative h-2.5 overflow-hidden rounded-full bg-surface2">
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: `${barWidth}%` }}
+            animate={{ width: `${activeBarWidth}%` }}
             transition={{ duration: 1, ease: "easeOut" }}
-            className={cn(
-              "h-full rounded-full",
-              isCritical
-                ? "bg-error"
-                : isWarning
-                ? "bg-warning"
-                : "bg-primary"
-            )}
+            className={cn("absolute left-0 top-0 h-full rounded-l-full", barColorClass)}
           />
+          {trashBarWidth > 0 && (
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${trashBarWidth}%` }}
+              transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
+              style={{ left: `${activeBarWidth}%` }}
+              className="absolute top-0 h-full bg-error/60"
+            />
+          )}
         </div>
 
         <div className="flex items-center justify-between text-[11px]">
@@ -150,6 +176,21 @@ export function StorageWidget() {
             Свободно: {formatBytes(freeSpace)}
           </span>
         </div>
+
+        {/* Legend with trash */}
+        {trashSize > 0 && (
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <span className={cn("inline-block h-1.5 w-1.5 rounded-full", barColorClass)} />
+              Файлы: {formatBytes(Math.max(0, activeSize))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-error/60" />
+              <Trash2 className="h-2.5 w-2.5" />
+              {formatBytes(trashSize)}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Quick stats */}

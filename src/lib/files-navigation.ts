@@ -4,6 +4,7 @@ export const FILES_SECTIONS = [
   "photos",
   "shared",
   "history",
+  "trash",
 ] as const;
 
 export type FilesSection = (typeof FILES_SECTIONS)[number];

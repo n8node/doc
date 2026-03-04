@@ -18,13 +18,13 @@ export async function createShareLink(input: CreateShareLinkInput) {
 
   if (targetType === "FILE") {
     const file = await prisma.file.findFirst({
-      where: { id: fileId!, userId },
+      where: { id: fileId!, userId, deletedAt: null },
     });
     if (!file) throw new Error("Файл не найден");
     fileName = file.name;
   } else {
     const folder = await prisma.folder.findFirst({
-      where: { id: folderId!, userId },
+      where: { id: folderId!, userId, deletedAt: null },
     });
     if (!folder) throw new Error("Папка не найдена");
     folderName = folder.name;

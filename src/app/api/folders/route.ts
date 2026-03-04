@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const parentId = searchParams.get("parentId");
   const folders = await prisma.folder.findMany({
-    where: { userId: session.user.id, parentId: parentId || null },
+    where: { userId: session.user.id, parentId: parentId || null, deletedAt: null },
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ folders });

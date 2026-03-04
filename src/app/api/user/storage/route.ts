@@ -9,25 +9,32 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      storageUsed: true,
-      storageQuota: true,
-      maxFileSize: true,
-      planId: true,
-      plan: {
-        select: {
-          id: true,
-          name: true,
-          isFree: true,
-          storageQuota: true,
-          maxFileSize: true,
+  const [user, trashAgg] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        storageUsed: true,
+        storageQuota: true,
+        maxFileSize: true,
+        planId: true,
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            isFree: true,
+            storageQuota: true,
+            maxFileSize: true,
+            trashRetentionDays: true,
+          },
         },
+        _count: { select: { files: { where: { deletedAt: null } } } },
       },
-      _count: { select: { files: true } },
-    },
-  });
+    }),
+    prisma.file.aggregate({
+      where: { userId: session.user.id, deletedAt: { not: null } },
+      _sum: { size: true },
+    }),
+  ]);
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -35,6 +42,7 @@ export async function GET() {
 
   const currentQuota = user.plan ? user.plan.storageQuota : user.storageQuota;
   const currentMaxFileSize = user.plan ? user.plan.maxFileSize : user.maxFileSize;
+  const trashSize = Number(trashAgg._sum.size ?? 0);
 
   const nextPlan = await prisma.plan.findFirst({
     where: {
@@ -55,6 +63,8 @@ export async function GET() {
     storageQuota: Number(currentQuota),
     maxFileSize: Number(currentMaxFileSize),
     filesCount: user._count.files,
+    trashSize,
+    trashRetentionDays: user.plan?.trashRetentionDays ?? 0,
     plan: user.plan
       ? {
           id: user.plan.id,

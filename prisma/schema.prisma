@@ -50,6 +50,8 @@ model File {
   hasEmbedding  Boolean     @default(false) @map("has_embedding")
   aiMetadata    Json?       @map("ai_metadata")
   mediaMetadata Json?       @map("media_metadata")
+  deletedAt     DateTime?   @map("deleted_at")
+  trashBatchId  String?     @map("trash_batch_id")
   shareLinks    ShareLink[]
   embeddings    DocumentEmbedding[]
   aiTasks       AiTask[]
@@ -58,22 +60,26 @@ model File {
 
   @@map("files")
   @@index([userId, folderId])
+  @@index([userId, deletedAt])
 }
 
 model Folder {
-  id         String      @id @default(cuid()) @map("id")
-  name       String      @map("name")
-  parentId   String?     @map("parent_id")
-  parent     Folder?     @relation("FolderHierarchy", fields: [parentId], references: [id])
-  children   Folder[]    @relation("FolderHierarchy")
-  userId     String      @map("user_id")
-  user       User        @relation(fields: [userId], references: [id])
-  files      File[]
-  shareLinks ShareLink[]
-  createdAt  DateTime    @default(now()) @map("created_at")
+  id           String      @id @default(cuid()) @map("id")
+  name         String      @map("name")
+  parentId     String?     @map("parent_id")
+  parent       Folder?     @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children     Folder[]    @relation("FolderHierarchy")
+  userId       String      @map("user_id")
+  user         User        @relation(fields: [userId], references: [id])
+  files        File[]
+  shareLinks   ShareLink[]
+  deletedAt    DateTime?   @map("deleted_at")
+  trashBatchId String?     @map("trash_batch_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
 
   @@map("folders")
   @@index([userId, parentId])
+  @@index([userId, deletedAt])
 }
 
 model ShareLink {
@@ -96,19 +102,20 @@ model ShareLink {
 }
 
 model Plan {
-  id             String    @id @default(cuid()) @map("id")
-  name           String    @unique @map("name")
-  isFree         Boolean   @default(false) @map("is_free")
-  storageQuota   BigInt    @map("storage_quota")
-  maxFileSize    BigInt    @default(536870912) @map("max_file_size") // 512MB
-  features       Json?     @map("features") // { "video_player": true, "audio_player": true, ... }
-  priceMonthly   Int?      @map("price_monthly")
-  priceYearly    Int?      @map("price_yearly")
-  sortOrder      Int       @default(0) @map("sort_order")
-  isPopular      Boolean   @default(false) @map("is_popular")
-  yookassaPlanId String?   @map("yookassa_plan_id")
-  users          User[]
-  payments       Payment[]
+  id                 String    @id @default(cuid()) @map("id")
+  name               String    @unique @map("name")
+  isFree             Boolean   @default(false) @map("is_free")
+  storageQuota       BigInt    @map("storage_quota")
+  maxFileSize        BigInt    @default(536870912) @map("max_file_size") // 512MB
+  trashRetentionDays Int       @default(0) @map("trash_retention_days")
+  features           Json?     @map("features") // { "video_player": true, "audio_player": true, ... }
+  priceMonthly       Int?      @map("price_monthly")
+  priceYearly        Int?      @map("price_yearly")
+  sortOrder          Int       @default(0) @map("sort_order")
+  isPopular          Boolean   @default(false) @map("is_popular")
+  yookassaPlanId     String?   @map("yookassa_plan_id")
+  users              User[]
+  payments           Payment[]
 
   @@map("plans")
 }

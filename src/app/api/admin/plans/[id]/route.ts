@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
   const { id } = await ctx.params;
   const body = await req.json();
-  const { name, isFree, storageQuota, maxFileSize, features, priceMonthly, priceYearly, isPopular } = body;
+  const { name, isFree, storageQuota, maxFileSize, trashRetentionDays, features, priceMonthly, priceYearly, isPopular } = body;
   const data: Record<string, unknown> = {};
   if (name != null) data.name = name;
   if (isFree != null) data.isFree = !!isFree;
@@ -25,6 +25,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const value = BigInt(maxFileSize);
     data.maxFileSize = value > MAX_ALLOWED ? MAX_ALLOWED : value;
   }
+  if (trashRetentionDays != null) data.trashRetentionDays = trashRetentionDays;
   if (features != null) data.features = features;
   if (priceMonthly != null) data.priceMonthly = priceMonthly;
   if (priceYearly != null) data.priceYearly = priceYearly;

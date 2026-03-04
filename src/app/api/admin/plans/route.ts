@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, isFree, storageQuota, maxFileSize, features, priceMonthly, priceYearly, isPopular } = body;
+  const { name, isFree, storageQuota, maxFileSize, trashRetentionDays, features, priceMonthly, priceYearly, isPopular } = body;
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Название обязательно" }, { status: 400 });
@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
       isFree: !!isFree,
       storageQuota: BigInt(storageQuota),
       maxFileSize: fileSizeValue,
+      trashRetentionDays: typeof trashRetentionDays === "number" ? trashRetentionDays : 0,
       features: features ?? {},
       priceMonthly: priceMonthly ?? null,
       priceYearly: priceYearly ?? null,

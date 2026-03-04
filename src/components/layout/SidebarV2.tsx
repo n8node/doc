@@ -16,6 +16,7 @@ import {
   Settings,
   LogOut,
   HardDrive,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
@@ -38,6 +39,7 @@ const sectionItems: SectionItem[] = [
   { section: "photos", icon: ImageIcon, label: "Фото" },
   { section: "shared", icon: Share2, label: "Общий доступ" },
   { section: "history", icon: History, label: "История" },
+  { section: "trash", icon: Trash2, label: "Корзина" },
 ];
 
 const extraNavItems = [

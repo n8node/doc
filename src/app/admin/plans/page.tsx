@@ -30,6 +30,7 @@ interface PlanItem {
   sortOrder: number;
   storageQuota: number;
   maxFileSize: number;
+  trashRetentionDays: number;
   features: Record<string, boolean>;
   priceMonthly: number | null;
   priceYearly: number | null;

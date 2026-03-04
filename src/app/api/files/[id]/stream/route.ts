@@ -13,7 +13,7 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const file = await prisma.file.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, userId: session.user.id, deletedAt: null },
   });
   if (!file)
     return NextResponse.json({ error: "File not found" }, { status: 404 });

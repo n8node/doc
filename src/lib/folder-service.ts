@@ -12,7 +12,7 @@ export async function createFolder(
 ) {
   if (parentId) {
     const parent = await prisma.folder.findFirst({
-      where: { id: parentId, userId },
+      where: { id: parentId, userId, deletedAt: null },
     });
     if (!parent) throw new Error("Родительская папка не найдена");
   }
@@ -67,7 +67,7 @@ async function collectFolderIdsRecursive(folderId: string): Promise<string[]> {
 
 export async function deleteFolderRecursive(id: string, userId: string) {
   const folder = await prisma.folder.findFirst({
-    where: { id, userId },
+    where: { id, userId, deletedAt: null },
   });
   if (!folder) throw new Error("Папка не найдена");
 
@@ -138,7 +138,7 @@ export async function copyFolder(
   userId: string
 ) {
   const sourceFolder = await prisma.folder.findFirst({
-    where: { id, userId },
+    where: { id, userId, deletedAt: null },
   });
   if (!sourceFolder) throw new Error("Папка не найдена");
   if (id === newParentId) throw new Error("Нельзя скопировать папку в саму себя");
@@ -149,7 +149,7 @@ export async function copyFolder(
       throw new Error("Нельзя скопировать папку в свою дочернюю папку");
     }
     const parent = await prisma.folder.findFirst({
-      where: { id: newParentId, userId },
+      where: { id: newParentId, userId, deletedAt: null },
       select: { id: true, name: true },
     });
     if (!parent) throw new Error("Целевая папка не найдена");
@@ -171,7 +171,7 @@ export async function copyFolder(
     isRootLevel: boolean
   ): Promise<{ id: string; name: string }> => {
     const source = await prisma.folder.findFirst({
-      where: { id: sourceFolderId, userId },
+      where: { id: sourceFolderId, userId, deletedAt: null },
       select: { id: true, name: true },
     });
     if (!source) throw new Error("Папка не найдена");
@@ -189,7 +189,7 @@ export async function copyFolder(
     }
 
     const sourceFiles = await prisma.file.findMany({
-      where: { folderId: source.id, userId },
+      where: { folderId: source.id, userId, deletedAt: null },
       select: {
         id: true,
         name: true,
@@ -274,7 +274,7 @@ export async function copyFolder(
     }
 
     const sourceChildren = await prisma.folder.findMany({
-      where: { parentId: source.id, userId },
+      where: { parentId: source.id, userId, deletedAt: null },
       select: { id: true },
     });
 
@@ -318,7 +318,7 @@ export async function moveFolder(
   userId: string
 ) {
   const folder = await prisma.folder.findFirst({
-    where: { id, userId },
+    where: { id, userId, deletedAt: null },
   });
   if (!folder) throw new Error("Папка не найдена");
   if (id === newParentId) throw new Error("Нельзя переместить папку в саму себя");
@@ -327,7 +327,7 @@ export async function moveFolder(
     if (await isDescendantOf(newParentId, id))
       throw new Error("Нельзя переместить папку в свою дочернюю папку");
     const parent = await prisma.folder.findFirst({
-      where: { id: newParentId, userId },
+      where: { id: newParentId, userId, deletedAt: null },
       select: { id: true, name: true },
     });
     if (!parent) throw new Error("Целевая папка не найдена");
@@ -364,7 +364,7 @@ export async function renameFolder(id: string, name: string, userId: string) {
   if (!trimmed) throw new Error("Имя папки не может быть пустым");
   if (trimmed.length > 255) throw new Error("Имя папки слишком длинное");
   const folder = await prisma.folder.findFirst({
-    where: { id, userId },
+    where: { id, userId, deletedAt: null },
   });
   if (!folder) throw new Error("Папка не найдена");
   return prisma.folder.update({

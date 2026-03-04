@@ -82,7 +82,7 @@ export async function createFileRecordFromS3Object(input: CreateFileRecordInput)
   let folderName: string | null = null;
   if (folderId) {
     const folder = await prisma.folder.findFirst({
-      where: { id: folderId, userId },
+      where: { id: folderId, userId, deletedAt: null },
       select: { id: true, name: true },
     });
     if (!folder) throw new Error("Папка не найдена");
@@ -205,7 +205,7 @@ export async function uploadFile(input: UploadFileInput) {
 
 export async function deleteFile(id: string, userId: string) {
   const file = await prisma.file.findFirst({
-    where: { id, userId },
+    where: { id, userId, deletedAt: null },
   });
   if (!file) throw new Error("Файл не найден");
 
@@ -251,14 +251,14 @@ export async function deleteFile(id: string, userId: string) {
 
 export async function copyFile(id: string, folderId: string | null, userId: string) {
   const file = await prisma.file.findFirst({
-    where: { id, userId },
+    where: { id, userId, deletedAt: null },
   });
   if (!file) throw new Error("Файл не найден");
 
   let toFolderName: string | null = null;
   if (folderId) {
     const folder = await prisma.folder.findFirst({
-      where: { id: folderId, userId },
+      where: { id: folderId, userId, deletedAt: null },
       select: { id: true, name: true },
     });
     if (!folder) throw new Error("Папка не найдена");
@@ -362,14 +362,14 @@ export async function copyFile(id: string, folderId: string | null, userId: stri
 
 export async function moveFile(id: string, folderId: string | null, userId: string) {
   const file = await prisma.file.findFirst({
-    where: { id, userId },
+    where: { id, userId, deletedAt: null },
   });
   if (!file) throw new Error("Файл не найден");
 
   let fromFolderName: string | null = null;
   if (file.folderId) {
     const folder = await prisma.folder.findFirst({
-      where: { id: file.folderId, userId },
+      where: { id: file.folderId, userId, deletedAt: null },
       select: { name: true },
     });
     fromFolderName = folder?.name ?? null;
@@ -379,7 +379,7 @@ export async function moveFile(id: string, folderId: string | null, userId: stri
 
   if (folderId) {
     const folder = await prisma.folder.findFirst({
-      where: { id: folderId, userId },
+      where: { id: folderId, userId, deletedAt: null },
       select: { id: true, name: true },
     });
     if (!folder) throw new Error("Папка не найдена");
@@ -448,7 +448,7 @@ export async function renameFile(id: string, name: string, userId: string) {
   if (!trimmed) throw new Error("Имя файла не может быть пустым");
   if (trimmed.length > 255) throw new Error("Имя файла слишком длинное");
   const file = await prisma.file.findFirst({
-    where: { id, userId },
+    where: { id, userId, deletedAt: null },
   });
   if (!file) throw new Error("Файл не найден");
   return prisma.file.update({

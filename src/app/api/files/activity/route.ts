@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
 
   const where: {
     userId: string;
+    deletedAt: null;
     folderId?: string | null;
     createdAt: { gte: Date; lt: Date };
     mimeType?: { startsWith: string } | { in: string[] };
@@ -94,6 +95,7 @@ export async function GET(request: NextRequest) {
     shareLinks?: { some: { OR: Array<{ expiresAt: null } | { expiresAt: { gt: Date } }> } };
   } = {
     userId: session.user.id,
+    deletedAt: null,
     createdAt: {
       gte: rangeStartUtc,
       lt: rangeEndUtc,

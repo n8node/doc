@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   const files = await prisma.file.findMany({
-    where: { id: { in: fileIds }, userId: session.user.id },
+    where: { id: { in: fileIds }, userId: session.user.id, deletedAt: null },
     select: { id: true, name: true, s3Key: true },
   });
 

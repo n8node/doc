@@ -67,6 +67,7 @@ interface FileItem {
   createdAt: string;
   hasShareLink?: boolean;
   shareLinksCount?: number;
+  deletedAt?: string | null;
 }
 
 interface HistoryEntry {
@@ -86,6 +87,7 @@ interface FolderItem {
   name: string;
   parentId: string | null;
   createdAt: string;
+  deletedAt?: string | null;
 }
 
 interface Breadcrumb {
@@ -181,6 +183,7 @@ export function FileManager() {
   const isPhotosSection = activeSection === "photos";
   const isSharedSection = activeSection === "shared";
   const isHistorySection = activeSection === "history";
+  const isTrashSection = activeSection === "trash";
   const normalizedViewMode = parseViewMode(viewParam, isPhotosSection ? "grid" : "list");
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const handleUploadRef = useRef<(files: File[]) => void>(() => {});
@@ -238,6 +241,7 @@ export function FileManager() {
   const [calendarActivityLoading, setCalendarActivityLoading] = useState(false);
 
   const [maxFileSize, setMaxFileSize] = useState<number>(512 * 1024 * 1024); // 512 MB default
+  const [trashRetentionDays, setTrashRetentionDays] = useState<number>(0);
 
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -270,6 +274,9 @@ export function FileManager() {
       const data = await res.json();
       if (typeof data.maxFileSize === "number") {
         setMaxFileSize(data.maxFileSize);
+      }
+      if (typeof data.trashRetentionDays === "number") {
+        setTrashRetentionDays(data.trashRetentionDays);
       }
     } catch {}
   }, []);
@@ -345,12 +352,12 @@ export function FileManager() {
   }, [loadStorageInfo]);
 
   useEffect(() => {
-    if (isRecentSection || isPhotosSection || isSharedSection || isHistorySection) {
+    if (isRecentSection || isPhotosSection || isSharedSection || isHistorySection || isTrashSection) {
       setCurrentFolderId(null);
       return;
     }
     setCurrentFolderId(folderIdParam || null);
-  }, [folderIdParam, isRecentSection, isPhotosSection, isSharedSection, isHistorySection]);
+  }, [folderIdParam, isRecentSection, isPhotosSection, isSharedSection, isHistorySection, isTrashSection]);
 
   useEffect(() => {
     if (!selectedCustomDate) return;
@@ -403,6 +410,22 @@ export function FileManager() {
     else setLoading(true);
 
     try {
+      if (isTrashSection) {
+        const trashRes = await fetch("/api/trash");
+        if (trashRes.ok) {
+          const trashData = await trashRes.json();
+          setFiles(trashData.files ?? []);
+          setFolders(trashData.folders ?? []);
+        } else {
+          setFiles([]);
+          setFolders([]);
+        }
+        setHistoryEntries([]);
+        setBreadcrumbs([{ id: null, name: "Корзина" }]);
+        loadStorageInfo();
+        return;
+      }
+
       if (isHistorySection) {
         const historyRes = await fetch("/api/files/history?limit=300");
         if (historyRes.ok) {
@@ -511,6 +534,7 @@ export function FileManager() {
     isPhotosSection,
     isSharedSection,
     isHistorySection,
+    isTrashSection,
     buildBaseFileFilterParams,
     filterDate,
     selectedCustomDate,
@@ -955,7 +979,8 @@ export function FileManager() {
   };
 
   const handleDeleteFile = async (id: string) => {
-    if (!confirm("Удалить этот файл?")) return;
+    const msg = trashRetentionDays > 0 ? "Переместить файл в корзину?" : "Удалить этот файл?";
+    if (!confirm(msg)) return;
     try {
       const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -966,7 +991,7 @@ export function FileManager() {
           return n;
         });
         loadStorageInfo();
-        toast.success("Файл удалён");
+        toast.success(trashRetentionDays > 0 ? "Файл перемещён в корзину" : "Файл удалён");
       } else {
         const d = await res.json();
         toast.error(d.error || "Ошибка");
@@ -977,7 +1002,10 @@ export function FileManager() {
   };
 
   const handleDeleteFolder = async (id: string) => {
-    if (!confirm("Удалить папку и всё её содержимое?")) return;
+    const msg = trashRetentionDays > 0
+      ? "Переместить папку и всё её содержимое в корзину?"
+      : "Удалить папку и всё её содержимое?";
+    if (!confirm(msg)) return;
     try {
       const res = await fetch(`/api/folders/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -991,7 +1019,7 @@ export function FileManager() {
         if (currentFolderId === id) {
           router.push(buildDashboardFilesUrl({ section: activeSection }));
         }
-        toast.success("Папка удалена");
+        toast.success(trashRetentionDays > 0 ? "Папка перемещена в корзину" : "Папка удалена");
       } else {
         const d = await res.json();
         toast.error(d.error || "Ошибка");
@@ -1006,7 +1034,10 @@ export function FileManager() {
     const folderIds = Array.from(selectedFolders);
     const total = fileIds.length + folderIds.length;
     if (total === 0) return;
-    if (!confirm(`Удалить ${total} элементов?`)) return;
+    const msg = trashRetentionDays > 0
+      ? `Переместить ${total} элементов в корзину?`
+      : `Удалить ${total} элементов?`;
+    if (!confirm(msg)) return;
 
     for (const id of fileIds) {
       await fetch(`/api/files/${id}`, { method: "DELETE" });
@@ -1019,7 +1050,121 @@ export function FileManager() {
     setSelectedFolders(new Set());
     loadData();
     loadStorageInfo();
-    toast.success("Удалено");
+    toast.success(trashRetentionDays > 0 ? "Перемещено в корзину" : "Удалено");
+  };
+
+  // --- Trash-specific actions ---
+  const handleTrashPermanentDeleteFile = async (id: string) => {
+    if (!confirm("Удалить файл безвозвратно?")) return;
+    try {
+      const res = await fetch(`/api/trash/${id}?type=file`, { method: "DELETE" });
+      if (res.ok) {
+        setFiles((prev) => prev.filter((f) => f.id !== id));
+        setSelectedFiles((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        loadStorageInfo();
+        toast.success("Файл удалён безвозвратно");
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Ошибка");
+      }
+    } catch { toast.error("Ошибка"); }
+  };
+
+  const handleTrashPermanentDeleteFolder = async (id: string) => {
+    if (!confirm("Удалить папку безвозвратно?")) return;
+    try {
+      const res = await fetch(`/api/trash/${id}?type=folder`, { method: "DELETE" });
+      if (res.ok) {
+        setFolders((prev) => prev.filter((f) => f.id !== id));
+        setSelectedFolders((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        loadStorageInfo();
+        toast.success("Папка удалена безвозвратно");
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Ошибка");
+      }
+    } catch { toast.error("Ошибка"); }
+  };
+
+  const handleTrashRestore = async () => {
+    const fileIds = Array.from(selectedFiles);
+    const folderIds = Array.from(selectedFolders);
+    if (fileIds.length === 0 && folderIds.length === 0) return;
+    try {
+      const res = await fetch("/api/trash/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileIds, folderIds }),
+      });
+      if (res.ok) {
+        setSelectedFiles(new Set());
+        setSelectedFolders(new Set());
+        loadData();
+        loadStorageInfo();
+        toast.success("Элементы восстановлены");
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Ошибка восстановления");
+      }
+    } catch { toast.error("Ошибка восстановления"); }
+  };
+
+  const handleTrashRestoreSingle = async (type: "file" | "folder", id: string) => {
+    const body = type === "file" ? { fileIds: [id] } : { folderIds: [id] };
+    try {
+      const res = await fetch("/api/trash/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        loadData();
+        loadStorageInfo();
+        toast.success("Восстановлено");
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Ошибка");
+      }
+    } catch { toast.error("Ошибка"); }
+  };
+
+  const handleEmptyTrash = async () => {
+    if (!confirm("Очистить корзину? Все файлы будут удалены безвозвратно.")) return;
+    try {
+      const res = await fetch("/api/trash/empty", { method: "POST" });
+      if (res.ok) {
+        setFiles([]);
+        setFolders([]);
+        setSelectedFiles(new Set());
+        setSelectedFolders(new Set());
+        loadStorageInfo();
+        toast.success("Корзина очищена");
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Ошибка");
+      }
+    } catch { toast.error("Ошибка"); }
+  };
+
+  const handleBulkPermanentDelete = async () => {
+    const fileIds = Array.from(selectedFiles);
+    const folderIds = Array.from(selectedFolders);
+    const total = fileIds.length + folderIds.length;
+    if (total === 0) return;
+    if (!confirm(`Удалить ${total} элементов безвозвратно?`)) return;
+
+    for (const id of fileIds) {
+      await fetch(`/api/trash/${id}?type=file`, { method: "DELETE" });
+    }
+    for (const id of folderIds) {
+      await fetch(`/api/trash/${id}?type=folder`, { method: "DELETE" });
+    }
+
+    setSelectedFiles(new Set());
+    setSelectedFolders(new Set());
+    loadData();
+    loadStorageInfo();
+    toast.success("Удалено безвозвратно");
   };
 
   const handleBulkMove = async (targetFolderId: string | null) => {
@@ -1501,10 +1646,13 @@ export function FileManager() {
   };
 
   const showFolders =
-    !isRecentSection && !isPhotosSection && !isSharedSection && !isHistorySection;
+    !isRecentSection && !isPhotosSection && !isSharedSection && !isHistorySection && !isTrashSection;
+  const showTrashFolders = isTrashSection;
   const showPhotoGrid = isPhotosSection && viewMode === "grid";
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
-  const isEmpty = showFolders ? folders.length === 0 && files.length === 0 : files.length === 0;
+  const isEmpty = (showFolders || showTrashFolders)
+    ? folders.length === 0 && files.length === 0
+    : files.length === 0;
   const isSubfolder = showFolders && currentFolderId !== null;
 
   return (
@@ -1553,6 +1701,18 @@ export function FileManager() {
                 </div>
               )}
 
+              {isTrashSection && files.length + folders.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleEmptyTrash}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Очистить корзину</span>
+                </Button>
+              )}
+
               {showFolders && (
                 <Button size="sm" onClick={() => setCreateFolderOpen(true)} className="gap-2">
                   <FolderPlus className="h-4 w-4" />
@@ -1564,7 +1724,7 @@ export function FileManager() {
         </CardHeader>
 
         <CardContent className="space-y-6 p-6">
-          {!isHistorySection && (
+          {!isHistorySection && !isTrashSection && (
             <>
               {/* Filters */}
               <div className="rounded-2xl modal-glass-soft p-3 sm:p-4">
@@ -1753,12 +1913,23 @@ export function FileManager() {
           )}
 
           {/* Empty state */}
-          {!loading && !isHistorySection && isEmpty && (
+          {!loading && !isHistorySection && !isTrashSection && isEmpty && (
             <EmptyState
               isSubfolder={isSubfolder}
               onUploadClick={openUploadPicker}
               onCreateFolder={() => setCreateFolderOpen(true)}
             />
+          )}
+
+          {/* Trash empty state */}
+          {!loading && isTrashSection && isEmpty && (
+            <div className="rounded-2xl border border-dashed border-border bg-surface2/30 px-6 py-14 text-center">
+              <Trash2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+              <p className="text-base font-medium text-foreground">Корзина пуста</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Удалённые файлы и папки будут отображаться здесь.
+              </p>
+            </div>
           )}
 
           {/* History timeline */}
@@ -1817,8 +1988,162 @@ export function FileManager() {
             </>
           )}
 
+          {/* Trash content */}
+          {!loading && isTrashSection && !isEmpty && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-4"
+            >
+              {trashRetentionDays > 0 && (
+                <div className="rounded-xl bg-warning/10 px-4 py-3 text-sm text-warning">
+                  Файлы в корзине автоматически удаляются через {trashRetentionDays} дней.
+                </div>
+              )}
+
+              {folders.length > 0 && (
+                <div className="space-y-2">
+                  <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Папки ({folders.length})
+                  </p>
+                  <div className="space-y-1">
+                    {folders.map((folder, index) => {
+                      const deletedAt = folder.deletedAt;
+                      const deletedLabel = deletedAt
+                        ? new Date(deletedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                        : "";
+                      return (
+                        <motion.div
+                          key={folder.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: index * 0.02 }}
+                          className={cn(
+                            "group flex items-center gap-3 rounded-xl border px-4 py-3 transition-all",
+                            selectedFolders.has(folder.id)
+                              ? "border-primary/60 bg-primary/5"
+                              : "border-border/70 bg-surface2/30 hover:bg-surface2/50"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleFolderSelect(folder.id, !selectedFolders.has(folder.id))}
+                            className={cn(
+                              "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+                              selectedFolders.has(folder.id)
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border/80 bg-background/90"
+                            )}
+                          >
+                            {selectedFolders.has(folder.id) && <Check className="h-3 w-3" />}
+                          </button>
+                          <FolderPlus className="h-5 w-5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">{folder.name}</p>
+                            {deletedLabel && (
+                              <p className="text-xs text-muted-foreground">Удалено: {deletedLabel}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 gap-1.5 text-xs"
+                              onClick={() => handleTrashRestoreSingle("folder", folder.id)}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              Восстановить
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 gap-1.5 text-xs text-error hover:text-error"
+                              onClick={() => handleTrashPermanentDeleteFolder(folder.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {files.length > 0 && (
+                <div className="space-y-2">
+                  <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Файлы ({files.length})
+                  </p>
+                  <div className="space-y-1">
+                    {files.map((file, index) => {
+                      const deletedAt = file.deletedAt;
+                      const deletedLabel = deletedAt
+                        ? new Date(deletedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                        : "";
+                      return (
+                        <motion.div
+                          key={file.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: index * 0.02 }}
+                          className={cn(
+                            "group flex items-center gap-3 rounded-xl border px-4 py-3 transition-all",
+                            selectedFiles.has(file.id)
+                              ? "border-primary/60 bg-primary/5"
+                              : "border-border/70 bg-surface2/30 hover:bg-surface2/50"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleFileSelect(file.id, !selectedFiles.has(file.id))}
+                            className={cn(
+                              "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+                              selectedFiles.has(file.id)
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border/80 bg-background/90"
+                            )}
+                          >
+                            {selectedFiles.has(file.id) && <Check className="h-3 w-3" />}
+                          </button>
+                          <FileImage className="h-5 w-5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">{file.name}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{formatBytes(file.size)}</span>
+                              {deletedLabel && <span>• Удалено: {deletedLabel}</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 gap-1.5 text-xs"
+                              onClick={() => handleTrashRestoreSingle("file", file.id)}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              Восстановить
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 gap-1.5 text-xs text-error hover:text-error"
+                              onClick={() => handleTrashPermanentDeleteFile(file.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {/* File/folder list */}
-          {!loading && !isHistorySection && !isEmpty && (
+          {!loading && !isHistorySection && !isTrashSection && !isEmpty && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2065,7 +2390,7 @@ export function FileManager() {
       />
 
       {/* Selection bar */}
-      {!isHistorySection && (
+      {!isHistorySection && !isTrashSection && (
         <SelectionBar
           selectedCount={selectedCount}
           selectedSize={selectedSize}
@@ -2082,6 +2407,33 @@ export function FileManager() {
           onDelete={handleBulkDelete}
           onClear={clearSelection}
         />
+      )}
+
+      {/* Trash selection bar */}
+      {isTrashSection && selectedCount > 0 && (
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+        >
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-5 py-3 shadow-xl">
+            <span className="text-sm font-medium">
+              Выбрано: {selectedCount}
+            </span>
+            <Button size="sm" variant="ghost" className="gap-1.5" onClick={handleTrashRestore}>
+              <RotateCcw className="h-4 w-4" />
+              Восстановить
+            </Button>
+            <Button size="sm" variant="ghost" className="gap-1.5 text-error hover:text-error" onClick={handleBulkPermanentDelete}>
+              <Trash2 className="h-4 w-4" />
+              Удалить навсегда
+            </Button>
+            <Button size="sm" variant="ghost" onClick={clearSelection}>
+              Отмена
+            </Button>
+          </div>
+        </motion.div>
       )}
 
       {/* Move dialog */}

@@ -3,7 +3,7 @@ import { type SearchFilters, type SearchResult, SearchService } from "./search.i
 
 export class PostgresSearchService extends SearchService {
   async search({ query, userId, fileType, folderId, dateFrom, dateTo }: SearchFilters): Promise<SearchResult> {
-    const where: Record<string, unknown> = { userId };
+    const where: Record<string, unknown> = { userId, deletedAt: null };
     if (folderId) where.folderId = folderId;
     if (dateFrom || dateTo) {
       where.createdAt = {};
@@ -25,7 +25,7 @@ export class PostgresSearchService extends SearchService {
         select: { id: true, name: true, mimeType: true, size: true, folderId: true, createdAt: true },
       }),
       prisma.folder.findMany({
-        where: { userId, ...(folderId ? { parentId: folderId } : {}) } as never,
+        where: { userId, deletedAt: null, ...(folderId ? { parentId: folderId } : {}) } as never,
         take: 20,
         select: { id: true, name: true, parentId: true, createdAt: true },
       }),

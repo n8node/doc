@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
 
   if (folderId) {
     const folder = await prisma.folder.findFirst({
-      where: { id: folderId, userId: session.user.id },
+      where: { id: folderId, userId: session.user.id, deletedAt: null },
       select: { id: true },
     });
     if (!folder) {

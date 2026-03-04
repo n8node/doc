@@ -19,6 +19,7 @@ interface PlanData {
   isPopular: boolean;
   storageQuota: number;
   maxFileSize: number;
+  trashRetentionDays: number;
   features: Record<string, boolean>;
   priceMonthly: number | null;
   priceYearly: number | null;
@@ -59,6 +60,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     folder_share: true,
     ai_search: false,
   });
+  const [trashDays, setTrashDays] = useState("0");
   const [priceMonthly, setPriceMonthly] = useState("");
   const [priceYearly, setPriceYearly] = useState("");
   const [saving, setSaving] = useState(false);
@@ -70,6 +72,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setIsPopular(plan.isPopular ?? false);
       setStorageGb(String(bytesToGb(plan.storageQuota)));
       setMaxFileMb(String(bytesToMb(plan.maxFileSize)));
+      setTrashDays(String(plan.trashRetentionDays ?? 0));
       setFeatures(plan.features || {});
       setPriceMonthly(plan.priceMonthly != null ? String(plan.priceMonthly) : "");
       setPriceYearly(plan.priceYearly != null ? String(plan.priceYearly) : "");
@@ -79,6 +82,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setIsPopular(false);
       setStorageGb("25");
       setMaxFileMb("512");
+      setTrashDays("0");
       setFeatures({
         video_player: true,
         audio_player: true,
@@ -104,6 +108,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       isPopular,
       storageQuota: gbToBytes(parseFloat(storageGb) || 25),
       maxFileSize: mbToBytes(parseFloat(maxFileMb) || 512),
+      trashRetentionDays: parseInt(trashDays, 10) || 0,
       features,
       priceMonthly: priceMonthly ? parseInt(priceMonthly, 10) : null,
       priceYearly: priceYearly ? parseInt(priceYearly, 10) : null,
@@ -197,6 +202,22 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
               />
               <p className="mt-1 text-xs text-muted-foreground">Максимум: 5120 МБ (5 ГБ)</p>
             </div>
+          </div>
+
+          {/* Корзина */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Корзина (дней хранения)</label>
+            <Input
+              type="number"
+              min={0}
+              max={365}
+              value={trashDays}
+              onChange={(e) => setTrashDays(e.target.value)}
+              placeholder="0"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              0 = без корзины (удаление сразу). Платные тарифы обычно 30 дней.
+            </p>
           </div>
 
           {/* Цены */}

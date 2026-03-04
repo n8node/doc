@@ -14,7 +14,7 @@ export async function GET(
 
   const path: { id: string; name: string }[] = [];
   let folder = await prisma.folder.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, userId: session.user.id, deletedAt: null },
   });
   if (!folder)
     return NextResponse.json({ error: "Folder not found" }, { status: 404 });
@@ -23,7 +23,7 @@ export async function GET(
     path.unshift({ id: folder.id, name: folder.name });
     if (!folder.parentId) break;
     folder = await prisma.folder.findFirst({
-      where: { id: folder.parentId, userId: session.user.id },
+      where: { id: folder.parentId, userId: session.user.id, deletedAt: null },
     });
   }
 
