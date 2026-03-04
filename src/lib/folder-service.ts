@@ -360,12 +360,15 @@ export async function moveFolder(
 }
 
 export async function renameFolder(id: string, name: string, userId: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Имя папки не может быть пустым");
+  if (trimmed.length > 255) throw new Error("Имя папки слишком длинное");
   const folder = await prisma.folder.findFirst({
     where: { id, userId },
   });
   if (!folder) throw new Error("Папка не найдена");
   return prisma.folder.update({
     where: { id },
-    data: { name },
+    data: { name: trimmed },
   });
 }

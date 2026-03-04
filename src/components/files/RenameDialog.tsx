@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Pencil, Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -51,11 +52,17 @@ export function RenameDialog({
   const trimmed = name.trim();
   const canSubmit = trimmed.length > 0 && trimmed !== currentName && !renaming;
 
+  const tooLong = trimmed.length > 255;
+  const valid = canSubmit && !tooLong;
+
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!valid) return;
     setRenaming(true);
     try {
       await onRename(trimmed);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Ошибка переименования";
+      toast.error(msg);
     } finally {
       setRenaming(false);
     }
@@ -71,21 +78,27 @@ export function RenameDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input
-            ref={inputRef}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSubmit();
-            }}
-            disabled={renaming}
-            placeholder={itemType === "file" ? "Имя файла" : "Имя папки"}
-          />
+          <div>
+            <Input
+              ref={inputRef}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSubmit();
+              }}
+              disabled={renaming}
+              placeholder={itemType === "file" ? "Имя файла" : "Имя папки"}
+              maxLength={260}
+            />
+            {tooLong && (
+              <p className="mt-1 text-xs text-error">Имя не может быть длиннее 255 символов</p>
+            )}
+          </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose} disabled={renaming}>
               Отмена
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSubmit} className="gap-2">
+            <Button onClick={handleSubmit} disabled={!valid} className="gap-2">
               {renaming ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />

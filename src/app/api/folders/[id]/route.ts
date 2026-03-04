@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { deleteFolderRecursive, moveFolder } from "@/lib/folder-service";
+import { deleteFolderRecursive, moveFolder, renameFolder } from "@/lib/folder-service";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -33,15 +33,7 @@ export async function PATCH(
 
   try {
     if (name != null && typeof name === "string") {
-      const f = await prisma.folder.findFirst({
-        where: { id, userId: session.user.id },
-      });
-      if (!f)
-        return NextResponse.json({ error: "Folder not found" }, { status: 404 });
-      const updated = await prisma.folder.update({
-        where: { id },
-        data: { name },
-      });
+      const updated = await renameFolder(id, name, session.user.id);
       return NextResponse.json(updated);
     }
     if (parentId !== undefined) {

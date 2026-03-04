@@ -440,12 +440,15 @@ export async function moveFile(id: string, folderId: string | null, userId: stri
 }
 
 export async function renameFile(id: string, name: string, userId: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Имя файла не может быть пустым");
+  if (trimmed.length > 255) throw new Error("Имя файла слишком длинное");
   const file = await prisma.file.findFirst({
     where: { id, userId },
   });
   if (!file) throw new Error("Файл не найден");
   return prisma.file.update({
     where: { id },
-    data: { name },
+    data: { name: trimmed },
   });
 }
