@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Crown, HardDrive, ChevronRight } from "lucide-react";
+import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor } from "lucide-react";
+import { useTheme } from "next-themes";
 import { formatBytes } from "@/lib/utils";
 
 interface ProfileData {
@@ -48,6 +49,9 @@ export default function DashboardSettingsPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [storageData, setStorageData] = useState<StorageData | null>(null);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
+  const [savedTheme, setSavedTheme] = useState<string>("system");
+  const [savingTheme, setSavingTheme] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     fetch("/api/user/me")
@@ -70,6 +74,33 @@ export default function DashboardSettingsPage() {
       if (Array.isArray(paymentsRes.payments)) setPayments(paymentsRes.payments);
     });
   }, []);
+
+  useEffect(() => {
+    fetch("/api/user/preferences")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.theme) {
+          setSavedTheme(d.theme);
+          setTheme(d.theme);
+        }
+      })
+      .catch(() => {});
+  }, [setTheme]);
+
+  const handleThemeChange = async (value: string) => {
+    setTheme(value);
+    setSavedTheme(value);
+    setSavingTheme(true);
+    try {
+      await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: value }),
+      });
+    } finally {
+      setSavingTheme(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -381,6 +412,37 @@ export default function DashboardSettingsPage() {
           )}
         </>
       )}
+
+      {/* Внешний вид — тема */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Внешний вид</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Тема интерфейса (светлая, тёмная или как в системе)
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "light", label: "Светлая", icon: Sun },
+              { value: "dark", label: "Тёмная", icon: Moon },
+              { value: "system", label: "Системная", icon: Monitor },
+            ].map(({ value, label, icon: Icon }) => (
+              <Button
+                key={value}
+                variant={savedTheme === value ? "default" : "outline"}
+                size="sm"
+                disabled={savingTheme}
+                onClick={() => handleThemeChange(value)}
+                className="gap-2"
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
