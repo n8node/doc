@@ -114,7 +114,7 @@ async function processBulk(fileIds: string[], userId: string) {
         fileName: file.name,
         success: true,
         textLength: result.text.length,
-        numPages: result.numPages,
+        numPages: result.numPages ?? undefined,
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
