@@ -358,3 +358,14 @@ export async function moveFolder(
 
   return updated;
 }
+
+export async function renameFolder(id: string, name: string, userId: string) {
+  const folder = await prisma.folder.findFirst({
+    where: { id, userId },
+  });
+  if (!folder) throw new Error("Папка не найдена");
+  return prisma.folder.update({
+    where: { id },
+    data: { name },
+  });
+}

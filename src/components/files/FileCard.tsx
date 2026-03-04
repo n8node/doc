@@ -19,6 +19,7 @@ import {
   FolderOpen,
   FolderInput,
   Copy,
+  Pencil,
   Clock,
   Check,
   Link2,
@@ -47,6 +48,7 @@ interface FileCardProps {
   onShare: () => void;
   onMove?: () => void;
   onCopy?: () => void;
+  onRename?: () => void;
   onShareLinksClick?: () => void;
   onDelete: () => void;
   index: number;
@@ -62,6 +64,7 @@ interface FolderCardProps {
   onShare: () => void;
   onMove?: () => void;
   onCopy?: () => void;
+  onRename?: () => void;
   onDelete: () => void;
   index: number;
 }
@@ -206,6 +209,7 @@ export function FileCard({
   onShare,
   onMove,
   onCopy,
+  onRename,
   onShareLinksClick,
   onDelete,
   index,
@@ -393,6 +397,24 @@ export function FileCard({
             </Tooltip>
           )}
 
+          {onRename && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRename();
+                  }}
+                  className={ACTION_BTN}
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Переименовать</TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -427,6 +449,7 @@ export function FolderCard({
   onShare,
   onMove,
   onCopy,
+  onRename,
   onDelete,
   index,
 }: FolderCardProps) {
@@ -524,6 +547,21 @@ export function FolderCard({
                 </button>
               </TooltipTrigger>
               <TooltipContent>Копировать</TooltipContent>
+            </Tooltip>
+          )}
+
+          {onRename && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onRename(); }}
+                  className={ACTION_BTN}
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Переименовать</TooltipContent>
             </Tooltip>
           )}
 

@@ -24,6 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Pencil,
 } from "lucide-react";
 import {
   Dialog,
@@ -50,6 +51,7 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { ShareDialog } from "./ShareDialog";
 import { ShareLinksListDialog } from "./ShareLinksListDialog";
 import { MoveDialog } from "./MoveDialog";
+import { RenameDialog } from "./RenameDialog";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { cn, formatBytes } from "@/lib/utils";
@@ -242,6 +244,11 @@ export function FileManager() {
   const [moving, setMoving] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{
+    type: "file" | "folder";
+    id: string;
+    name: string;
+  } | null>(null);
   const [allRootFolders, setAllRootFolders] = useState<FolderItem[]>([]);
   const [singleMoveTarget, setSingleMoveTarget] = useState<{
     type: "FILE" | "FOLDER";
@@ -1228,6 +1235,34 @@ export function FileManager() {
     setCopyDialogOpen(true);
   };
 
+  const handleRename = async (newName: string) => {
+    if (!renameTarget) return;
+    const endpoint =
+      renameTarget.type === "file"
+        ? `/api/files/${renameTarget.id}`
+        : `/api/folders/${renameTarget.id}`;
+    const res = await fetch(endpoint, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Ошибка переименования");
+    }
+    setRenameTarget(null);
+    loadData();
+    if (renameTarget.type === "folder") {
+      fetch("/api/folders?parentId=")
+        .then((r) => r.json())
+        .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
+        .catch(() => {});
+    }
+    toast.success(
+      renameTarget.type === "file" ? "Файл переименован" : "Папка переименована"
+    );
+  };
+
   const navigateToFolder = (id: string | null) => {
     router.push(
       buildDashboardFilesUrl({
@@ -1322,6 +1357,9 @@ export function FileManager() {
         });
         setCopyDialogOpen(true);
       }}
+      onRename={() =>
+        setRenameTarget({ type: "file", id: file.id, name: file.name })
+      }
       onShareLinksClick={() =>
         setShareLinksTarget({ id: file.id, name: file.name })
       }
@@ -1777,6 +1815,9 @@ export function FileManager() {
                           });
                           setCopyDialogOpen(true);
                         }}
+                        onRename={() =>
+                          setRenameTarget({ type: "folder", id: folder.id, name: folder.name })
+                        }
                         onDelete={() => handleDeleteFolder(folder.id)}
                         index={index}
                       />
@@ -1925,6 +1966,16 @@ export function FileManager() {
                                   </button>
                                   <button
                                     type="button"
+                                    onClick={() =>
+                                      setRenameTarget({ type: "file", id: file.id, name: file.name })
+                                    }
+                                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                    aria-label="Переименовать"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
                                     onClick={() => handleDeleteFile(file.id)}
                                     className="rounded-md p-1.5 text-error transition-colors hover:bg-error/10"
                                     aria-label="Удалить"
@@ -2036,6 +2087,16 @@ export function FileManager() {
           moving={copying}
           mode="copy"
           allowCurrentTarget
+        />
+      )}
+
+      {renameTarget && (
+        <RenameDialog
+          open
+          onClose={() => setRenameTarget(null)}
+          onRename={handleRename}
+          currentName={renameTarget.name}
+          itemType={renameTarget.type}
         />
       )}
 
