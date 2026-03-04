@@ -207,7 +207,6 @@ export function FileManager() {
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
 
   const [analyzingFiles, setAnalyzingFiles] = useState<Set<string>>(new Set());
-  const [analyzedFiles, setAnalyzedFiles] = useState<Set<string>>(new Set());
   const [analyzeError, setAnalyzeError] = useState<Map<string, string>>(new Map());
 
   const [mediaModal, setMediaModal] = useState<{
@@ -1021,7 +1020,6 @@ export function FileManager() {
         `Документ обработан: ${data.textLength} символов${data.numPages ? `, ${data.numPages} стр.` : ""}`,
         { id: toastId },
       );
-      setAnalyzedFiles((s) => new Set(s).add(id));
       loadData();
     } catch {
       toast.error("Не удалось обработать документ", { id: toastId });
@@ -1063,8 +1061,6 @@ export function FileManager() {
         if (!res.ok) {
           errors++;
           setAnalyzeError((m) => new Map(m).set(id, data.error || "Ошибка"));
-        } else {
-          setAnalyzedFiles((s) => new Set(s).add(id));
         }
       } catch {
         errors++;
