@@ -13,6 +13,7 @@ import {
   BrainCircuit,
   Eye,
   EyeOff,
+  Zap,
 } from "lucide-react";
 
 interface ProviderItem {
@@ -74,6 +75,14 @@ function ProviderCard({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    dimensions?: number;
+    model?: string;
+    latencyMs?: number;
+    error?: string;
+  } | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
   const preset = PROVIDER_PRESETS[provider.name];
 
@@ -133,6 +142,29 @@ function ProviderCard({
       toast.error(e instanceof Error ? e.message : "Ошибка удаления");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`/api/admin/ai/providers/${provider.id}/test`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      setTestResult(data);
+      if (data.ok) {
+        toast.success(`Соединение успешно (${data.latencyMs}ms, ${data.dimensions}d)`);
+      } else {
+        toast.error(data.error ?? "Ошибка соединения");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Ошибка сети";
+      setTestResult({ ok: false, error: msg });
+      toast.error(msg);
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -249,6 +281,41 @@ function ProviderCard({
                 onChange={(e) => setForm((f) => ({ ...f, folderId: e.target.value }))}
                 placeholder="b1g..."
               />
+            </div>
+          )}
+
+          {provider.hasApiKey && (
+            <div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleTest}
+                disabled={testing}
+                className="gap-1.5"
+              >
+                {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                Проверить соединение
+              </Button>
+
+              {testResult && (
+                <div
+                  className={`mt-2 rounded-lg px-3 py-2 text-xs ${
+                    testResult.ok
+                      ? "border border-emerald-500/20 bg-emerald-500/5 text-emerald-600"
+                      : "border border-error/20 bg-error/5 text-error"
+                  }`}
+                >
+                  {testResult.ok ? (
+                    <span>
+                      Соединение установлено — модель: <strong>{testResult.model}</strong>,
+                      размерность: <strong>{testResult.dimensions}</strong>,
+                      задержка: <strong>{testResult.latencyMs}ms</strong>
+                    </span>
+                  ) : (
+                    <span>Ошибка: {testResult.error}</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
