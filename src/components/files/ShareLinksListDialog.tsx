@@ -148,90 +148,92 @@ export function ShareLinksListDialog({
               return (
                 <div
                   key={link.id}
-                  className={`rounded-xl border p-4 space-y-3 transition-colors ${
+                  className={`rounded-2xl border p-4 space-y-3 transition-all ${
                     inactive
-                      ? "border-border/50 bg-muted/30 opacity-70"
-                      : "border-border bg-surface2/30"
+                      ? "border-border/60 bg-muted/20 opacity-75"
+                      : "border-border/80 bg-background/80 shadow-[0_12px_32px_-24px_hsl(var(--foreground)/0.45)]"
                   }`}
                 >
                   {/* URL + Copy */}
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 truncate rounded bg-muted px-2 py-1 text-xs font-mono">
+                  <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-background/70 p-2">
+                    <code className="flex-1 truncate rounded-md border border-border/70 bg-foreground/[0.08] px-2.5 py-1.5 text-[12px] font-mono text-foreground">
                       /s/{link.token}
                     </code>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => copyLink(link.token)}
-                      className="h-8 w-8 p-0 shrink-0"
+                      className="h-8 w-8 p-0 shrink-0 bg-background/80 hover:bg-background"
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
                   </div>
 
-                  {/* Properties */}
-                  <div className="flex flex-wrap gap-2">
-                    {/* Status */}
-                    {expired ? (
-                      <Badge variant="error" className="gap-1 text-xs">
-                        <AlertCircle className="h-3 w-3" />
-                        Истекла
-                      </Badge>
-                    ) : used ? (
-                      <Badge variant="warning" className="gap-1 text-xs">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Использована
-                      </Badge>
-                    ) : (
-                      <Badge variant="success" className="gap-1 text-xs">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Активна
-                      </Badge>
-                    )}
-
-                    {/* Expiry */}
-                    {link.expiresAt ? (
-                      <Badge variant="outline" className="gap-1 text-xs">
-                        <Clock className="h-3 w-3" />
-                        до {formatDate(link.expiresAt)}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="gap-1 text-xs">
-                        <Clock className="h-3 w-3" />
-                        Бессрочно
-                      </Badge>
-                    )}
-
-                    {/* One-time */}
-                    {link.oneTime && (
-                      <Badge variant="outline" className="gap-1 text-xs">
-                        <Shield className="h-3 w-3" />
-                        Одноразовая
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Footer: created date + delete */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      Создана: {formatDate(link.createdAt)}
-                      {link.usedAt && ` • Использована: ${formatDate(link.usedAt)}`}
-                    </span>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(link.id)}
-                      disabled={deletingId === link.id}
-                      className="h-7 gap-1 text-xs text-error hover:bg-error/10 hover:text-error"
-                    >
-                      {deletingId === link.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                  <div className="space-y-2 rounded-xl border border-border/60 bg-background/60 p-2.5">
+                    {/* Properties */}
+                    <div className="flex flex-wrap gap-2">
+                      {/* Status */}
+                      {expired ? (
+                        <Badge variant="error" className="gap-1 text-xs">
+                          <AlertCircle className="h-3 w-3" />
+                          Истекла
+                        </Badge>
+                      ) : used ? (
+                        <Badge variant="warning" className="gap-1 text-xs">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Использована
+                        </Badge>
                       ) : (
-                        <Trash2 className="h-3 w-3" />
+                        <Badge variant="success" className="gap-1 text-xs">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Активна
+                        </Badge>
                       )}
-                      Удалить
-                    </Button>
+
+                      {/* Expiry */}
+                      {link.expiresAt ? (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Clock className="h-3 w-3" />
+                          до {formatDate(link.expiresAt)}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Clock className="h-3 w-3" />
+                          Бессрочно
+                        </Badge>
+                      )}
+
+                      {/* One-time */}
+                      {link.oneTime && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Shield className="h-3 w-3" />
+                          Одноразовая
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Footer: created date + delete */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-foreground/75">
+                        Создана: {formatDate(link.createdAt)}
+                        {link.usedAt && ` • Использована: ${formatDate(link.usedAt)}`}
+                      </span>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(link.id)}
+                        disabled={deletingId === link.id}
+                        className="h-7 gap-1 text-xs text-error hover:bg-error/10 hover:text-error"
+                      >
+                        {deletingId === link.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
+                        Удалить
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
