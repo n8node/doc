@@ -21,6 +21,10 @@ export default function DashboardSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     fetch("/api/user/me")
@@ -52,6 +56,39 @@ export default function DashboardSettingsPage() {
       toast.error(err instanceof Error ? err.message : "Ошибка сохранения");
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error("Пароли не совпадают");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("Пароль должен быть не менее 8 символов");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const res = await fetch("/api/user/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Ошибка смены пароля");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Пароль успешно изменён");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка смены пароля");
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -108,6 +145,92 @@ export default function DashboardSettingsPage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}
               Сохранить
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Безопасность */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Безопасность</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Смена пароля и информация о входе
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {profile?.lastLoginAt && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                Последний вход
+              </label>
+              <p className="text-sm text-muted-foreground">
+                {new Date(profile.lastLoginAt).toLocaleString("ru-RU", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+            </div>
+          )}
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <label
+                htmlFor="current-password"
+                className="mb-1.5 block text-sm font-medium text-foreground"
+              >
+                Текущий пароль
+              </label>
+              <Input
+                id="current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="••••••••"
+                className="max-w-md"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="new-password"
+                className="mb-1.5 block text-sm font-medium text-foreground"
+              >
+                Новый пароль
+              </label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Не менее 8 символов"
+                className="max-w-md"
+                minLength={8}
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="confirm-password"
+                className="mb-1.5 block text-sm font-medium text-foreground"
+              >
+                Подтверждение пароля
+              </label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Повторите новый пароль"
+                className="max-w-md"
+                minLength={8}
+                required
+              />
+            </div>
+            <Button type="submit" disabled={savingPassword}>
+              {savingPassword && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              Сменить пароль
             </Button>
           </form>
         </CardContent>
