@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { Loader2, Crown, HardDrive, ChevronRight } from "lucide-react";
+import { formatBytes } from "@/lib/utils";
 
 interface ProfileData {
   id: string;
@@ -14,6 +16,25 @@ interface ProfileData {
   lastLoginAt: string | null;
   createdAt: string;
   preferences?: Record<string, unknown>;
+}
+
+interface StorageData {
+  storageUsed: number;
+  storageQuota: number;
+  maxFileSize: number;
+  filesCount: number;
+  plan: { id: string; name: string; isFree: boolean };
+  nextPlan: { id: string; name: string; priceMonthly: number | null; storageQuota: number } | null;
+}
+
+interface PaymentItem {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  paidAt: string | null;
+  createdAt: string;
+  plan: { id: string; name: string };
 }
 
 export default function DashboardSettingsPage() {
@@ -25,6 +46,8 @@ export default function DashboardSettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+  const [storageData, setStorageData] = useState<StorageData | null>(null);
+  const [payments, setPayments] = useState<PaymentItem[]>([]);
 
   useEffect(() => {
     fetch("/api/user/me")
@@ -36,6 +59,16 @@ export default function DashboardSettingsPage() {
       })
       .catch(() => toast.error("Ошибка загрузки профиля"))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/user/storage").then((r) => r.json()),
+      fetch("/api/user/payments").then((r) => r.json()),
+    ]).then(([storageRes, paymentsRes]) => {
+      if (storageRes.storageUsed !== undefined) setStorageData(storageRes);
+      if (Array.isArray(paymentsRes.payments)) setPayments(paymentsRes.payments);
+    });
   }, []);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -235,6 +268,119 @@ export default function DashboardSettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Подписка и хранилище */}
+      {storageData && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5" />
+                Подписка
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Текущий тариф и использование
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{storageData.plan.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {storageData.plan.isFree ? "Бесплатный тариф" : "Платный тариф"}
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/dashboard/plans" className="flex items-center gap-1">
+                    Сменить тариф
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HardDrive className="h-5 w-5" />
+                Хранилище
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Использовано {formatBytes(storageData.storageUsed)} из {formatBytes(storageData.storageQuota)}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-surface2">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      (storageData.storageUsed / storageData.storageQuota) * 100
+                    )}%`,
+                  }}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Файлов: {storageData.filesCount} · Макс. размер файла:{" "}
+                {formatBytes(storageData.maxFileSize)}
+              </p>
+            </CardContent>
+          </Card>
+
+          {payments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>История платежей</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Последние платежи по подписке
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-muted-foreground">
+                        <th className="pb-2 pr-4 font-medium">Дата</th>
+                        <th className="pb-2 pr-4 font-medium">Тариф</th>
+                        <th className="pb-2 pr-4 font-medium">Сумма</th>
+                        <th className="pb-2 font-medium">Статус</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payments.map((p) => (
+                        <tr key={p.id} className="border-b border-border/70">
+                          <td className="py-3 pr-4 text-muted-foreground">
+                            {new Date(p.createdAt).toLocaleDateString("ru-RU", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </td>
+                          <td className="py-3 pr-4">{p.plan.name}</td>
+                          <td className="py-3 pr-4">
+                            {p.amount} {p.currency}
+                          </td>
+                          <td className="py-3">
+                            {p.status === "succeeded"
+                              ? "Оплачено"
+                              : p.status === "pending"
+                                ? "Ожидание"
+                                : p.status === "canceled"
+                                  ? "Отменён"
+                                  : p.status}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   );
 }
