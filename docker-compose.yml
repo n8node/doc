@@ -10,6 +10,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./docker/db-init:/docker-entrypoint-initdb.d:ro
     command: >
       postgres
       -c shared_preload_libraries=vector
@@ -34,12 +35,14 @@ services:
       dockerfile: docker/Dockerfile
     depends_on:
       db: { condition: service_healthy }
+      docling: { condition: service_healthy }
     environment:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/dropbox_ru?schema=public
       NEXTAUTH_URL: ${NEXTAUTH_URL:-https://qoqon.ru}
       APP_URL: ${APP_URL:-https://qoqon.ru}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       REDIS_URL: redis://redis:6379
+      DOCLING_URL: http://docling:8000
     deploy:
       resources:
         limits: { memory: 1G }
@@ -55,6 +58,24 @@ services:
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - app
+    restart: unless-stopped
+
+  docling:
+    build:
+      context: ./docker/docling
+      dockerfile: Dockerfile
+    environment:
+      MAX_FILE_SIZE_MB: ${DOCLING_MAX_FILE_SIZE_MB:-100}
+    deploy:
+      resources:
+        limits: { memory: 4G }
+        reservations: { memory: 2G }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
 
   adminer:
