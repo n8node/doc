@@ -56,6 +56,8 @@ interface FileCardProps {
   onProcess?: () => void;
   onDelete: () => void;
   index: number;
+  isAnalyzing?: boolean;
+  analyzeError?: string;
 }
 
 interface FolderCardProps {
@@ -219,6 +221,8 @@ export function FileCard({
   onProcess,
   onDelete,
   index,
+  isAnalyzing,
+  analyzeError,
 }: FileCardProps) {
   const { icon: Icon, color, bg } = getFileIcon(mimeType);
   const [thumbnailError, setThumbnailError] = useState(false);
@@ -297,10 +301,28 @@ export function FileCard({
               <Clock className="h-3 w-3" />
               {formatRelativeDate(createdAt)}
             </span>
-            {isProcessed && (
+            {isAnalyzing && (
               <>
                 <span>•</span>
-                <span className="flex items-center gap-1 text-emerald-500" title="Документ обработан AI">
+                <span className="flex items-center gap-1 text-amber-500 animate-pulse" title="Анализируется...">
+                  <BrainCircuit className="h-3 w-3" />
+                  Анализ...
+                </span>
+              </>
+            )}
+            {analyzeError && !isAnalyzing && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 text-red-500" title={analyzeError}>
+                  <BrainCircuit className="h-3 w-3" />
+                  Ошибка
+                </span>
+              </>
+            )}
+            {isProcessed && !isAnalyzing && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600 font-medium" title="Документ обработан AI">
                   <BrainCircuit className="h-3 w-3" />
                   AI
                 </span>

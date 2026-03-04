@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/file-service";
 import { getMaxFileSize } from "@/lib/plan-service";
 import { formatBytes } from "@/lib/utils";
-import { triggerProcessingInBackground } from "@/lib/docling/auto-process";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -62,14 +61,6 @@ export async function POST(request: NextRequest) {
       folderId: folderId && typeof folderId === "string" ? folderId : null,
       mediaDurationSeconds,
     });
-    triggerProcessingInBackground({
-      fileId: created.id,
-      s3Key: created.s3Key,
-      filename: created.name,
-      mimeType: created.mimeType,
-      userId: session.user.id,
-    });
-
     return NextResponse.json({
       id: created.id,
       name: created.name,

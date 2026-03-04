@@ -206,6 +206,10 @@ export function FileManager() {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
 
+  const [analyzingFiles, setAnalyzingFiles] = useState<Set<string>>(new Set());
+  const [analyzedFiles, setAnalyzedFiles] = useState<Set<string>>(new Set());
+  const [analyzeError, setAnalyzeError] = useState<Map<string, string>>(new Map());
+
   const [mediaModal, setMediaModal] = useState<{
     type: "video" | "audio";
     id: string;
@@ -998,7 +1002,9 @@ export function FileManager() {
   ]);
 
   const handleProcessFile = async (id: string) => {
-    const toastId = toast.loading("Анализ документа...");
+    setAnalyzingFiles((s) => new Set(s).add(id));
+    setAnalyzeError((m) => { const n = new Map(m); n.delete(id); return n; });
+    const toastId = toast.loading("AI анализ документа...");
     try {
       const res = await fetch("/api/files/process", {
         method: "POST",
@@ -1008,16 +1014,76 @@ export function FileManager() {
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error || "Ошибка обработки", { id: toastId });
+        setAnalyzeError((m) => new Map(m).set(id, data.error || "Ошибка"));
         return;
       }
       toast.success(
         `Документ обработан: ${data.textLength} символов${data.numPages ? `, ${data.numPages} стр.` : ""}`,
         { id: toastId },
       );
+      setAnalyzedFiles((s) => new Set(s).add(id));
       loadData();
     } catch {
       toast.error("Не удалось обработать документ", { id: toastId });
+      setAnalyzeError((m) => new Map(m).set(id, "Сетевая ошибка"));
+    } finally {
+      setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
     }
+  };
+
+  const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
+
+  const handleBulkAnalyze = async () => {
+    const processableIds = files
+      .filter((f) => selectedFiles.has(f.id) && PROCESSABLE_MIMES.has(f.mimeType) && !f.aiMetadata?.processedAt)
+      .map((f) => f.id);
+
+    if (processableIds.length === 0) {
+      toast.error("Нет подходящих документов для анализа");
+      return;
+    }
+
+    setBulkAnalyzing(true);
+    processableIds.forEach((id) => {
+      setAnalyzingFiles((s) => new Set(s).add(id));
+    });
+
+    const toastId = toast.loading(`AI анализ: 0/${processableIds.length}...`);
+    let done = 0;
+    let errors = 0;
+
+    for (const id of processableIds) {
+      try {
+        const res = await fetch("/api/files/process", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileId: id }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errors++;
+          setAnalyzeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+        } else {
+          setAnalyzedFiles((s) => new Set(s).add(id));
+        }
+      } catch {
+        errors++;
+        setAnalyzeError((m) => new Map(m).set(id, "Сетевая ошибка"));
+      }
+      done++;
+      setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
+      toast.loading(`AI анализ: ${done}/${processableIds.length}...`, { id: toastId });
+    }
+
+    if (errors === 0) {
+      toast.success(`Анализ завершён: ${done} документов обработано`, { id: toastId });
+    } else {
+      toast.error(`Анализ: ${done - errors} успешно, ${errors} с ошибками`, { id: toastId });
+    }
+
+    setBulkAnalyzing(false);
+    clearSelection();
+    loadData();
   };
 
   const handleDeleteFile = async (id: string) => {
@@ -1605,12 +1671,14 @@ export function FileManager() {
         setShareLinksTarget({ id: file.id, name: file.name })
       }
       onProcess={
-        PROCESSABLE_MIMES.has(file.mimeType) && !file.aiMetadata?.processedAt
+        PROCESSABLE_MIMES.has(file.mimeType) && !file.aiMetadata?.processedAt && !analyzingFiles.has(file.id)
           ? () => handleProcessFile(file.id)
           : undefined
       }
       onDelete={() => handleDeleteFile(file.id)}
       index={index}
+      isAnalyzing={analyzingFiles.has(file.id)}
+      analyzeError={analyzeError.get(file.id)}
     />
   );
 
@@ -2392,7 +2460,17 @@ export function FileManager() {
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </button>
-                                  {PROCESSABLE_MIMES.has(file.mimeType) && !file.aiMetadata?.processedAt && (
+                                  {analyzingFiles.has(file.id) && (
+                                    <span className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse" title="Анализируется...">
+                                      <BrainCircuit className="h-4 w-4" />
+                                    </span>
+                                  )}
+                                  {analyzeError.get(file.id) && !analyzingFiles.has(file.id) && (
+                                    <span className="flex items-center rounded-md p-1.5 text-red-500" title={analyzeError.get(file.id)}>
+                                      <BrainCircuit className="h-4 w-4" />
+                                    </span>
+                                  )}
+                                  {PROCESSABLE_MIMES.has(file.mimeType) && !file.aiMetadata?.processedAt && !analyzingFiles.has(file.id) && (
                                     <button
                                       type="button"
                                       onClick={() => handleProcessFile(file.id)}
@@ -2402,9 +2480,10 @@ export function FileManager() {
                                       <ScanSearch className="h-4 w-4" />
                                     </button>
                                   )}
-                                  {file.aiMetadata?.processedAt && (
-                                    <span className="flex items-center rounded-md p-1.5 text-emerald-500" title="Обработан AI">
-                                      <BrainCircuit className="h-4 w-4" />
+                                  {file.aiMetadata?.processedAt && !analyzingFiles.has(file.id) && (
+                                    <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-600" title="Обработан AI">
+                                      <BrainCircuit className="h-3.5 w-3.5" />
+                                      AI
                                     </span>
                                   )}
                                   <button
@@ -2469,6 +2548,13 @@ export function FileManager() {
           onCopy={selectedCount > 0 ? openCopyDialog : undefined}
           onDelete={handleBulkDelete}
           onClear={clearSelection}
+          onAiAnalyze={
+            selectedFiles.size > 0 &&
+            files.some((f) => selectedFiles.has(f.id) && PROCESSABLE_MIMES.has(f.mimeType) && !f.aiMetadata?.processedAt)
+              ? handleBulkAnalyze
+              : undefined
+          }
+          aiAnalyzing={bulkAnalyzing}
         />
       )}
 

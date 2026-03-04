@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, Trash2, FolderInput, Copy } from "lucide-react";
+import { X, Download, Trash2, FolderInput, Copy, BrainCircuit, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/utils";
 
@@ -14,6 +14,8 @@ interface SelectionBarProps {
   onShare?: () => void;
   onDelete: () => void;
   onClear: () => void;
+  onAiAnalyze?: () => void;
+  aiAnalyzing?: boolean;
 }
 
 export function SelectionBar({
@@ -24,6 +26,8 @@ export function SelectionBar({
   onCopy,
   onDelete,
   onClear,
+  onAiAnalyze,
+  aiAnalyzing,
 }: SelectionBarProps) {
   return (
     <AnimatePresence>
@@ -92,6 +96,25 @@ export function SelectionBar({
                 >
                   <Copy className="h-4 w-4" />
                   <span className="hidden sm:inline">Копировать</span>
+                </Button>
+              )}
+
+              {onAiAnalyze && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onAiAnalyze}
+                  disabled={aiAnalyzing}
+                  className="gap-2 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600"
+                >
+                  {aiAnalyzing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <BrainCircuit className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {aiAnalyzing ? "Анализ..." : "AI Анализ"}
+                  </span>
                 </Button>
               )}
 

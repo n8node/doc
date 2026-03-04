@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { createFileRecordFromS3Object } from "@/lib/file-service";
 import { headUploadedObject } from "@/lib/s3-upload";
 import { verifyUploadSessionToken } from "@/lib/upload-session";
-import { triggerProcessingInBackground } from "@/lib/docling/auto-process";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -62,14 +61,6 @@ export async function POST(request: NextRequest) {
       folderId: payload.folderId,
       mediaDurationSeconds: payload.mediaDurationSeconds,
       clientBatchId: payload.clientBatchId ?? null,
-    });
-
-    triggerProcessingInBackground({
-      fileId: created.id,
-      s3Key: created.s3Key,
-      filename: created.name,
-      mimeType: created.mimeType,
-      userId: session.user.id,
     });
 
     return NextResponse.json({
