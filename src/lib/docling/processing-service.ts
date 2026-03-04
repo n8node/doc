@@ -16,10 +16,6 @@ const PROCESSABLE_MIMES = new Set([
   "text/plain",
   "text/csv",
   "text/markdown",
-  "image/png",
-  "image/jpeg",
-  "image/tiff",
-  "image/bmp",
 ]);
 
 export function isProcessable(mimeType: string): boolean {

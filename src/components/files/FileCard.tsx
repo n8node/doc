@@ -56,6 +56,7 @@ interface FileCardProps {
   onProcess?: () => void;
   onDelete: () => void;
   index: number;
+  isProcessable?: boolean;
   isAnalyzing?: boolean;
   analyzeError?: string;
 }
@@ -221,6 +222,7 @@ export function FileCard({
   onProcess,
   onDelete,
   index,
+  isProcessable = false,
   isAnalyzing,
   analyzeError,
 }: FileCardProps) {
@@ -301,7 +303,7 @@ export function FileCard({
               <Clock className="h-3 w-3" />
               {formatRelativeDate(createdAt)}
             </span>
-            {isAnalyzing && (
+            {isProcessable && isAnalyzing && (
               <>
                 <span>•</span>
                 <span className="flex items-center gap-1 text-amber-500 animate-pulse" title="Анализируется...">
@@ -310,7 +312,7 @@ export function FileCard({
                 </span>
               </>
             )}
-            {analyzeError && !isAnalyzing && (
+            {isProcessable && analyzeError && !isAnalyzing && (
               <>
                 <span>•</span>
                 <span className="flex items-center gap-1 text-red-500" title={analyzeError}>
@@ -319,7 +321,7 @@ export function FileCard({
                 </span>
               </>
             )}
-            {isProcessed && !isAnalyzing && (
+            {isProcessable && isProcessed && !isAnalyzing && (
               <>
                 <span>•</span>
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600 font-medium" title="Документ обработан AI">

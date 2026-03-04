@@ -994,10 +994,6 @@ export function FileManager() {
     "text/plain",
     "text/csv",
     "text/markdown",
-    "image/png",
-    "image/jpeg",
-    "image/tiff",
-    "image/bmp",
   ]);
 
   const pollProcessStatus = async (fileId: string, toastId: string | number): Promise<"ok" | "err"> => {
@@ -1743,6 +1739,7 @@ export function FileManager() {
       }
       onDelete={() => handleDeleteFile(file.id)}
       index={index}
+      isProcessable={PROCESSABLE_MIMES.has(file.mimeType)}
       isAnalyzing={analyzingFiles.has(file.id)}
       analyzeError={analyzeError.get(file.id)}
     />
@@ -2526,12 +2523,12 @@ export function FileManager() {
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </button>
-                                  {analyzingFiles.has(file.id) && (
+                                  {PROCESSABLE_MIMES.has(file.mimeType) && analyzingFiles.has(file.id) && (
                                     <span className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse" title="Анализируется...">
                                       <BrainCircuit className="h-4 w-4" />
                                     </span>
                                   )}
-                                  {analyzeError.get(file.id) && !analyzingFiles.has(file.id) && (
+                                  {PROCESSABLE_MIMES.has(file.mimeType) && analyzeError.get(file.id) && !analyzingFiles.has(file.id) && (
                                     <span className="flex items-center rounded-md p-1.5 text-red-500" title={analyzeError.get(file.id)}>
                                       <BrainCircuit className="h-4 w-4" />
                                     </span>
@@ -2546,7 +2543,7 @@ export function FileManager() {
                                       <ScanSearch className="h-4 w-4" />
                                     </button>
                                   )}
-                                  {file.aiMetadata?.processedAt && !analyzingFiles.has(file.id) && (
+                                  {PROCESSABLE_MIMES.has(file.mimeType) && file.aiMetadata?.processedAt && !analyzingFiles.has(file.id) && (
                                     <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-600" title="Обработан AI">
                                       <BrainCircuit className="h-3.5 w-3.5" />
                                       AI
