@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { deleteFile, moveFile } from "@/lib/file-service";
+import { copyFile, deleteFile, moveFile } from "@/lib/file-service";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -42,9 +42,21 @@ export async function POST(request: NextRequest) {
         errors.push(id);
       }
     }
+  } else if (action === "copy") {
+    const targetFolderId =
+      folderId && typeof folderId === "string" ? folderId : null;
+    for (const id of ids) {
+      if (typeof id !== "string") continue;
+      try {
+        await copyFile(id, targetFolderId, session.user.id);
+        ok++;
+      } catch {
+        errors.push(id);
+      }
+    }
   } else {
     return NextResponse.json(
-      { error: "action должен быть delete или move" },
+      { error: "action должен быть delete, move или copy" },
       { status: 400 }
     );
   }

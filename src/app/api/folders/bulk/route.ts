@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { deleteFolderRecursive, moveFolder } from "@/lib/folder-service";
+import { copyFolder, deleteFolderRecursive, moveFolder } from "@/lib/folder-service";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -42,9 +42,21 @@ export async function POST(request: NextRequest) {
         errors.push(id);
       }
     }
+  } else if (action === "copy") {
+    const targetParentId =
+      parentId && typeof parentId === "string" ? parentId : null;
+    for (const id of ids) {
+      if (typeof id !== "string") continue;
+      try {
+        await copyFolder(id, targetParentId, session.user.id);
+        ok++;
+      } catch {
+        errors.push(id);
+      }
+    }
   } else {
     return NextResponse.json(
-      { error: "action должен быть delete или move" },
+      { error: "action должен быть delete, move или copy" },
       { status: 400 }
     );
   }

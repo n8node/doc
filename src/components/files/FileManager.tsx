@@ -239,8 +239,16 @@ export function FileManager() {
 
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [allRootFolders, setAllRootFolders] = useState<FolderItem[]>([]);
   const [singleMoveFile, setSingleMoveFile] = useState<{ id: string; name: string } | null>(null);
+  const [singleCopyTarget, setSingleCopyTarget] = useState<{
+    type: "FILE" | "FOLDER";
+    id: string;
+    name: string;
+    currentFolderId: string | null;
+  } | null>(null);
 
   const openUploadPicker = useCallback(() => {
     uploadInputRef.current?.click();
@@ -1041,6 +1049,59 @@ export function FileManager() {
     }
   };
 
+  const handleSingleCopy = async (targetFolderId: string | null) => {
+    if (!singleCopyTarget) return;
+
+    setCopying(true);
+    try {
+      const endpoint =
+        singleCopyTarget.type === "FILE" ? "/api/files/bulk" : "/api/folders/bulk";
+      const payload =
+        singleCopyTarget.type === "FILE"
+          ? {
+              ids: [singleCopyTarget.id],
+              action: "copy",
+              folderId: targetFolderId,
+            }
+          : {
+              ids: [singleCopyTarget.id],
+              action: "copy",
+              parentId: targetFolderId,
+            };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json()) as { ok?: number; error?: string };
+
+      if (!res.ok || typeof data.ok !== "number" || data.ok < 1) {
+        throw new Error(data.error || "Ошибка копирования");
+      }
+
+      setCopyDialogOpen(false);
+      setSingleCopyTarget(null);
+      setSelectedFiles(new Set());
+      setSelectedFolders(new Set());
+      loadData();
+      loadStorageInfo();
+      fetch("/api/folders?parentId=")
+        .then((r) => r.json())
+        .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
+        .catch(() => {});
+      toast.success(
+        singleCopyTarget.type === "FILE" ? "Файл скопирован" : "Папка скопирована"
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message ? error.message : "Ошибка копирования";
+      toast.error(message);
+    } finally {
+      setCopying(false);
+    }
+  };
+
   const handleFileSelect = (id: string, selected: boolean) => {
     setSelectedFiles((prev) => {
       const n = new Set(prev);
@@ -1064,6 +1125,36 @@ export function FileManager() {
     setSelectedFolders(new Set());
   };
 
+  const openCopyDialog = () => {
+    const selectedFileIds = Array.from(selectedFiles);
+    const selectedFolderIds = Array.from(selectedFolders);
+
+    if (selectedFileIds.length === 1 && selectedFolderIds.length === 0) {
+      const file = files.find((item) => item.id === selectedFileIds[0]);
+      if (!file) return;
+      setSingleCopyTarget({
+        type: "FILE",
+        id: file.id,
+        name: file.name,
+        currentFolderId: file.folderId,
+      });
+      setCopyDialogOpen(true);
+      return;
+    }
+
+    if (selectedFolderIds.length === 1 && selectedFileIds.length === 0) {
+      const folder = folders.find((item) => item.id === selectedFolderIds[0]);
+      if (!folder) return;
+      setSingleCopyTarget({
+        type: "FOLDER",
+        id: folder.id,
+        name: folder.name,
+        currentFolderId: folder.parentId,
+      });
+      setCopyDialogOpen(true);
+    }
+  };
+
   const navigateToFolder = (id: string | null) => {
     router.push(
       buildDashboardFilesUrl({
@@ -1078,6 +1169,8 @@ export function FileManager() {
   const selectedSize = files
     .filter((f) => selectedFiles.has(f.id))
     .reduce((sum, f) => sum + f.size, 0);
+  const selectedCount = selectedFiles.size + selectedFolders.size;
+  const hasSingleSelection = selectedCount === 1;
 
   const recentFileGroups = isRecentSection
     ? (() => {
@@ -1764,7 +1857,7 @@ export function FileManager() {
       {/* Selection bar */}
       {!isHistorySection && (
         <SelectionBar
-          selectedCount={selectedFiles.size + selectedFolders.size}
+          selectedCount={selectedCount}
           selectedSize={selectedSize}
           onDownload={
             selectedFiles.size > 0
@@ -1783,6 +1876,7 @@ export function FileManager() {
                 }
               : undefined
           }
+          onCopy={hasSingleSelection ? openCopyDialog : undefined}
           onDelete={handleBulkDelete}
           onClear={clearSelection}
         />
@@ -1800,6 +1894,26 @@ export function FileManager() {
           currentFolderId={currentFolderId}
           excludeFolderIds={singleMoveFile ? undefined : selectedFolders}
           moving={moving}
+        />
+      )}
+
+      {!isHistorySection && (
+        <MoveDialog
+          open={copyDialogOpen}
+          onClose={() => {
+            setCopyDialogOpen(false);
+            setSingleCopyTarget(null);
+          }}
+          onMove={handleSingleCopy}
+          currentFolderId={singleCopyTarget?.currentFolderId ?? currentFolderId}
+          excludeFolderIds={
+            singleCopyTarget?.type === "FOLDER"
+              ? new Set([singleCopyTarget.id])
+              : undefined
+          }
+          moving={copying}
+          mode="copy"
+          allowCurrentTarget
         />
       )}
 

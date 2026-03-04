@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Loader2,
   FolderInput,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,8 @@ interface MoveDialogProps {
   currentFolderId: string | null;
   excludeFolderIds?: Set<string>;
   moving?: boolean;
+  mode?: "move" | "copy";
+  allowCurrentTarget?: boolean;
 }
 
 export function MoveDialog({
@@ -39,6 +42,8 @@ export function MoveDialog({
   currentFolderId,
   excludeFolderIds,
   moving = false,
+  mode = "move",
+  allowCurrentTarget = false,
 }: MoveDialogProps) {
   const [rootFolders, setRootFolders] = useState<FolderOption[]>([]);
   const [childrenMap, setChildrenMap] = useState<Record<string, FolderOption[]>>({});
@@ -110,31 +115,48 @@ export function MoveDialog({
 
   const isExcluded = (id: string) => !!excludeFolderIds?.has(id);
   const isCurrent = (id: string | null) => id === currentFolderId;
+  const isCopyMode = mode === "copy";
+  const titleText = isCopyMode ? "Копировать в..." : "Переместить в...";
+  const submitText = isCopyMode ? "Копировать" : "Переместить";
+  const submittingText = isCopyMode ? "Копирование..." : "Перемещение...";
+  const rootCanBeSelected = allowCurrentTarget || !isCurrent(null);
+  const selectedCanBeUsed =
+    selected !== null &&
+    !isExcluded(selected) &&
+    (allowCurrentTarget || !isCurrent(selected));
   const canSelect =
-    (isRootSelected && !isCurrent(null)) ||
-    (selected !== null && !isCurrent(selected) && !isExcluded(selected));
+    (isRootSelected && rootCanBeSelected) || selectedCanBeUsed;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FolderInput className="h-5 w-5 text-primary" />
-            Переместить в...
+            {isCopyMode ? (
+              <Copy className="h-5 w-5 text-primary" />
+            ) : (
+              <FolderInput className="h-5 w-5 text-primary" />
+            )}
+            {titleText}
           </DialogTitle>
         </DialogHeader>
 
         <div className="max-h-80 overflow-y-auto rounded-xl border border-border">
           {/* Root (Мои файлы) */}
-          {currentFolderId !== null && (
+          {(isCopyMode || currentFolderId !== null) && (
             <button
               type="button"
-              onClick={selectRoot}
+              onClick={() => {
+                if (rootCanBeSelected) selectRoot();
+              }}
+              disabled={!rootCanBeSelected}
               className={cn(
                 "flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors",
                 isRootSelected
                   ? "bg-primary/10 text-primary"
-                  : "text-foreground hover:bg-surface2/50"
+                  : rootCanBeSelected
+                  ? "text-foreground hover:bg-surface2/50"
+                  : "cursor-not-allowed text-muted-foreground"
               )}
             >
               <Home className="h-4 w-4 shrink-0" />
@@ -160,6 +182,7 @@ export function MoveDialog({
                 const children = childrenMap[folder.id] ?? [];
                 const loading = loadingChildren.has(folder.id);
                 const current = isCurrent(folder.id);
+                const disabledByCurrent = !allowCurrentTarget && current;
 
                 return (
                   <li key={folder.id}>
@@ -178,11 +201,13 @@ export function MoveDialog({
                       </button>
                       <button
                         type="button"
-                        onClick={() => !current && selectFolder(folder.id)}
-                        disabled={current}
+                        onClick={() => {
+                          if (!disabledByCurrent) selectFolder(folder.id);
+                        }}
+                        disabled={disabledByCurrent}
                         className={cn(
                           "flex min-w-0 flex-1 items-center gap-2 py-3 pr-4 text-sm font-medium transition-colors",
-                          current
+                          disabledByCurrent
                             ? "cursor-not-allowed text-muted-foreground"
                             : selected === folder.id
                             ? "text-primary"
@@ -219,15 +244,19 @@ export function MoveDialog({
                             children.map((child) => {
                               if (isExcluded(child.id)) return null;
                               const childCurrent = isCurrent(child.id);
+                              const childDisabledByCurrent =
+                                !allowCurrentTarget && childCurrent;
                               return (
                                 <li key={child.id}>
                                   <button
                                     type="button"
-                                    onClick={() => !childCurrent && selectFolder(child.id)}
-                                    disabled={childCurrent}
+                                    onClick={() => {
+                                      if (!childDisabledByCurrent) selectFolder(child.id);
+                                    }}
+                                    disabled={childDisabledByCurrent}
                                     className={cn(
                                       "flex w-full items-center gap-2 py-2.5 pl-12 pr-4 text-sm transition-colors",
-                                      childCurrent
+                                      childDisabledByCurrent
                                         ? "cursor-not-allowed text-muted-foreground"
                                         : selected === child.id
                                         ? "bg-primary/5 font-medium text-primary"
@@ -262,12 +291,16 @@ export function MoveDialog({
             {moving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Перемещение...
+                {submittingText}
               </>
             ) : (
               <>
-                <FolderInput className="h-4 w-4" />
-                Переместить
+                {isCopyMode ? (
+                  <Copy className="h-4 w-4" />
+                ) : (
+                  <FolderInput className="h-4 w-4" />
+                )}
+                {submitText}
               </>
             )}
           </Button>

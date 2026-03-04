@@ -31,6 +31,26 @@ function buildSafeFileName(fileName: string) {
   return ext ? `${baseName}.${ext}` : baseName;
 }
 
+export function buildDuplicateName(
+  name: string,
+  options: { preserveExtension?: boolean } = {}
+) {
+  const { preserveExtension = true } = options;
+  const normalized = name.trim() || "file";
+  if (!preserveExtension) {
+    return `${normalized} (дубликат)`;
+  }
+
+  const lastDotIndex = normalized.lastIndexOf(".");
+  if (lastDotIndex > 0 && lastDotIndex < normalized.length - 1) {
+    const base = normalized.slice(0, lastDotIndex);
+    const ext = normalized.slice(lastDotIndex);
+    return `${base} (дубликат)${ext}`;
+  }
+
+  return `${normalized} (дубликат)`;
+}
+
 export function buildS3Key(input: {
   userId: string;
   fileName: string;
@@ -222,6 +242,117 @@ export async function deleteFile(id: string, userId: string) {
     });
   } catch {
     // history must not break core file operations
+  }
+}
+
+export async function copyFile(id: string, folderId: string | null, userId: string) {
+  const file = await prisma.file.findFirst({
+    where: { id, userId },
+  });
+  if (!file) throw new Error("Файл не найден");
+
+  let toFolderName: string | null = null;
+  if (folderId) {
+    const folder = await prisma.folder.findFirst({
+      where: { id: folderId, userId },
+      select: { id: true, name: true },
+    });
+    if (!folder) throw new Error("Папка не найдена");
+    toFolderName = folder.name;
+  }
+
+  const duplicatedName = buildDuplicateName(file.name);
+  const newS3Key = buildS3Key({
+    userId,
+    fileName: duplicatedName,
+    folderId,
+  });
+
+  const config = await getS3Config();
+  const client = createS3Client({ ...config, forcePathStyle: true });
+
+  await client.send(
+    new CopyObjectCommand({
+      Bucket: config.bucket,
+      CopySource: `${config.bucket}/${file.s3Key}`,
+      Key: newS3Key,
+    })
+  );
+
+  try {
+    const copied = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { storageQuota: true },
+      });
+      if (!user) throw new Error("User not found");
+
+      const fileSize = file.size;
+      if (fileSize > user.storageQuota) {
+        throw new Error("Превышен лимит хранилища");
+      }
+
+      const maxAllowedUsed = user.storageQuota - fileSize;
+      const updated = await tx.user.updateMany({
+        where: {
+          id: userId,
+          storageUsed: { lte: maxAllowedUsed },
+        },
+        data: {
+          storageUsed: { increment: fileSize },
+        },
+      });
+      if (updated.count === 0) {
+        throw new Error("Превышен лимит хранилища");
+      }
+
+      return tx.file.create({
+        data: {
+          name: duplicatedName,
+          mimeType: file.mimeType,
+          size: fileSize,
+          s3Key: newS3Key,
+          folderId: folderId ?? null,
+          userId,
+          ...(file.mediaMetadata ? { mediaMetadata: file.mediaMetadata } : {}),
+        },
+      });
+    });
+
+    try {
+      await recordHistoryEvent({
+        userId,
+        action: "copy",
+        summary:
+          toFolderName != null
+            ? `Вы скопировали файл "${file.name}" в папку "${toFolderName}"`
+            : `Вы скопировали файл "${file.name}" в корневую папку`,
+        payload: {
+          file: {
+            id: copied.id,
+            name: copied.name,
+            size: Number(copied.size),
+          },
+          fromFileId: file.id,
+          fromFileName: file.name,
+          toFolderId: copied.folderId,
+          toFolderName,
+        },
+      });
+    } catch {
+      // history must not break core file operations
+    }
+
+    return copied;
+  } catch (error) {
+    try {
+      await client.send(
+        new DeleteObjectCommand({ Bucket: config.bucket, Key: newS3Key })
+      );
+    } catch {
+      // ignore cleanup errors
+    }
+    throw error;
   }
 }
 

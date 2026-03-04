@@ -1,8 +1,9 @@
 import { prisma } from "./prisma";
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Config } from "./s3-config";
 import { createS3Client } from "./s3";
 import { recordHistoryEvent } from "./history-service";
+import { buildDuplicateName, buildS3Key } from "./file-service";
 
 export async function createFolder(
   name: string,
@@ -129,6 +130,186 @@ async function isDescendantOf(
   if (!folder || !folder.parentId) return false;
   if (folder.parentId === ancestorId) return true;
   return isDescendantOf(folder.parentId, ancestorId);
+}
+
+export async function copyFolder(
+  id: string,
+  newParentId: string | null,
+  userId: string
+) {
+  const sourceFolder = await prisma.folder.findFirst({
+    where: { id, userId },
+  });
+  if (!sourceFolder) throw new Error("Папка не найдена");
+  if (id === newParentId) throw new Error("Нельзя скопировать папку в саму себя");
+
+  let newParentName: string | null = null;
+  if (newParentId) {
+    if (await isDescendantOf(newParentId, id)) {
+      throw new Error("Нельзя скопировать папку в свою дочернюю папку");
+    }
+    const parent = await prisma.folder.findFirst({
+      where: { id: newParentId, userId },
+      select: { id: true, name: true },
+    });
+    if (!parent) throw new Error("Целевая папка не найдена");
+    newParentName = parent.name;
+  }
+
+  const config = await getS3Config();
+  const client = createS3Client({ ...config, forcePathStyle: true });
+
+  const copiedCounters = {
+    folders: 0,
+    files: 0,
+    bytes: BigInt(0),
+  };
+
+  const copyFolderRecursive = async (
+    sourceFolderId: string,
+    targetParentId: string | null,
+    isRootLevel: boolean
+  ): Promise<{ id: string; name: string }> => {
+    const source = await prisma.folder.findFirst({
+      where: { id: sourceFolderId, userId },
+      select: { id: true, name: true },
+    });
+    if (!source) throw new Error("Папка не найдена");
+
+    const createdFolder = await prisma.folder.create({
+      data: {
+        name: buildDuplicateName(source.name, { preserveExtension: false }),
+        parentId: targetParentId,
+        userId,
+      },
+      select: { id: true, name: true },
+    });
+    if (!isRootLevel) {
+      copiedCounters.folders += 1;
+    }
+
+    const sourceFiles = await prisma.file.findMany({
+      where: { folderId: source.id, userId },
+      select: {
+        id: true,
+        name: true,
+        mimeType: true,
+        size: true,
+        s3Key: true,
+        mediaMetadata: true,
+      },
+    });
+
+    for (const file of sourceFiles) {
+      const duplicatedFileName = buildDuplicateName(file.name);
+      const newS3Key = buildS3Key({
+        userId,
+        fileName: duplicatedFileName,
+        folderId: createdFolder.id,
+      });
+
+      await client.send(
+        new CopyObjectCommand({
+          Bucket: config.bucket,
+          CopySource: `${config.bucket}/${file.s3Key}`,
+          Key: newS3Key,
+        })
+      );
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          const user = await tx.user.findUnique({
+            where: { id: userId },
+            select: { storageQuota: true },
+          });
+          if (!user) throw new Error("User not found");
+
+          const fileSize = file.size;
+          if (fileSize > user.storageQuota) {
+            throw new Error("Превышен лимит хранилища");
+          }
+
+          const maxAllowedUsed = user.storageQuota - fileSize;
+          const updated = await tx.user.updateMany({
+            where: {
+              id: userId,
+              storageUsed: { lte: maxAllowedUsed },
+            },
+            data: {
+              storageUsed: { increment: fileSize },
+            },
+          });
+          if (updated.count === 0) {
+            throw new Error("Превышен лимит хранилища");
+          }
+
+          await tx.file.create({
+            data: {
+              name: duplicatedFileName,
+              mimeType: file.mimeType,
+              size: fileSize,
+              s3Key: newS3Key,
+              folderId: createdFolder.id,
+              userId,
+              ...(file.mediaMetadata ? { mediaMetadata: file.mediaMetadata } : {}),
+            },
+          });
+        });
+      } catch (error) {
+        try {
+          await client.send(
+            new DeleteObjectCommand({
+              Bucket: config.bucket,
+              Key: newS3Key,
+            })
+          );
+        } catch {
+          // ignore cleanup errors
+        }
+        throw error;
+      }
+
+      copiedCounters.files += 1;
+      copiedCounters.bytes += file.size;
+    }
+
+    const sourceChildren = await prisma.folder.findMany({
+      where: { parentId: source.id, userId },
+      select: { id: true },
+    });
+
+    for (const child of sourceChildren) {
+      await copyFolderRecursive(child.id, createdFolder.id, false);
+    }
+
+    return createdFolder;
+  };
+
+  const copiedRoot = await copyFolderRecursive(id, newParentId, true);
+
+  try {
+    await recordHistoryEvent({
+      userId,
+      action: "folder_copy",
+      summary:
+        newParentName != null
+          ? `Вы скопировали папку "${sourceFolder.name}" в "${newParentName}"`
+          : `Вы скопировали папку "${sourceFolder.name}" в корень`,
+      payload: {
+        folder: { id: copiedRoot.id, name: copiedRoot.name },
+        sourceFolder: { id: sourceFolder.id, name: sourceFolder.name },
+        toParentId: newParentId,
+        toParentName: newParentName,
+        copiedFiles: copiedCounters.files,
+        copiedFolders: copiedCounters.folders,
+        copiedBytes: Number(copiedCounters.bytes),
+      },
+    });
+  } catch {
+    // history must not break core folder operations
+  }
+
+  return copiedRoot;
 }
 
 export async function moveFolder(
