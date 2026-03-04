@@ -100,17 +100,21 @@ async def extract_document(
 
         tables = []
         for table_ix, table in enumerate(doc.tables):
-            tables.append({
-                "index": table_ix,
-                "content": table.export_to_markdown() if hasattr(table, "export_to_markdown") else str(table),
-            })
+            try:
+                content = table.export_to_markdown() if callable(getattr(table, "export_to_markdown", None)) else str(table)
+            except Exception:
+                content = str(table)
+            tables.append({"index": table_ix, "content": content})
+
+        num_pages_attr = getattr(doc, "num_pages", None)
+        num_pages = num_pages_attr() if callable(num_pages_attr) else num_pages_attr
 
         return JSONResponse({
             "filename": file.filename,
             "content_hash": content_hash,
             "text": text,
             "tables": tables,
-            "num_pages": getattr(doc, "num_pages", None),
+            "num_pages": num_pages,
             "format": ext,
         })
     except Exception as e:
