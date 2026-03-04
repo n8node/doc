@@ -75,13 +75,21 @@ export default function DashboardSettingsPage() {
 
   useEffect(() => {
     fetch("/api/user/me")
-      .then((r) => r.json())
+      .then(async (r) => {
+        let data: { error?: string };
+        try {
+          data = await r.json();
+        } catch {
+          throw new Error(r.status === 500 ? "Ошибка сервера (проверьте БД и логи)" : `Ошибка ${r.status}`);
+        }
+        if (!r.ok || data.error) throw new Error(data.error ?? "Ошибка загрузки профиля");
+        return data as ProfileData;
+      })
       .then((data) => {
-        if (data.error) throw new Error(data.error);
         setProfile(data);
         setName(data.name ?? "");
       })
-      .catch(() => toast.error("Ошибка загрузки профиля"))
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Ошибка загрузки профиля"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -243,11 +251,11 @@ export default function DashboardSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold text-foreground">Настройки</h1>
+    <div className="grid max-w-5xl grid-cols-1 gap-6 lg:grid-cols-2">
+      <h1 className="col-span-full text-2xl font-semibold text-foreground">Настройки</h1>
 
       {/* Профиль */}
-      <Card>
+      <div className="rounded-2xl modal-glass overflow-hidden">
         <CardHeader>
           <CardTitle>Профиль</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -290,10 +298,10 @@ export default function DashboardSettingsPage() {
             </Button>
           </form>
         </CardContent>
-      </Card>
+      </div>
 
       {/* Безопасность */}
-      <Card>
+      <div className="rounded-2xl modal-glass overflow-hidden">
         <CardHeader>
           <CardTitle>Безопасность</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -376,12 +384,12 @@ export default function DashboardSettingsPage() {
             </Button>
           </form>
         </CardContent>
-      </Card>
+      </div>
 
       {/* Подписка и хранилище */}
       {storageData && (
         <>
-          <Card>
+          <div className="rounded-2xl modal-glass overflow-hidden">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Crown className="h-5 w-5" />
@@ -408,9 +416,9 @@ export default function DashboardSettingsPage() {
                 </Link>
               </div>
             </CardContent>
-          </Card>
+          </div>
 
-          <Card>
+          <div className="rounded-2xl modal-glass overflow-hidden">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <HardDrive className="h-5 w-5" />
@@ -437,10 +445,10 @@ export default function DashboardSettingsPage() {
                 {formatBytes(storageData.maxFileSize)}
               </p>
             </CardContent>
-          </Card>
+          </div>
 
           {payments.length > 0 && (
-            <Card>
+            <div className="rounded-2xl modal-glass overflow-hidden">
               <CardHeader>
                 <CardTitle>История платежей</CardTitle>
                 <p className="text-sm text-muted-foreground">
@@ -487,13 +495,13 @@ export default function DashboardSettingsPage() {
                   </table>
                 </div>
               </CardContent>
-            </Card>
+            </div>
           )}
         </>
       )}
 
       {/* Ссылки доступа */}
-      <Card>
+      <div className="rounded-2xl modal-glass overflow-hidden">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Share2 className="h-5 w-5" />
@@ -543,10 +551,10 @@ export default function DashboardSettingsPage() {
             </ul>
           )}
         </CardContent>
-      </Card>
+      </div>
 
       {/* Уведомления */}
-      <Card>
+      <div className="rounded-2xl modal-glass overflow-hidden">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
@@ -568,10 +576,10 @@ export default function DashboardSettingsPage() {
             <span className="text-sm font-medium">Получать уведомления на email</span>
           </label>
         </CardContent>
-      </Card>
+      </div>
 
       {/* Внешний вид — тема */}
-      <Card>
+      <div className="rounded-2xl modal-glass overflow-hidden">
         <CardHeader>
           <CardTitle>Внешний вид</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -599,10 +607,10 @@ export default function DashboardSettingsPage() {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </div>
 
       {/* Опасная зона */}
-      <Card className="border-destructive/50">
+      <div className="rounded-2xl modal-glass overflow-hidden border-2 border-destructive/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
             <TriangleAlert className="h-5 w-5" />
@@ -662,7 +670,7 @@ export default function DashboardSettingsPage() {
             </Button>
           </form>
         </CardContent>
-      </Card>
+      </div>
     </div>
   );
 }
