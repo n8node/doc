@@ -1,0 +1,92 @@
+import type { AiProvider } from "../provider.interface";
+import type { AiEmbeddingResult, AiAnalysisResult, AiProviderConfig } from "../types";
+
+export class GigaChatProvider implements AiProvider {
+  private baseUrl: string;
+  private apiKey: string;
+  private model: string;
+  private accessToken: string | null = null;
+  private tokenExpiresAt = 0;
+
+  constructor(config: AiProviderConfig) {
+    this.baseUrl = (config.baseUrl ?? "https://gigachat.devices.sberbank.ru/api/v1").replace(/\/$/, "");
+    this.apiKey = config.apiKey ?? "";
+    this.model = config.modelName || "Embeddings";
+  }
+
+  private async ensureToken(): Promise<string> {
+    if (this.accessToken && Date.now() < this.tokenExpiresAt - 60_000) {
+      return this.accessToken;
+    }
+
+    const res = await fetch("https://ngw.devices.sberbank.ru:9443/api/v2/oauth", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${this.apiKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        RqUID: crypto.randomUUID(),
+      },
+      body: "scope=GIGACHAT_API_PERS",
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`GigaChat auth error ${res.status}: ${err}`);
+    }
+
+    const data = await res.json();
+    this.accessToken = data.access_token;
+    this.tokenExpiresAt = data.expires_at ?? Date.now() + 29 * 60 * 1000;
+    return this.accessToken!;
+  }
+
+  async generateEmbedding(text: string): Promise<AiEmbeddingResult> {
+    const token = await this.ensureToken();
+
+    const res = await fetch(`${this.baseUrl}/embeddings`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: this.model,
+        input: [text],
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`GigaChat embeddings error ${res.status}: ${err}`);
+    }
+
+    const data = await res.json();
+    const embedding = data.data?.[0]?.embedding;
+    if (!Array.isArray(embedding)) {
+      throw new Error("GigaChat returned invalid embedding format");
+    }
+
+    return {
+      vector: embedding,
+      dimensions: embedding.length,
+      model: data.model ?? this.model,
+    };
+  }
+
+  async analyzeDocument(_content: string): Promise<AiAnalysisResult> {
+    return { summary: "", categories: [], entities: [] };
+  }
+
+  async generateImageDescription(_imageBuffer: Buffer): Promise<string> {
+    return "";
+  }
+
+  async isAvailable(): Promise<boolean> {
+    try {
+      await this.ensureToken();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
