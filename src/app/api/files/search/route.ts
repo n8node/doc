@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     50,
   );
   const threshold = parseFloat(
-    request.nextUrl.searchParams.get("threshold") ?? "0.5",
+    request.nextUrl.searchParams.get("threshold") ?? "0.3",
   );
 
   const active = await getActiveProvider();

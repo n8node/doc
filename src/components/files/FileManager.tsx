@@ -1000,6 +1000,35 @@ export function FileManager() {
     "image/bmp",
   ]);
 
+  const pollProcessStatus = async (fileId: string, toastId: string | number): Promise<"ok" | "err"> => {
+    const maxAttempts = 600;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const res = await fetch(`/api/files/process?fileId=${encodeURIComponent(fileId)}`);
+        const data = await res.json();
+        if (data.status === "completed" && data.metadata?.processedAt) {
+          const meta = data.metadata as { processedAt?: string; numPages?: number };
+          toast.success(
+            `Документ обработан${meta.numPages ? `, ${meta.numPages} стр.` : ""}`,
+            { id: toastId },
+          );
+          return "ok";
+        }
+        if (data.status === "failed" || data.error) {
+          toast.error(data.error || "Ошибка обработки", { id: toastId });
+          setAnalyzeError((m) => new Map(m).set(fileId, data.error || "Ошибка"));
+          return "err";
+        }
+      } catch {
+        toast.error("Не удалось проверить статус", { id: toastId });
+        return "err";
+      }
+    }
+    toast.error("Превышено время ожидания", { id: toastId });
+    return "err";
+  };
+
   const handleProcessFile = async (id: string) => {
     setAnalyzingFiles((s) => new Set(s).add(id));
     setAnalyzeError((m) => { const n = new Map(m); n.delete(id); return n; });
@@ -1016,13 +1045,20 @@ export function FileManager() {
         setAnalyzeError((m) => new Map(m).set(id, data.error || "Ошибка"));
         return;
       }
-      toast.success(
-        `Документ обработан: ${data.textLength} символов${data.numPages ? `, ${data.numPages} стр.` : ""}`,
-        { id: toastId },
-      );
-      loadData();
+      if (res.status === 202 && data.status === "processing") {
+        await pollProcessStatus(id, toastId);
+        loadData();
+        return;
+      }
+      if (data.success && data.textLength != null) {
+        toast.success(
+          `Документ обработан: ${data.textLength} символов${data.numPages ? `, ${data.numPages} стр.` : ""}`,
+          { id: toastId },
+        );
+        loadData();
+      }
     } catch {
-      toast.error("Не удалось обработать документ", { id: toastId });
+      toast.error("Не удалось запустить обработку", { id: toastId });
       setAnalyzeError((m) => new Map(m).set(id, "Сетевая ошибка"));
     } finally {
       setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
@@ -1042,13 +1078,12 @@ export function FileManager() {
     }
 
     setBulkAnalyzing(true);
-    processableIds.forEach((id) => {
-      setAnalyzingFiles((s) => new Set(s).add(id));
-    });
+    processableIds.forEach((id) => setAnalyzingFiles((s) => new Set(s).add(id)));
 
-    const toastId = toast.loading(`AI анализ: 0/${processableIds.length}...`);
-    let done = 0;
-    let errors = 0;
+    const toastId = toast.loading(`AI анализ: запущено ${processableIds.length} документов...`);
+    const pending = new Set(processableIds);
+    let succeeded = 0;
+    let failed = 0;
 
     for (const id of processableIds) {
       try {
@@ -1059,22 +1094,57 @@ export function FileManager() {
         });
         const data = await res.json();
         if (!res.ok) {
-          errors++;
+          pending.delete(id);
+          failed++;
           setAnalyzeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+          setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
         }
       } catch {
-        errors++;
+        pending.delete(id);
+        failed++;
         setAnalyzeError((m) => new Map(m).set(id, "Сетевая ошибка"));
+        setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
       }
-      done++;
-      setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
-      toast.loading(`AI анализ: ${done}/${processableIds.length}...`, { id: toastId });
     }
 
-    if (errors === 0) {
-      toast.success(`Анализ завершён: ${done} документов обработано`, { id: toastId });
+    const maxPollRounds = 400;
+    let pollRounds = 0;
+    while (pending.size > 0 && pollRounds < maxPollRounds) {
+      pollRounds++;
+      await new Promise((r) => setTimeout(r, 2500));
+      toast.loading(`AI анализ: ожидание ${pending.size} из ${processableIds.length}...`, { id: toastId });
+      for (const id of Array.from(pending)) {
+        try {
+          const res = await fetch(`/api/files/process?fileId=${encodeURIComponent(id)}`);
+          const data = await res.json();
+          if (data.status === "completed" && data.metadata?.processedAt) {
+            pending.delete(id);
+            succeeded++;
+            setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
+          } else if (data.status === "failed" || data.error) {
+            pending.delete(id);
+            failed++;
+            setAnalyzeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+            setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
+          }
+        } catch {
+          // keep in pending, retry next round
+        }
+      }
+    }
+
+    if (pending.size > 0) {
+      pending.forEach((id) => {
+        setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
+        setAnalyzeError((m) => new Map(m).set(id, "Таймаут ожидания"));
+      });
+      failed += pending.size;
+    }
+
+    if (failed === 0) {
+      toast.success(`Анализ завершён: ${succeeded} документов обработано`, { id: toastId });
     } else {
-      toast.error(`Анализ: ${done - errors} успешно, ${errors} с ошибками`, { id: toastId });
+      toast.error(`Анализ: ${succeeded} успешно, ${failed} с ошибками`, { id: toastId });
     }
 
     setBulkAnalyzing(false);

@@ -68,22 +68,16 @@ async function processSingle(fileId: string, userId: string) {
     );
   }
 
-  try {
-    const result = await processDocument(
-      file.id, file.s3Key, file.name, file.mimeType, userId,
-    );
-    return NextResponse.json({
-      success: true,
-      textLength: result.text.length,
-      tablesCount: result.tables.length,
-      numPages: result.numPages,
-      contentHash: result.contentHash,
-    });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error("[process] Failed:", msg);
-    return NextResponse.json({ error: `Ошибка обработки: ${msg}` }, { status: 500 });
-  }
+  processDocument(
+    file.id, file.s3Key, file.name, file.mimeType, userId,
+  ).catch((err) => {
+    console.error("[process] Background failed:", err);
+  });
+
+  return NextResponse.json(
+    { status: "processing", fileId: file.id, message: "Обработка запущена" },
+    { status: 202 },
+  );
 }
 
 async function processBulk(fileIds: string[], userId: string) {

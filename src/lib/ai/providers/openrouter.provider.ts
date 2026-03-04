@@ -24,6 +24,7 @@ export class OpenRouterProvider implements AiProvider {
       body: JSON.stringify({
         input: text,
         model: this.model,
+        encoding_format: "float",
       }),
     });
 
@@ -33,14 +34,33 @@ export class OpenRouterProvider implements AiProvider {
     }
 
     const data = await res.json();
-    const embedding = data.data?.[0]?.embedding;
-    if (!Array.isArray(embedding)) {
+    let raw =
+      data.data?.[0]?.embedding ??
+      (Array.isArray(data.data) ? data.data[0]?.embedding : undefined) ??
+      (Array.isArray(data) ? data[0]?.embedding : undefined);
+
+    if (typeof raw === "string") {
+      try {
+        const binary = atob(raw);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const float32 = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.length / 4);
+        raw = Array.from(float32);
+      } catch {
+        throw new Error("OpenRouter returned invalid embedding format (base64 decode failed)");
+      }
+    }
+
+    const embedding = Array.isArray(raw) ? raw : undefined;
+    if (!embedding || embedding.length === 0) {
       throw new Error("OpenRouter returned invalid embedding format");
     }
 
+    const vector = embedding.every((x) => typeof x === "number") ? embedding : embedding.map(Number);
+
     return {
-      vector: embedding,
-      dimensions: embedding.length,
+      vector,
+      dimensions: vector.length,
       model: data.model ?? this.model,
     };
   }
