@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         fileId: s.fileId,
         fileName: file?.name ?? "Неизвестный файл",
         mimeType: file?.mimeType ?? "",
-        fileSize: file?.size ?? 0,
+        fileSize: file?.size != null ? Number(file.size) : 0,
         chunkText: s.chunkText,
         chunkIndex: s.chunkIndex,
         similarity: Math.round(s.similarity * 100) / 100,
