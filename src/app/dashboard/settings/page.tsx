@@ -5,11 +5,11 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell, TriangleAlert } from "lucide-react";
 import { useTheme } from "next-themes";
-import { formatBytes } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 
 interface ProfileData {
   id: string;
@@ -399,12 +399,13 @@ export default function DashboardSettingsPage() {
                     {storageData.plan.isFree ? "Бесплатный тариф" : "Платный тариф"}
                   </p>
                 </div>
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/dashboard/plans" className="flex items-center gap-1">
-                    Сменить тариф
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                </Button>
+                <Link
+                  href="/dashboard/plans"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex items-center gap-1")}
+                >
+                  Сменить тариф
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
               </div>
             </CardContent>
           </Card>
