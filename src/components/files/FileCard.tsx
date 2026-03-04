@@ -165,23 +165,30 @@ function formatDuration(seconds: number): string {
 function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round(
+    (startOfToday.getTime() - startOfDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const timeLabel = date.toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   if (diffDays === 0) {
-    return "Сегодня";
+    return `Сегодня ${timeLabel}`;
   }
   if (diffDays === 1) {
-    return "Вчера";
+    return `Вчера ${timeLabel}`;
   }
-  if (diffDays < 7) {
-    return `${diffDays} дн. назад`;
-  }
-  if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7);
-    return `${weeks} нед. назад`;
-  }
-  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+
+  return date.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function FileCard({
