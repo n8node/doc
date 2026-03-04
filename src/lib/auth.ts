@@ -2,6 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "./prisma";
+import { getPublicBaseUrl } from "./app-url";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -37,6 +38,17 @@ export const authOptions: NextAuthOptions = {
   ],
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   callbacks: {
+    redirect: ({ url, baseUrl }) => {
+      const base = baseUrl.includes("localhost") ? getPublicBaseUrl() : baseUrl.replace(/\/$/, "");
+      if (url.startsWith("/")) return `${base}${url}`;
+      try {
+        const parsed = new URL(url);
+        if (parsed.origin === new URL(baseUrl).origin) return `${base}${parsed.pathname}${parsed.search}`;
+      } catch {
+        // ignore
+      }
+      return base;
+    },
     jwt: async ({ token, user, trigger }) => {
       if (user) {
         token.id = user.id;

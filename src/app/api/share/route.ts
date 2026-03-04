@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createShareLink, listShareLinks } from "@/lib/share-service";
+import { getPublicBaseUrl } from "@/lib/app-url";
 
 function getShareBaseUrl(request: NextRequest): string {
   const fromEnv = process.env.APP_URL || process.env.NEXTAUTH_URL || "";
@@ -11,7 +12,7 @@ function getShareBaseUrl(request: NextRequest): string {
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
   if (host) return `${proto === "https" ? "https" : "http"}://${host}`.replace(/\/$/, "");
 
-  return fromEnv || "https://qoqon.ru";
+  return getPublicBaseUrl();
 }
 
 export async function GET(request: NextRequest) {
