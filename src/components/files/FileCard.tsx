@@ -204,6 +204,7 @@ export function FileCard({
   size,
   createdAt,
   mediaMetadata,
+  aiMetadata,
   hasShareLink = false,
   shareLinksCount = 0,
   selected,
