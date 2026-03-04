@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2 } from "lucide-react";
+import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatBytes } from "@/lib/utils";
 
@@ -65,6 +65,8 @@ export default function DashboardSettingsPage() {
   const [shareLinks, setShareLinks] = useState<ShareLinkItem[]>([]);
   const [savedTheme, setSavedTheme] = useState<string>("system");
   const [savingTheme, setSavingTheme] = useState(false);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [savingNotifications, setSavingNotifications] = useState(false);
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
@@ -99,6 +101,9 @@ export default function DashboardSettingsPage() {
           setSavedTheme(d.theme);
           setTheme(d.theme);
         }
+        if (typeof d.emailNotifications === "boolean") {
+          setEmailNotifications(d.emailNotifications);
+        }
       })
       .catch(() => {});
   }, [setTheme]);
@@ -111,6 +116,24 @@ export default function DashboardSettingsPage() {
       toast.success("Ссылка отозвана");
     } catch {
       toast.error("Не удалось отозвать ссылку");
+    }
+  };
+
+  const handleEmailNotificationsChange = async (checked: boolean) => {
+    setEmailNotifications(checked);
+    setSavingNotifications(true);
+    try {
+      await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailNotifications: checked }),
+      });
+      toast.success(checked ? "Уведомления включены" : "Уведомления отключены");
+    } catch {
+      setEmailNotifications(!checked);
+      toast.error("Не удалось сохранить");
+    } finally {
+      setSavingNotifications(false);
     }
   };
 
@@ -490,6 +513,31 @@ export default function DashboardSettingsPage() {
               ))}
             </ul>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Уведомления */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            Уведомления
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Email-уведомления о важных событиях (оплата, смена пароля и т.д.)
+          </p>
+        </CardHeader>
+        <CardContent>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={emailNotifications}
+              disabled={savingNotifications}
+              onChange={(e) => handleEmailNotificationsChange(e.target.checked)}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm font-medium">Получать уведомления на email</span>
+          </label>
         </CardContent>
       </Card>
 
