@@ -896,10 +896,61 @@ export function FileManager() {
     try {
       const res = await fetch(`/api/files/${fileId}/download`);
       const data = await res.json();
-      if (res.ok && data.url) window.open(data.url, "_blank");
-      else toast.error("Ошибка скачивания");
+      if (res.ok && data.url) {
+        const a = document.createElement("a");
+        a.href = data.url;
+        a.download = data.name || "";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        toast.error("Ошибка скачивания");
+      }
     } catch {
       toast.error("Ошибка");
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    const ids = Array.from(selectedFiles);
+    if (ids.length === 0) return;
+
+    if (ids.length === 1) {
+      await handleDownload(ids[0]);
+      return;
+    }
+
+    const toastId = toast.loading(`Формируется архив (${ids.length} файлов)...`);
+    try {
+      const res = await fetch("/api/files/download-archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileIds: ids }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Ошибка формирования архива");
+      }
+
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? decodeURIComponent(match[1]) : "files.zip";
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      toast.success(`Архив скачан (${ids.length} файлов)`, { id: toastId });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Ошибка скачивания";
+      toast.error(msg, { id: toastId });
     }
   };
 
@@ -2018,15 +2069,7 @@ export function FileManager() {
         <SelectionBar
           selectedCount={selectedCount}
           selectedSize={selectedSize}
-          onDownload={
-            selectedFiles.size > 0
-              ? async () => {
-                  for (const id of Array.from(selectedFiles)) {
-                    await handleDownload(id);
-                  }
-                }
-              : undefined
-          }
+          onDownload={selectedFiles.size > 0 ? handleBulkDownload : undefined}
           onMove={
             hasMoveTargets
               ? () => {
