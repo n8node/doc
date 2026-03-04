@@ -16,6 +16,7 @@ export async function GET() {
       priceMonthly: true,
       priceYearly: true,
       isPopular: true,
+      trashRetentionDays: true,
     },
   });
   return NextResponse.json({

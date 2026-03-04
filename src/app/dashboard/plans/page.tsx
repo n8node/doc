@@ -12,6 +12,7 @@ import {
   FileUp,
   Loader2,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ interface PlanItem {
   features: Record<string, boolean>;
   priceMonthly: number | null;
   priceYearly: number | null;
+  trashRetentionDays: number;
 }
 
 interface UserPlan {
@@ -227,6 +229,16 @@ export default function DashboardPlansPage() {
                     <FileUp className="h-4 w-4 text-primary" />
                     <span>
                       Файлы до <strong>{formatBytes(plan.maxFileSize)}</strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Trash2 className="h-4 w-4 text-primary" />
+                    <span>
+                      {plan.trashRetentionDays > 0 ? (
+                        <>Корзина: <strong>{plan.trashRetentionDays} дн.</strong></>
+                      ) : (
+                        <span className="text-muted-foreground">Без корзины</span>
+                      )}
                     </span>
                   </div>
                 </div>
