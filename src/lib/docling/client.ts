@@ -37,7 +37,7 @@ class DoclingClient {
     outputFormat: "markdown" | "text" | "json" = "markdown",
   ): Promise<DoclingExtractResponse> {
     const form = new FormData();
-    const blob = new Blob([buffer]);
+    const blob = new Blob([new Uint8Array(buffer)]);
     form.append("file", blob, filename);
 
     const url = `${this.baseUrl}/extract?output_format=${outputFormat}`;
