@@ -3,7 +3,7 @@ import { CopyObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Config } from "./s3-config";
 import { createS3Client } from "./s3";
 import { recordHistoryEvent } from "./history-service";
-import { buildDuplicateName, buildS3Key } from "./file-service";
+import { buildDuplicateName, buildS3Key, encodeCopySource } from "./file-service";
 
 export async function createFolder(
   name: string,
@@ -211,7 +211,7 @@ export async function copyFolder(
       await client.send(
         new CopyObjectCommand({
           Bucket: config.bucket,
-          CopySource: `${config.bucket}/${file.s3Key}`,
+          CopySource: encodeCopySource(config.bucket, file.s3Key),
           Key: newS3Key,
         })
       );

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
 
-  const errors: string[] = [];
+  const errors: { id: string; message: string }[] = [];
   let ok = 0;
 
   if (action === "delete") {
@@ -26,8 +26,9 @@ export async function POST(request: NextRequest) {
       try {
         await deleteFolderRecursive(id, session.user.id);
         ok++;
-      } catch {
-        errors.push(id);
+      } catch (e) {
+        console.error(`[folders/bulk] delete ${id}:`, e);
+        errors.push({ id, message: e instanceof Error ? e.message : "Ошибка" });
       }
     }
   } else if (action === "move") {
@@ -38,8 +39,9 @@ export async function POST(request: NextRequest) {
       try {
         await moveFolder(id, targetParentId, session.user.id);
         ok++;
-      } catch {
-        errors.push(id);
+      } catch (e) {
+        console.error(`[folders/bulk] move ${id}:`, e);
+        errors.push({ id, message: e instanceof Error ? e.message : "Ошибка" });
       }
     }
   } else if (action === "copy") {
@@ -50,8 +52,9 @@ export async function POST(request: NextRequest) {
       try {
         await copyFolder(id, targetParentId, session.user.id);
         ok++;
-      } catch {
-        errors.push(id);
+      } catch (e) {
+        console.error(`[folders/bulk] copy ${id}:`, e);
+        errors.push({ id, message: e instanceof Error ? e.message : "Ошибка" });
       }
     }
   } else {

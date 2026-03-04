@@ -1090,10 +1090,15 @@ export function FileManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json()) as { ok?: number; error?: string };
+      const data = (await res.json()) as {
+        ok?: number;
+        error?: string;
+        errors?: { id: string; message: string }[];
+      };
 
       if (!res.ok || typeof data.ok !== "number" || data.ok < 1) {
-        throw new Error(data.error || "Ошибка копирования");
+        const firstError = Array.isArray(data.errors) && data.errors[0]?.message;
+        throw new Error(firstError || data.error || "Ошибка копирования");
       }
 
       setCopyDialogOpen(false);
@@ -1154,12 +1159,17 @@ export function FileManager() {
       }
 
       const responses = await Promise.all(requests);
+      type BulkResult = {
+        ok?: number;
+        errors?: { id: string; message: string }[];
+        error?: string;
+      };
       const payloads = await Promise.all(
         responses.map(async (response) => {
           try {
-            return (await response.json()) as { ok?: number; errors?: string[]; error?: string };
+            return (await response.json()) as BulkResult;
           } catch {
-            return {} as { ok?: number; errors?: string[]; error?: string };
+            return {} as BulkResult;
           }
         })
       );
@@ -1172,11 +1182,13 @@ export function FileManager() {
       }
 
       const copiedCount = payloads.reduce((sum, item) => sum + (item.ok ?? 0), 0);
-      const failedCount = payloads.reduce(
-        (sum, item) => sum + (Array.isArray(item.errors) ? item.errors.length : 0),
-        0
+      const allErrors = payloads.flatMap((item) =>
+        Array.isArray(item.errors) ? item.errors : []
       );
 
+      if (copiedCount === 0 && allErrors.length > 0) {
+        throw new Error(allErrors[0].message || "Ошибка копирования");
+      }
       if (copiedCount === 0) {
         throw new Error("Ошибка копирования");
       }
@@ -1192,8 +1204,8 @@ export function FileManager() {
         .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
         .catch(() => {});
 
-      if (failedCount > 0) {
-        toast.warning(`Скопировано: ${copiedCount}, с ошибками: ${failedCount}`);
+      if (allErrors.length > 0) {
+        toast.warning(`Скопировано: ${copiedCount}, с ошибками: ${allErrors.length}`);
       } else {
         toast.success(copiedCount === 1 ? "Элемент скопирован" : `Скопировано элементов: ${copiedCount}`);
       }

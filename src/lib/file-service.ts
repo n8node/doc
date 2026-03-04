@@ -4,6 +4,10 @@ import { createS3Client } from "./s3";
 import { prisma } from "./prisma";
 import { recordHistoryEvent } from "./history-service";
 
+export function encodeCopySource(bucket: string, key: string) {
+  return `${bucket}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
 export interface UploadFileInput {
   userId: string;
   file: File;
@@ -274,7 +278,7 @@ export async function copyFile(id: string, folderId: string | null, userId: stri
   await client.send(
     new CopyObjectCommand({
       Bucket: config.bucket,
-      CopySource: `${config.bucket}/${file.s3Key}`,
+      CopySource: encodeCopySource(config.bucket, file.s3Key),
       Key: newS3Key,
     })
   );
@@ -399,7 +403,7 @@ export async function moveFile(id: string, folderId: string | null, userId: stri
   await client.send(
     new CopyObjectCommand({
       Bucket: config.bucket,
-      CopySource: `${config.bucket}/${file.s3Key}`,
+      CopySource: encodeCopySource(config.bucket, file.s3Key),
       Key: newS3Key,
     })
   );
