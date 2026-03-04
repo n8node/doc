@@ -1,0 +1,31 @@
+# Вспомогательные сервисы для qoqon.ru
+# Запуск: docker compose -f docker-compose.services.yml up -d
+# НЕ трогает PostgreSQL, Next.js и nginx — они работают нативно
+
+services:
+  docling:
+    build:
+      context: ./docker/docling
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      MAX_FILE_SIZE_MB: ${DOCLING_MAX_FILE_SIZE_MB:-100}
+    deploy:
+      resources:
+        limits: { memory: 4G }
+        reservations: { memory: 2G }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:latest
+    network_mode: host
+    environment:
+      ADMINER_DEFAULT_SERVER: 127.0.0.1
+    restart: unless-stopped
