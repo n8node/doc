@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
+import { SidebarDropZone } from "@/components/files/SidebarDropZone";
 import {
   buildDashboardFilesUrl,
   parseFilesSection,
@@ -77,7 +78,7 @@ export function SidebarV2() {
           </div>
         </div>
 
-        <div className="px-3 pt-4">
+        <div className="space-y-3 px-3 pt-4">
           <button
             type="button"
             onClick={handleUploadClick}
@@ -86,6 +87,7 @@ export function SidebarV2() {
             <Upload className="h-4 w-4" />
             Загрузить
           </button>
+          <SidebarDropZone />
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">

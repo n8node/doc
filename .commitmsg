@@ -1,0 +1,11 @@
+feat: move upload drop zone to sidebar and add full-page drop overlay
+
+Replace the large UploadZone in the main content area with:
+- SidebarDropZone: compact drag-and-drop area below the Upload button
+  in the left sidebar, with animations and file picker support
+- FullPageDropOverlay: full-page overlay with animated backdrop that
+  appears when dragging files anywhere on the page
+
+Both components dispatch files via CustomEvent to FileManager which
+handles the actual upload logic. Remove unused storageUsed/storageQuota
+local state from FileManager since StorageWidget manages its own data.

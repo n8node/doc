@@ -42,7 +42,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UploadZone } from "./UploadZone";
+import { FullPageDropOverlay } from "./FullPageDropOverlay";
 import { EmptyState } from "./EmptyState";
 import { FileCard, FolderCard } from "./FileCard";
 import { UploadProgress, UploadingFile } from "./UploadProgress";
@@ -183,6 +183,7 @@ export function FileManager() {
   const isHistorySection = activeSection === "history";
   const normalizedViewMode = parseViewMode(viewParam, isPhotosSection ? "grid" : "list");
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const handleUploadRef = useRef<(files: File[]) => void>(() => {});
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(folderIdParam || null);
   const [folders, setFolders] = useState<FolderItem[]>([]);
@@ -237,8 +238,6 @@ export function FileManager() {
   const [calendarActivityLoading, setCalendarActivityLoading] = useState(false);
 
   const [maxFileSize, setMaxFileSize] = useState<number>(512 * 1024 * 1024); // 512 MB default
-  const [storageUsed, setStorageUsed] = useState<number | null>(null);
-  const [storageQuota, setStorageQuota] = useState<number | null>(null);
 
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -271,12 +270,6 @@ export function FileManager() {
       const data = await res.json();
       if (typeof data.maxFileSize === "number") {
         setMaxFileSize(data.maxFileSize);
-      }
-      if (typeof data.storageUsed === "number") {
-        setStorageUsed(data.storageUsed);
-      }
-      if (typeof data.storageQuota === "number") {
-        setStorageQuota(data.storageQuota);
       }
     } catch {}
   }, []);
@@ -311,9 +304,16 @@ export function FileManager() {
       openUploadPicker();
     };
 
+    const handleDropUpload = (e: Event) => {
+      const files = (e as CustomEvent<{ files: File[] }>).detail?.files;
+      if (files?.length) handleUploadRef.current(files);
+    };
+
     window.addEventListener("files:open-upload-dialog", handleOpenUploadDialog);
+    window.addEventListener("files:drop-upload", handleDropUpload);
     return () => {
       window.removeEventListener("files:open-upload-dialog", handleOpenUploadDialog);
+      window.removeEventListener("files:drop-upload", handleDropUpload);
     };
   }, [openUploadPicker]);
 
@@ -781,11 +781,6 @@ export function FileManager() {
                   },
                   ...prev,
                 ]);
-                if (typeof data.size === "number") {
-                  setStorageUsed((prev) =>
-                    typeof prev === "number" ? prev + data.size : prev
-                  );
-                }
                 resolve();
               } else {
                 const errorMsg =
@@ -868,6 +863,8 @@ export function FileManager() {
     });
   };
 
+  handleUploadRef.current = handleUpload;
+
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
     setCreatingFolder(true);
@@ -908,7 +905,6 @@ export function FileManager() {
 
   const handleDeleteFile = async (id: string) => {
     if (!confirm("Удалить этот файл?")) return;
-    const fileToDelete = files.find((f) => f.id === id);
     try {
       const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -918,13 +914,7 @@ export function FileManager() {
           n.delete(id);
           return n;
         });
-        if (fileToDelete) {
-          setStorageUsed((prev) =>
-            typeof prev === "number" ? Math.max(prev - fileToDelete.size, 0) : prev
-          );
-        } else {
-          loadStorageInfo();
-        }
+        loadStorageInfo();
         toast.success("Файл удалён");
       } else {
         const d = await res.json();
@@ -1677,14 +1667,6 @@ export function FileManager() {
                 </div>
               </div>
 
-              {/* Upload zone */}
-              <UploadZone
-                onUpload={handleUpload}
-                uploading={uploadingFiles.some((f) => f.status === "uploading")}
-                maxFileSize={maxFileSize}
-                storageUsed={storageUsed}
-                storageQuota={storageQuota}
-              />
             </>
           )}
 
@@ -2300,6 +2282,8 @@ export function FileManager() {
         fileId={shareLinksTarget?.id ?? null}
         fileName={shareLinksTarget?.name ?? ""}
       />
+
+      <FullPageDropOverlay />
     </>
   );
 }
