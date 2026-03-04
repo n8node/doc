@@ -23,6 +23,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Copy,
 } from "lucide-react";
 import {
   Dialog,
@@ -242,7 +243,10 @@ export function FileManager() {
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [copying, setCopying] = useState(false);
   const [allRootFolders, setAllRootFolders] = useState<FolderItem[]>([]);
-  const [singleMoveFile, setSingleMoveFile] = useState<{ id: string; name: string } | null>(null);
+  const [singleMoveTarget, setSingleMoveTarget] = useState<{
+    type: "FILE" | "FOLDER";
+    id: string;
+  } | null>(null);
   const [singleCopyTarget, setSingleCopyTarget] = useState<{
     type: "FILE" | "FOLDER";
     id: string;
@@ -1016,18 +1020,21 @@ export function FileManager() {
   };
 
   const handleSingleMove = async (targetFolderId: string | null) => {
-    if (!singleMoveFile) return;
+    if (!singleMoveTarget) return;
 
     setMoving(true);
     try {
-      const res = await fetch("/api/files/bulk", {
+      const endpoint =
+        singleMoveTarget.type === "FILE" ? "/api/files/bulk" : "/api/folders/bulk";
+      const payload =
+        singleMoveTarget.type === "FILE"
+          ? { ids: [singleMoveTarget.id], action: "move", folderId: targetFolderId }
+          : { ids: [singleMoveTarget.id], action: "move", parentId: targetFolderId };
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ids: [singleMoveFile.id],
-          action: "move",
-          folderId: targetFolderId,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -1035,13 +1042,15 @@ export function FileManager() {
       }
 
       setMoveDialogOpen(false);
-      setSingleMoveFile(null);
+      setSingleMoveTarget(null);
       loadData();
       fetch("/api/folders?parentId=")
         .then((r) => r.json())
         .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
         .catch(() => {});
-      toast.success("Файл перемещён");
+      toast.success(
+        singleMoveTarget.type === "FILE" ? "Файл перемещён" : "Папка перемещена"
+      );
     } catch {
       toast.error("Ошибка перемещения");
     } finally {
@@ -1299,11 +1308,20 @@ export function FileManager() {
       onMove={
         hasMoveTargets
           ? () => {
-              setSingleMoveFile({ id: file.id, name: file.name });
+              setSingleMoveTarget({ type: "FILE", id: file.id });
               setMoveDialogOpen(true);
             }
           : undefined
       }
+      onCopy={() => {
+        setSingleCopyTarget({
+          type: "FILE",
+          id: file.id,
+          name: file.name,
+          currentFolderId: currentFolderId,
+        });
+        setCopyDialogOpen(true);
+      }}
       onShareLinksClick={() =>
         setShareLinksTarget({ id: file.id, name: file.name })
       }
@@ -1742,6 +1760,23 @@ export function FileManager() {
                         onShare={() =>
                           setShareTarget({ type: "FOLDER", id: folder.id, name: folder.name })
                         }
+                        onMove={
+                          hasMoveTargets
+                            ? () => {
+                                setSingleMoveTarget({ type: "FOLDER", id: folder.id });
+                                setMoveDialogOpen(true);
+                              }
+                            : undefined
+                        }
+                        onCopy={() => {
+                          setSingleCopyTarget({
+                            type: "FOLDER",
+                            id: folder.id,
+                            name: folder.name,
+                            currentFolderId: currentFolderId,
+                          });
+                          setCopyDialogOpen(true);
+                        }}
                         onDelete={() => handleDeleteFolder(folder.id)}
                         index={index}
                       />
@@ -1863,7 +1898,7 @@ export function FileManager() {
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        setSingleMoveFile({ id: file.id, name: file.name });
+                                        setSingleMoveTarget({ type: "FILE", id: file.id });
                                         setMoveDialogOpen(true);
                                       }}
                                       className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
@@ -1872,6 +1907,22 @@ export function FileManager() {
                                       <FolderInput className="h-4 w-4" />
                                     </button>
                                   )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSingleCopyTarget({
+                                        type: "FILE",
+                                        id: file.id,
+                                        name: file.name,
+                                        currentFolderId: currentFolderId,
+                                      });
+                                      setCopyDialogOpen(true);
+                                    }}
+                                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                    aria-label="Копировать"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteFile(file.id)}
@@ -1934,7 +1985,7 @@ export function FileManager() {
           onMove={
             hasMoveTargets
               ? () => {
-                  setSingleMoveFile(null);
+                  setSingleMoveTarget(null);
                   setMoveDialogOpen(true);
                 }
               : undefined
@@ -1951,11 +2002,17 @@ export function FileManager() {
           open={moveDialogOpen}
           onClose={() => {
             setMoveDialogOpen(false);
-            setSingleMoveFile(null);
+            setSingleMoveTarget(null);
           }}
-          onMove={singleMoveFile ? handleSingleMove : handleBulkMove}
+          onMove={singleMoveTarget ? handleSingleMove : handleBulkMove}
           currentFolderId={currentFolderId}
-          excludeFolderIds={singleMoveFile ? undefined : selectedFolders}
+          excludeFolderIds={
+            singleMoveTarget?.type === "FOLDER"
+              ? new Set([singleMoveTarget.id])
+              : singleMoveTarget
+              ? undefined
+              : selectedFolders
+          }
           moving={moving}
         />
       )}

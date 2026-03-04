@@ -12,24 +12,17 @@ import {
   FileSpreadsheet,
   FileCode,
   Presentation,
-  MoreVertical,
   Download,
   Share2,
   Trash2,
   Play,
   FolderOpen,
   FolderInput,
+  Copy,
   Clock,
   Check,
   Link2,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -53,6 +46,7 @@ interface FileCardProps {
   onDownload: () => void;
   onShare: () => void;
   onMove?: () => void;
+  onCopy?: () => void;
   onShareLinksClick?: () => void;
   onDelete: () => void;
   index: number;
@@ -66,6 +60,8 @@ interface FolderCardProps {
   onSelect: (id: string, selected: boolean) => void;
   onClick: () => void;
   onShare: () => void;
+  onMove?: () => void;
+  onCopy?: () => void;
   onDelete: () => void;
   index: number;
 }
@@ -191,6 +187,9 @@ function formatRelativeDate(dateStr: string): string {
   });
 }
 
+const ACTION_BTN =
+  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-surface2 hover:text-foreground";
+
 export function FileCard({
   id,
   name,
@@ -206,6 +205,7 @@ export function FileCard({
   onDownload,
   onShare,
   onMove,
+  onCopy,
   onShareLinksClick,
   onDelete,
   index,
@@ -215,8 +215,6 @@ export function FileCard({
   const showThumbnail = isImageFile(mimeType, name) && !thumbnailError;
   const isMedia = mimeType.startsWith("video/") || mimeType.startsWith("audio/");
   const isVideo = mimeType.startsWith("video/");
-  const actionButtonClass =
-    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-surface2 hover:text-foreground";
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -335,7 +333,7 @@ export function FileCard({
                   e.stopPropagation();
                   onDownload();
                 }}
-                className={actionButtonClass}
+                className={ACTION_BTN}
               >
                 <Download className="h-4 w-4" />
               </button>
@@ -351,7 +349,7 @@ export function FileCard({
                   e.stopPropagation();
                   onShare();
                 }}
-                className={actionButtonClass}
+                className={ACTION_BTN}
               >
                 <Share2 className="h-4 w-4" />
               </button>
@@ -368,12 +366,30 @@ export function FileCard({
                     e.stopPropagation();
                     onMove();
                   }}
-                  className={actionButtonClass}
+                  className={ACTION_BTN}
                 >
                   <FolderInput className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>Переместить</TooltipContent>
+            </Tooltip>
+          )}
+
+          {onCopy && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCopy();
+                  }}
+                  className={ACTION_BTN}
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Копировать</TooltipContent>
             </Tooltip>
           )}
 
@@ -386,7 +402,7 @@ export function FileCard({
                   onDelete();
                 }}
                 className={cn(
-                  actionButtonClass,
+                  ACTION_BTN,
                   "text-error hover:bg-error/10 hover:text-error"
                 )}
               >
@@ -409,6 +425,8 @@ export function FolderCard({
   onSelect,
   onClick,
   onShare,
+  onMove,
+  onCopy,
   onDelete,
   index,
 }: FolderCardProps) {
@@ -464,32 +482,64 @@ export function FolderCard({
           </div>
         </div>
 
-        {/* Actions menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-all hover:bg-surface2 hover:text-foreground group-hover:opacity-100"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Поделиться ссылкой
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={(e) => { e.stopPropagation(); onDelete(); }} 
-              className="text-error focus:text-error"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Удалить папку
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Inline actions */}
+        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onShare(); }}
+                className={ACTION_BTN}
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Поделиться</TooltipContent>
+          </Tooltip>
+
+          {onMove && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onMove(); }}
+                  className={ACTION_BTN}
+                >
+                  <FolderInput className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Переместить</TooltipContent>
+            </Tooltip>
+          )}
+
+          {onCopy && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onCopy(); }}
+                  className={ACTION_BTN}
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Копировать</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className={cn(ACTION_BTN, "text-error hover:bg-error/10 hover:text-error")}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Удалить</TooltipContent>
+          </Tooltip>
+        </div>
       </motion.div>
     </TooltipProvider>
   );
