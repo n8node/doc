@@ -24,13 +24,14 @@ model User {
   maxFileSize  BigInt      @default(536870912) @map("max_file_size") // 512MB
   planId       String?     @map("plan_id")
   plan         Plan?       @relation(fields: [planId], references: [id])
-  files        File[]
-  folders      Folder[]
-  payments     Payment[]
-  aiTasks      AiTask[]
-  shareLinks   ShareLink[]
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+  files         File[]
+  folders       Folder[]
+  payments      Payment[]
+  aiTasks       AiTask[]
+  shareLinks    ShareLink[]
+  historyEvents HistoryEvent[]
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -99,6 +100,21 @@ model ShareLink {
 
   @@map("share_links")
   @@index([createdById])
+}
+
+model HistoryEvent {
+  id        String   @id @map("id")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   @map("action")
+  summary   String   @map("summary")
+  payload   Json?    @map("payload")
+  batchId   String?  @map("batch_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("history_events")
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([batchId])
 }
 
 model Plan {
