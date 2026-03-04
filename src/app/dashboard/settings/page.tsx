@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor } from "lucide-react";
+import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatBytes } from "@/lib/utils";
 
@@ -38,6 +38,19 @@ interface PaymentItem {
   plan: { id: string; name: string };
 }
 
+interface ShareLinkItem {
+  id: string;
+  token: string;
+  targetType: string;
+  fileId: string | null;
+  folderId: string | null;
+  expiresAt: string | null;
+  oneTime: boolean;
+  file: { id: string; name: string } | null;
+  folder: { id: string; name: string } | null;
+  createdAt: string;
+}
+
 export default function DashboardSettingsPage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +62,7 @@ export default function DashboardSettingsPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [storageData, setStorageData] = useState<StorageData | null>(null);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
+  const [shareLinks, setShareLinks] = useState<ShareLinkItem[]>([]);
   const [savedTheme, setSavedTheme] = useState<string>("system");
   const [savingTheme, setSavingTheme] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -69,9 +83,11 @@ export default function DashboardSettingsPage() {
     Promise.all([
       fetch("/api/user/storage").then((r) => r.json()),
       fetch("/api/user/payments").then((r) => r.json()),
-    ]).then(([storageRes, paymentsRes]) => {
+      fetch("/api/share").then((r) => r.json()),
+    ]).then(([storageRes, paymentsRes, shareRes]) => {
       if (storageRes.storageUsed !== undefined) setStorageData(storageRes);
       if (Array.isArray(paymentsRes.payments)) setPayments(paymentsRes.payments);
+      if (Array.isArray(shareRes.links)) setShareLinks(shareRes.links);
     });
   }, []);
 
@@ -86,6 +102,17 @@ export default function DashboardSettingsPage() {
       })
       .catch(() => {});
   }, [setTheme]);
+
+  const handleRevokeShareLink = async (id: string) => {
+    try {
+      const res = await fetch(`/api/share/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Ошибка отзыва");
+      setShareLinks((prev) => prev.filter((l) => l.id !== id));
+      toast.success("Ссылка отозвана");
+    } catch {
+      toast.error("Не удалось отозвать ссылку");
+    }
+  };
 
   const handleThemeChange = async (value: string) => {
     setTheme(value);
@@ -412,6 +439,59 @@ export default function DashboardSettingsPage() {
           )}
         </>
       )}
+
+      {/* Ссылки доступа */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Share2 className="h-5 w-5" />
+            Ссылки доступа
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Публичные ссылки на файлы и папки. Отзовите ссылку, чтобы она перестала работать.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {shareLinks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              У вас пока нет активных ссылок. Создайте ссылку в разделе «Мои файлы» через меню «Поделиться».
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {shareLinks.map((link) => (
+                <li
+                  key={link.id}
+                  className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface2/50 px-4 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">
+                      {link.targetType === "FILE"
+                        ? link.file?.name ?? "Файл"
+                        : link.folder?.name ?? "Папка"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {link.targetType === "FILE" ? "Файл" : "Папка"}
+                      {link.expiresAt
+                        ? ` · Истекает ${new Date(link.expiresAt).toLocaleDateString("ru-RU")}`
+                        : ""}
+                      {link.oneTime ? " · Одноразовая" : ""}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => handleRevokeShareLink(link.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Отозвать
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Внешний вид — тема */}
       <Card>
