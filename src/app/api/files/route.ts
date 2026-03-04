@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
       s3Key: true,
       folderId: true,
       mediaMetadata: true,
+      aiMetadata: true,
       createdAt: true,
       shareLinks: {
         where: {
@@ -103,6 +104,7 @@ export async function GET(request: NextRequest) {
       s3Key: f.s3Key,
       folderId: f.folderId,
       mediaMetadata: f.mediaMetadata,
+      aiMetadata: f.aiMetadata,
       createdAt: f.createdAt,
       hasShareLink: f.shareLinks.length > 0,
       shareLinksCount: f.shareLinks.length,

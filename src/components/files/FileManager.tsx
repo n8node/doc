@@ -25,6 +25,8 @@ import {
   ChevronRight,
   Copy,
   Pencil,
+  ScanSearch,
+  BrainCircuit,
 } from "lucide-react";
 import {
   Dialog,
@@ -64,6 +66,7 @@ interface FileItem {
   size: number;
   folderId: string | null;
   mediaMetadata: { durationSeconds?: number } | null;
+  aiMetadata?: { processedAt?: string; numPages?: number; tablesCount?: number } | null;
   createdAt: string;
   hasShareLink?: boolean;
   shareLinksCount?: number;
@@ -978,6 +981,45 @@ export function FileManager() {
     }
   };
 
+  const PROCESSABLE_MIMES = new Set([
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/msword",
+    "text/html",
+    "text/plain",
+    "text/csv",
+    "text/markdown",
+    "image/png",
+    "image/jpeg",
+    "image/tiff",
+    "image/bmp",
+  ]);
+
+  const handleProcessFile = async (id: string) => {
+    const toastId = toast.loading("Анализ документа...");
+    try {
+      const res = await fetch("/api/files/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Ошибка обработки", { id: toastId });
+        return;
+      }
+      toast.success(
+        `Документ обработан: ${data.textLength} символов${data.numPages ? `, ${data.numPages} стр.` : ""}`,
+        { id: toastId },
+      );
+      loadData();
+    } catch {
+      toast.error("Не удалось обработать документ", { id: toastId });
+    }
+  };
+
   const handleDeleteFile = async (id: string) => {
     const msg = trashRetentionDays > 0 ? "Переместить файл в корзину?" : "Удалить этот файл?";
     if (!confirm(msg)) return;
@@ -1520,6 +1562,7 @@ export function FileManager() {
       size={file.size}
       createdAt={file.createdAt}
       mediaMetadata={file.mediaMetadata}
+      aiMetadata={file.aiMetadata}
       hasShareLink={file.hasShareLink}
       shareLinksCount={file.shareLinksCount}
       selected={selectedFiles.has(file.id)}
@@ -1560,6 +1603,11 @@ export function FileManager() {
       }
       onShareLinksClick={() =>
         setShareLinksTarget({ id: file.id, name: file.name })
+      }
+      onProcess={
+        PROCESSABLE_MIMES.has(file.mimeType) && !file.aiMetadata?.processedAt
+          ? () => handleProcessFile(file.id)
+          : undefined
       }
       onDelete={() => handleDeleteFile(file.id)}
       index={index}
@@ -2344,6 +2392,21 @@ export function FileManager() {
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </button>
+                                  {PROCESSABLE_MIMES.has(file.mimeType) && !file.aiMetadata?.processedAt && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleProcessFile(file.id)}
+                                      className="rounded-md p-1.5 text-emerald-500 transition-colors hover:bg-emerald-500/10"
+                                      aria-label="Анализ документа"
+                                    >
+                                      <ScanSearch className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                  {file.aiMetadata?.processedAt && (
+                                    <span className="flex items-center rounded-md p-1.5 text-emerald-500" title="Обработан AI">
+                                      <BrainCircuit className="h-4 w-4" />
+                                    </span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteFile(file.id)}

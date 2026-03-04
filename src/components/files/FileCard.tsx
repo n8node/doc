@@ -23,6 +23,8 @@ import {
   Clock,
   Check,
   Link2,
+  ScanSearch,
+  BrainCircuit,
 } from "lucide-react";
 import {
   Tooltip,
@@ -39,6 +41,7 @@ interface FileCardProps {
   size: number;
   createdAt: string;
   mediaMetadata?: { durationSeconds?: number } | null;
+  aiMetadata?: { processedAt?: string; numPages?: number; tablesCount?: number } | null;
   hasShareLink?: boolean;
   shareLinksCount?: number;
   selected: boolean;
@@ -50,6 +53,7 @@ interface FileCardProps {
   onCopy?: () => void;
   onRename?: () => void;
   onShareLinksClick?: () => void;
+  onProcess?: () => void;
   onDelete: () => void;
   index: number;
 }
@@ -211,6 +215,7 @@ export function FileCard({
   onCopy,
   onRename,
   onShareLinksClick,
+  onProcess,
   onDelete,
   index,
 }: FileCardProps) {
@@ -219,6 +224,7 @@ export function FileCard({
   const showThumbnail = isImageFile(mimeType, name) && !thumbnailError;
   const isMedia = mimeType.startsWith("video/") || mimeType.startsWith("audio/");
   const isVideo = mimeType.startsWith("video/");
+  const isProcessed = !!aiMetadata?.processedAt;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -290,6 +296,15 @@ export function FileCard({
               <Clock className="h-3 w-3" />
               {formatRelativeDate(createdAt)}
             </span>
+            {isProcessed && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 text-emerald-500" title="Документ обработан AI">
+                  <BrainCircuit className="h-3 w-3" />
+                  AI
+                </span>
+              </>
+            )}
             {hasShareLink && (
               <>
                 <span>•</span>
@@ -412,6 +427,24 @@ export function FileCard({
                 </button>
               </TooltipTrigger>
               <TooltipContent>Переименовать</TooltipContent>
+            </Tooltip>
+          )}
+
+          {onProcess && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onProcess();
+                  }}
+                  className={cn(ACTION_BTN, "text-emerald-500 hover:bg-emerald-500/10")}
+                >
+                  <ScanSearch className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Анализ документа</TooltipContent>
             </Tooltip>
           )}
 
