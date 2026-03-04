@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { useState, Suspense } from "react";
 import { S3SettingsForm } from "@/components/admin/S3SettingsForm";
+import { AiProvidersForm } from "@/components/admin/AiProvidersForm";
 
 type Tab = "s3" | "yookassa" | "ai";
 
@@ -65,22 +66,7 @@ function AdminSettingsContent() {
             </div>
           </div>
         )}
-        {tab === "ai" && (
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">
-              AI-провайдеры
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              YandexGPT, GigaChat, Ollama и др.
-            </p>
-            <div className="mt-6 rounded-xl border border-border bg-surface2 p-4">
-              <p className="text-sm text-muted-foreground">
-                Добавление и управление AI-провайдерами через API админки.
-                Эндпоинты: GET/POST /api/admin/ai/providers
-              </p>
-            </div>
-          </div>
-        )}
+        {tab === "ai" && <AiProvidersForm />}
       </Card>
     </div>
   );
