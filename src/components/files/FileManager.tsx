@@ -577,11 +577,8 @@ export function FileManager() {
     return fallback;
   };
 
-  const handleUpload = async (fileList: FileList) => {
-    if (!fileList?.length) return;
-
-    // Конвертируем FileList в массив сразу, т.к. FileList - "живая" коллекция
-    const filesArray = Array.from(fileList);
+  const handleUpload = async (filesArray: File[]) => {
+    if (!filesArray?.length) return;
     const uploadBatchId =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
@@ -611,6 +608,22 @@ export function FileManager() {
 
       const file = filesArray[i];
       const uploadId = newUploadingFiles[i].id;
+
+      if (!Number.isFinite(file.size) || file.size <= 0) {
+        setUploadingFiles((prev) =>
+          prev.map((f) =>
+            f.id === uploadId
+              ? {
+                  ...f,
+                  status: "error" as const,
+                  error: "Некорректный размер файла",
+                }
+              : f
+          )
+        );
+        toast.error(`${file.name}: некорректный размер файла`);
+        continue;
+      }
 
       if (file.size > maxFileSize) {
         setUploadingFiles((prev) =>
@@ -1726,7 +1739,8 @@ export function FileManager() {
         multiple
         className="hidden"
         onChange={(e) => {
-          if (e.target.files) handleUpload(e.target.files);
+          const selectedFiles = Array.from(e.target.files ?? []);
+          if (selectedFiles.length) handleUpload(selectedFiles);
           e.target.value = "";
         }}
       />

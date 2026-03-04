@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = body as {
     name?: string;
-    size?: number;
+    size?: number | string;
     mimeType?: string;
     folderId?: string | null;
     mediaDurationSeconds?: number | null;
@@ -31,7 +31,12 @@ export async function POST(request: NextRequest) {
   };
 
   const name = typeof parsed.name === "string" ? parsed.name.trim() : "";
-  const size = typeof parsed.size === "number" ? parsed.size : NaN;
+  const size =
+    typeof parsed.size === "number"
+      ? parsed.size
+      : typeof parsed.size === "string" && parsed.size.trim()
+      ? Number(parsed.size)
+      : NaN;
   const mimeType =
     typeof parsed.mimeType === "string" && parsed.mimeType
       ? parsed.mimeType
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
   if (!name) {
     return NextResponse.json({ error: "Имя файла обязательно" }, { status: 400 });
   }
-  if (!Number.isFinite(size) || size <= 0) {
+  if (!Number.isFinite(size) || !Number.isInteger(size) || size <= 0) {
     return NextResponse.json({ error: "Некорректный размер файла" }, { status: 400 });
   }
 

@@ -6,7 +6,7 @@ import { Upload, Cloud, FileImage, FileVideo, FileAudio, FileText, Loader2 } fro
 import { cn, formatBytes } from "@/lib/utils";
 
 interface UploadZoneProps {
-  onUpload: (files: FileList) => void;
+  onUpload: (files: File[]) => void;
   uploading: boolean;
   disabled?: boolean;
   maxFileSize?: number;
@@ -50,8 +50,9 @@ export function UploadZone({
       e.stopPropagation();
       setDragOver(false);
       dragCountRef.current = 0;
-      if (e.dataTransfer.files?.length && !uploading && !disabled) {
-        onUpload(e.dataTransfer.files);
+      const droppedFiles = Array.from(e.dataTransfer?.files ?? []);
+      if (droppedFiles.length && !uploading && !disabled) {
+        onUpload(droppedFiles);
       }
     },
     [onUpload, uploading, disabled, dragCountRef]
@@ -59,8 +60,9 @@ export function UploadZone({
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files?.length && !uploading && !disabled) {
-        onUpload(e.target.files);
+      const selectedFiles = Array.from(e.target.files ?? []);
+      if (selectedFiles.length && !uploading && !disabled) {
+        onUpload(selectedFiles);
       }
       e.target.value = "";
     },
