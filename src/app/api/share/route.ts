@@ -3,6 +3,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createShareLink, listShareLinks } from "@/lib/share-service";
 
+function getShareBaseUrl(request: NextRequest): string {
+  const fromEnv = process.env.APP_URL || process.env.NEXTAUTH_URL || "";
+  if (fromEnv && !fromEnv.includes("localhost")) return fromEnv.replace(/\/$/, "");
+
+  const proto = request.headers.get("x-forwarded-proto") || request.headers.get("x-forwarded-protocol") || "https";
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+  if (host) return `${proto === "https" ? "https" : "http"}://${host}`.replace(/\/$/, "");
+
+  return fromEnv || "https://qoqon.ru";
+}
+
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -61,7 +72,7 @@ export async function POST(request: NextRequest) {
       oneTime: !!oneTime,
       userId: session.user.id,
     });
-    const baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "";
+    const baseUrl = getShareBaseUrl(request);
     const url = `${baseUrl}/s/${link.token}`;
     return NextResponse.json({ ...link, url });
   } catch (e) {
