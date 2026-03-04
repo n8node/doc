@@ -1102,6 +1102,94 @@ export function FileManager() {
     }
   };
 
+  const handleBulkCopy = async (targetFolderId: string | null) => {
+    const fileIds = Array.from(selectedFiles);
+    const folderIds = Array.from(selectedFolders);
+    if (fileIds.length === 0 && folderIds.length === 0) return;
+
+    setCopying(true);
+    try {
+      const requests: Promise<Response>[] = [];
+      if (fileIds.length > 0) {
+        requests.push(
+          fetch("/api/files/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ids: fileIds,
+              action: "copy",
+              folderId: targetFolderId,
+            }),
+          })
+        );
+      }
+      if (folderIds.length > 0) {
+        requests.push(
+          fetch("/api/folders/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ids: folderIds,
+              action: "copy",
+              parentId: targetFolderId,
+            }),
+          })
+        );
+      }
+
+      const responses = await Promise.all(requests);
+      const payloads = await Promise.all(
+        responses.map(async (response) => {
+          try {
+            return (await response.json()) as { ok?: number; errors?: string[]; error?: string };
+          } catch {
+            return {} as { ok?: number; errors?: string[]; error?: string };
+          }
+        })
+      );
+
+      const firstFailedResponse = responses.find((response) => !response.ok);
+      if (firstFailedResponse) {
+        const index = responses.indexOf(firstFailedResponse);
+        const errorMessage = payloads[index]?.error || "Ошибка копирования";
+        throw new Error(errorMessage);
+      }
+
+      const copiedCount = payloads.reduce((sum, item) => sum + (item.ok ?? 0), 0);
+      const failedCount = payloads.reduce(
+        (sum, item) => sum + (Array.isArray(item.errors) ? item.errors.length : 0),
+        0
+      );
+
+      if (copiedCount === 0) {
+        throw new Error("Ошибка копирования");
+      }
+
+      setCopyDialogOpen(false);
+      setSingleCopyTarget(null);
+      setSelectedFiles(new Set());
+      setSelectedFolders(new Set());
+      loadData();
+      loadStorageInfo();
+      fetch("/api/folders?parentId=")
+        .then((r) => r.json())
+        .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
+        .catch(() => {});
+
+      if (failedCount > 0) {
+        toast.warning(`Скопировано: ${copiedCount}, с ошибками: ${failedCount}`);
+      } else {
+        toast.success(copiedCount === 1 ? "Элемент скопирован" : `Скопировано элементов: ${copiedCount}`);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message ? error.message : "Ошибка копирования";
+      toast.error(message);
+    } finally {
+      setCopying(false);
+    }
+  };
+
   const handleFileSelect = (id: string, selected: boolean) => {
     setSelectedFiles((prev) => {
       const n = new Set(prev);
@@ -1126,33 +1214,9 @@ export function FileManager() {
   };
 
   const openCopyDialog = () => {
-    const selectedFileIds = Array.from(selectedFiles);
-    const selectedFolderIds = Array.from(selectedFolders);
-
-    if (selectedFileIds.length === 1 && selectedFolderIds.length === 0) {
-      const file = files.find((item) => item.id === selectedFileIds[0]);
-      if (!file) return;
-      setSingleCopyTarget({
-        type: "FILE",
-        id: file.id,
-        name: file.name,
-        currentFolderId: file.folderId,
-      });
-      setCopyDialogOpen(true);
-      return;
-    }
-
-    if (selectedFolderIds.length === 1 && selectedFileIds.length === 0) {
-      const folder = folders.find((item) => item.id === selectedFolderIds[0]);
-      if (!folder) return;
-      setSingleCopyTarget({
-        type: "FOLDER",
-        id: folder.id,
-        name: folder.name,
-        currentFolderId: folder.parentId,
-      });
-      setCopyDialogOpen(true);
-    }
+    if (selectedFiles.size + selectedFolders.size === 0) return;
+    setSingleCopyTarget(null);
+    setCopyDialogOpen(true);
   };
 
   const navigateToFolder = (id: string | null) => {
@@ -1170,7 +1234,6 @@ export function FileManager() {
     .filter((f) => selectedFiles.has(f.id))
     .reduce((sum, f) => sum + f.size, 0);
   const selectedCount = selectedFiles.size + selectedFolders.size;
-  const hasSingleSelection = selectedCount === 1;
 
   const recentFileGroups = isRecentSection
     ? (() => {
@@ -1876,7 +1939,7 @@ export function FileManager() {
                 }
               : undefined
           }
-          onCopy={hasSingleSelection ? openCopyDialog : undefined}
+          onCopy={selectedCount > 0 ? openCopyDialog : undefined}
           onDelete={handleBulkDelete}
           onClear={clearSelection}
         />
@@ -1904,12 +1967,14 @@ export function FileManager() {
             setCopyDialogOpen(false);
             setSingleCopyTarget(null);
           }}
-          onMove={handleSingleCopy}
+          onMove={singleCopyTarget ? handleSingleCopy : handleBulkCopy}
           currentFolderId={singleCopyTarget?.currentFolderId ?? currentFolderId}
           excludeFolderIds={
             singleCopyTarget?.type === "FOLDER"
               ? new Set([singleCopyTarget.id])
-              : undefined
+              : singleCopyTarget
+              ? undefined
+              : selectedFolders
           }
           moving={copying}
           mode="copy"
