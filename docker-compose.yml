@@ -80,12 +80,11 @@ services:
 
   adminer:
     image: adminer:latest
-    ports:
-      - "8080:8080"
-    profiles:
-      - dev
+    environment:
+      ADMINER_DEFAULT_SERVER: db
     depends_on:
       - db
+    restart: unless-stopped
 
 volumes:
   pg_data:
