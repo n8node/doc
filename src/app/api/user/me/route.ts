@@ -17,6 +17,7 @@ export async function GET() {
       name: true,
       lastLoginAt: true,
       createdAt: true,
+      preferences: true,
     },
   });
 
@@ -24,11 +25,13 @@ export async function GET() {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  const prefs = user.preferences as Record<string, unknown> | null;
   return NextResponse.json({
     id: user.id,
     email: user.email,
     name: user.name,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
+    preferences: prefs ?? {},
   });
 }

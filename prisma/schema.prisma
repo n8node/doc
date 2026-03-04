@@ -30,6 +30,7 @@ model User {
   aiTasks       AiTask[]
   shareLinks    ShareLink[]
   historyEvents HistoryEvent[]
+  preferences   Json?       @map("preferences") // { theme?: string, emailNotifications?: boolean, ... }
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
