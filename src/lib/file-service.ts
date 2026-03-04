@@ -47,7 +47,11 @@ export function buildS3Key(input: {
 export async function createFileRecordFromS3Object(input: CreateFileRecordInput) {
   const { userId, name, mimeType, size, s3Key, folderId, mediaDurationSeconds, clientBatchId } = input;
 
-  if (!Number.isFinite(size) || size <= 0) {
+  if (size === 0) {
+    throw new Error("Пустые документы загружать нельзя");
+  }
+
+  if (!Number.isFinite(size) || size < 0) {
     throw new Error("Некорректный размер файла");
   }
 

@@ -609,7 +609,23 @@ export function FileManager() {
       const file = filesArray[i];
       const uploadId = newUploadingFiles[i].id;
 
-      if (!Number.isFinite(file.size) || file.size <= 0) {
+      if (file.size === 0) {
+        setUploadingFiles((prev) =>
+          prev.map((f) =>
+            f.id === uploadId
+              ? {
+                  ...f,
+                  status: "error" as const,
+                  error: "Пустые документы загружать нельзя",
+                }
+              : f
+          )
+        );
+        toast.error(`${file.name}: пустые документы загружать нельзя`);
+        continue;
+      }
+
+      if (!Number.isFinite(file.size) || file.size < 0) {
         setUploadingFiles((prev) =>
           prev.map((f) =>
             f.id === uploadId

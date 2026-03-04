@@ -57,7 +57,11 @@ export async function POST(request: NextRequest) {
   if (!name) {
     return NextResponse.json({ error: "Имя файла обязательно" }, { status: 400 });
   }
-  if (!Number.isFinite(size) || !Number.isInteger(size) || size <= 0) {
+  if (size === 0) {
+    return NextResponse.json({ error: "Пустые документы загружать нельзя" }, { status: 400 });
+  }
+
+  if (!Number.isFinite(size) || !Number.isInteger(size) || size < 0) {
     return NextResponse.json({ error: "Некорректный размер файла" }, { status: 400 });
   }
 
