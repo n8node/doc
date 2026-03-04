@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell } from "lucide-react";
+import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell, TriangleAlert } from "lucide-react";
 import { useTheme } from "next-themes";
 import { formatBytes } from "@/lib/utils";
 
@@ -67,6 +68,9 @@ export default function DashboardSettingsPage() {
   const [savingTheme, setSavingTheme] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [savingNotifications, setSavingNotifications] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
@@ -134,6 +138,30 @@ export default function DashboardSettingsPage() {
       toast.error("Не удалось сохранить");
     } finally {
       setSavingNotifications(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (deleteConfirm !== "УДАЛИТЬ" || !deletePassword) {
+      toast.error('Введите пароль и напишите "УДАЛИТЬ" для подтверждения');
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      const res = await fetch("/api/user/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Ошибка удаления");
+      toast.success("Аккаунт удалён");
+      await signOut({ callbackUrl: "/" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка удаления аккаунта");
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -569,6 +597,69 @@ export default function DashboardSettingsPage() {
               </Button>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Опасная зона */}
+      <Card className="border-destructive/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <TriangleAlert className="h-5 w-5" />
+            Опасная зона
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Удаление аккаунта необратимо. Все файлы, папки и данные будут удалены.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleDeleteAccount} className="space-y-4">
+            <div>
+              <label
+                htmlFor="delete-password"
+                className="mb-1.5 block text-sm font-medium text-foreground"
+              >
+                Ваш пароль
+              </label>
+              <Input
+                id="delete-password"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Введите пароль для подтверждения"
+                className="max-w-md border-destructive/50"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="delete-confirm"
+                className="mb-1.5 block text-sm font-medium text-foreground"
+              >
+                Напишите УДАЛИТЬ для подтверждения
+              </label>
+              <Input
+                id="delete-confirm"
+                type="text"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder="УДАЛИТЬ"
+                className="max-w-md border-destructive/50"
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={
+                deletingAccount ||
+                deleteConfirm !== "УДАЛИТЬ" ||
+                !deletePassword
+              }
+            >
+              {deletingAccount && <Loader2 className="h-4 w-4 animate-spin" />}
+              Удалить аккаунт
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
