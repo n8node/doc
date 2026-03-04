@@ -66,10 +66,19 @@ export class GigaChatProvider implements AiProvider {
       throw new Error("GigaChat returned invalid embedding format");
     }
 
+    const usage =
+      data.usage && typeof data.usage === "object"
+        ? {
+            promptTokens: Number((data.usage as { prompt_tokens?: number }).prompt_tokens) || 0,
+            totalTokens: Number((data.usage as { total_tokens?: number }).total_tokens) || 0,
+          }
+        : undefined;
+
     return {
       vector: embedding,
       dimensions: embedding.length,
       model: data.model ?? this.model,
+      usage,
     };
   }
 

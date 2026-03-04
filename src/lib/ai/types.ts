@@ -8,10 +8,16 @@ export interface AiProviderConfig {
   maxTokens?: number;
 }
 
+export interface AiEmbeddingUsage {
+  promptTokens: number;
+  totalTokens: number;
+}
+
 export interface AiEmbeddingResult {
   vector: number[];
   dimensions: number;
   model: string;
+  usage?: AiEmbeddingUsage;
 }
 
 export interface AiAnalysisResult {

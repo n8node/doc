@@ -58,10 +58,19 @@ export class OpenRouterProvider implements AiProvider {
 
     const vector = embedding.every((x) => typeof x === "number") ? embedding : embedding.map(Number);
 
+    const usage =
+      data.usage && typeof data.usage === "object"
+        ? {
+            promptTokens: Number((data.usage as { prompt_tokens?: number }).prompt_tokens) || 0,
+            totalTokens: Number((data.usage as { total_tokens?: number }).total_tokens) || 0,
+          }
+        : undefined;
+
     return {
       vector,
       dimensions: vector.length,
       model: data.model ?? this.model,
+      usage,
     };
   }
 

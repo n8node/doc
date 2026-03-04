@@ -9,6 +9,7 @@ export interface EmbeddingPipelineResult {
   embeddingsCreated: number;
   providerName: string;
   dimensions: number;
+  tokensUsed?: number;
 }
 
 export async function runEmbeddingPipeline(
@@ -48,17 +49,23 @@ export async function runEmbeddingPipeline(
           completedAt: new Date(),
         },
       });
-      return { fileId, chunksCount: 0, embeddingsCreated: 0, providerName, dimensions: 0 };
+      return { fileId, chunksCount: 0, embeddingsCreated: 0, providerName, dimensions: 0, tokensUsed: undefined };
     }
 
     let dimensions = 0;
     let created = 0;
+    let totalPromptTokens = 0;
+    let totalTokens = 0;
 
     for (const chunk of chunks) {
       const result = await provider.generateEmbedding(chunk.text);
       if (result.vector.length === 0) continue;
 
       dimensions = result.dimensions;
+      if (result.usage) {
+        totalPromptTokens += result.usage.promptTokens;
+        totalTokens += result.usage.totalTokens;
+      }
 
       const id = `${fileId}_chunk_${chunk.index}`;
       await insertEmbedding({
@@ -78,29 +85,46 @@ export async function runEmbeddingPipeline(
       created++;
     }
 
+    const tokensUsed = totalTokens > 0 ? totalTokens : totalPromptTokens > 0 ? totalPromptTokens : undefined;
+
     await prisma.aiTask.update({
       where: { id: task.id },
       data: {
         status: "completed",
-        output: { chunksCount: chunks.length, embeddingsCreated: created, dimensions, providerName },
+        output: {
+          chunksCount: chunks.length,
+          embeddingsCreated: created,
+          dimensions,
+          providerName,
+          ...(tokensUsed != null && { tokensUsed, promptTokens: totalPromptTokens }),
+        },
         completedAt: new Date(),
       },
     });
 
+    const existingMeta = await getExistingAiMetadata(fileId);
     await prisma.file.update({
       where: { id: fileId },
       data: {
         aiMetadata: {
-          ...(await getExistingAiMetadata(fileId)),
+          ...existingMeta,
           embeddingsCount: created,
           embeddingsDimensions: dimensions,
           embeddingsProvider: providerName,
           embeddingsCreatedAt: new Date().toISOString(),
+          ...(tokensUsed != null && { embeddingTokensUsed: tokensUsed }),
         },
       },
     });
 
-    return { fileId, chunksCount: chunks.length, embeddingsCreated: created, providerName, dimensions };
+    return {
+      fileId,
+      chunksCount: chunks.length,
+      embeddingsCreated: created,
+      providerName,
+      dimensions,
+      tokensUsed,
+    };
   } catch (error) {
     await prisma.aiTask.update({
       where: { id: task.id },

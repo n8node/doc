@@ -44,10 +44,19 @@ export class YandexProvider implements AiProvider {
       throw new Error("Yandex returned invalid embedding format");
     }
 
+    const usage =
+      data.usage && typeof data.usage === "object"
+        ? {
+            promptTokens: Number((data.usage as { inputTextTokens?: number }).inputTextTokens) || 0,
+            totalTokens: Number((data.usage as { totalTokens?: number }).totalTokens) || 0,
+          }
+        : undefined;
+
     return {
       vector: embedding,
       dimensions: embedding.length,
       model: this.model,
+      usage,
     };
   }
 

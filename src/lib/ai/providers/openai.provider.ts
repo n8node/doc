@@ -36,10 +36,18 @@ export class OpenAiProvider implements AiProvider {
       throw new Error("OpenAI returned invalid embedding format");
     }
 
+    const usage = data.usage
+      ? {
+          promptTokens: Number(data.usage.prompt_tokens) || 0,
+          totalTokens: Number(data.usage.total_tokens) || 0,
+        }
+      : undefined;
+
     return {
       vector: embedding,
       dimensions: embedding.length,
       model: data.model ?? this.model,
+      usage,
     };
   }
 

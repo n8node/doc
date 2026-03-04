@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
   Zap,
+  BarChart3,
 } from "lucide-react";
 
 interface ProviderItem {
@@ -350,6 +351,36 @@ export function AiProvidersForm() {
   const [loading, setLoading] = useState(true);
   const [providers, setProviders] = useState<ProviderItem[]>([]);
   const [adding, setAdding] = useState(false);
+  const [embeddingStats, setEmbeddingStats] = useState<{
+    periodDays: number;
+    totalTokensUsed: number;
+    tasksCount: number;
+    byProvider: Array<{ providerName: string; tokensUsed: number; tasksCount: number }>;
+  } | null>(null);
+  const [statsPeriod, setStatsPeriod] = useState(30);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  const loadEmbeddingStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/ai/stats?period=${statsPeriod}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEmbeddingStats({
+          periodDays: data.periodDays ?? 30,
+          totalTokensUsed: data.totalTokensUsed ?? 0,
+          tasksCount: data.tasksCount ?? 0,
+          byProvider: data.byProvider ?? [],
+        });
+      } else {
+        setEmbeddingStats(null);
+      }
+    } catch {
+      setEmbeddingStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [statsPeriod]);
 
   const loadProviders = useCallback(async () => {
     try {
@@ -364,6 +395,7 @@ export function AiProvidersForm() {
   }, []);
 
   useEffect(() => { loadProviders(); }, [loadProviders]);
+  useEffect(() => { loadEmbeddingStats(); }, [loadEmbeddingStats]);
 
   const existingNames = new Set(providers.map((p) => p.name));
   const availablePresets = Object.entries(PROVIDER_PRESETS).filter(
@@ -409,6 +441,79 @@ export function AiProvidersForm() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Статистика эмбеддинга (токены)</h3>
+          </div>
+          <select
+            value={statsPeriod}
+            onChange={(e) => setStatsPeriod(Number(e.target.value))}
+            className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-sm text-foreground"
+          >
+            <option value={7}>За 7 дней</option>
+            <option value={30}>За 30 дней</option>
+            <option value={90}>За 90 дней</option>
+          </select>
+        </div>
+        <div className="mt-4 space-y-3">
+          {statsLoading ? (
+            <p className="text-sm text-muted-foreground">Загрузка...</p>
+          ) : embeddingStats === null ? (
+            <p className="text-sm text-muted-foreground">Не удалось загрузить статистику.</p>
+          ) : embeddingStats ? (
+            <>
+              <div className="flex flex-wrap gap-6">
+                <div>
+                  <p className="text-xs text-muted-foreground">Всего токенов</p>
+                  <p className="text-xl font-semibold tabular-nums text-foreground">
+                    {embeddingStats.totalTokensUsed.toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Обработок документов</p>
+                  <p className="text-xl font-semibold tabular-nums text-foreground">
+                    {embeddingStats.tasksCount}
+                  </p>
+                </div>
+              </div>
+              {embeddingStats.byProvider.length > 0 && (
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full min-w-[280px] text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-surface2/50">
+                        <th className="px-3 py-2 text-left font-medium text-foreground">Провайдер</th>
+                        <th className="px-3 py-2 text-right font-medium text-foreground">Токенов</th>
+                        <th className="px-3 py-2 text-right font-medium text-foreground">Задач</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {embeddingStats.byProvider.map((row) => (
+                        <tr key={row.providerName} className="border-b border-border/50 last:border-0">
+                          <td className="px-3 py-2 text-foreground">{row.providerName}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                            {row.tokensUsed.toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {row.tasksCount}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {embeddingStats.tasksCount === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  За выбранный период завершённых задач эмбеддинга нет. Токены учитываются после успешной обработки документа.
+                </p>
+              )}
+            </>
+          ) : null}
+        </div>
+      </div>
+
       <div>
         <h2 className="text-lg font-semibold text-foreground">AI-провайдеры</h2>
         <p className="mt-1 text-sm text-muted-foreground">
