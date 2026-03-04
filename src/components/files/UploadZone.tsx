@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, Cloud, FileImage, FileVideo, FileAudio, FileText, Loader2 } from "lucide-react";
 import { cn, formatBytes } from "@/lib/utils";
@@ -24,6 +24,7 @@ export function UploadZone({
 }: UploadZoneProps) {
   const [dragOver, setDragOver] = useState(false);
   const [dragCountRef] = useState({ current: 0 });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -42,6 +43,23 @@ export function UploadZone({
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
+  const extractDroppedFiles = useCallback((e: React.DragEvent) => {
+    const items = Array.from(e.dataTransfer?.items ?? []);
+    const filesFromItems = items
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+
+    if (filesFromItems.length > 0) {
+      return filesFromItems;
+    }
+
+    return Array.from(e.dataTransfer?.files ?? []);
   }, []);
 
   const handleDrop = useCallback(
@@ -50,12 +68,12 @@ export function UploadZone({
       e.stopPropagation();
       setDragOver(false);
       dragCountRef.current = 0;
-      const droppedFiles = Array.from(e.dataTransfer?.files ?? []);
+      const droppedFiles = extractDroppedFiles(e);
       if (droppedFiles.length && !uploading && !disabled) {
         onUpload(droppedFiles);
       }
     },
-    [onUpload, uploading, disabled, dragCountRef]
+    [onUpload, uploading, disabled, dragCountRef, extractDroppedFiles]
   );
 
   const handleFileSelect = useCallback(
@@ -69,11 +87,31 @@ export function UploadZone({
     [onUpload, uploading, disabled]
   );
 
+  const openFilePicker = useCallback(() => {
+    if (uploading || disabled) return;
+    fileInputRef.current?.click();
+  }, [uploading, disabled]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openFilePicker();
+      }
+    },
+    [openFilePicker]
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      role="button"
+      tabIndex={uploading || disabled ? -1 : 0}
+      aria-disabled={uploading || disabled}
+      onClick={openFilePicker}
+      onKeyDown={handleKeyDown}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -84,15 +122,19 @@ export function UploadZone({
           ? "border-primary bg-primary/5 scale-[1.02]"
           : "border-border hover:border-primary/50 hover:bg-surface2/30",
         uploading && "pointer-events-none opacity-60",
-        disabled && "pointer-events-none opacity-40"
+        disabled && "pointer-events-none opacity-40",
+        !uploading && !disabled && "cursor-pointer"
       )}
     >
       <input
+        ref={fileInputRef}
         type="file"
         multiple
-        className="absolute inset-0 z-10 cursor-pointer opacity-0"
+        className="sr-only"
         onChange={handleFileSelect}
         disabled={uploading || disabled}
+        tabIndex={-1}
+        aria-hidden="true"
       />
 
       <div className="relative px-6 py-10">
