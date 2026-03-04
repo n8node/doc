@@ -22,6 +22,7 @@ export async function GET() {
       ...p,
       storageQuota: Number(p.storageQuota),
       maxFileSize: Number(p.maxFileSize),
+      embeddingTokensQuota: p.embeddingTokensQuota,
       usersCount: p._count.users,
       _count: undefined,
     })),
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, isFree, storageQuota, maxFileSize, trashRetentionDays, features, priceMonthly, priceYearly, isPopular } = body;
+  const { name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota, features, priceMonthly, priceYearly, isPopular } = body;
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Название обязательно" }, { status: 400 });
@@ -61,6 +62,11 @@ export async function POST(req: NextRequest) {
     await prisma.plan.updateMany({ where: { isPopular: true }, data: { isPopular: false } });
   }
 
+  const tokensQuota =
+    embeddingTokensQuota === undefined || embeddingTokensQuota === null || embeddingTokensQuota === ""
+      ? null
+      : Math.max(0, parseInt(String(embeddingTokensQuota), 10) || 0) || null;
+
   const plan = await prisma.plan.create({
     data: {
       name: name.trim(),
@@ -68,6 +74,7 @@ export async function POST(req: NextRequest) {
       storageQuota: BigInt(storageQuota),
       maxFileSize: fileSizeValue,
       trashRetentionDays: typeof trashRetentionDays === "number" ? trashRetentionDays : 0,
+      embeddingTokensQuota: tokensQuota,
       features: features ?? {},
       priceMonthly: priceMonthly ?? null,
       priceYearly: priceYearly ?? null,

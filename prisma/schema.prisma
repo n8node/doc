@@ -118,20 +118,21 @@ model HistoryEvent {
 }
 
 model Plan {
-  id                 String    @id @default(cuid()) @map("id")
-  name               String    @unique @map("name")
-  isFree             Boolean   @default(false) @map("is_free")
-  storageQuota       BigInt    @map("storage_quota")
-  maxFileSize        BigInt    @default(536870912) @map("max_file_size") // 512MB
-  trashRetentionDays Int       @default(0) @map("trash_retention_days")
-  features           Json?     @map("features") // { "video_player": true, "audio_player": true, ... }
-  priceMonthly       Int?      @map("price_monthly")
-  priceYearly        Int?      @map("price_yearly")
-  sortOrder          Int       @default(0) @map("sort_order")
-  isPopular          Boolean   @default(false) @map("is_popular")
-  yookassaPlanId     String?   @map("yookassa_plan_id")
-  users              User[]
-  payments           Payment[]
+  id                    String    @id @default(cuid()) @map("id")
+  name                  String    @unique @map("name")
+  isFree                Boolean   @default(false) @map("is_free")
+  storageQuota          BigInt    @map("storage_quota")
+  maxFileSize           BigInt    @default(536870912) @map("max_file_size") // 512MB
+  trashRetentionDays    Int       @default(0) @map("trash_retention_days")
+  embeddingTokensQuota  Int?      @map("embedding_tokens_quota") // токенов на эмбеддинг в месяц, null = без лимита
+  features              Json?     @map("features") // { "video_player": true, "audio_player": true, ... }
+  priceMonthly          Int?      @map("price_monthly")
+  priceYearly           Int?      @map("price_yearly")
+  sortOrder             Int       @default(0) @map("sort_order")
+  isPopular             Boolean   @default(false) @map("is_popular")
+  yookassaPlanId        String?   @map("yookassa_plan_id")
+  users                 User[]
+  payments              Payment[]
 
   @@map("plans")
 }

@@ -15,6 +15,7 @@ import {
   Gift,
   GripVertical,
   Sparkles,
+  BrainCircuit,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ interface PlanItem {
   storageQuota: number;
   maxFileSize: number;
   trashRetentionDays: number;
+  embeddingTokensQuota: number | null;
   features: Record<string, boolean>;
   priceMonthly: number | null;
   priceYearly: number | null;
@@ -113,6 +115,15 @@ function PlanCard({
             <div className="flex items-center gap-2 text-sm">
               <FileUp className="h-4 w-4 text-muted-foreground" />
               <span>Макс. файл: {formatBytes(plan.maxFileSize)}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+              <span>
+                Токенов на анализ:{" "}
+                {plan.embeddingTokensQuota != null
+                  ? `${plan.embeddingTokensQuota.toLocaleString()}/мес`
+                  : "без лимита"}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Users className="h-4 w-4 text-muted-foreground" />

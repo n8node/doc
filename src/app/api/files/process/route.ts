@@ -8,6 +8,7 @@ import {
   isProcessable,
 } from "@/lib/docling/processing-service";
 import { getDoclingClient } from "@/lib/docling/client";
+import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
 
 /**
  * POST /api/files/process — start document processing
@@ -39,11 +40,37 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const quotaError = await checkEmbeddingQuota(session.user.id);
+  if (quotaError) return quotaError;
+
   if (fileIds.length === 1) {
     return processSingle(fileIds[0], session.user.id);
   }
 
   return processBulk(fileIds, session.user.id);
+}
+
+async function checkEmbeddingQuota(userId: string): Promise<NextResponse | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { planId: true, plan: { select: { embeddingTokensQuota: true } } },
+  });
+  const quota = user?.plan?.embeddingTokensQuota ?? null;
+  if (quota == null) return null;
+
+  const used = await getEmbeddingTokensUsedThisMonth(userId);
+  if (used >= quota) {
+    return NextResponse.json(
+      {
+        error: "Лимит токенов на анализ документов по вашему тарифу исчерпан. Обновите тариф или дождитесь следующего месяца.",
+        code: "EMBEDDING_QUOTA_EXCEEDED",
+        used,
+        quota,
+      },
+      { status: 403 },
+    );
+  }
+  return null;
 }
 
 async function processSingle(fileId: string, userId: string) {

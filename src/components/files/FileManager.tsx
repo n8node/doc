@@ -208,6 +208,8 @@ export function FileManager() {
 
   const [analyzingFiles, setAnalyzingFiles] = useState<Set<string>>(new Set());
   const [analyzeError, setAnalyzeError] = useState<Map<string, string>>(new Map());
+  const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState<number | null>(null);
+  const [embeddingTokensUsedThisMonth, setEmbeddingTokensUsedThisMonth] = useState<number>(0);
 
   const [mediaModal, setMediaModal] = useState<{
     type: "video" | "audio";
@@ -528,6 +530,18 @@ export function FileManager() {
       }
       setBreadcrumbs(bc);
       loadStorageInfo();
+
+      try {
+        const planRes = await fetch("/api/plans/me");
+        if (planRes.ok) {
+          const planData = await planRes.json();
+          setEmbeddingTokensQuota(planData.embeddingTokensQuota ?? null);
+          setEmbeddingTokensUsedThisMonth(planData.embeddingTokensUsedThisMonth ?? 0);
+        }
+      } catch {
+        setEmbeddingTokensQuota(null);
+        setEmbeddingTokensUsedThisMonth(0);
+      }
     } catch {
       toast.error("Ошибка загрузки данных");
     } finally {
@@ -996,6 +1010,9 @@ export function FileManager() {
     "text/markdown",
   ]);
 
+  const embeddingQuotaExceeded =
+    embeddingTokensQuota != null && embeddingTokensUsedThisMonth >= embeddingTokensQuota;
+
   const pollProcessStatus = async (fileId: string, toastId: string | number): Promise<"ok" | "err"> => {
     const maxAttempts = 600;
     for (let i = 0; i < maxAttempts; i++) {
@@ -1037,8 +1054,10 @@ export function FileManager() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "Ошибка обработки", { id: toastId });
-        setAnalyzeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+        const msg = data.error || "Ошибка обработки";
+        toast.error(msg, { id: toastId });
+        setAnalyzeError((m) => new Map(m).set(id, msg));
+        if (res.status === 403 && data.code === "EMBEDDING_QUOTA_EXCEEDED") loadData();
         return;
       }
       if (res.status === 202 && data.status === "processing") {
@@ -1092,8 +1111,13 @@ export function FileManager() {
         if (!res.ok) {
           pending.delete(id);
           failed++;
-          setAnalyzeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+          const msg = data.error || "Ошибка";
+          setAnalyzeError((m) => new Map(m).set(id, msg));
           setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
+          if (res.status === 403 && data.code === "EMBEDDING_QUOTA_EXCEEDED") {
+            loadData();
+            toast.error(msg, { id: toastId });
+          }
         }
       } catch {
         pending.delete(id);
@@ -1733,7 +1757,10 @@ export function FileManager() {
         setShareLinksTarget({ id: file.id, name: file.name })
       }
       onProcess={
-        PROCESSABLE_MIMES.has(file.mimeType) && !file.aiMetadata?.processedAt && !analyzingFiles.has(file.id)
+        !embeddingQuotaExceeded &&
+        PROCESSABLE_MIMES.has(file.mimeType) &&
+        !file.aiMetadata?.processedAt &&
+        !analyzingFiles.has(file.id)
           ? () => handleProcessFile(file.id)
           : undefined
       }
@@ -2533,16 +2560,19 @@ export function FileManager() {
                                       <BrainCircuit className="h-4 w-4" />
                                     </span>
                                   )}
-                                  {PROCESSABLE_MIMES.has(file.mimeType) && !file.aiMetadata?.processedAt && !analyzingFiles.has(file.id) && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleProcessFile(file.id)}
-                                      className="rounded-md p-1.5 text-emerald-500 transition-colors hover:bg-emerald-500/10"
-                                      aria-label="Анализ документа"
-                                    >
-                                      <ScanSearch className="h-4 w-4" />
-                                    </button>
-                                  )}
+                                  {!embeddingQuotaExceeded &&
+                                    PROCESSABLE_MIMES.has(file.mimeType) &&
+                                    !file.aiMetadata?.processedAt &&
+                                    !analyzingFiles.has(file.id) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleProcessFile(file.id)}
+                                        className="rounded-md p-1.5 text-emerald-500 transition-colors hover:bg-emerald-500/10"
+                                        aria-label="Анализ документа"
+                                      >
+                                        <ScanSearch className="h-4 w-4" />
+                                      </button>
+                                    )}
                                   {PROCESSABLE_MIMES.has(file.mimeType) && file.aiMetadata?.processedAt && !analyzingFiles.has(file.id) && (
                                     <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-600" title="Обработан AI">
                                       <BrainCircuit className="h-3.5 w-3.5" />
@@ -2612,6 +2642,7 @@ export function FileManager() {
           onDelete={handleBulkDelete}
           onClear={clearSelection}
           onAiAnalyze={
+            !embeddingQuotaExceeded &&
             selectedFiles.size > 0 &&
             files.some((f) => selectedFiles.has(f.id) && PROCESSABLE_MIMES.has(f.mimeType) && !f.aiMetadata?.processedAt)
               ? handleBulkAnalyze

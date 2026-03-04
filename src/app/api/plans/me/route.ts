@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getUserPlan } from "@/lib/plan-service";
+import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -12,9 +13,15 @@ export async function GET() {
   if (!plan)
     return NextResponse.json({ error: "User not found" }, { status: 404 });
 
+  const embeddingTokensUsedThisMonth =
+    plan.embeddingTokensQuota != null
+      ? await getEmbeddingTokensUsedThisMonth(session.user.id)
+      : undefined;
+
   return NextResponse.json({
     ...plan,
     storageQuota: Number(plan.storageQuota),
     maxFileSize: Number(plan.maxFileSize),
+    embeddingTokensUsedThisMonth,
   });
 }

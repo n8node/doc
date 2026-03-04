@@ -20,6 +20,7 @@ interface PlanData {
   storageQuota: number;
   maxFileSize: number;
   trashRetentionDays: number;
+  embeddingTokensQuota: number | null;
   features: Record<string, boolean>;
   priceMonthly: number | null;
   priceYearly: number | null;
@@ -61,6 +62,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     ai_search: false,
   });
   const [trashDays, setTrashDays] = useState("0");
+  const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
   const [priceMonthly, setPriceMonthly] = useState("");
   const [priceYearly, setPriceYearly] = useState("");
   const [saving, setSaving] = useState(false);
@@ -73,6 +75,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setStorageGb(String(bytesToGb(plan.storageQuota)));
       setMaxFileMb(String(bytesToMb(plan.maxFileSize)));
       setTrashDays(String(plan.trashRetentionDays ?? 0));
+      setEmbeddingTokensQuota(
+        plan.embeddingTokensQuota != null ? String(plan.embeddingTokensQuota) : "",
+      );
       setFeatures(plan.features || {});
       setPriceMonthly(plan.priceMonthly != null ? String(plan.priceMonthly) : "");
       setPriceYearly(plan.priceYearly != null ? String(plan.priceYearly) : "");
@@ -83,6 +88,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setStorageGb("25");
       setMaxFileMb("512");
       setTrashDays("0");
+      setEmbeddingTokensQuota("");
       setFeatures({
         video_player: true,
         audio_player: true,
@@ -109,6 +115,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       storageQuota: gbToBytes(parseFloat(storageGb) || 25),
       maxFileSize: mbToBytes(parseFloat(maxFileMb) || 512),
       trashRetentionDays: parseInt(trashDays, 10) || 0,
+      embeddingTokensQuota: embeddingTokensQuota.trim()
+        ? Math.max(0, parseInt(embeddingTokensQuota, 10) || 0) || null
+        : null,
       features,
       priceMonthly: priceMonthly ? parseInt(priceMonthly, 10) : null,
       priceYearly: priceYearly ? parseInt(priceYearly, 10) : null,
@@ -217,6 +226,23 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
             />
             <p className="mt-1 text-xs text-muted-foreground">
               0 = без корзины (удаление сразу). Платные тарифы обычно 30 дней.
+            </p>
+          </div>
+
+          {/* Токены на анализ */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">
+              Токенов на анализ документов в месяц
+            </label>
+            <Input
+              type="number"
+              min={0}
+              value={embeddingTokensQuota}
+              onChange={(e) => setEmbeddingTokensQuota(e.target.value)}
+              placeholder="Без лимита"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Оставьте пустым для безлимита. Учитываются токены при эмбеддинге (AI-анализ).
             </p>
           </div>
 

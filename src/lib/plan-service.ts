@@ -26,6 +26,7 @@ export async function getUserPlan(userId: string) {
       name: user.plan.name,
       storageQuota: user.plan.storageQuota,
       maxFileSize: user.plan.maxFileSize,
+      embeddingTokensQuota: user.plan.embeddingTokensQuota,
       features: (user.plan.features as Record<string, boolean>) ?? {},
     };
   }
@@ -34,6 +35,7 @@ export async function getUserPlan(userId: string) {
     name: "Бесплатный",
     storageQuota: user.storageQuota,
     maxFileSize: user.maxFileSize,
+    embeddingTokensQuota: null,
     features: FREE_PLAN_DEFAULTS.features,
   };
 }

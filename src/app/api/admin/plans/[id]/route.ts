@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
   const { id } = await ctx.params;
   const body = await req.json();
-  const { name, isFree, storageQuota, maxFileSize, trashRetentionDays, features, priceMonthly, priceYearly, isPopular } = body;
+  const { name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota, features, priceMonthly, priceYearly, isPopular } = body;
   const data: Record<string, unknown> = {};
   if (name != null) data.name = name;
   if (isFree != null) data.isFree = !!isFree;
@@ -26,6 +26,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     data.maxFileSize = value > MAX_ALLOWED ? MAX_ALLOWED : value;
   }
   if (trashRetentionDays != null) data.trashRetentionDays = trashRetentionDays;
+  if (embeddingTokensQuota !== undefined) {
+    data.embeddingTokensQuota =
+      embeddingTokensQuota === null || embeddingTokensQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(embeddingTokensQuota), 10) || 0) || null;
+  }
   if (features != null) data.features = features;
   if (priceMonthly != null) data.priceMonthly = priceMonthly;
   if (priceYearly != null) data.priceYearly = priceYearly;
@@ -40,6 +46,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     ...plan,
     storageQuota: Number(plan.storageQuota),
     maxFileSize: Number(plan.maxFileSize),
+    embeddingTokensQuota: plan.embeddingTokensQuota,
   });
 }
 
