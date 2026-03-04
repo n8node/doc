@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       threshold,
     );
 
-    const fileIds = [...new Set(similar.map((s) => s.fileId))];
+    const fileIds = Array.from(new Set(similar.map((s) => s.fileId)));
     const files = await prisma.file.findMany({
       where: { id: { in: fileIds } },
       select: { id: true, name: true, mimeType: true, size: true },
