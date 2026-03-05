@@ -64,6 +64,8 @@ services:
     build:
       context: ./docker/docling
       dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
     environment:
       MAX_FILE_SIZE_MB: ${DOCLING_MAX_FILE_SIZE_MB:-100}
     deploy:
