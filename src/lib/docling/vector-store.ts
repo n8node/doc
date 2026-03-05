@@ -105,6 +105,28 @@ export async function findSimilarForFile(
   return results;
 }
 
+/**
+ * Get chunks for a file in document order (fallback when semantic search returns nothing).
+ * For free-form questions like "расскажи про документ".
+ */
+export async function getChunksForFile(
+  fileId: string,
+  userId: string,
+  limit = 15,
+): Promise<Array<{ chunkText: string; chunkIndex: number }>> {
+  const results = await prisma.$queryRaw<Array<{ chunk_text: string; chunk_index: number }>>`
+    SELECT de.chunk_text, de.chunk_index
+    FROM document_embeddings de
+    JOIN files f ON f.id = de.file_id
+    WHERE de.file_id = ${fileId}
+      AND f.user_id = ${userId}
+      AND f.deleted_at IS NULL
+    ORDER BY de.chunk_index ASC
+    LIMIT ${limit}
+  `;
+  return results.map((r) => ({ chunkText: r.chunk_text, chunkIndex: r.chunk_index }));
+}
+
 export async function deleteEmbeddingsByFileId(fileId: string): Promise<void> {
   await prisma.$executeRaw`
     DELETE FROM document_embeddings WHERE file_id = ${fileId}

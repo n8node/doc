@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { configStore } from "@/lib/config-store";
 import { getActiveProvider } from "@/lib/ai/get-active-provider";
-import { findSimilarForFile } from "@/lib/docling/vector-store";
+import { findSimilarForFile, getChunksForFile } from "@/lib/docling/vector-store";
 import { hasEmbeddings } from "@/lib/docling/vector-store";
 
 const DEFAULT_SYSTEM_PROMPT =
@@ -64,12 +64,16 @@ export async function sendDocumentChatMessage(
     0.5,
   );
 
-  const context =
-    similar.length > 0
-      ? similar
-          .map((s) => s.chunkText)
-          .join("\n\n")
-      : "Контекст из документа не найден.";
+  let context: string;
+  if (similar.length > 0) {
+    context = similar.map((s) => s.chunkText).join("\n\n");
+  } else {
+    const fallbackChunks = await getChunksForFile(input.fileId, input.userId, 15);
+    context =
+      fallbackChunks.length > 0
+        ? fallbackChunks.map((c) => c.chunkText).join("\n\n")
+        : "Контекст из документа не найден.";
+  }
 
   const enhancedSystem = `${systemPrompt}\n\n--- Контекст из документа ---\n${context}`;
 
