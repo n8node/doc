@@ -54,6 +54,7 @@ export async function transcribeFile(
   filename: string,
   mimeType: string,
   userId: string,
+  durationMinutes: number,
 ): Promise<TranscriptionResult> {
   const task = await prisma.aiTask.create({
     data: {

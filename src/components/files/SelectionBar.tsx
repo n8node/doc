@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, Trash2, FolderInput, Copy, BrainCircuit, Loader2 } from "lucide-react";
+import { X, Download, Trash2, FolderInput, Copy, BrainCircuit, Loader2, Mic2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/utils";
 
@@ -16,6 +16,8 @@ interface SelectionBarProps {
   onClear: () => void;
   onAiAnalyze?: () => void;
   aiAnalyzing?: boolean;
+  onTranscribe?: () => void;
+  transcribeAnalyzing?: boolean;
 }
 
 export function SelectionBar({
@@ -28,6 +30,8 @@ export function SelectionBar({
   onClear,
   onAiAnalyze,
   aiAnalyzing,
+  onTranscribe,
+  transcribeAnalyzing,
 }: SelectionBarProps) {
   return (
     <AnimatePresence>
@@ -114,6 +118,25 @@ export function SelectionBar({
                   )}
                   <span className="hidden sm:inline">
                     {aiAnalyzing ? "Анализ..." : "AI Анализ"}
+                  </span>
+                </Button>
+              )}
+
+              {onTranscribe && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onTranscribe}
+                  disabled={transcribeAnalyzing}
+                  className="gap-2 text-amber-600 hover:bg-amber-500/10 hover:text-amber-600"
+                >
+                  {transcribeAnalyzing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mic2 className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {transcribeAnalyzing ? "Транскрипция..." : "Транскрибировать"}
                   </span>
                 </Button>
               )}

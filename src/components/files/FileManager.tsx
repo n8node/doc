@@ -28,6 +28,7 @@ import {
   ScanSearch,
   BrainCircuit,
   CheckSquare,
+  Mic2,
 } from "lucide-react";
 import {
   Dialog,
@@ -68,7 +69,12 @@ interface FileItem {
   size: number;
   folderId: string | null;
   mediaMetadata: { durationSeconds?: number } | null;
-  aiMetadata?: { processedAt?: string; numPages?: number; tablesCount?: number } | null;
+  aiMetadata?: {
+    processedAt?: string;
+    numPages?: number;
+    tablesCount?: number;
+    transcriptProcessedAt?: string;
+  } | null;
   createdAt: string;
   hasShareLink?: boolean;
   shareLinksCount?: number;
@@ -212,8 +218,12 @@ export function FileManager() {
 
   const [analyzingFiles, setAnalyzingFiles] = useState<Set<string>>(new Set());
   const [analyzeError, setAnalyzeError] = useState<Map<string, string>>(new Map());
+  const [transcribingFiles, setTranscribingFiles] = useState<Set<string>>(new Set());
+  const [transcribeError, setTranscribeError] = useState<Map<string, string>>(new Map());
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState<number | null>(null);
   const [embeddingTokensUsedThisMonth, setEmbeddingTokensUsedThisMonth] = useState<number>(0);
+  const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState<number | null>(null);
+  const [transcriptionMinutesUsedThisMonth, setTranscriptionMinutesUsedThisMonth] = useState<number>(0);
   const [documentChatAllowed, setDocumentChatAllowed] = useState(false);
 
   const [mediaModal, setMediaModal] = useState<{
@@ -549,11 +559,15 @@ export function FileManager() {
           const planData = await planRes.json();
           setEmbeddingTokensQuota(planData.embeddingTokensQuota ?? null);
           setEmbeddingTokensUsedThisMonth(planData.embeddingTokensUsedThisMonth ?? 0);
+          setTranscriptionMinutesQuota(planData.transcriptionMinutesQuota ?? null);
+          setTranscriptionMinutesUsedThisMonth(planData.transcriptionMinutesUsedThisMonth ?? 0);
           setDocumentChatAllowed(!!planData.features?.document_chat);
         }
       } catch {
         setEmbeddingTokensQuota(null);
         setEmbeddingTokensUsedThisMonth(0);
+        setTranscriptionMinutesQuota(null);
+        setTranscriptionMinutesUsedThisMonth(0);
       }
     } catch {
       toast.error("Ошибка загрузки данных");
@@ -1011,6 +1025,23 @@ export function FileManager() {
     }
   };
 
+  const TRANSCRIBABLE_MIMES = new Set([
+    "audio/wav",
+    "audio/wave",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/aac",
+    "audio/ogg",
+    "audio/flac",
+    "video/mp4",
+    "video/x-msvideo",
+    "video/avi",
+    "video/quicktime",
+    "video/x-m4v",
+  ]);
+
   const PROCESSABLE_MIMES = new Set([
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1025,6 +1056,76 @@ export function FileManager() {
 
   const embeddingQuotaExceeded =
     embeddingTokensQuota != null && embeddingTokensUsedThisMonth >= embeddingTokensQuota;
+
+  const transcriptionQuotaExceeded =
+    transcriptionMinutesQuota != null &&
+    (transcriptionMinutesUsedThisMonth ?? 0) >= transcriptionMinutesQuota;
+
+  const pollTranscribeStatus = async (fileId: string, toastId: string | number): Promise<"ok" | "err"> => {
+    const maxAttempts = 600;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const res = await fetch(`/api/v1/files/transcribe?fileId=${encodeURIComponent(fileId)}`);
+        const data = await res.json();
+        if (data.status === "completed" && data.transcriptText != null) {
+          toast.success("Транскрипт готов", { id: toastId });
+          return "ok";
+        }
+        if (data.status === "failed" || data.error) {
+          toast.error(data.error || "Ошибка транскрибации", { id: toastId });
+          setTranscribeError((m) => new Map(m).set(fileId, data.error || "Ошибка"));
+          return "err";
+        }
+      } catch {
+        toast.error("Не удалось проверить статус", { id: toastId });
+        return "err";
+      }
+    }
+    toast.error("Превышено время ожидания", { id: toastId });
+    return "err";
+  };
+
+  const handleTranscribeFile = async (id: string) => {
+    setTranscribingFiles((s) => new Set(s).add(id));
+    setTranscribeError((m) => {
+      const n = new Map(m);
+      n.delete(id);
+      return n;
+    });
+    const toastId = toast.loading("Транскрибация...");
+    try {
+      const res = await fetch("/api/v1/files/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data.error || "Ошибка транскрибации";
+        toast.error(msg, { id: toastId });
+        setTranscribeError((m) => new Map(m).set(id, msg));
+        if (res.status === 403 && data.code === "TRANSCRIPTION_QUOTA_EXCEEDED") loadData();
+        return;
+      }
+      if (res.status === 202 && data.status === "processing") {
+        await pollTranscribeStatus(id, toastId);
+        loadData();
+        return;
+      }
+      toast.success("Транскрипт готов", { id: toastId });
+      loadData();
+    } catch {
+      toast.error("Не удалось запустить транскрибацию", { id: toastId });
+      setTranscribeError((m) => new Map(m).set(id, "Сетевая ошибка"));
+    } finally {
+      setTranscribingFiles((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
+    }
+  };
 
   const pollProcessStatus = async (fileId: string, toastId: string | number): Promise<"ok" | "err"> => {
     const maxAttempts = 600;
@@ -1094,6 +1195,123 @@ export function FileManager() {
   };
 
   const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
+  const [bulkTranscribing, setBulkTranscribing] = useState(false);
+
+  const handleBulkTranscribe = async () => {
+    const ids = files
+      .filter(
+        (f) =>
+          selectedFiles.has(f.id) &&
+          TRANSCRIBABLE_MIMES.has(f.mimeType) &&
+          !f.aiMetadata?.transcriptProcessedAt &&
+          f.mediaMetadata?.durationSeconds != null,
+      )
+      .map((f) => f.id);
+
+    if (ids.length === 0) {
+      toast.error("Нет подходящих аудио/видео для транскрибации");
+      return;
+    }
+
+    setBulkTranscribing(true);
+    ids.forEach((id) => setTranscribingFiles((s) => new Set(s).add(id)));
+
+    const toastId = toast.loading(`Транскрибация: запущено ${ids.length} файлов...`);
+    const pending = new Set(ids);
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const id of ids) {
+      try {
+        const res = await fetch("/api/v1/files/transcribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileId: id }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          pending.delete(id);
+          failed++;
+          setTranscribeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+          setTranscribingFiles((s) => {
+            const n = new Set(s);
+            n.delete(id);
+            return n;
+          });
+          if (res.status === 403 && data.code === "TRANSCRIPTION_QUOTA_EXCEEDED") {
+            loadData();
+            toast.error(data.error, { id: toastId });
+          }
+          continue;
+        }
+      } catch {
+        pending.delete(id);
+        failed++;
+        setTranscribeError((m) => new Map(m).set(id, "Сетевая ошибка"));
+        setTranscribingFiles((s) => {
+          const n = new Set(s);
+          n.delete(id);
+          return n;
+        });
+      }
+    }
+
+    const maxPollRounds = 400;
+    let pollRounds = 0;
+    while (pending.size > 0 && pollRounds < maxPollRounds) {
+      pollRounds++;
+      await new Promise((r) => setTimeout(r, 2500));
+      toast.loading(`Транскрибация: ожидание ${pending.size} из ${ids.length}...`, { id: toastId });
+      for (const id of Array.from(pending)) {
+        try {
+          const res = await fetch(`/api/v1/files/transcribe?fileId=${encodeURIComponent(id)}`);
+          const data = await res.json();
+          if (data.status === "completed" && data.transcriptText != null) {
+            pending.delete(id);
+            succeeded++;
+            setTranscribingFiles((s) => {
+              const n = new Set(s);
+              n.delete(id);
+              return n;
+            });
+          } else if (data.status === "failed" || data.error) {
+            pending.delete(id);
+            failed++;
+            setTranscribeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+            setTranscribingFiles((s) => {
+              const n = new Set(s);
+              n.delete(id);
+              return n;
+            });
+          }
+        } catch {
+          /* keep in pending */
+        }
+      }
+    }
+
+    if (pending.size > 0) {
+      pending.forEach((id) => {
+        setTranscribingFiles((s) => {
+          const n = new Set(s);
+          n.delete(id);
+          return n;
+        });
+        setTranscribeError((m) => new Map(m).set(id, "Таймаут ожидания"));
+      });
+      failed += pending.size;
+    }
+
+    if (failed === 0) {
+      toast.success(`Транскрибация завершена: ${succeeded} файлов`, { id: toastId });
+    } else {
+      toast.error(`Транскрибация: ${succeeded} успешно, ${failed} с ошибками`, { id: toastId });
+    }
+
+    setBulkTranscribing(false);
+    clearSelection();
+    loadData();
+  };
 
   const handleBulkAnalyze = async () => {
     const processableIds = files
@@ -1801,6 +2019,15 @@ export function FileManager() {
           ? () => handleProcessFile(file.id)
           : undefined
       }
+      onTranscribe={
+        !transcriptionQuotaExceeded &&
+        TRANSCRIBABLE_MIMES.has(file.mimeType) &&
+        !file.aiMetadata?.transcriptProcessedAt &&
+        !transcribingFiles.has(file.id) &&
+        file.mediaMetadata?.durationSeconds != null
+          ? () => handleTranscribeFile(file.id)
+          : undefined
+      }
       onChat={
         documentChatAllowed &&
         PROCESSABLE_MIMES.has(file.mimeType) &&
@@ -1813,6 +2040,9 @@ export function FileManager() {
       isProcessable={PROCESSABLE_MIMES.has(file.mimeType)}
       isAnalyzing={analyzingFiles.has(file.id)}
       analyzeError={analyzeError.get(file.id)}
+      isTranscribable={TRANSCRIBABLE_MIMES.has(file.mimeType)}
+      isTranscribing={transcribingFiles.has(file.id)}
+      transcribeError={transcribeError.get(file.id)}
     />
   );
 
@@ -2691,6 +2921,35 @@ export function FileManager() {
                                       AI
                                     </span>
                                   )}
+                                  {TRANSCRIBABLE_MIMES.has(file.mimeType) && transcribingFiles.has(file.id) && (
+                                    <span className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse" title="Транскрибируется...">
+                                      <Mic2 className="h-4 w-4" />
+                                    </span>
+                                  )}
+                                  {TRANSCRIBABLE_MIMES.has(file.mimeType) && transcribeError.get(file.id) && !transcribingFiles.has(file.id) && (
+                                    <span className="flex items-center rounded-md p-1.5 text-red-500" title={transcribeError.get(file.id)}>
+                                      <Mic2 className="h-4 w-4" />
+                                    </span>
+                                  )}
+                                  {!transcriptionQuotaExceeded &&
+                                    TRANSCRIBABLE_MIMES.has(file.mimeType) &&
+                                    !file.aiMetadata?.transcriptProcessedAt &&
+                                    !transcribingFiles.has(file.id) &&
+                                    file.mediaMetadata?.durationSeconds != null && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleTranscribeFile(file.id)}
+                                        className="rounded-md p-1.5 text-amber-500 transition-colors hover:bg-amber-500/10"
+                                        aria-label="Транскрибировать"
+                                      >
+                                        <Mic2 className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  {TRANSCRIBABLE_MIMES.has(file.mimeType) && file.aiMetadata?.transcriptProcessedAt && !transcribingFiles.has(file.id) && (
+                                    <span className="flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-600" title="Транскрипт готов">
+                                      <Mic2 className="h-3.5 w-3.5" />
+                                    </span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteFile(file.id)}
@@ -2761,6 +3020,20 @@ export function FileManager() {
               : undefined
           }
           aiAnalyzing={bulkAnalyzing}
+          onTranscribe={
+            !transcriptionQuotaExceeded &&
+            selectedFiles.size > 0 &&
+            files.some(
+              (f) =>
+                selectedFiles.has(f.id) &&
+                TRANSCRIBABLE_MIMES.has(f.mimeType) &&
+                !f.aiMetadata?.transcriptProcessedAt &&
+                f.mediaMetadata?.durationSeconds != null,
+            )
+              ? handleBulkTranscribe
+              : undefined
+          }
+          transcribeAnalyzing={bulkTranscribing}
         />
       )}
 

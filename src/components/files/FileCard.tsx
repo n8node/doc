@@ -26,6 +26,7 @@ import {
   ScanSearch,
   BrainCircuit,
   MessageCircle,
+  Mic2,
 } from "lucide-react";
 import {
   Tooltip,
@@ -42,7 +43,12 @@ interface FileCardProps {
   size: number;
   createdAt: string;
   mediaMetadata?: { durationSeconds?: number } | null;
-  aiMetadata?: { processedAt?: string; numPages?: number; tablesCount?: number } | null;
+  aiMetadata?: {
+    processedAt?: string;
+    numPages?: number;
+    tablesCount?: number;
+    transcriptProcessedAt?: string;
+  } | null;
   hasShareLink?: boolean;
   shareLinksCount?: number;
   selected: boolean;
@@ -55,12 +61,16 @@ interface FileCardProps {
   onRename?: () => void;
   onShareLinksClick?: () => void;
   onProcess?: () => void;
+  onTranscribe?: () => void;
   onChat?: () => void;
   onDelete: () => void;
   index: number;
   isProcessable?: boolean;
   isAnalyzing?: boolean;
   analyzeError?: string;
+  isTranscribable?: boolean;
+  isTranscribing?: boolean;
+  transcribeError?: string;
 }
 
 interface FolderCardProps {
@@ -225,12 +235,16 @@ export function FileCard({
   onRename,
   onShareLinksClick,
   onProcess,
+  onTranscribe,
   onChat,
   onDelete,
   index,
   isProcessable = false,
   isAnalyzing,
   analyzeError,
+  isTranscribable = false,
+  isTranscribing,
+  transcribeError,
 }: FileCardProps) {
   const { icon: Icon, color, bg } = getFileIcon(mimeType);
   const [thumbnailError, setThumbnailError] = useState(false);
@@ -238,6 +252,7 @@ export function FileCard({
   const isMedia = mimeType.startsWith("video/") || mimeType.startsWith("audio/");
   const isVideo = mimeType.startsWith("video/");
   const isProcessed = !!aiMetadata?.processedAt;
+  const isTranscribed = !!aiMetadata?.transcriptProcessedAt;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -333,6 +348,33 @@ export function FileCard({
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600 font-medium" title="Документ обработан AI">
                   <BrainCircuit className="h-3 w-3" />
                   AI
+                </span>
+              </>
+            )}
+            {isTranscribable && isTranscribing && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 text-amber-500 animate-pulse" title="Транскрибируется...">
+                  <Mic2 className="h-3 w-3" />
+                  Транскрипция...
+                </span>
+              </>
+            )}
+            {isTranscribable && transcribeError && !isTranscribing && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 text-red-500" title={transcribeError}>
+                  <Mic2 className="h-3 w-3" />
+                  Ошибка
+                </span>
+              </>
+            )}
+            {isTranscribable && isTranscribed && !isTranscribing && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-amber-600 font-medium" title="Транскрипт готов">
+                  <Mic2 className="h-3 w-3" />
+                  Транскрипт
                 </span>
               </>
             )}
@@ -493,6 +535,24 @@ export function FileCard({
                 </button>
               </TooltipTrigger>
               <TooltipContent>Анализ документа</TooltipContent>
+            </Tooltip>
+          )}
+
+          {onTranscribe && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTranscribe();
+                  }}
+                  className={cn(ACTION_BTN, "text-amber-500 hover:bg-amber-500/10")}
+                >
+                  <Mic2 className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Транскрибировать</TooltipContent>
             </Tooltip>
           )}
 
