@@ -25,7 +25,15 @@ export interface DoclingHealthResponse {
 
 export interface DoclingFormatsResponse {
   formats: string[];
+  asr_formats?: string[];
   ocr_languages: string[];
+}
+
+export interface DoclingTranscribeResponse {
+  filename: string;
+  content_hash: string;
+  text: string;
+  format: string;
 }
 
 export type ProcessingStatus = "pending" | "processing" | "completed" | "failed";

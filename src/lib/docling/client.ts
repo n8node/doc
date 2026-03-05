@@ -2,6 +2,7 @@ import type {
   DoclingExtractResponse,
   DoclingHealthResponse,
   DoclingFormatsResponse,
+  DoclingTranscribeResponse,
 } from "./types";
 
 const DOCLING_URL = process.env.DOCLING_URL || "http://localhost:8000";
@@ -60,6 +61,25 @@ class DoclingClient {
       signal: AbortSignal.timeout(5_000),
     });
     if (!res.ok) throw new Error(`Docling formats request failed: ${res.status}`);
+    return res.json();
+  }
+
+  async transcribeFromBuffer(buffer: Buffer, filename: string): Promise<DoclingTranscribeResponse> {
+    const form = new FormData();
+    const blob = new Blob([new Uint8Array(buffer)]);
+    form.append("file", blob, filename);
+
+    const res = await fetch(`${this.baseUrl}/transcribe`, {
+      method: "POST",
+      body: form,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Docling transcribe failed (${res.status}): ${body}`);
+    }
+
     return res.json();
   }
 }
