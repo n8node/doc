@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Loader2, Key, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
