@@ -67,10 +67,13 @@ interface FolderCardProps {
   id: string;
   name: string;
   createdAt: string;
+  hasShareLink?: boolean;
+  shareLinksCount?: number;
   selected: boolean;
   onSelect: (id: string, selected: boolean) => void;
   onClick: () => void;
   onShare: () => void;
+  onShareLinksClick?: () => void;
   onMove?: () => void;
   onCopy?: () => void;
   onRename?: () => void;
@@ -521,10 +524,13 @@ export function FolderCard({
   id,
   name,
   createdAt,
+  hasShareLink = false,
+  shareLinksCount = 0,
   selected,
   onSelect,
   onClick,
   onShare,
+  onShareLinksClick,
   onMove,
   onCopy,
   onRename,
@@ -580,6 +586,22 @@ export function FolderCard({
               <Clock className="h-3 w-3" />
               {formatRelativeDate(createdAt)}
             </span>
+            {hasShareLink && (
+              <>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShareLinksClick?.();
+                  }}
+                  className="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary transition-colors hover:bg-primary/20"
+                >
+                  <Link2 className="h-3 w-3" />
+                  {shareLinksCount > 1 ? `Ссылок: ${shareLinksCount}` : "Ссылка"}
+                </button>
+              </>
+            )}
           </div>
         </div>
 

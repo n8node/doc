@@ -91,6 +91,8 @@ interface FolderItem {
   name: string;
   parentId: string | null;
   createdAt: string;
+  hasShareLink?: boolean;
+  shareLinksCount?: number;
   deletedAt?: string | null;
 }
 
@@ -226,6 +228,7 @@ export function FileManager() {
   } | null>(null);
 
   const [shareLinksTarget, setShareLinksTarget] = useState<{
+    type: "FILE" | "FOLDER";
     id: string;
     name: string;
   } | null>(null);
@@ -1765,7 +1768,7 @@ export function FileManager() {
         setRenameTarget({ type: "file", id: file.id, name: file.name })
       }
       onShareLinksClick={() =>
-        setShareLinksTarget({ id: file.id, name: file.name })
+        setShareLinksTarget({ type: "FILE", id: file.id, name: file.name })
       }
       onProcess={
         !embeddingQuotaExceeded &&
@@ -2387,11 +2390,16 @@ export function FileManager() {
                         id={folder.id}
                         name={folder.name}
                         createdAt={folder.createdAt}
+                        hasShareLink={folder.hasShareLink}
+                        shareLinksCount={folder.shareLinksCount}
                         selected={selectedFolders.has(folder.id)}
                         onSelect={handleFolderSelect}
                         onClick={() => navigateToFolder(folder.id)}
                         onShare={() =>
                           setShareTarget({ type: "FOLDER", id: folder.id, name: folder.name })
+                        }
+                        onShareLinksClick={() =>
+                          setShareLinksTarget({ type: "FOLDER", id: folder.id, name: folder.name })
                         }
                         onMove={
                           hasMoveTargets
@@ -2482,7 +2490,7 @@ export function FileManager() {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    setShareLinksTarget({ id: file.id, name: file.name })
+                                    setShareLinksTarget({ type: "FILE", id: file.id, name: file.name })
                                   }
                                   className="absolute right-2 top-2 z-10 rounded-full bg-primary/90 px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
                                 >
@@ -2946,8 +2954,9 @@ export function FileManager() {
           setShareLinksTarget(null);
           loadData();
         }}
-        fileId={shareLinksTarget?.id ?? null}
-        fileName={shareLinksTarget?.name ?? ""}
+        fileId={shareLinksTarget?.type === "FILE" ? shareLinksTarget.id : null}
+        folderId={shareLinksTarget?.type === "FOLDER" ? shareLinksTarget.id : null}
+        targetName={shareLinksTarget?.name ?? ""}
       />
 
       <FullPageDropOverlay />

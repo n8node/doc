@@ -35,7 +35,8 @@ interface ShareLinksListDialogProps {
   open: boolean;
   onClose: () => void;
   fileId: string | null;
-  fileName: string;
+  folderId: string | null;
+  targetName: string;
   isAdmin?: boolean;
 }
 
@@ -43,7 +44,8 @@ export function ShareLinksListDialog({
   open,
   onClose,
   fileId,
-  fileName,
+  folderId,
+  targetName,
   isAdmin = false,
 }: ShareLinksListDialogProps) {
   const [links, setLinks] = useState<ShareLinkItem[]>([]);
@@ -51,14 +53,25 @@ export function ShareLinksListDialog({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || !fileId) return;
+    if (!open) return;
+    if (!fileId && !folderId) return;
 
     const load = async () => {
       setLoading(true);
       try {
-        const endpoint = isAdmin
-          ? `/api/v1/admin/storage/share-links?fileId=${encodeURIComponent(fileId)}`
-          : `/api/v1/share?fileId=${encodeURIComponent(fileId)}`;
+        let endpoint: string;
+        if (isAdmin && fileId) {
+          endpoint = `/api/v1/admin/storage/share-links?fileId=${encodeURIComponent(fileId)}`;
+        } else if (!isAdmin) {
+          const param = fileId
+            ? `fileId=${encodeURIComponent(fileId)}`
+            : `folderId=${encodeURIComponent(folderId!)}`;
+          endpoint = `/api/v1/share?${param}`;
+        } else {
+          setLinks([]);
+          setLoading(false);
+          return;
+        }
         const res = await fetch(endpoint);
         if (res.ok) {
           const data = await res.json();
@@ -72,7 +85,7 @@ export function ShareLinksListDialog({
     };
 
     load();
-  }, [open, fileId, isAdmin]);
+  }, [open, fileId, folderId, isAdmin]);
 
   const handleDelete = async (linkId: string) => {
     setDeletingId(linkId);
@@ -126,7 +139,7 @@ export function ShareLinksListDialog({
             Публичные ссылки
           </DialogTitle>
           <p className="text-sm text-muted-foreground truncate">
-            {fileName}
+            {targetName}
           </p>
         </DialogHeader>
 

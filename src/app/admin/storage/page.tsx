@@ -892,7 +892,8 @@ export default function AdminStoragePage() {
           loadData();
         }}
         fileId={shareLinksDialog.fileId}
-        fileName={shareLinksDialog.fileName}
+        folderId={null}
+        targetName={shareLinksDialog.fileName}
         isAdmin
       />
     </div>
