@@ -24,6 +24,7 @@ export async function GET() {
       type: p.type,
       baseUrl: p.baseUrl,
       modelName: p.modelName,
+      chatModelName: p.chatModelName,
       apiKeyMasked: p.apiKey ? maskApiKey(decryptApiKey(p.apiKey)) : null,
       hasApiKey: !!p.apiKey,
       folderId: p.folderId,
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, type, baseUrl, modelName, apiKey, folderId, config } = body;
+  const { name, type, baseUrl, modelName, chatModelName, apiKey, folderId, config } = body;
 
   if (!name || typeof name !== "string") {
     return NextResponse.json({ error: "name обязателен" }, { status: 400 });
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
       type,
       baseUrl: baseUrl || null,
       modelName: modelName || null,
+      chatModelName: chatModelName || null,
       apiKey: apiKey ? encryptApiKey(apiKey) : null,
       folderId: folderId || null,
       isActive: false,

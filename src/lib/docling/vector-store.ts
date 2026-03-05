@@ -71,6 +71,40 @@ export async function findSimilar(
   return results;
 }
 
+/**
+ * Find similar embeddings for a single file (RAG per file).
+ * Ensures user has access via file ownership check.
+ */
+export async function findSimilarForFile(
+  queryVector: number[],
+  fileId: string,
+  userId: string,
+  limit = 10,
+  threshold = 0.7,
+): Promise<SimilarityResult[]> {
+  const vectorStr = `[${queryVector.join(",")}]`;
+
+  const results = await prisma.$queryRaw<SimilarityResult[]>`
+    SELECT
+      de.id,
+      de.file_id AS "fileId",
+      de.chunk_text AS "chunkText",
+      de.chunk_index AS "chunkIndex",
+      1 - (de.vector <=> ${vectorStr}::vector) AS similarity,
+      de.metadata
+    FROM document_embeddings de
+    JOIN files f ON f.id = de.file_id
+    WHERE de.file_id = ${fileId}
+      AND f.user_id = ${userId}
+      AND f.deleted_at IS NULL
+      AND 1 - (de.vector <=> ${vectorStr}::vector) >= ${threshold}
+    ORDER BY de.vector <=> ${vectorStr}::vector
+    LIMIT ${limit}
+  `;
+
+  return results;
+}
+
 export async function deleteEmbeddingsByFileId(fileId: string): Promise<void> {
   await prisma.$executeRaw`
     DELETE FROM document_embeddings WHERE file_id = ${fileId}

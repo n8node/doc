@@ -30,6 +30,7 @@ model User {
   aiTasks       AiTask[]
   shareLinks    ShareLink[]
   historyEvents HistoryEvent[]
+  documentChatMessages DocumentChatMessage[]
   preferences   Json?       @map("preferences") // { theme?: string, emailNotifications?: boolean, ... }
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
@@ -54,10 +55,11 @@ model File {
   mediaMetadata Json?       @map("media_metadata")
   deletedAt     DateTime?   @map("deleted_at")
   trashBatchId  String?     @map("trash_batch_id")
-  shareLinks    ShareLink[]
-  embeddings    DocumentEmbedding[]
-  aiTasks       AiTask[]
-  createdAt     DateTime    @default(now()) @map("created_at")
+  shareLinks       ShareLink[]
+  embeddings       DocumentEmbedding[]
+  aiTasks          AiTask[]
+  chatMessages     DocumentChatMessage[]
+  createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
   @@map("files")
@@ -168,20 +170,35 @@ model AdminConfig {
 }
 
 model AiProvider {
-  id        String         @id @default(cuid()) @map("id")
-  name      String         @unique @map("name")
-  type      AiProviderType @map("type")
-  baseUrl   String?        @map("base_url")
-  modelName String?        @map("model_name")
-  apiKey    String?        @map("api_key") // зашифровано
-  folderId  String?        @map("folder_id") // Yandex Cloud
-  isActive  Boolean        @default(false) @map("is_active")
-  config    Json?          @map("config") // { temperature, max_tokens, ... }
-  tasks     AiTask[]
-  createdAt DateTime       @default(now()) @map("created_at")
-  updatedAt DateTime       @updatedAt @map("updated_at")
+  id             String         @id @default(cuid()) @map("id")
+  name           String         @unique @map("name")
+  type           AiProviderType @map("type")
+  baseUrl        String?        @map("base_url")
+  modelName      String?        @map("model_name") // модель эмбеддинга
+  chatModelName  String?        @map("chat_model_name") // модель чата
+  apiKey         String?        @map("api_key") // зашифровано
+  folderId       String?        @map("folder_id") // Yandex Cloud
+  isActive       Boolean        @default(false) @map("is_active")
+  config         Json?          @map("config") // { temperature, max_tokens, ... }
+  tasks          AiTask[]
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
 
   @@map("ai_providers")
+}
+
+model DocumentChatMessage {
+  id        String   @id @default(cuid()) @map("id")
+  fileId    String   @map("file_id")
+  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @map("role") // "user" | "assistant"
+  content   String   @map("content")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("document_chat_messages")
+  @@index([fileId, userId])
 }
 
 model DocumentEmbedding {

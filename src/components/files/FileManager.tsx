@@ -54,6 +54,7 @@ import { ShareDialog } from "./ShareDialog";
 import { ShareLinksListDialog } from "./ShareLinksListDialog";
 import { MoveDialog } from "./MoveDialog";
 import { RenameDialog } from "./RenameDialog";
+import { DocumentChatDialog } from "./DocumentChatDialog";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { cn, formatBytes } from "@/lib/utils";
@@ -271,6 +272,7 @@ export function FileManager() {
     name: string;
     currentFolderId: string | null;
   } | null>(null);
+  const [chatFile, setChatFile] = useState<{ id: string; name: string } | null>(null);
 
   const openUploadPicker = useCallback(() => {
     uploadInputRef.current?.click();
@@ -1764,6 +1766,11 @@ export function FileManager() {
           ? () => handleProcessFile(file.id)
           : undefined
       }
+      onChat={
+        PROCESSABLE_MIMES.has(file.mimeType) && !!file.aiMetadata?.processedAt
+          ? () => setChatFile({ id: file.id, name: file.name })
+          : undefined
+      }
       onDelete={() => handleDeleteFile(file.id)}
       index={index}
       isProcessable={PROCESSABLE_MIMES.has(file.mimeType)}
@@ -2907,6 +2914,16 @@ export function FileManager() {
           targetId={shareTarget.id}
           targetName={shareTarget.name}
           onClose={() => setShareTarget(null)}
+        />
+      )}
+
+      {/* Document chat dialog */}
+      {chatFile && (
+        <DocumentChatDialog
+          fileId={chatFile.id}
+          fileName={chatFile.name}
+          open={!!chatFile}
+          onOpenChange={(open) => !open && setChatFile(null)}
         />
       )}
 

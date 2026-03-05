@@ -21,6 +21,7 @@ export async function getActiveProvider(): Promise<{
     baseUrl: row.baseUrl ?? undefined,
     apiKey: row.apiKey ? decryptApiKey(row.apiKey) : undefined,
     modelName: row.modelName ?? "text-embedding-3-small",
+    chatModelName: row.chatModelName ?? undefined,
     folderId: row.folderId ?? undefined,
   };
 

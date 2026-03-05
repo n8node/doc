@@ -1,10 +1,11 @@
 import type { AiProvider } from "../provider.interface";
-import type { AiEmbeddingResult, AiAnalysisResult, AiProviderConfig } from "../types";
+import type { AiEmbeddingResult, AiAnalysisResult, AiProviderConfig, ChatMessage, ChatCompletionResult } from "../types";
 
 export class GigaChatProvider implements AiProvider {
   private baseUrl: string;
   private apiKey: string;
   private model: string;
+  private chatModel: string;
   private accessToken: string | null = null;
   private tokenExpiresAt = 0;
 
@@ -12,6 +13,7 @@ export class GigaChatProvider implements AiProvider {
     this.baseUrl = (config.baseUrl ?? "https://gigachat.devices.sberbank.ru/api/v1").replace(/\/$/, "");
     this.apiKey = config.apiKey ?? "";
     this.model = config.modelName || "Embeddings";
+    this.chatModel = config.chatModelName || "GigaChat";
   }
 
   private async ensureToken(): Promise<string> {
@@ -88,6 +90,51 @@ export class GigaChatProvider implements AiProvider {
 
   async generateImageDescription(_imageBuffer: Buffer): Promise<string> {
     return "";
+  }
+
+  async generateChatCompletion(
+    messages: ChatMessage[],
+    options?: { systemPrompt?: string },
+  ): Promise<ChatCompletionResult> {
+    const token = await this.ensureToken();
+    const msgs = options?.systemPrompt
+      ? [{ role: "system" as const, content: options.systemPrompt }, ...messages]
+      : messages;
+
+    const res = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: this.chatModel,
+        messages: msgs.map((m) => ({ role: m.role, content: m.content })),
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`GigaChat chat error ${res.status}: ${err}`);
+    }
+
+    const data = await res.json();
+    const choice = data.choices?.[0];
+    const content = choice?.message?.content ?? "";
+    const rawUsage = data.usage && typeof data.usage === "object" ? (data.usage as Record<string, unknown>) : null;
+    const usage = rawUsage
+      ? {
+          promptTokens: Number(rawUsage.prompt_tokens) || 0,
+          completionTokens: Number(rawUsage.completion_tokens) || 0,
+          totalTokens: Number(rawUsage.total_tokens) || 0,
+        }
+      : undefined;
+
+    return {
+      content,
+      model: data.model ?? this.chatModel,
+      usage,
+    };
   }
 
   async isAvailable(): Promise<boolean> {

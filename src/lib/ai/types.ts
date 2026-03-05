@@ -3,9 +3,21 @@ export interface AiProviderConfig {
   baseUrl?: string;
   apiKey?: string;
   modelName: string;
+  chatModelName?: string;
   folderId?: string;
   temperature?: number;
   maxTokens?: number;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+export interface ChatCompletionResult {
+  content: string;
+  model?: string;
+  usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
 }
 
 export interface AiEmbeddingUsage {

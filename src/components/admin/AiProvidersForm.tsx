@@ -23,6 +23,7 @@ interface ProviderItem {
   type: string;
   baseUrl: string | null;
   modelName: string | null;
+  chatModelName: string | null;
   apiKeyMasked: string | null;
   hasApiKey: boolean;
   folderId: string | null;
@@ -32,13 +33,14 @@ interface ProviderItem {
 
 const PROVIDER_PRESETS: Record<
   string,
-  { label: string; type: string; baseUrl: string; modelName: string; needsFolderId: boolean }
+  { label: string; type: string; baseUrl: string; modelName: string; chatModelName: string; needsFolderId: boolean }
 > = {
   openai: {
     label: "OpenAI",
     type: "CLOUD",
     baseUrl: "https://api.openai.com/v1",
     modelName: "text-embedding-3-small",
+    chatModelName: "gpt-4o-mini",
     needsFolderId: false,
   },
   openrouter: {
@@ -46,6 +48,7 @@ const PROVIDER_PRESETS: Record<
     type: "CLOUD",
     baseUrl: "https://openrouter.ai/api/v1",
     modelName: "openai/text-embedding-3-small",
+    chatModelName: "openai/gpt-4o-mini",
     needsFolderId: false,
   },
   yandex: {
@@ -53,6 +56,7 @@ const PROVIDER_PRESETS: Record<
     type: "CLOUD",
     baseUrl: "https://llm.api.cloud.yandex.net",
     modelName: "general:embedding",
+    chatModelName: "yandexgpt",
     needsFolderId: true,
   },
   gigachat: {
@@ -60,6 +64,7 @@ const PROVIDER_PRESETS: Record<
     type: "CLOUD",
     baseUrl: "https://gigachat.devices.sberbank.ru/api/v1",
     modelName: "Embeddings",
+    chatModelName: "GigaChat",
     needsFolderId: false,
   },
 };
@@ -90,6 +95,7 @@ function ProviderCard({
   const [form, setForm] = useState({
     baseUrl: provider.baseUrl ?? "",
     modelName: provider.modelName ?? "",
+    chatModelName: provider.chatModelName ?? "",
     apiKey: "",
     folderId: provider.folderId ?? "",
     isActive: provider.isActive,
@@ -101,6 +107,7 @@ function ProviderCard({
       const body: Record<string, unknown> = {
         baseUrl: form.baseUrl,
         modelName: form.modelName,
+        chatModelName: form.chatModelName || null,
         isActive: form.isActive,
         folderId: form.folderId || null,
       };
@@ -185,7 +192,7 @@ function ProviderCard({
               {preset?.label ?? provider.name}
             </p>
             <p className="text-xs text-muted-foreground">
-              {provider.modelName ?? "модель не указана"}
+              Embed: {provider.modelName ?? "—"} | Chat: {provider.chatModelName ?? "—"}
               {provider.isActive ? (
                 <span className="ml-2 text-emerald-500">● Активен</span>
               ) : (
@@ -213,6 +220,7 @@ function ProviderCard({
                   setForm({
                     baseUrl: provider.baseUrl ?? "",
                     modelName: provider.modelName ?? "",
+                    chatModelName: provider.chatModelName ?? "",
                     apiKey: "",
                     folderId: provider.folderId ?? "",
                     isActive: provider.isActive,
@@ -241,12 +249,22 @@ function ProviderCard({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Модель
+                Модель эмбеддинга
               </label>
               <Input
                 value={form.modelName}
                 onChange={(e) => setForm((f) => ({ ...f, modelName: e.target.value }))}
                 placeholder={preset?.modelName ?? "model-name"}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Модель чата (RAG)
+              </label>
+              <Input
+                value={form.chatModelName}
+                onChange={(e) => setForm((f) => ({ ...f, chatModelName: e.target.value }))}
+                placeholder={preset?.chatModelName ?? "chat-model"}
               />
             </div>
           </div>
@@ -359,6 +377,40 @@ export function AiProvidersForm() {
   } | null>(null);
   const [statsPeriod, setStatsPeriod] = useState(30);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [chatPrompt, setChatPrompt] = useState("");
+  const [chatPromptSaving, setChatPromptSaving] = useState(false);
+
+  const loadChatPrompt = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/ai/chat-prompt");
+      if (res.ok) {
+        const data = await res.json();
+        setChatPrompt(data.systemPrompt ?? "");
+      }
+    } catch {
+      setChatPrompt("");
+    }
+  }, []);
+
+  const saveChatPrompt = useCallback(async () => {
+    setChatPromptSaving(true);
+    try {
+      const res = await fetch("/api/admin/ai/chat-prompt", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ systemPrompt: chatPrompt }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Ошибка");
+      }
+      toast.success("Промпт чата сохранён");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка сохранения");
+    } finally {
+      setChatPromptSaving(false);
+    }
+  }, [chatPrompt]);
 
   const loadEmbeddingStats = useCallback(async () => {
     setStatsLoading(true);
@@ -396,6 +448,7 @@ export function AiProvidersForm() {
 
   useEffect(() => { loadProviders(); }, [loadProviders]);
   useEffect(() => { loadEmbeddingStats(); }, [loadEmbeddingStats]);
+  useEffect(() => { loadChatPrompt(); }, [loadChatPrompt]);
 
   const existingNames = new Set(providers.map((p) => p.name));
   const availablePresets = Object.entries(PROVIDER_PRESETS).filter(
@@ -415,6 +468,7 @@ export function AiProvidersForm() {
           type: preset.type,
           baseUrl: preset.baseUrl,
           modelName: preset.modelName,
+          chatModelName: preset.chatModelName,
         }),
       });
       if (!res.ok) {
@@ -512,6 +566,29 @@ export function AiProvidersForm() {
             </>
           ) : null}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-surface2/30 p-4">
+        <h3 className="text-sm font-semibold text-foreground">Промпт чата по документу (RAG)</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Системная инструкция для AI при ответах на вопросы по документу. Будет дополнена контекстом из документа.
+        </p>
+        <textarea
+          value={chatPrompt}
+          onChange={(e) => setChatPrompt(e.target.value)}
+          placeholder="Ты — полезный ассистент. Отвечай на вопросы пользователя на основе контекста из документа..."
+          rows={4}
+          className="mt-3 w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+        />
+        <Button
+          size="sm"
+          onClick={saveChatPrompt}
+          disabled={chatPromptSaving}
+          className="mt-2 gap-1.5"
+        >
+          {chatPromptSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+          Сохранить промпт
+        </Button>
       </div>
 
       <div>

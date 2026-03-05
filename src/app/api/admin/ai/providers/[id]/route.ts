@@ -27,6 +27,7 @@ export async function GET(
     type: provider.type,
     baseUrl: provider.baseUrl,
     modelName: provider.modelName,
+    chatModelName: provider.chatModelName,
     apiKeyMasked: provider.apiKey ? maskApiKey(decryptApiKey(provider.apiKey)) : null,
     hasApiKey: !!provider.apiKey,
     folderId: provider.folderId,
@@ -54,11 +55,12 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { baseUrl, modelName, apiKey, folderId, isActive, config } = body;
+  const { baseUrl, modelName, chatModelName, apiKey, folderId, isActive, config } = body;
 
   const data: Record<string, unknown> = {};
   if (baseUrl !== undefined) data.baseUrl = baseUrl || null;
   if (modelName !== undefined) data.modelName = modelName || null;
+  if (chatModelName !== undefined) data.chatModelName = chatModelName || null;
   if (folderId !== undefined) data.folderId = folderId || null;
   if (isActive !== undefined) data.isActive = !!isActive;
   if (config !== undefined) data.config = config;

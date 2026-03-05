@@ -25,6 +25,7 @@ import {
   Link2,
   ScanSearch,
   BrainCircuit,
+  MessageCircle,
 } from "lucide-react";
 import {
   Tooltip,
@@ -54,6 +55,7 @@ interface FileCardProps {
   onRename?: () => void;
   onShareLinksClick?: () => void;
   onProcess?: () => void;
+  onChat?: () => void;
   onDelete: () => void;
   index: number;
   isProcessable?: boolean;
@@ -220,6 +222,7 @@ export function FileCard({
   onRename,
   onShareLinksClick,
   onProcess,
+  onChat,
   onDelete,
   index,
   isProcessable = false,
@@ -470,6 +473,24 @@ export function FileCard({
                 </button>
               </TooltipTrigger>
               <TooltipContent>Анализ документа</TooltipContent>
+            </Tooltip>
+          )}
+
+          {onChat && isProcessed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChat();
+                  }}
+                  className={cn(ACTION_BTN, "text-cyan-500 hover:bg-cyan-500/10")}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Чат по документу</TooltipContent>
             </Tooltip>
           )}
 
