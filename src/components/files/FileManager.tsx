@@ -1027,6 +1027,7 @@ export function FileManager() {
     }
   };
 
+  // REMINDER: Video transcription disabled. Uncomment video mimes when restoring.
   const TRANSCRIBABLE_MIMES = new Set([
     "audio/wav",
     "audio/wave",
@@ -1037,11 +1038,11 @@ export function FileManager() {
     "audio/aac",
     "audio/ogg",
     "audio/flac",
-    "video/mp4",
-    "video/x-msvideo",
-    "video/avi",
-    "video/quicktime",
-    "video/x-m4v",
+    // "video/mp4",
+    // "video/x-msvideo",
+    // "video/avi",
+    // "video/quicktime",
+    // "video/x-m4v",
   ]);
 
   const PROCESSABLE_MIMES = new Set([
@@ -1206,12 +1207,12 @@ export function FileManager() {
           selectedFiles.has(f.id) &&
           TRANSCRIBABLE_MIMES.has(f.mimeType) &&
           !f.aiMetadata?.transcriptProcessedAt &&
-          f.mediaMetadata?.durationSeconds != null,
+          (f.mediaMetadata?.durationSeconds != null || f.mimeType.startsWith("audio/")),
       )
       .map((f) => f.id);
 
     if (ids.length === 0) {
-      toast.error("Нет подходящих аудио/видео для транскрибации");
+      toast.error("Нет подходящих аудио для транскрибации");
       return;
     }
 
@@ -2026,7 +2027,7 @@ export function FileManager() {
         TRANSCRIBABLE_MIMES.has(file.mimeType) &&
         !file.aiMetadata?.transcriptProcessedAt &&
         !transcribingFiles.has(file.id) &&
-        file.mediaMetadata?.durationSeconds != null
+        (file.mediaMetadata?.durationSeconds != null || file.mimeType.startsWith("audio/"))
           ? () => handleTranscribeFile(file.id)
           : undefined
       }
@@ -2942,7 +2943,7 @@ export function FileManager() {
                                     TRANSCRIBABLE_MIMES.has(file.mimeType) &&
                                     !file.aiMetadata?.transcriptProcessedAt &&
                                     !transcribingFiles.has(file.id) &&
-                                    file.mediaMetadata?.durationSeconds != null && (
+                                    (file.mediaMetadata?.durationSeconds != null || file.mimeType.startsWith("audio/")) && (
                                       <button
                                         type="button"
                                         onClick={() => handleTranscribeFile(file.id)}
@@ -3040,7 +3041,7 @@ export function FileManager() {
                 selectedFiles.has(f.id) &&
                 TRANSCRIBABLE_MIMES.has(f.mimeType) &&
                 !f.aiMetadata?.transcriptProcessedAt &&
-                f.mediaMetadata?.durationSeconds != null,
+                (f.mediaMetadata?.durationSeconds != null || f.mimeType.startsWith("audio/")),
             )
               ? handleBulkTranscribe
               : undefined

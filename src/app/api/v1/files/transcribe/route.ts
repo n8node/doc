@@ -14,8 +14,11 @@ function isVideoMime(mimeType: string): boolean {
   return mimeType.startsWith("video/");
 }
 
+// REMINDER: Video transcription is temporarily disabled. Restore when stable (memory, timeouts).
+// Search for "REMINDER: Video transcription" to find all related commented code.
+
 /**
- * POST /api/v1/files/transcribe — start audio/video transcription
+ * POST /api/v1/files/transcribe — start audio transcription (video disabled)
  * Body: { fileId: string }
  */
 export async function POST(request: NextRequest) {
@@ -41,11 +44,20 @@ export async function POST(request: NextRequest) {
 
   const file = await prisma.file.findFirst({
     where: { id: fileId, userId, deletedAt: null },
-    select: { id: true, s3Key: true, name: true, mimeType: true, mediaMetadata: true },
+    select: { id: true, s3Key: true, name: true, mimeType: true, mediaMetadata: true, size: true },
   });
   if (!file) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
+
+  // REMINDER: Video transcription disabled. Re-enable by removing this block.
+  if (isVideoMime(file.mimeType)) {
+    return NextResponse.json(
+      { error: "Транскрибация видео временно недоступна. Используйте аудиофайлы.", code: "VIDEO_DISABLED" },
+      { status: 503 },
+    );
+  }
+
   if (!isTranscribable(file.mimeType)) {
     return NextResponse.json(
       { error: `Формат ${file.mimeType} не поддерживается для транскрибации` },
@@ -54,7 +66,15 @@ export async function POST(request: NextRequest) {
   }
 
   const metadata = file.mediaMetadata as { durationSeconds?: number } | null;
-  const durationSeconds = metadata?.durationSeconds;
+  let durationSeconds = metadata?.durationSeconds;
+  // Fallback for audio: estimate duration from file size if unknown (~2 min per MB for compressed audio)
+  if (
+    (durationSeconds == null || !Number.isFinite(durationSeconds) || durationSeconds < 0) &&
+    file.size
+  ) {
+    const sizeMb = Number(file.size) / (1024 * 1024);
+    durationSeconds = Math.max(1, Math.min(120, Math.ceil(sizeMb * 2))); // 1–120 min
+  }
   if (
     durationSeconds == null ||
     !Number.isFinite(durationSeconds) ||
@@ -63,7 +83,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Длительность файла неизвестна. Для транскрибации загрузите аудио или видео с метаданными длительности.",
+          "Длительность файла неизвестна. Для транскрибации загрузите аудио с метаданными длительности.",
         code: "DURATION_UNKNOWN",
       },
       { status: 400 },
@@ -72,21 +92,12 @@ export async function POST(request: NextRequest) {
   const durationMinutes = Math.ceil(durationSeconds / 60);
 
   const plan = await getUserPlan(userId);
-  const maxVideo = plan?.maxTranscriptionVideoMinutes ?? 60;
+  // const maxVideo = plan?.maxTranscriptionVideoMinutes ?? 60; // REMINDER: Video disabled
   const maxAudio = plan?.maxTranscriptionAudioMinutes ?? 120;
   const quota = plan?.transcriptionMinutesQuota ?? null;
 
-  if (isVideoMime(file.mimeType) && durationMinutes > maxVideo) {
-    return NextResponse.json(
-      {
-        error: `Видео не должно превышать ${maxVideo} минут по вашему тарифу`,
-        code: "MAX_VIDEO_MINUTES_EXCEEDED",
-        maxMinutes: maxVideo,
-      },
-      { status: 403 },
-    );
-  }
-  if (!isVideoMime(file.mimeType) && durationMinutes > maxAudio) {
+  // if (isVideoMime(file.mimeType) && durationMinutes > maxVideo) { ... } // REMINDER: Video disabled
+  if (durationMinutes > maxAudio) {
     return NextResponse.json(
       {
         error: `Аудио не должно превышать ${maxAudio} минут по вашему тарифу`,

@@ -5,6 +5,7 @@ import { getDoclingClient } from "./client";
 import { prisma } from "../prisma";
 import type { ProcessingStatus } from "./types";
 
+// REMINDER: Video transcription disabled. API rejects video before reaching here. Restore when ready.
 const TRANSCRIBABLE_MIMES = new Set([
   "audio/wav",
   "audio/wave",

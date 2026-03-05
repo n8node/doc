@@ -37,6 +37,7 @@ interface PlanDialogProps {
   plan?: PlanData | null;
 }
 
+// REMINDER: Video transcription disabled. Restore "аудио/видео" when re-enabling.
 const featureLabels: Record<string, string> = {
   video_player: "Видеоплеер",
   audio_player: "Аудиоплеер",
@@ -44,7 +45,7 @@ const featureLabels: Record<string, string> = {
   folder_share: "Шаринг папок",
   ai_search: "AI-поиск",
   document_chat: "AI чаты по документам",
-  transcription: "Транскрибация аудио/видео",
+  transcription: "Транскрибация",
 };
 
 const bytesToGb = (bytes: number) => +(bytes / (1024 * 1024 * 1024)).toFixed(2);
@@ -295,9 +296,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
             </p>
           </div>
 
-          {/* Транскрибация */}
+          {/* Транскрибация — REMINDER: video fields commented, restore when video transcription enabled */}
           <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
-            <h4 className="text-sm font-medium">Транскрибация аудио/видео</h4>
+            <h4 className="text-sm font-medium">Транскрибация</h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -311,6 +312,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
                   placeholder="Без лимита"
                 />
               </div>
+              {/* REMINDER: Video max minutes — uncomment when video transcription restored
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Макс. видео (мин)
@@ -322,6 +324,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
                   onChange={(e) => setMaxTranscriptionVideoMinutes(e.target.value)}
                 />
               </div>
+              */}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
