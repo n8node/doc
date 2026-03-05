@@ -37,7 +37,7 @@ export function SelectionBar({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 100 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+          className="fixed bottom-6 left-[calc(9rem+50vw)] z-50 -translate-x-1/2"
         >
           <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface/95 px-4 py-3 shadow-2xl backdrop-blur-lg">
             {/* Selection info */}
