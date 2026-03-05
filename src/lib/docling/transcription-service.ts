@@ -78,6 +78,7 @@ export async function transcribeFile(
           textLength: result.text.length,
           contentHash: result.content_hash,
           format: result.format,
+          minutesUsed: durationMinutes,
         },
         completedAt: new Date(),
       },

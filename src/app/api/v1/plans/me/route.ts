@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { getUserPlan } from "@/lib/plan-service";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
+import { getTranscriptionMinutesUsedThisMonth } from "@/lib/ai/transcription-usage";
 
 export async function GET(req: NextRequest) {
   const userId = await getUserIdFromRequest(req);
@@ -17,10 +18,16 @@ export async function GET(req: NextRequest) {
       ? await getEmbeddingTokensUsedThisMonth(userId)
       : undefined;
 
+  const transcriptionMinutesUsedThisMonth =
+    plan.transcriptionMinutesQuota != null
+      ? await getTranscriptionMinutesUsedThisMonth(userId)
+      : undefined;
+
   return NextResponse.json({
     ...plan,
     storageQuota: Number(plan.storageQuota),
     maxFileSize: Number(plan.maxFileSize),
     embeddingTokensUsedThisMonth,
+    transcriptionMinutesUsedThisMonth,
   });
 }

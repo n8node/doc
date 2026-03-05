@@ -28,6 +28,9 @@ export async function getUserPlan(userId: string) {
       storageQuota: user.plan.storageQuota,
       maxFileSize: user.plan.maxFileSize,
       embeddingTokensQuota: user.plan.embeddingTokensQuota,
+      transcriptionMinutesQuota: user.plan.transcriptionMinutesQuota,
+      maxTranscriptionVideoMinutes: user.plan.maxTranscriptionVideoMinutes,
+      maxTranscriptionAudioMinutes: user.plan.maxTranscriptionAudioMinutes,
       features: (user.plan.features as Record<string, boolean>) ?? {},
     };
   }
@@ -37,6 +40,9 @@ export async function getUserPlan(userId: string) {
     storageQuota: user.storageQuota,
     maxFileSize: user.maxFileSize,
     embeddingTokensQuota: null,
+    transcriptionMinutesQuota: null,
+    maxTranscriptionVideoMinutes: 60,
+    maxTranscriptionAudioMinutes: 120,
     features: FREE_PLAN_DEFAULTS.features,
   };
 }
