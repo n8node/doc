@@ -39,7 +39,11 @@ export class OpenRouterProvider implements AiProvider {
     let raw =
       data.data?.[0]?.embedding ??
       (Array.isArray(data.data) ? data.data[0]?.embedding : undefined) ??
-      (Array.isArray(data) ? data[0]?.embedding : undefined);
+      (typeof data.data === "object" && data.data !== null && !Array.isArray(data.data)
+        ? (data.data as { embedding?: unknown }).embedding
+        : undefined) ??
+      (Array.isArray(data) ? data[0]?.embedding : undefined) ??
+      (typeof data.embedding !== "undefined" ? data.embedding : undefined);
 
     if (typeof raw === "string") {
       try {
@@ -53,12 +57,23 @@ export class OpenRouterProvider implements AiProvider {
       }
     }
 
-    const embedding = Array.isArray(raw) ? raw : undefined;
+    let embedding: number[] | undefined;
+    if (Array.isArray(raw) && raw.length > 0) {
+      embedding = raw.every((x) => typeof x === "number")
+        ? (raw as number[])
+        : (raw as unknown[]).map((x) => (typeof x === "number" ? x : Number(x)));
+      if (embedding.some((n) => !Number.isFinite(n))) {
+        embedding = undefined;
+      }
+    }
+
     if (!embedding || embedding.length === 0) {
+      const snippet = JSON.stringify(data).slice(0, 500);
+      console.error("[OpenRouter] Invalid embedding response structure:", snippet);
       throw new Error("OpenRouter returned invalid embedding format");
     }
 
-    const vector = embedding.every((x) => typeof x === "number") ? embedding : embedding.map(Number);
+    const vector = embedding;
 
     const rawUsage = data.usage && typeof data.usage === "object" ? (data.usage as Record<string, unknown>) : null;
     const usage =
