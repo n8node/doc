@@ -137,21 +137,26 @@ model HistoryEvent {
 }
 
 model Plan {
-  id                    String    @id @default(cuid()) @map("id")
-  name                  String    @unique @map("name")
-  isFree                Boolean   @default(false) @map("is_free")
-  storageQuota          BigInt    @map("storage_quota")
-  maxFileSize           BigInt    @default(536870912) @map("max_file_size") // 512MB
-  trashRetentionDays    Int       @default(0) @map("trash_retention_days")
-  embeddingTokensQuota  Int?      @map("embedding_tokens_quota") // токенов на эмбеддинг в месяц, null = без лимита
-  features              Json?     @map("features") // { "video_player": true, "audio_player": true, ... }
-  priceMonthly          Int?      @map("price_monthly")
-  priceYearly           Int?      @map("price_yearly")
-  sortOrder             Int       @default(0) @map("sort_order")
-  isPopular             Boolean   @default(false) @map("is_popular")
-  yookassaPlanId        String?   @map("yookassa_plan_id")
-  users                 User[]
-  payments              Payment[]
+  id                             String       @id @default(cuid()) @map("id")
+  name                           String       @unique @map("name")
+  isFree                         Boolean      @default(false) @map("is_free")
+  storageQuota                   BigInt       @map("storage_quota")
+  maxFileSize                    BigInt       @default(536870912) @map("max_file_size") // 512MB
+  trashRetentionDays             Int          @default(0) @map("trash_retention_days")
+  embeddingTokensQuota           Int?         @map("embedding_tokens_quota") // токенов на эмбеддинг в месяц, null = без лимита
+  features                       Json?        @map("features") // { "video_player": true, "transcription": true, ... }
+  transcriptionMinutesQuota      Int?         @map("transcription_minutes_quota") // минут транскрипции в месяц, null = без лимита
+  maxTranscriptionVideoMinutes   Int          @default(60) @map("max_transcription_video_minutes") // макс. длительность видео в одном файле
+  maxTranscriptionAudioMinutes   Int          @default(120) @map("max_transcription_audio_minutes") // макс. длительность аудио в одном файле
+  transcriptionProviderId        String?      @map("transcription_provider_id") // премиум-провайдер, null = Docling/Whisper
+  transcriptionProvider         AiProvider?  @relation("PlanTranscriptionProvider", fields: [transcriptionProviderId], references: [id])
+  priceMonthly                   Int?         @map("price_monthly")
+  priceYearly                    Int?         @map("price_yearly")
+  sortOrder                      Int          @default(0) @map("sort_order")
+  isPopular                      Boolean      @default(false) @map("is_popular")
+  yookassaPlanId                 String?      @map("yookassa_plan_id")
+  users                          User[]
+  payments                       Payment[]
 
   @@map("plans")
 }
@@ -186,19 +191,21 @@ model AdminConfig {
 }
 
 model AiProvider {
-  id             String         @id @default(cuid()) @map("id")
-  name           String         @unique @map("name")
-  type           AiProviderType @map("type")
-  baseUrl        String?        @map("base_url")
-  modelName      String?        @map("model_name") // модель эмбеддинга
-  chatModelName  String?        @map("chat_model_name") // модель чата
-  apiKey         String?        @map("api_key") // зашифровано
-  folderId       String?        @map("folder_id") // Yandex Cloud
-  isActive       Boolean        @default(false) @map("is_active")
-  config         Json?          @map("config") // { temperature, max_tokens, ... }
-  tasks          AiTask[]
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  id              String           @id @default(cuid()) @map("id")
+  name            String           @unique @map("name")
+  type            AiProviderType   @map("type")
+  purpose         AiProviderPurpose @default(EMBEDDING_CHAT) @map("purpose") // EMBEDDING_CHAT | TRANSCRIPTION
+  baseUrl         String?          @map("base_url")
+  modelName       String?          @map("model_name") // модель эмбеддинга или транскрибации
+  chatModelName   String?          @map("chat_model_name") // модель чата (только для EMBEDDING_CHAT)
+  apiKey          String?          @map("api_key") // зашифровано
+  folderId        String?          @map("folder_id") // Yandex Cloud
+  isActive        Boolean          @default(false) @map("is_active")
+  config          Json?            @map("config") // { temperature, max_tokens, language, ... }
+  tasks           AiTask[]
+  plansAsTranscriptionProvider Plan[] @relation("PlanTranscriptionProvider")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
 
   @@map("ai_providers")
 }
@@ -278,6 +285,12 @@ enum AiTaskType {
   OCR
   SUMMARIZE
   CLASSIFY
+  TRANSCRIPTION
+}
+
+enum AiProviderPurpose {
+  EMBEDDING_CHAT
+  TRANSCRIPTION
 }
 
 enum TaskStatus {
