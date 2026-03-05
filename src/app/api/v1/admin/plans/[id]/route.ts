@@ -15,7 +15,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
   const { id } = await ctx.params;
   const body = await req.json();
-  const { name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota, features, priceMonthly, priceYearly, isPopular } = body;
+  const {
+    name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
+    transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
+    features, priceMonthly, priceYearly, isPopular,
+  } = body;
   const data: Record<string, unknown> = {};
   if (name != null) data.name = name;
   if (isFree != null) data.isFree = !!isFree;
@@ -31,6 +35,21 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       embeddingTokensQuota === null || embeddingTokensQuota === ""
         ? null
         : Math.max(0, parseInt(String(embeddingTokensQuota), 10) || 0) || null;
+  }
+  if (transcriptionMinutesQuota !== undefined) {
+    data.transcriptionMinutesQuota =
+      transcriptionMinutesQuota === null || transcriptionMinutesQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(transcriptionMinutesQuota), 10) || 0) || null;
+  }
+  if (maxTranscriptionVideoMinutes != null) {
+    data.maxTranscriptionVideoMinutes = Math.max(1, parseInt(String(maxTranscriptionVideoMinutes), 10) || 60);
+  }
+  if (maxTranscriptionAudioMinutes != null) {
+    data.maxTranscriptionAudioMinutes = Math.max(1, parseInt(String(maxTranscriptionAudioMinutes), 10) || 120);
+  }
+  if (transcriptionProviderId !== undefined) {
+    data.transcriptionProviderId = transcriptionProviderId || null;
   }
   if (features != null) data.features = features;
   if (priceMonthly != null) data.priceMonthly = priceMonthly;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -21,6 +21,10 @@ interface PlanData {
   maxFileSize: number;
   trashRetentionDays: number;
   embeddingTokensQuota: number | null;
+  transcriptionMinutesQuota?: number | null;
+  maxTranscriptionVideoMinutes?: number;
+  maxTranscriptionAudioMinutes?: number;
+  transcriptionProviderId?: string | null;
   features: Record<string, boolean>;
   priceMonthly: number | null;
   priceYearly: number | null;
@@ -40,6 +44,7 @@ const featureLabels: Record<string, string> = {
   folder_share: "Шаринг папок",
   ai_search: "AI-поиск",
   document_chat: "AI чаты по документам",
+  transcription: "Транскрибация аудио/видео",
 };
 
 const bytesToGb = (bytes: number) => +(bytes / (1024 * 1024 * 1024)).toFixed(2);
@@ -65,9 +70,29 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
   });
   const [trashDays, setTrashDays] = useState("0");
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
+  const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState("");
+  const [maxTranscriptionVideoMinutes, setMaxTranscriptionVideoMinutes] = useState("60");
+  const [maxTranscriptionAudioMinutes, setMaxTranscriptionAudioMinutes] = useState("120");
+  const [transcriptionProviderId, setTranscriptionProviderId] = useState("");
+  const [transcriptionProviders, setTranscriptionProviders] = useState<Array<{ id: string; name: string }>>([]);
   const [priceMonthly, setPriceMonthly] = useState("");
   const [priceYearly, setPriceYearly] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const loadTranscriptionProviders = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/admin/ai/providers");
+      const data = await res.json();
+      const list = (data.providers ?? []).filter((p: { purpose?: string }) => p.purpose === "TRANSCRIPTION");
+      setTranscriptionProviders(list.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
+    } catch {
+      setTranscriptionProviders([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) loadTranscriptionProviders();
+  }, [open, loadTranscriptionProviders]);
 
   useEffect(() => {
     if (plan) {
@@ -80,6 +105,16 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setEmbeddingTokensQuota(
         plan.embeddingTokensQuota != null ? String(plan.embeddingTokensQuota) : "",
       );
+      setTranscriptionMinutesQuota(
+        plan.transcriptionMinutesQuota != null ? String(plan.transcriptionMinutesQuota) : "",
+      );
+      setMaxTranscriptionVideoMinutes(
+        String(plan.maxTranscriptionVideoMinutes ?? 60),
+      );
+      setMaxTranscriptionAudioMinutes(
+        String(plan.maxTranscriptionAudioMinutes ?? 120),
+      );
+      setTranscriptionProviderId(plan.transcriptionProviderId ?? "");
       setFeatures(plan.features || {});
       setPriceMonthly(plan.priceMonthly != null ? String(plan.priceMonthly) : "");
       setPriceYearly(plan.priceYearly != null ? String(plan.priceYearly) : "");
@@ -91,6 +126,10 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setMaxFileMb("512");
       setTrashDays("0");
       setEmbeddingTokensQuota("");
+      setTranscriptionMinutesQuota("");
+      setMaxTranscriptionVideoMinutes("60");
+      setMaxTranscriptionAudioMinutes("120");
+      setTranscriptionProviderId("");
       setFeatures({
         video_player: true,
         audio_player: true,
@@ -98,6 +137,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         folder_share: true,
         ai_search: false,
         document_chat: false,
+        transcription: false,
       });
       setPriceMonthly("");
       setPriceYearly("");
@@ -121,6 +161,12 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       embeddingTokensQuota: embeddingTokensQuota.trim()
         ? Math.max(0, parseInt(embeddingTokensQuota, 10) || 0) || null
         : null,
+      transcriptionMinutesQuota: transcriptionMinutesQuota.trim()
+        ? Math.max(0, parseInt(transcriptionMinutesQuota, 10) || 0) || null
+        : null,
+      maxTranscriptionVideoMinutes: Math.max(1, parseInt(maxTranscriptionVideoMinutes, 10) || 60),
+      maxTranscriptionAudioMinutes: Math.max(1, parseInt(maxTranscriptionAudioMinutes, 10) || 120),
+      transcriptionProviderId: transcriptionProviderId.trim() || null,
       features,
       priceMonthly: priceMonthly ? parseInt(priceMonthly, 10) : null,
       priceYearly: priceYearly ? parseInt(priceYearly, 10) : null,
@@ -247,6 +293,66 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
             <p className="mt-1 text-xs text-muted-foreground">
               Оставьте пустым для безлимита. Учитываются токены при эмбеддинге (AI-анализ).
             </p>
+          </div>
+
+          {/* Транскрибация */}
+          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
+            <h4 className="text-sm font-medium">Транскрибация аудио/видео</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Минут в месяц (квота)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={transcriptionMinutesQuota}
+                  onChange={(e) => setTranscriptionMinutesQuota(e.target.value)}
+                  placeholder="Без лимита"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Макс. видео (мин)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={maxTranscriptionVideoMinutes}
+                  onChange={(e) => setMaxTranscriptionVideoMinutes(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Макс. аудио (мин)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={maxTranscriptionAudioMinutes}
+                  onChange={(e) => setMaxTranscriptionAudioMinutes(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Премиум-провайдер
+                </label>
+                <select
+                  value={transcriptionProviderId}
+                  onChange={(e) => setTranscriptionProviderId(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                >
+                  <option value="">Docling (Whisper) по умолчанию</option>
+                  {transcriptionProviders.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Цены */}

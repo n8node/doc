@@ -38,7 +38,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota, features, priceMonthly, priceYearly, isPopular } = body;
+  const {
+    name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
+    transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
+    features, priceMonthly, priceYearly, isPopular,
+  } = body;
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Название обязательно" }, { status: 400 });
@@ -67,6 +71,13 @@ export async function POST(req: NextRequest) {
       ? null
       : Math.max(0, parseInt(String(embeddingTokensQuota), 10) || 0) || null;
 
+  const transQuota =
+    transcriptionMinutesQuota === undefined || transcriptionMinutesQuota === null || transcriptionMinutesQuota === ""
+      ? null
+      : Math.max(0, parseInt(String(transcriptionMinutesQuota), 10) || 0) || null;
+  const maxVideoMin = Math.max(1, parseInt(String(maxTranscriptionVideoMinutes), 10) || 60);
+  const maxAudioMin = Math.max(1, parseInt(String(maxTranscriptionAudioMinutes), 10) || 120);
+
   const plan = await prisma.plan.create({
     data: {
       name: name.trim(),
@@ -75,6 +86,10 @@ export async function POST(req: NextRequest) {
       maxFileSize: fileSizeValue,
       trashRetentionDays: typeof trashRetentionDays === "number" ? trashRetentionDays : 0,
       embeddingTokensQuota: tokensQuota,
+      transcriptionMinutesQuota: transQuota,
+      maxTranscriptionVideoMinutes: maxVideoMin,
+      maxTranscriptionAudioMinutes: maxAudioMin,
+      transcriptionProviderId: transcriptionProviderId || null,
       features: features ?? {},
       priceMonthly: priceMonthly ?? null,
       priceYearly: priceYearly ?? null,
