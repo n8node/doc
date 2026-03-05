@@ -154,8 +154,14 @@ export default function DashboardSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Ошибка создания ключа");
+      const text = await res.text();
+      let data: { error?: string; id?: string; name?: string; key?: string; keyPrefix?: string; createdAt?: string } = {};
+      try {
+        if (text) data = JSON.parse(text);
+      } catch {
+        if (!res.ok) throw new Error(`Ошибка сервера ${res.status}`);
+      }
+      if (!res.ok) throw new Error(data.error ?? `Ошибка создания ключа (${res.status})`);
       setApiKeys((prev) => [
         {
           id: data.id,
@@ -180,10 +186,12 @@ export default function DashboardSettingsPage() {
     setDeletingKeyId(id);
     try {
       const res = await fetch(`/api/user/api-keys/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Ошибка удаления");
-      }
+      const text = await res.text();
+      let data: { error?: string } = {};
+      try {
+        if (text) data = JSON.parse(text);
+      } catch { /* empty or invalid JSON */ }
+      if (!res.ok) throw new Error(data.error ?? `Ошибка удаления (${res.status})`);
       setApiKeys((prev) => prev.filter((k) => k.id !== id));
       toast.success("Ключ удалён");
     } catch (err) {

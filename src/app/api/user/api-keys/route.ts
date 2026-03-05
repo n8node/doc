@@ -54,13 +54,20 @@ export async function POST(request: NextRequest) {
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
-  const result = await createApiKey(session.user.id, name || "API Key");
-
-  return NextResponse.json({
-    id: result.id,
-    name: result.name,
-    key: result.key,
-    keyPrefix: result.keyPrefix,
-    createdAt: new Date().toISOString(),
-  });
+  try {
+    const result = await createApiKey(session.user.id, name || "API Key");
+    return NextResponse.json({
+      id: result.id,
+      name: result.name,
+      key: result.key,
+      keyPrefix: result.keyPrefix,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error("[api-keys] create error:", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Ошибка создания ключа" },
+      { status: 500 }
+    );
+  }
 }
