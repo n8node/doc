@@ -12,6 +12,7 @@ import {
   History,
   Clock3,
   Search,
+  MessageCircle,
   Crown,
   Settings,
   LogOut,
@@ -44,6 +45,7 @@ const sectionItems: SectionItem[] = [
 
 const extraNavItems = [
   { href: "/dashboard/search", icon: Search, label: "Поиск" },
+  { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
   { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },
 ];
 
