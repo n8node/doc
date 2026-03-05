@@ -1,17 +1,29 @@
--- Create AiTaskType if not exists
+-- Create AiTaskType if not exists (check in public schema)
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'AiTaskType') THEN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_type t
+        JOIN pg_namespace n ON t.typnamespace = n.oid
+        WHERE t.typname = 'AiTaskType' AND n.nspname = 'public'
+    ) THEN
         CREATE TYPE "AiTaskType" AS ENUM ('EMBEDDING', 'ANALYSIS', 'OCR', 'SUMMARIZE', 'CLASSIFY', 'TRANSCRIPTION');
     ELSE
         ALTER TYPE "AiTaskType" ADD VALUE IF NOT EXISTS 'TRANSCRIPTION';
     END IF;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;  -- type or value already exists
 END $$;
 
 -- Create AiProviderPurpose if not exists
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'AiProviderPurpose') THEN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_type t
+        JOIN pg_namespace n ON t.typnamespace = n.oid
+        WHERE t.typname = 'AiProviderPurpose' AND n.nspname = 'public'
+    ) THEN
         CREATE TYPE "AiProviderPurpose" AS ENUM ('EMBEDDING_CHAT', 'TRANSCRIPTION');
     END IF;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
 END $$;
 
 -- AlterTable ai_providers
