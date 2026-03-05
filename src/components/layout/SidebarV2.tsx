@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -44,15 +45,23 @@ const sectionItems: SectionItem[] = [
 ];
 
 const extraNavItems = [
-  { href: "/dashboard/search", icon: Search, label: "Поиск" },
-  { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
-  { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },
+  { href: "/dashboard/search", icon: Search, label: "Поиск", requireFeature: null as string | null },
+  { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам", requireFeature: "document_chat" },
+  { href: "/dashboard/plans", icon: Crown, label: "Тарифы", requireFeature: null as string | null },
 ];
 
 export function SidebarV2() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [features, setFeatures] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    fetch("/api/plans/me")
+      .then((r) => r.json())
+      .then((d) => setFeatures(d.features ?? {}))
+      .catch(() => {});
+  }, []);
   const activeSection = parseFilesSection(searchParams.get("section"));
   const isFilesPage = pathname === "/dashboard/files" || pathname.startsWith("/dashboard/files");
 
@@ -129,7 +138,9 @@ export function SidebarV2() {
             <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Инструменты
             </p>
-            {extraNavItems.map((item) => {
+            {extraNavItems
+              .filter((item) => !item.requireFeature || !!features[item.requireFeature])
+              .map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <Link key={item.href} href={item.href}>

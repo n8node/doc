@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,14 +19,22 @@ import { SidebarFolderTree } from "./SidebarFolderTree";
 import { buildDashboardFilesUrl, DEFAULT_FILES_SECTION } from "@/lib/files-navigation";
 
 const navItems = [
-  { href: buildDashboardFilesUrl({ section: DEFAULT_FILES_SECTION }), icon: FolderOpen, label: "Файлы" },
-  { href: "/dashboard/search", icon: Search, label: "Поиск" },
-  { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
-  { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },
+  { href: buildDashboardFilesUrl({ section: DEFAULT_FILES_SECTION }), icon: FolderOpen, label: "Файлы", requireFeature: null as string | null },
+  { href: "/dashboard/search", icon: Search, label: "Поиск", requireFeature: null as string | null },
+  { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам", requireFeature: "document_chat" },
+  { href: "/dashboard/plans", icon: Crown, label: "Тарифы", requireFeature: null as string | null },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [features, setFeatures] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    fetch("/api/plans/me")
+      .then((r) => r.json())
+      .then((d) => setFeatures(d.features ?? {}))
+      .catch(() => {});
+  }, []);
 
   return (
     <motion.aside
@@ -45,7 +54,9 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-6">
-          {navItems.map((item) => {
+          {navItems
+            .filter((item) => !item.requireFeature || !!features[item.requireFeature])
+            .map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link key={item.href} href={item.href}>

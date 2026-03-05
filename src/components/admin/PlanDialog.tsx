@@ -39,6 +39,7 @@ const featureLabels: Record<string, string> = {
   share_links: "Ссылки для шаринга",
   folder_share: "Шаринг папок",
   ai_search: "AI-поиск",
+  document_chat: "AI чаты по документам",
 };
 
 const bytesToGb = (bytes: number) => +(bytes / (1024 * 1024 * 1024)).toFixed(2);
@@ -60,6 +61,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     share_links: true,
     folder_share: true,
     ai_search: false,
+    document_chat: false,
   });
   const [trashDays, setTrashDays] = useState("0");
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
@@ -95,6 +97,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         share_links: true,
         folder_share: true,
         ai_search: false,
+        document_chat: false,
       });
       setPriceMonthly("");
       setPriceYearly("");

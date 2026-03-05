@@ -211,6 +211,7 @@ export function FileManager() {
   const [analyzeError, setAnalyzeError] = useState<Map<string, string>>(new Map());
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState<number | null>(null);
   const [embeddingTokensUsedThisMonth, setEmbeddingTokensUsedThisMonth] = useState<number>(0);
+  const [documentChatAllowed, setDocumentChatAllowed] = useState(false);
 
   const [mediaModal, setMediaModal] = useState<{
     type: "video" | "audio";
@@ -539,6 +540,7 @@ export function FileManager() {
           const planData = await planRes.json();
           setEmbeddingTokensQuota(planData.embeddingTokensQuota ?? null);
           setEmbeddingTokensUsedThisMonth(planData.embeddingTokensUsedThisMonth ?? 0);
+          setDocumentChatAllowed(!!planData.features?.document_chat);
         }
       } catch {
         setEmbeddingTokensQuota(null);
@@ -1767,7 +1769,9 @@ export function FileManager() {
           : undefined
       }
       onChat={
-        PROCESSABLE_MIMES.has(file.mimeType) && !!file.aiMetadata?.processedAt
+        documentChatAllowed &&
+        PROCESSABLE_MIMES.has(file.mimeType) &&
+        !!file.aiMetadata?.processedAt
           ? () => setChatFile({ id: file.id, name: file.name })
           : undefined
       }

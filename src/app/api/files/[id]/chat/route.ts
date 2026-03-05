@@ -5,6 +5,7 @@ import {
   sendDocumentChatMessage,
   getDocumentChatHistory,
 } from "@/lib/document-chat-service";
+import { hasFeature } from "@/lib/plan-service";
 
 /**
  * GET /api/files/[id]/chat — load chat history for document
@@ -16,6 +17,14 @@ export async function GET(
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const allowed = await hasFeature(session.user.id, "document_chat");
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Функция AI чатов по документам недоступна на вашем тарифе. Обновите тариф." },
+      { status: 403 },
+    );
   }
 
   const { id: fileId } = await ctx.params;
@@ -38,6 +47,14 @@ export async function POST(
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const allowed = await hasFeature(session.user.id, "document_chat");
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Функция AI чатов по документам недоступна на вашем тарифе. Обновите тариф." },
+      { status: 403 },
+    );
   }
 
   const { id: fileId } = await ctx.params;

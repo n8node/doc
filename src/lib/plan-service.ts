@@ -11,6 +11,7 @@ const FREE_PLAN_DEFAULTS = {
     share_links: true,
     folder_share: true,
     ai_search: false,
+    document_chat: false,
   } as Record<string, boolean>,
 };
 

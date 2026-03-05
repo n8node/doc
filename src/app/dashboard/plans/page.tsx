@@ -46,6 +46,7 @@ const featureLabels: Record<string, string> = {
   share_links: "Публичные ссылки",
   folder_share: "Шаринг папок",
   ai_search: "AI-поиск по документам",
+  document_chat: "AI чаты по документам",
 };
 
 export default function DashboardPlansPage() {

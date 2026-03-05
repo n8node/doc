@@ -29,6 +29,7 @@ async function main() {
         share_links: true,
         folder_share: true,
         ai_search: false,
+        document_chat: false,
       },
       priceMonthly: null,
       priceYearly: null,
@@ -43,6 +44,7 @@ async function main() {
         share_links: true,
         folder_share: true,
         ai_search: false,
+        document_chat: false,
       },
     },
   });
