@@ -57,6 +57,7 @@ import { ShareLinksListDialog } from "./ShareLinksListDialog";
 import { MoveDialog } from "./MoveDialog";
 import { RenameDialog } from "./RenameDialog";
 import { DocumentChatDialog } from "./DocumentChatDialog";
+import { TranscriptDialog } from "./TranscriptDialog";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { cn, formatBytes } from "@/lib/utils";
@@ -288,6 +289,7 @@ export function FileManager() {
     currentFolderId: string | null;
   } | null>(null);
   const [chatFile, setChatFile] = useState<{ id: string; name: string } | null>(null);
+  const [transcriptFile, setTranscriptFile] = useState<{ id: string; name: string } | null>(null);
 
   const openUploadPicker = useCallback(() => {
     uploadInputRef.current?.click();
@@ -2035,6 +2037,11 @@ export function FileManager() {
           ? () => setChatFile({ id: file.id, name: file.name })
           : undefined
       }
+      onViewTranscript={
+        TRANSCRIBABLE_MIMES.has(file.mimeType) && !!file.aiMetadata?.transcriptProcessedAt
+          ? () => setTranscriptFile({ id: file.id, name: file.name })
+          : undefined
+      }
       onDelete={() => handleDeleteFile(file.id)}
       index={index}
       isProcessable={PROCESSABLE_MIMES.has(file.mimeType)}
@@ -2946,9 +2953,14 @@ export function FileManager() {
                                       </button>
                                     )}
                                   {TRANSCRIBABLE_MIMES.has(file.mimeType) && file.aiMetadata?.transcriptProcessedAt && !transcribingFiles.has(file.id) && (
-                                    <span className="flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-600" title="Транскрипт готов">
+                                    <button
+                                      type="button"
+                                      onClick={() => setTranscriptFile({ id: file.id, name: file.name })}
+                                      className="flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-500/20"
+                                      title="Просмотр транскрипта"
+                                    >
                                       <Mic2 className="h-3.5 w-3.5" />
-                                    </span>
+                                    </button>
                                   )}
                                   <button
                                     type="button"
@@ -3296,6 +3308,15 @@ export function FileManager() {
       )}
 
       {/* Document chat dialog */}
+      {transcriptFile && (
+        <TranscriptDialog
+          fileId={transcriptFile.id}
+          fileName={transcriptFile.name}
+          open={!!transcriptFile}
+          onOpenChange={(open) => !open && setTranscriptFile(null)}
+        />
+      )}
+
       {chatFile && (
         <DocumentChatDialog
           fileId={chatFile.id}

@@ -62,6 +62,7 @@ interface FileCardProps {
   onShareLinksClick?: () => void;
   onProcess?: () => void;
   onTranscribe?: () => void;
+  onViewTranscript?: () => void;
   onChat?: () => void;
   onDelete: () => void;
   index: number;
@@ -236,6 +237,7 @@ export function FileCard({
   onShareLinksClick,
   onProcess,
   onTranscribe,
+  onViewTranscript,
   onChat,
   onDelete,
   index,
@@ -372,10 +374,25 @@ export function FileCard({
             {isTranscribable && isTranscribed && !isTranscribing && (
               <>
                 <span>•</span>
-                <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-amber-600 font-medium" title="Транскрипт готов">
-                  <Mic2 className="h-3 w-3" />
-                  Транскрипт
-                </span>
+                {onViewTranscript ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewTranscript();
+                    }}
+                    className="flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-amber-600 font-medium transition-colors hover:bg-amber-500/20"
+                    title="Просмотр транскрипта"
+                  >
+                    <Mic2 className="h-3 w-3" />
+                    Транскрипт
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-amber-600 font-medium" title="Транскрипт готов">
+                    <Mic2 className="h-3 w-3" />
+                    Транскрипт
+                  </span>
+                )}
               </>
             )}
             {hasShareLink && (
