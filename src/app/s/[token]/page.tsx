@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Download, File as FileIcon, FolderOpen, Music, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { formatBytes } from "@/lib/utils";
@@ -64,38 +63,40 @@ export default function SharePage({ params }: { params: { token: string } }) {
     `/api/v1/s/${token}/stream?fileId=${fileId}`;
 
   const renderTree = (node: FolderNode) => (
-    <div key={node.id} className="ml-4 border-l border-border pl-4">
-      <div className="flex items-center gap-2 py-1 text-sm font-medium">
+    <div key={node.id} className="mt-3 space-y-2">
+      <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-background/70 px-3 py-2 text-sm font-medium">
         <FolderOpen className="h-4 w-4 text-primary" />
         {node.name}
       </div>
       {node.files.map((f) => (
         <div
           key={f.id}
-          className="flex items-center gap-3 py-2"
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-border/80 bg-background/80 p-3 shadow-[0_12px_32px_-24px_hsl(var(--foreground)/0.45)]"
         >
           {f.mimeType.startsWith("video/") ? (
-            <Video className="h-4 w-4" />
+            <Video className="h-4 w-4 shrink-0" />
           ) : f.mimeType.startsWith("audio/") ? (
-            <Music className="h-4 w-4" />
+            <Music className="h-4 w-4 shrink-0" />
           ) : (
-            <FileIcon className="h-4 w-4 text-muted-foreground" />
+            <FileIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
-          <span className="flex-1 truncate">{f.name}</span>
+          <span className="min-w-0 flex-1 truncate text-sm">{f.name}</span>
           <span className="text-xs text-muted-foreground">{formatBytes(f.size)}</span>
-          {f.mimeType.startsWith("video/") && (
-            <Button size="sm" variant="outline" onClick={() => setMediaModal({ type: "video", id: f.id })}>
-              Смотреть
+          <div className="flex shrink-0 gap-2">
+            {f.mimeType.startsWith("video/") && (
+              <Button size="sm" variant="outline" onClick={() => setMediaModal({ type: "video", id: f.id })}>
+                Смотреть
+              </Button>
+            )}
+            {f.mimeType.startsWith("audio/") && (
+              <Button size="sm" variant="outline" onClick={() => setMediaModal({ type: "audio", id: f.id })}>
+                Слушать
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => handleDownload(f.id)}>
+              <Download className="h-4 w-4" />
             </Button>
-          )}
-          {f.mimeType.startsWith("audio/") && (
-            <Button size="sm" variant="outline" onClick={() => setMediaModal({ type: "audio", id: f.id })}>
-              Слушать
-            </Button>
-          )}
-          <Button size="sm" variant="outline" onClick={() => handleDownload(f.id)}>
-            <Download className="h-4 w-4" />
-          </Button>
+          </div>
         </div>
       ))}
       {node.folders.map((child) => renderTree(child))}
@@ -112,56 +113,50 @@ export default function SharePage({ params }: { params: { token: string } }) {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-6">
-            <p className="text-center text-muted-foreground">{error}</p>
-          </CardContent>
-        </Card>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <div className="w-full max-w-md rounded-2xl modal-glass p-6">
+          <p className="text-center text-muted-foreground">{error}</p>
+        </div>
       </div>
     );
   }
 
   if (type === "FILE" && file) {
     return (
-      <div className="mx-auto max-w-2xl p-6">
-        <Card>
-          <CardContent className="p-6">
-            <h1 className="mb-4 text-lg font-semibold">{file.name}</h1>
-            <p className="mb-4 text-sm text-muted-foreground">
-              {formatBytes(file.size)}
-            </p>
-            {file.mimeType.startsWith("video/") && (
-              <VideoPlayer src={streamUrl(file.id)} />
-            )}
-            {file.mimeType.startsWith("audio/") && (
-              <AudioPlayer src={streamUrl(file.id)} />
-            )}
-            <Button className="mt-4" onClick={() => handleDownload(file.id)}>
-              <Download className="mr-2 h-4 w-4" /> Скачать
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <div className="w-full max-w-2xl rounded-2xl modal-glass p-6">
+          <h1 className="mb-4 text-lg font-semibold">{file.name}</h1>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {formatBytes(file.size)}
+          </p>
+          {file.mimeType.startsWith("video/") && (
+            <VideoPlayer src={streamUrl(file.id)} />
+          )}
+          {file.mimeType.startsWith("audio/") && (
+            <AudioPlayer src={streamUrl(file.id)} />
+          )}
+          <Button className="mt-4" onClick={() => handleDownload(file.id)}>
+            <Download className="mr-2 h-4 w-4" /> Скачать
+          </Button>
+        </div>
       </div>
     );
   }
 
   if (type === "FOLDER" && folder && tree) {
     return (
-      <div className="mx-auto max-w-2xl p-6">
-        <Card>
-          <CardContent className="p-6">
-            <h1 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-              <FolderOpen className="h-5 w-5 text-primary" />
-              {folder.name}
-            </h1>
-            {renderTree(tree)}
-          </CardContent>
-        </Card>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <div className="w-full max-w-2xl rounded-2xl modal-glass overflow-hidden p-6">
+          <h1 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+            <FolderOpen className="h-5 w-5 text-primary" />
+            {folder.name}
+          </h1>
+          {renderTree(tree)}
+        </div>
 
         {mediaModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-            <div className="w-full max-w-2xl rounded-xl bg-surface p-4">
+            <div className="w-full max-w-2xl rounded-2xl modal-glass overflow-hidden p-4">
               {mediaModal.type === "video" && (
                 <VideoPlayer src={streamUrl(mediaModal.id)} />
               )}
