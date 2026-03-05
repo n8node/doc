@@ -81,7 +81,7 @@ export default function AdminUsersPage() {
       if (roleFilter) params.set("role", roleFilter);
       if (blockedFilter) params.set("blocked", blockedFilter);
 
-      const res = await fetch(`/api/admin/users?${params}`);
+      const res = await fetch(`/api/v1/admin/users?${params}`);
       const data = await res.json();
       if (res.ok) {
         setUsers(data.users);
@@ -97,7 +97,7 @@ export default function AdminUsersPage() {
 
   const loadStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/users/stats");
+      const res = await fetch("/api/v1/admin/users/stats");
       const data = await res.json();
       if (res.ok) setStats(data);
     } catch {}
@@ -126,7 +126,7 @@ export default function AdminUsersPage() {
     if (!confirm(`${user.isBlocked ? "Разблокировать" : "Заблокировать"} ${user.email}?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await fetch(`/api/v1/admin/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isBlocked: !user.isBlocked }),
@@ -149,7 +149,7 @@ export default function AdminUsersPage() {
     if (!confirm(`Сменить роль ${user.email} на ${newRole}?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await fetch(`/api/v1/admin/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole }),
@@ -170,7 +170,7 @@ export default function AdminUsersPage() {
     if (!confirm(`УДАЛИТЬ пользователя ${user.email}? Все его файлы и данные будут удалены!`)) return;
 
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/admin/users/${user.id}`, { method: "DELETE" });
       if (res.ok) {
         toast.success("Пользователь удалён");
         loadUsers();

@@ -210,7 +210,7 @@ export default function AdminPlansPage() {
 
   const loadPlans = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/plans");
+      const res = await fetch("/api/v1/admin/plans");
       const data = await res.json();
       if (res.ok) setPlans(data.plans ?? []);
     } catch {
@@ -229,7 +229,7 @@ export default function AdminPlansPage() {
 
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/plans/reorder", {
+      const res = await fetch("/api/v1/admin/plans/reorder", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderedIds: newOrder.map((p) => p.id) }),
@@ -252,7 +252,7 @@ export default function AdminPlansPage() {
     if (!confirm(`Удалить тариф "${plan.name}"?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/plans/${plan.id}`, {
+      const res = await fetch(`/api/v1/admin/plans/${plan.id}`, {
         method: "DELETE",
       });
       const data = await res.json();

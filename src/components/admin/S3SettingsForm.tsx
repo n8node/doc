@@ -21,7 +21,7 @@ export function S3SettingsForm() {
   const [values, setValues] = useState(S3_DEFAULTS);
 
   useEffect(() => {
-    fetch("/api/admin/s3")
+    fetch("/api/v1/admin/s3")
       .then((r) => r.json())
       .then((data) => {
         if (data.endpoint) setValues((v) => ({ ...v, ...data }));
@@ -33,7 +33,7 @@ export function S3SettingsForm() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/s3", {
+      const res = await fetch("/api/v1/admin/s3", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -51,7 +51,7 @@ export function S3SettingsForm() {
   const handleTest = async () => {
     setTesting(true);
     try {
-      const res = await fetch("/api/admin/s3/test", {
+      const res = await fetch("/api/v1/admin/s3/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),

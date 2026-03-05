@@ -37,7 +37,7 @@ export function SidebarFolderTree() {
   const loadRootFolders = useCallback(async () => {
     setLoadingRoots(true);
     try {
-      const res = await fetch("/api/folders?parentId=");
+      const res = await fetch("/api/v1/folders?parentId=");
       const data = await res.json();
       if (res.ok && Array.isArray(data.folders)) {
         setRootFolders(data.folders);
@@ -52,7 +52,7 @@ export function SidebarFolderTree() {
   const loadChildren = useCallback(async (parentId: string) => {
     setLoadingChildren((prev) => new Set(prev).add(parentId));
     try {
-      const res = await fetch(`/api/folders?parentId=${encodeURIComponent(parentId)}`);
+      const res = await fetch(`/api/v1/folders?parentId=${encodeURIComponent(parentId)}`);
       const data = await res.json();
       if (res.ok && Array.isArray(data.folders)) {
         setChildrenByParentId((prev) => ({ ...prev, [parentId]: data.folders }));
@@ -77,7 +77,7 @@ export function SidebarFolderTree() {
       setPathSecondLevelId(null);
       return;
     }
-    fetch(`/api/folders/${folderIdParam}/path`)
+    fetch(`/api/v1/folders/${folderIdParam}/path`)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data.path) && data.path.length > 0) {

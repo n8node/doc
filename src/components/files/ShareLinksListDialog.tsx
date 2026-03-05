@@ -57,8 +57,8 @@ export function ShareLinksListDialog({
       setLoading(true);
       try {
         const endpoint = isAdmin
-          ? `/api/admin/storage/share-links?fileId=${encodeURIComponent(fileId)}`
-          : `/api/share?fileId=${encodeURIComponent(fileId)}`;
+          ? `/api/v1/admin/storage/share-links?fileId=${encodeURIComponent(fileId)}`
+          : `/api/v1/share?fileId=${encodeURIComponent(fileId)}`;
         const res = await fetch(endpoint);
         if (res.ok) {
           const data = await res.json();
@@ -78,8 +78,8 @@ export function ShareLinksListDialog({
     setDeletingId(linkId);
     try {
       const endpoint = isAdmin
-        ? `/api/admin/storage/share-links/${linkId}`
-        : `/api/share/${linkId}`;
+        ? `/api/v1/admin/storage/share-links/${linkId}`
+        : `/api/v1/share/${linkId}`;
       const res = await fetch(endpoint, { method: "DELETE" });
       if (res.ok) {
         setLinks((prev) => prev.filter((l) => l.id !== linkId));

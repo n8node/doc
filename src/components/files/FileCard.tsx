@@ -278,7 +278,7 @@ export function FileCard({
         >
           {showThumbnail ? (
             <img
-              src={`/api/files/${id}/stream`}
+              src={`/api/v1/files/${id}/stream`}
               alt={name}
               loading="lazy"
               decoding="async"

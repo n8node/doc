@@ -113,7 +113,7 @@ function ProviderCard({
       };
       if (form.apiKey.trim()) body.apiKey = form.apiKey;
 
-      const res = await fetch(`/api/admin/ai/providers/${provider.id}`, {
+      const res = await fetch(`/api/v1/admin/ai/providers/${provider.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -137,7 +137,7 @@ function ProviderCard({
     if (!confirm(`Удалить провайдер "${preset?.label ?? provider.name}"?`)) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/ai/providers/${provider.id}`, {
+      const res = await fetch(`/api/v1/admin/ai/providers/${provider.id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -157,7 +157,7 @@ function ProviderCard({
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch(`/api/admin/ai/providers/${provider.id}/test`, {
+      const res = await fetch(`/api/v1/admin/ai/providers/${provider.id}/test`, {
         method: "POST",
       });
       const data = await res.json();
@@ -382,7 +382,7 @@ export function AiProvidersForm() {
 
   const loadChatPrompt = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/ai/chat-prompt");
+      const res = await fetch("/api/v1/admin/ai/chat-prompt");
       if (res.ok) {
         const data = await res.json();
         setChatPrompt(data.systemPrompt ?? "");
@@ -395,7 +395,7 @@ export function AiProvidersForm() {
   const saveChatPrompt = useCallback(async () => {
     setChatPromptSaving(true);
     try {
-      const res = await fetch("/api/admin/ai/chat-prompt", {
+      const res = await fetch("/api/v1/admin/ai/chat-prompt", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ systemPrompt: chatPrompt }),
@@ -415,7 +415,7 @@ export function AiProvidersForm() {
   const loadEmbeddingStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const res = await fetch(`/api/admin/ai/stats?period=${statsPeriod}`);
+      const res = await fetch(`/api/v1/admin/ai/stats?period=${statsPeriod}`);
       if (res.ok) {
         const data = await res.json();
         setEmbeddingStats({
@@ -436,7 +436,7 @@ export function AiProvidersForm() {
 
   const loadProviders = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/ai/providers");
+      const res = await fetch("/api/v1/admin/ai/providers");
       const data = await res.json();
       setProviders(data.providers ?? []);
     } catch {
@@ -460,7 +460,7 @@ export function AiProvidersForm() {
     if (!preset) return;
     setAdding(true);
     try {
-      const res = await fetch("/api/admin/ai/providers", {
+      const res = await fetch("/api/v1/admin/ai/providers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

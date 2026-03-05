@@ -40,7 +40,7 @@ export function StorageWidget() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/user/storage")
+    fetch("/api/v1/user/storage")
       .then((r) => r.json())
       .then((d) => {
         if (d.storageUsed !== undefined) setData(d);

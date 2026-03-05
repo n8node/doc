@@ -17,7 +17,7 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 /**
- * GET /api/user/api-info — base URL for API calls (session or API key)
+ * GET /api/v1/user/api-info — base URL for API calls (session or API key)
  */
 export async function GET(req: NextRequest) {
   const userId = await getUserIdFromRequest(req);
@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const baseUrl = getBaseUrl(req);
+  const origin = getBaseUrl(req);
+  const baseUrl = `${origin}/api/v1`;
   return NextResponse.json({ baseUrl });
 }

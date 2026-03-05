@@ -38,7 +38,7 @@ export default function SharePage({ params }: { params: { token: string } }) {
 
   useEffect(() => {
     if (!token) return;
-    fetch(`/api/s/${token}`)
+    fetch(`/api/v1/s/${token}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
@@ -55,13 +55,13 @@ export default function SharePage({ params }: { params: { token: string } }) {
   }, [token]);
 
   const handleDownload = async (fileId: string) => {
-    const res = await fetch(`/api/s/${token}/download?fileId=${fileId}`);
+    const res = await fetch(`/api/v1/s/${token}/download?fileId=${fileId}`);
     const data = await res.json();
     if (res.ok && data.url) window.open(data.url, "_blank");
   };
 
   const streamUrl = (fileId: string) =>
-    `/api/s/${token}/stream?fileId=${fileId}`;
+    `/api/v1/s/${token}/stream?fileId=${fileId}`;
 
   const renderTree = (node: FolderNode) => (
     <div key={node.id} className="ml-4 border-l border-border pl-4">

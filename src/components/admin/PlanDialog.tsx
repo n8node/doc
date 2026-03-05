@@ -127,7 +127,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     };
 
     try {
-      const url = isEdit ? `/api/admin/plans/${plan!.id}` : "/api/admin/plans";
+      const url = isEdit ? `/api/v1/admin/plans/${plan!.id}` : "/api/v1/admin/plans";
       const method = isEdit ? "PATCH" : "POST";
 
       const res = await fetch(url, {

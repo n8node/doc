@@ -72,7 +72,7 @@ export function ShareDialog({
       } else {
         setExpiryDate(null);
       }
-      const res = await fetch("/api/share", {
+      const res = await fetch("/api/v1/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

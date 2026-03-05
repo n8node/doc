@@ -66,8 +66,8 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/admin/users/${userId}`).then((r) => r.json()),
-      fetch("/api/admin/plans").then((r) => r.json()),
+      fetch(`/api/v1/admin/users/${userId}`).then((r) => r.json()),
+      fetch("/api/v1/admin/plans").then((r) => r.json()),
     ])
       .then(([userData, plansData]) => {
         if (userData.id) {
@@ -86,14 +86,14 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
     if (!user) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await fetch(`/api/v1/admin/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId: selectedPlanId === "none" ? null : selectedPlanId }),
       });
       if (res.ok) {
         toast.success("Тариф изменён");
-        const updated = await fetch(`/api/admin/users/${user.id}`).then((r) => r.json());
+        const updated = await fetch(`/api/v1/admin/users/${user.id}`).then((r) => r.json());
         if (updated.id) setUser(updated);
         onUpdated();
       } else {

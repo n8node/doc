@@ -76,7 +76,7 @@ export default function DashboardSearchPage() {
 
     try {
       const res = await fetch(
-        `/api/files/search?q=${encodeURIComponent(q)}&limit=20`,
+        `/api/v1/files/search?q=${encodeURIComponent(q)}&limit=20`,
         { signal: controller.signal },
       );
       const data = await res.json();

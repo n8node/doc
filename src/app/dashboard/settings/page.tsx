@@ -88,7 +88,7 @@ export default function DashboardSettingsPage() {
   const { setTheme } = useTheme();
 
   useEffect(() => {
-    fetch("/api/user/me")
+    fetch("/api/v1/user/me")
       .then(async (r) => {
         let data: { error?: string };
         try {
@@ -109,9 +109,9 @@ export default function DashboardSettingsPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/user/storage").then((r) => r.json()),
-      fetch("/api/user/payments").then((r) => r.json()),
-      fetch("/api/share").then((r) => r.json()),
+      fetch("/api/v1/user/storage").then((r) => r.json()),
+      fetch("/api/v1/user/payments").then((r) => r.json()),
+      fetch("/api/v1/share").then((r) => r.json()),
     ]).then(([storageRes, paymentsRes, shareRes]) => {
       if (storageRes.storageUsed !== undefined) setStorageData(storageRes);
       if (Array.isArray(paymentsRes.payments)) setPayments(paymentsRes.payments);
@@ -121,8 +121,8 @@ export default function DashboardSettingsPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/user/api-keys").then((r) => r.json()),
-      fetch("/api/user/api-info").then((r) => r.json()),
+      fetch("/api/v1/user/api-keys").then((r) => r.json()),
+      fetch("/api/v1/user/api-info").then((r) => r.json()),
     ]).then(([keysRes, infoRes]) => {
       if (Array.isArray(keysRes.keys)) setApiKeys(keysRes.keys);
       if (infoRes.baseUrl) setBaseUrl(infoRes.baseUrl);
@@ -130,7 +130,7 @@ export default function DashboardSettingsPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/user/preferences")
+    fetch("/api/v1/user/preferences")
       .then((r) => r.json())
       .then((d) => {
         if (d.theme) {
@@ -149,7 +149,7 @@ export default function DashboardSettingsPage() {
     const name = newKeyName.trim() || "API Key";
     setCreatingKey(true);
     try {
-      const res = await fetch("/api/user/api-keys", {
+      const res = await fetch("/api/v1/user/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
@@ -164,9 +164,9 @@ export default function DashboardSettingsPage() {
       if (!res.ok) throw new Error(data.error ?? `Ошибка создания ключа (${res.status})`);
       setApiKeys((prev) => [
         {
-          id: data.id,
-          name: data.name,
-          keyPrefix: data.keyPrefix,
+          id: data.id ?? "",
+          name: data.name ?? "API Key",
+          keyPrefix: data.keyPrefix ?? "qk_...",
           lastUsedAt: null,
           createdAt: data.createdAt ?? new Date().toISOString(),
         },
@@ -185,7 +185,7 @@ export default function DashboardSettingsPage() {
   const handleDeleteApiKey = async (id: string) => {
     setDeletingKeyId(id);
     try {
-      const res = await fetch(`/api/user/api-keys/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/user/api-keys/${id}`, { method: "DELETE" });
       const text = await res.text();
       let data: { error?: string } = {};
       try {
@@ -208,7 +208,7 @@ export default function DashboardSettingsPage() {
 
   const handleRevokeShareLink = async (id: string) => {
     try {
-      const res = await fetch(`/api/share/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/share/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Ошибка отзыва");
       setShareLinks((prev) => prev.filter((l) => l.id !== id));
       toast.success("Ссылка отозвана");
@@ -221,7 +221,7 @@ export default function DashboardSettingsPage() {
     setEmailNotifications(checked);
     setSavingNotifications(true);
     try {
-      await fetch("/api/user/preferences", {
+      await fetch("/api/v1/user/preferences", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emailNotifications: checked }),
@@ -243,7 +243,7 @@ export default function DashboardSettingsPage() {
     }
     setDeletingAccount(true);
     try {
-      const res = await fetch("/api/user/account", {
+      const res = await fetch("/api/v1/user/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: deletePassword }),
@@ -264,7 +264,7 @@ export default function DashboardSettingsPage() {
     setSavedTheme(value);
     setSavingTheme(true);
     try {
-      await fetch("/api/user/preferences", {
+      await fetch("/api/v1/user/preferences", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ theme: value }),
@@ -279,7 +279,7 @@ export default function DashboardSettingsPage() {
     if (!profile) return;
     setSavingProfile(true);
     try {
-      const res = await fetch("/api/user/profile", {
+      const res = await fetch("/api/v1/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim() || null }),
@@ -307,7 +307,7 @@ export default function DashboardSettingsPage() {
     }
     setSavingPassword(true);
     try {
-      const res = await fetch("/api/user/password", {
+      const res = await fetch("/api/v1/user/password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

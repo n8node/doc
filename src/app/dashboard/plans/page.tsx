@@ -57,8 +57,8 @@ export default function DashboardPlansPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/plans").then((r) => r.json()),
-      fetch("/api/plans/me").then((r) => r.json()),
+      fetch("/api/v1/plans").then((r) => r.json()),
+      fetch("/api/v1/plans/me").then((r) => r.json()),
     ])
       .then(([plansData, meData]) => {
         setPlans(plansData.plans ?? []);
@@ -71,7 +71,7 @@ export default function DashboardPlansPage() {
   const handleSubscribe = async (planId: string) => {
     setSubscribing(planId);
     try {
-      const res = await fetch("/api/plans/subscribe", {
+      const res = await fetch("/api/v1/plans/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId }),
@@ -79,7 +79,7 @@ export default function DashboardPlansPage() {
       const data = await res.json();
       if (res.ok) {
         toast.success(`Тариф "${data.plan.name}" активирован!`);
-        const meRes = await fetch("/api/plans/me");
+        const meRes = await fetch("/api/v1/plans/me");
         const meData = await meRes.json();
         setCurrentPlan(meData);
       } else {

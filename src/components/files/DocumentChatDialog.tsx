@@ -48,7 +48,7 @@ export function DocumentChatDialog({
     if (open && fileId) {
       setLoading(true);
       setError(null);
-      fetch(`/api/files/${fileId}/chat`)
+      fetch(`/api/v1/files/${fileId}/chat`)
         .then((r) => {
           if (!r.ok) throw new Error("Не удалось загрузить историю");
           return r.json();
@@ -75,7 +75,7 @@ export function DocumentChatDialog({
     setInput("");
 
     try {
-      const res = await fetch(`/api/files/${fileId}/chat`, {
+      const res = await fetch(`/api/v1/files/${fileId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),

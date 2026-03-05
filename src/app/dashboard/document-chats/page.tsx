@@ -17,8 +17,8 @@ export default function DocumentChatsPage() {
     setLoading(true);
     try {
       const [planRes, chatsRes] = await Promise.all([
-        fetch("/api/plans/me"),
-        fetch("/api/user/document-chats"),
+        fetch("/api/v1/plans/me"),
+        fetch("/api/v1/user/document-chats"),
       ]);
       const planData = await planRes.json();
       setAllowed(!!planData.features?.document_chat);

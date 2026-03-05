@@ -56,7 +56,7 @@ export function MoveDialog({
   const loadRoots = useCallback(async () => {
     setLoadingRoots(true);
     try {
-      const res = await fetch("/api/folders?parentId=");
+      const res = await fetch("/api/v1/folders?parentId=");
       const data = await res.json();
       if (res.ok && Array.isArray(data.folders)) setRootFolders(data.folders);
     } catch {}
@@ -76,7 +76,7 @@ export function MoveDialog({
     if (childrenMap[parentId]) return;
     setLoadingChildren((prev) => new Set(prev).add(parentId));
     try {
-      const res = await fetch(`/api/folders?parentId=${encodeURIComponent(parentId)}`);
+      const res = await fetch(`/api/v1/folders?parentId=${encodeURIComponent(parentId)}`);
       const data = await res.json();
       if (res.ok && Array.isArray(data.folders))
         setChildrenMap((prev) => ({ ...prev, [parentId]: data.folders }));

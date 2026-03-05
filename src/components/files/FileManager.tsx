@@ -281,7 +281,7 @@ export function FileManager() {
 
   const loadStorageInfo = useCallback(async () => {
     try {
-      const res = await fetch("/api/user/storage");
+      const res = await fetch("/api/v1/user/storage");
       const data = await res.json();
       if (typeof data.maxFileSize === "number") {
         setMaxFileSize(data.maxFileSize);
@@ -352,7 +352,7 @@ export function FileManager() {
   }, [intentParam, openUploadPicker, activeSection, router, searchParams]);
 
   useEffect(() => {
-    fetch("/api/folders?parentId=")
+    fetch("/api/v1/folders?parentId=")
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
       .catch(() => {});
@@ -422,7 +422,7 @@ export function FileManager() {
 
     try {
       if (isTrashSection) {
-        const trashRes = await fetch("/api/trash");
+        const trashRes = await fetch("/api/v1/trash");
         if (trashRes.ok) {
           const trashData = await trashRes.json();
           setFiles(trashData.files ?? []);
@@ -438,7 +438,7 @@ export function FileManager() {
       }
 
       if (isHistorySection) {
-        const historyRes = await fetch("/api/files/history?limit=300");
+        const historyRes = await fetch("/api/v1/files/history?limit=300");
         if (historyRes.ok) {
           const historyData = (await historyRes.json()) as { events?: HistoryEntry[] };
           setHistoryEntries(Array.isArray(historyData.events) ? historyData.events : []);
@@ -495,10 +495,10 @@ export function FileManager() {
         }
       }
 
-      const filesRes = await fetch(`/api/files?${filesParams.toString()}`);
+      const filesRes = await fetch(`/api/v1/files?${filesParams.toString()}`);
       const foldersRes = isRecentSection || isPhotosSection || isSharedSection
         ? null
-        : await fetch(`/api/folders?parentId=${currentFolderId || ""}`);
+        : await fetch(`/api/v1/folders?parentId=${currentFolderId || ""}`);
 
       if (filesRes.ok) {
         const d = await filesRes.json();
@@ -519,7 +519,7 @@ export function FileManager() {
       } else if (isSharedSection) {
         bc = [{ id: null, name: "Общий доступ" }];
       } else if (currentFolderId) {
-        const pathRes = await fetch(`/api/folders/${currentFolderId}/path`);
+        const pathRes = await fetch(`/api/v1/folders/${currentFolderId}/path`);
         if (pathRes.ok) {
           const { path } = await pathRes.json();
           bc = [
@@ -535,7 +535,7 @@ export function FileManager() {
       loadStorageInfo();
 
       try {
-        const planRes = await fetch("/api/plans/me");
+        const planRes = await fetch("/api/v1/plans/me");
         if (planRes.ok) {
           const planData = await planRes.json();
           setEmbeddingTokensQuota(planData.embeddingTokensQuota ?? null);
@@ -580,7 +580,7 @@ export function FileManager() {
       activityParams.set("month", monthKey);
       activityParams.set("tzOffsetMinutes", String(new Date().getTimezoneOffset()));
 
-      const activityRes = await fetch(`/api/files/activity?${activityParams.toString()}`);
+      const activityRes = await fetch(`/api/v1/files/activity?${activityParams.toString()}`);
       if (!activityRes.ok) {
         setCalendarActivity({});
         return;
@@ -733,7 +733,7 @@ export function FileManager() {
       }
 
       try {
-        const initRes = await fetch("/api/files/upload/init", {
+        const initRes = await fetch("/api/v1/files/upload/init", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -788,7 +788,7 @@ export function FileManager() {
           xhr.onload = async () => {
             try {
               if (xhr.status >= 200 && xhr.status < 300) {
-                const completeRes = await fetch("/api/files/upload/complete", {
+                const completeRes = await fetch("/api/v1/files/upload/complete", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
@@ -918,7 +918,7 @@ export function FileManager() {
     setCreatingFolder(true);
 
     try {
-      const res = await fetch("/api/folders", {
+      const res = await fetch("/api/v1/folders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newFolderName.trim(), parentId: currentFolderId }),
@@ -942,7 +942,7 @@ export function FileManager() {
 
   const handleDownload = async (fileId: string) => {
     try {
-      const res = await fetch(`/api/files/${fileId}/download`);
+      const res = await fetch(`/api/v1/files/${fileId}/download`);
       const data = await res.json();
       if (res.ok && data.url) {
         const a = document.createElement("a");
@@ -970,7 +970,7 @@ export function FileManager() {
 
     const toastId = toast.loading(`Формируется архив (${ids.length} файлов)...`);
     try {
-      const res = await fetch("/api/files/download-archive", {
+      const res = await fetch("/api/v1/files/download-archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileIds: ids }),
@@ -1022,7 +1022,7 @@ export function FileManager() {
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       try {
-        const res = await fetch(`/api/files/process?fileId=${encodeURIComponent(fileId)}`);
+        const res = await fetch(`/api/v1/files/process?fileId=${encodeURIComponent(fileId)}`);
         const data = await res.json();
         if (data.status === "completed" && data.metadata?.processedAt) {
           const meta = data.metadata as { processedAt?: string; numPages?: number };
@@ -1051,7 +1051,7 @@ export function FileManager() {
     setAnalyzeError((m) => { const n = new Map(m); n.delete(id); return n; });
     const toastId = toast.loading("AI анализ документа...");
     try {
-      const res = await fetch("/api/files/process", {
+      const res = await fetch("/api/v1/files/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: id }),
@@ -1106,7 +1106,7 @@ export function FileManager() {
 
     for (const id of processableIds) {
       try {
-        const res = await fetch("/api/files/process", {
+        const res = await fetch("/api/v1/files/process", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ fileId: id }),
@@ -1139,7 +1139,7 @@ export function FileManager() {
       toast.loading(`AI анализ: ожидание ${pending.size} из ${processableIds.length}...`, { id: toastId });
       for (const id of Array.from(pending)) {
         try {
-          const res = await fetch(`/api/files/process?fileId=${encodeURIComponent(id)}`);
+          const res = await fetch(`/api/v1/files/process?fileId=${encodeURIComponent(id)}`);
           const data = await res.json();
           if (data.status === "completed" && data.metadata?.processedAt) {
             pending.delete(id);
@@ -1180,7 +1180,7 @@ export function FileManager() {
     const msg = trashRetentionDays > 0 ? "Переместить файл в корзину?" : "Удалить этот файл?";
     if (!confirm(msg)) return;
     try {
-      const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/files/${id}`, { method: "DELETE" });
       if (res.ok) {
         setFiles((prev) => prev.filter((f) => f.id !== id));
         setSelectedFiles((prev) => {
@@ -1205,7 +1205,7 @@ export function FileManager() {
       : "Удалить папку и всё её содержимое?";
     if (!confirm(msg)) return;
     try {
-      const res = await fetch(`/api/folders/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/folders/${id}`, { method: "DELETE" });
       if (res.ok) {
         setFolders((prev) => prev.filter((f) => f.id !== id));
         setSelectedFolders((prev) => {
@@ -1238,10 +1238,10 @@ export function FileManager() {
     if (!confirm(msg)) return;
 
     for (const id of fileIds) {
-      await fetch(`/api/files/${id}`, { method: "DELETE" });
+      await fetch(`/api/v1/files/${id}`, { method: "DELETE" });
     }
     for (const id of folderIds) {
-      await fetch(`/api/folders/${id}`, { method: "DELETE" });
+      await fetch(`/api/v1/folders/${id}`, { method: "DELETE" });
     }
 
     setSelectedFiles(new Set());
@@ -1255,7 +1255,7 @@ export function FileManager() {
   const handleTrashPermanentDeleteFile = async (id: string) => {
     if (!confirm("Удалить файл безвозвратно?")) return;
     try {
-      const res = await fetch(`/api/trash/${id}?type=file`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/trash/${id}?type=file`, { method: "DELETE" });
       if (res.ok) {
         setFiles((prev) => prev.filter((f) => f.id !== id));
         setSelectedFiles((prev) => { const n = new Set(prev); n.delete(id); return n; });
@@ -1271,7 +1271,7 @@ export function FileManager() {
   const handleTrashPermanentDeleteFolder = async (id: string) => {
     if (!confirm("Удалить папку безвозвратно?")) return;
     try {
-      const res = await fetch(`/api/trash/${id}?type=folder`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/trash/${id}?type=folder`, { method: "DELETE" });
       if (res.ok) {
         setFolders((prev) => prev.filter((f) => f.id !== id));
         setSelectedFolders((prev) => { const n = new Set(prev); n.delete(id); return n; });
@@ -1289,7 +1289,7 @@ export function FileManager() {
     const folderIds = Array.from(selectedFolders);
     if (fileIds.length === 0 && folderIds.length === 0) return;
     try {
-      const res = await fetch("/api/trash/restore", {
+      const res = await fetch("/api/v1/trash/restore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileIds, folderIds }),
@@ -1310,7 +1310,7 @@ export function FileManager() {
   const handleTrashRestoreSingle = async (type: "file" | "folder", id: string) => {
     const body = type === "file" ? { fileIds: [id] } : { folderIds: [id] };
     try {
-      const res = await fetch("/api/trash/restore", {
+      const res = await fetch("/api/v1/trash/restore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -1329,7 +1329,7 @@ export function FileManager() {
   const handleEmptyTrash = async () => {
     if (!confirm("Очистить корзину? Все файлы будут удалены безвозвратно.")) return;
     try {
-      const res = await fetch("/api/trash/empty", { method: "POST" });
+      const res = await fetch("/api/v1/trash/empty", { method: "POST" });
       if (res.ok) {
         setFiles([]);
         setFolders([]);
@@ -1352,10 +1352,10 @@ export function FileManager() {
     if (!confirm(`Удалить ${total} элементов безвозвратно?`)) return;
 
     for (const id of fileIds) {
-      await fetch(`/api/trash/${id}?type=file`, { method: "DELETE" });
+      await fetch(`/api/v1/trash/${id}?type=file`, { method: "DELETE" });
     }
     for (const id of folderIds) {
-      await fetch(`/api/trash/${id}?type=folder`, { method: "DELETE" });
+      await fetch(`/api/v1/trash/${id}?type=folder`, { method: "DELETE" });
     }
 
     setSelectedFiles(new Set());
@@ -1375,7 +1375,7 @@ export function FileManager() {
       const promises: Promise<Response>[] = [];
       if (fileIds.length > 0) {
         promises.push(
-          fetch("/api/files/bulk", {
+          fetch("/api/v1/files/bulk", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ids: fileIds, action: "move", folderId: targetFolderId }),
@@ -1384,7 +1384,7 @@ export function FileManager() {
       }
       if (folderIds.length > 0) {
         promises.push(
-          fetch("/api/folders/bulk", {
+          fetch("/api/v1/folders/bulk", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ids: folderIds, action: "move", parentId: targetFolderId }),
@@ -1398,7 +1398,7 @@ export function FileManager() {
       setMoveDialogOpen(false);
       loadData();
       // Обновляем список корневых папок (дерево в сайдбаре)
-      fetch("/api/folders?parentId=")
+      fetch("/api/v1/folders?parentId=")
         .then((r) => r.json())
         .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
         .catch(() => {});
@@ -1416,7 +1416,7 @@ export function FileManager() {
     setMoving(true);
     try {
       const endpoint =
-        singleMoveTarget.type === "FILE" ? "/api/files/bulk" : "/api/folders/bulk";
+        singleMoveTarget.type === "FILE" ? "/api/v1/files/bulk" : "/api/v1/folders/bulk";
       const payload =
         singleMoveTarget.type === "FILE"
           ? { ids: [singleMoveTarget.id], action: "move", folderId: targetFolderId }
@@ -1435,7 +1435,7 @@ export function FileManager() {
       setMoveDialogOpen(false);
       setSingleMoveTarget(null);
       loadData();
-      fetch("/api/folders?parentId=")
+      fetch("/api/v1/folders?parentId=")
         .then((r) => r.json())
         .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
         .catch(() => {});
@@ -1455,7 +1455,7 @@ export function FileManager() {
     setCopying(true);
     try {
       const endpoint =
-        singleCopyTarget.type === "FILE" ? "/api/files/bulk" : "/api/folders/bulk";
+        singleCopyTarget.type === "FILE" ? "/api/v1/files/bulk" : "/api/v1/folders/bulk";
       const payload =
         singleCopyTarget.type === "FILE"
           ? {
@@ -1491,7 +1491,7 @@ export function FileManager() {
       setSelectedFolders(new Set());
       loadData();
       loadStorageInfo();
-      fetch("/api/folders?parentId=")
+      fetch("/api/v1/folders?parentId=")
         .then((r) => r.json())
         .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
         .catch(() => {});
@@ -1517,7 +1517,7 @@ export function FileManager() {
       const requests: Promise<Response>[] = [];
       if (fileIds.length > 0) {
         requests.push(
-          fetch("/api/files/bulk", {
+          fetch("/api/v1/files/bulk", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1530,7 +1530,7 @@ export function FileManager() {
       }
       if (folderIds.length > 0) {
         requests.push(
-          fetch("/api/folders/bulk", {
+          fetch("/api/v1/folders/bulk", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1583,7 +1583,7 @@ export function FileManager() {
       setSelectedFolders(new Set());
       loadData();
       loadStorageInfo();
-      fetch("/api/folders?parentId=")
+      fetch("/api/v1/folders?parentId=")
         .then((r) => r.json())
         .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
         .catch(() => {});
@@ -1635,8 +1635,8 @@ export function FileManager() {
     if (!renameTarget) return;
     const endpoint =
       renameTarget.type === "file"
-        ? `/api/files/${renameTarget.id}`
-        : `/api/folders/${renameTarget.id}`;
+        ? `/api/v1/files/${renameTarget.id}`
+        : `/api/v1/folders/${renameTarget.id}`;
     const res = await fetch(endpoint, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1649,7 +1649,7 @@ export function FileManager() {
     setRenameTarget(null);
     loadData();
     if (renameTarget.type === "folder") {
-      fetch("/api/folders?parentId=")
+      fetch("/api/v1/folders?parentId=")
         .then((r) => r.json())
         .then((d) => { if (Array.isArray(d.folders)) setAllRootFolders(d.folders); })
         .catch(() => {});
@@ -1668,7 +1668,7 @@ export function FileManager() {
     );
   };
 
-  const streamUrl = (id: string) => `/api/files/${id}/stream`;
+  const streamUrl = (id: string) => `/api/v1/files/${id}/stream`;
 
   const selectedSize = files
     .filter((f) => selectedFiles.has(f.id))

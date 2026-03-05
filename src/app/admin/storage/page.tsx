@@ -149,7 +149,7 @@ export default function AdminStoragePage() {
   }>({ open: false, fileId: null, fileName: "" });
 
   const loadUsers = useCallback(async () => {
-    const res = await fetch("/api/admin/users");
+    const res = await fetch("/api/v1/admin/users");
     if (res.ok) {
       const { users: u } = await res.json();
       setUsers(u ?? []);
@@ -159,7 +159,7 @@ export default function AdminStoragePage() {
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const res = await fetch("/api/admin/storage/stats");
+      const res = await fetch("/api/v1/admin/storage/stats");
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -182,7 +182,7 @@ export default function AdminStoragePage() {
       if (search) params.set("search", search);
       if (mimeTypeFilter !== "all") params.set("mimeType", mimeTypeFilter);
       
-      const res = await fetch(`/api/admin/storage?${params}`);
+      const res = await fetch(`/api/v1/admin/storage?${params}`);
       if (!res.ok) throw new Error("Failed to load data");
       
       const data = await res.json();
@@ -256,7 +256,7 @@ export default function AdminStoragePage() {
     setDeleting(true);
     try {
       if (fileIds.length > 0) {
-        const res = await fetch("/api/admin/files/bulk", {
+        const res = await fetch("/api/v1/admin/files/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ids: fileIds }),
@@ -264,7 +264,7 @@ export default function AdminStoragePage() {
         if (!res.ok) throw new Error("Failed to delete files");
       }
       for (const id of folderIds) {
-        const res = await fetch(`/api/admin/folders/${id}`, { method: "DELETE" });
+        const res = await fetch(`/api/v1/admin/folders/${id}`, { method: "DELETE" });
         if (!res.ok) throw new Error(`Failed to delete folder ${id}`);
       }
       setSelectedFiles(new Set());
@@ -280,7 +280,7 @@ export default function AdminStoragePage() {
 
   const handleDownloadFile = async (fileId: string) => {
     try {
-      const res = await fetch(`/api/files/${fileId}/download`);
+      const res = await fetch(`/api/v1/files/${fileId}/download`);
       const data = await res.json();
       if (res.ok && data.url) {
         window.open(data.url, "_blank");
@@ -305,8 +305,8 @@ export default function AdminStoragePage() {
     if (!renameDialog.id) return;
     
     const endpoint = renameDialog.type === "file"
-      ? `/api/admin/files/${renameDialog.id}`
-      : `/api/admin/folders/${renameDialog.id}`;
+      ? `/api/v1/admin/files/${renameDialog.id}`
+      : `/api/v1/admin/folders/${renameDialog.id}`;
     
     const res = await fetch(endpoint, {
       method: "PATCH",
@@ -325,8 +325,8 @@ export default function AdminStoragePage() {
     
     try {
       const endpoint = type === "file"
-        ? `/api/admin/files/${id}`
-        : `/api/admin/folders/${id}`;
+        ? `/api/v1/admin/files/${id}`
+        : `/api/v1/admin/folders/${id}`;
       
       const res = await fetch(endpoint, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");

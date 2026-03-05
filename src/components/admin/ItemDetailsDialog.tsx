@@ -98,8 +98,8 @@ export function ItemDetailsDialog({
       setLoading(true);
       try {
         const endpoint = itemType === "file"
-          ? `/api/admin/files/${itemId}`
-          : `/api/admin/folders/${itemId}`;
+          ? `/api/v1/admin/files/${itemId}`
+          : `/api/v1/admin/folders/${itemId}`;
 
         const res = await fetch(endpoint);
         if (res.ok) {

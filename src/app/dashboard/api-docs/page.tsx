@@ -12,7 +12,7 @@ export default function ApiDocsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/user/api-info")
+    fetch("/api/v1/user/api-info")
       .then((r) => r.json())
       .then((d) => {
         if (d.baseUrl) setBaseUrl(d.baseUrl);
@@ -43,7 +43,7 @@ export default function ApiDocsPage() {
         </CardHeader>
         <CardContent>
           <pre className="overflow-x-auto rounded-lg bg-surface2 p-4 text-sm">
-{`curl -X GET "${baseUrl || "https://example.com"}/api/files" \\
+{`curl -X GET "${baseUrl || "https://example.com"}/files" \\
   -H "Authorization: Bearer qk_xxxxxxxx__yyyyyyyy"`}
           </pre>
         </CardContent>
@@ -78,7 +78,7 @@ export default function ApiDocsPage() {
           <div className="space-y-6">
             <Section
               method="GET"
-              path="/api/files"
+              path="/api/v1/files"
               desc="Список файлов"
               params={[
                 { name: "folderId", type: "string", desc: "ID папки (опционально)" },
@@ -88,34 +88,34 @@ export default function ApiDocsPage() {
             />
             <Section
               method="GET"
-              path="/api/files/{id}"
+              path="/api/v1/files/{id}"
               desc="Информация о файле"
             />
             <Section
               method="PATCH"
-              path="/api/files/{id}"
+              path="/api/v1/files/{id}"
               desc="Переименовать или переместить файл"
               body={{ name: "string", folderId: "string | null" }}
             />
             <Section
               method="DELETE"
-              path="/api/files/{id}"
+              path="/api/v1/files/{id}"
               desc="Удалить файл (в корзину или окончательно)"
               params={[{ name: "permanent", type: "true", desc: "Окончательное удаление" }]}
             />
             <Section
               method="GET"
-              path="/api/files/{id}/download"
+              path="/api/v1/files/{id}/download"
               desc="Скачать файл (редирект)"
             />
             <Section
               method="GET"
-              path="/api/files/{id}/stream"
+              path="/api/v1/files/{id}/stream"
               desc="Потоковая передача файла (поддержка Range)"
             />
             <Section
               method="POST"
-              path="/api/files/upload/init"
+              path="/api/v1/files/upload/init"
               desc="Инициировать загрузку (presigned URL)"
               body={{
                 name: "string",
@@ -126,47 +126,47 @@ export default function ApiDocsPage() {
             />
             <Section
               method="POST"
-              path="/api/files/upload/complete"
+              path="/api/v1/files/upload/complete"
               desc="Завершить загрузку после PUT в presigned URL"
               body={{ uploadSessionToken: "string" }}
             />
             <Section
               method="POST"
-              path="/api/files/bulk"
+              path="/api/v1/files/bulk"
               desc="Массовые операции"
               body={{ ids: "string[]", action: "delete | move | copy", folderId: "string | null" }}
             />
             <Section
               method="GET"
-              path="/api/folders"
+              path="/api/v1/folders"
               desc="Список папок"
               params={[{ name: "parentId", type: "string", desc: "ID родительской папки" }]}
             />
             <Section
               method="POST"
-              path="/api/folders"
+              path="/api/v1/folders"
               desc="Создать папку"
               body={{ name: "string", parentId: "string | null" }}
             />
             <Section
               method="GET"
-              path="/api/folders/{id}"
+              path="/api/v1/folders/{id}"
               desc="Информация о папке"
             />
             <Section
               method="PATCH"
-              path="/api/folders/{id}"
+              path="/api/v1/folders/{id}"
               desc="Переименовать или переместить папку"
               body={{ name: "string", parentId: "string | null" }}
             />
             <Section
               method="DELETE"
-              path="/api/folders/{id}"
+              path="/api/v1/folders/{id}"
               desc="Удалить папку"
             />
             <Section
               method="GET"
-              path="/api/share"
+              path="/api/v1/share"
               desc="Список ссылок доступа"
               params={[
                 { name: "fileId", type: "string", desc: "Фильтр по файлу" },
@@ -175,7 +175,7 @@ export default function ApiDocsPage() {
             />
             <Section
               method="POST"
-              path="/api/share"
+              path="/api/v1/share"
               desc="Создать ссылку доступа"
               body={{
                 targetType: "FILE | FOLDER",
@@ -185,16 +185,16 @@ export default function ApiDocsPage() {
                 oneTime: "boolean",
               }}
             />
-            <Section method="DELETE" path="/api/share/{id}" desc="Отозвать ссылку" />
-            <Section method="GET" path="/api/trash" desc="Содержимое корзины" />
+            <Section method="DELETE" path="/api/v1/share/{id}" desc="Отозвать ссылку" />
+            <Section method="GET" path="/api/v1/trash" desc="Содержимое корзины" />
             <Section
               method="POST"
-              path="/api/trash/restore"
+              path="/api/v1/trash/restore"
               desc="Восстановить из корзины"
               body={{ fileIds: "string[]", folderIds: "string[]" }}
             />
-            <Section method="GET" path="/api/user/me" desc="Текущий пользователь" />
-            <Section method="GET" path="/api/user/storage" desc="Использование хранилища" />
+            <Section method="GET" path="/api/v1/user/me" desc="Текущий пользователь" />
+            <Section method="GET" path="/api/v1/user/storage" desc="Использование хранилища" />
           </div>
         </CardContent>
       </div>
