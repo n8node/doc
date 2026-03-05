@@ -9,11 +9,58 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const parentId = searchParams.get("parentId");
+  const scope = searchParams.get("scope");
+  const hasShareLink = searchParams.get("hasShareLink");
+
+  const where: {
+    userId: string;
+    deletedAt: null;
+    parentId?: string | null;
+    shareLinks?: { some: { OR: Array<{ expiresAt: null } | { expiresAt: { gt: Date } }> } };
+  } = {
+    userId,
+    deletedAt: null,
+  };
+
+  if (scope !== "all") {
+    where.parentId = parentId || null;
+  }
+
+  if (hasShareLink === "true") {
+    where.shareLinks = {
+      some: {
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+    };
+  }
+
   const folders = await prisma.folder.findMany({
-    where: { userId, parentId: parentId || null, deletedAt: null },
+    where,
     orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      parentId: true,
+      createdAt: true,
+      shareLinks: {
+        where: {
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        select: { id: true },
+      },
+    },
   });
-  return NextResponse.json({ folders });
+
+  return NextResponse.json({
+    folders: folders.map((f) => ({
+      id: f.id,
+      name: f.name,
+      parentId: f.parentId,
+      createdAt: f.createdAt,
+      hasShareLink: f.shareLinks.length > 0,
+      shareLinksCount: f.shareLinks.length,
+    })),
+  });
 }
 
 export async function POST(request: NextRequest) {

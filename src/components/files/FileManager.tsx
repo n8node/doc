@@ -496,9 +496,12 @@ export function FileManager() {
       }
 
       const filesRes = await fetch(`/api/v1/files?${filesParams.toString()}`);
-      const foldersRes = isRecentSection || isPhotosSection || isSharedSection
-        ? null
-        : await fetch(`/api/v1/folders?parentId=${currentFolderId || ""}`);
+      let foldersRes: Response | null = null;
+      if (isSharedSection) {
+        foldersRes = await fetch("/api/v1/folders?scope=all&hasShareLink=true");
+      } else if (!isRecentSection && !isPhotosSection) {
+        foldersRes = await fetch(`/api/v1/folders?parentId=${currentFolderId || ""}`);
+      }
 
       if (filesRes.ok) {
         const d = await filesRes.json();
@@ -507,7 +510,9 @@ export function FileManager() {
       if (foldersRes?.ok) {
         const d = await foldersRes.json();
         setFolders(d.folders ?? []);
-      } else if (isRecentSection || isPhotosSection || isSharedSection) {
+      } else if (isRecentSection || isPhotosSection) {
+        setFolders([]);
+      } else if (isSharedSection) {
         setFolders([]);
       }
 
@@ -1660,9 +1665,11 @@ export function FileManager() {
   };
 
   const navigateToFolder = (id: string | null) => {
+    const section =
+      id && isSharedSection ? "my-files" : activeSection;
     router.push(
       buildDashboardFilesUrl({
-        section: activeSection,
+        section,
         folderId: id,
       })
     );
@@ -1863,7 +1870,8 @@ export function FileManager() {
   };
 
   const showFolders =
-    !isRecentSection && !isPhotosSection && !isSharedSection && !isHistorySection && !isTrashSection;
+    (!isRecentSection && !isPhotosSection && !isHistorySection && !isTrashSection) ||
+    isSharedSection;
   const showTrashFolders = isTrashSection;
   const showPhotoGrid = isPhotosSection && viewMode === "grid";
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
