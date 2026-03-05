@@ -137,6 +137,67 @@ export default function ApiDocsPage() {
               body={{ ids: "string[]", action: "delete | move | copy", folderId: "string | null" }}
             />
             <Section
+              method="POST"
+              path="/api/v1/files/upload"
+              desc="Загрузка файла через FormData"
+              body={{ file: "File", folderId: "string | null", duration: "number (опционально)" }}
+            />
+            <Section
+              method="GET"
+              path="/api/v1/files/search"
+              desc="Семантический поиск по документам"
+              params={[
+                { name: "q", type: "string", desc: "Поисковый запрос" },
+                { name: "limit", type: "number", desc: "Макс. результатов (по умолчанию 20)" },
+                { name: "threshold", type: "number", desc: "Порог схожести (по умолчанию 0.3)" },
+              ]}
+            />
+            <Section
+              method="GET"
+              path="/api/v1/files/process"
+              desc="Статус обработки документа"
+              params={[{ name: "fileId", type: "string", desc: "ID файла" }]}
+            />
+            <Section
+              method="POST"
+              path="/api/v1/files/process"
+              desc="Запуск обработки документа (извлечение текста, эмбеддинги)"
+              body={{ fileId: "string", fileIds: "string[]" }}
+            />
+            <Section
+              method="GET"
+              path="/api/v1/files/activity"
+              desc="Статистика загрузок по дням за месяц"
+              params={[
+                { name: "month", type: "YYYY-MM", desc: "Месяц" },
+                { name: "folderId", type: "string", desc: "ID папки (опционально)" },
+                { name: "scope", type: "all | \"\"", desc: "all — все папки" },
+              ]}
+            />
+            <Section
+              method="GET"
+              path="/api/v1/files/history"
+              desc="История операций с файлами"
+              params={[{ name: "limit", type: "number", desc: "Макс. событий (по умолчанию 200)" }]}
+            />
+            <Section
+              method="POST"
+              path="/api/v1/files/download-archive"
+              desc="Скачать архив файлов (ZIP)"
+              body={{ fileIds: "string[]" }}
+            />
+            <Section
+              method="GET"
+              path="/api/v1/files/{id}/chat"
+              desc="История чата по документу"
+            />
+            <Section
+              method="POST"
+              path="/api/v1/files/{id}/chat"
+              desc="Отправить сообщение в чат по документу"
+              body={{ content: "string" }}
+            />
+            <Section
               method="GET"
               path="/api/v1/folders"
               desc="Список папок"
@@ -163,6 +224,17 @@ export default function ApiDocsPage() {
               method="DELETE"
               path="/api/v1/folders/{id}"
               desc="Удалить папку"
+            />
+            <Section
+              method="GET"
+              path="/api/v1/folders/{id}/path"
+              desc="Путь до папки (хлебные крошки)"
+            />
+            <Section
+              method="POST"
+              path="/api/v1/folders/bulk"
+              desc="Массовые операции с папками"
+              body={{ ids: "string[]", action: "delete | move | copy", parentId: "string | null" }}
             />
             <Section
               method="GET"
@@ -193,8 +265,55 @@ export default function ApiDocsPage() {
               desc="Восстановить из корзины"
               body={{ fileIds: "string[]", folderIds: "string[]" }}
             />
+            <Section
+              method="DELETE"
+              path="/api/v1/trash/{id}"
+              desc="Удалить файл или папку из корзины"
+              params={[{ name: "type", type: "file | folder", desc: "Тип элемента" }]}
+            />
+            <Section
+              method="POST"
+              path="/api/v1/trash/empty"
+              desc="Очистить корзину полностью"
+            />
             <Section method="GET" path="/api/v1/user/me" desc="Текущий пользователь" />
             <Section method="GET" path="/api/v1/user/storage" desc="Использование хранилища" />
+            <Section method="GET" path="/api/v1/user/api-info" desc="Базовый URL API" />
+            <Section method="GET" path="/api/v1/user/preferences" desc="Настройки пользователя (theme, emailNotifications)" />
+            <Section
+              method="PATCH"
+              path="/api/v1/user/preferences"
+              desc="Изменить настройки"
+              body={{ theme: "light | dark | system", emailNotifications: "boolean" }}
+            />
+            <Section
+              method="PATCH"
+              path="/api/v1/user/profile"
+              desc="Обновить имя"
+              body={{ name: "string | null" }}
+            />
+            <Section
+              method="POST"
+              path="/api/v1/user/password"
+              desc="Смена пароля"
+              body={{ currentPassword: "string", newPassword: "string" }}
+            />
+            <Section method="GET" path="/api/v1/user/payments" desc="История платежей" />
+            <Section
+              method="DELETE"
+              path="/api/v1/user/account"
+              desc="Удалить аккаунт"
+              body={{ password: "string" }}
+            />
+            <Section method="GET" path="/api/v1/user/document-chats" desc="Файлы с чатами по документам" />
+            <Section method="GET" path="/api/v1/plans" desc="Список тарифов (публичный)" />
+            <Section method="GET" path="/api/v1/plans/me" desc="Текущий тариф пользователя" />
+            <Section
+              method="POST"
+              path="/api/v1/plans/subscribe"
+              desc="Подписка на тариф"
+              body={{ planId: "string", period: "monthly | yearly" }}
+            />
           </div>
         </CardContent>
       </div>
