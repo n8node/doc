@@ -27,6 +27,7 @@ import {
   Pencil,
   ScanSearch,
   BrainCircuit,
+  CheckSquare,
 } from "lucide-react";
 import {
   Dialog,
@@ -1633,6 +1634,28 @@ export function FileManager() {
     setSelectedFolders(new Set());
   };
 
+  const handleQuickSelectAllFolders = () => {
+    const allSelected = folders.length > 0 && selectedFolders.size === folders.length;
+    setSelectedFolders(allSelected ? new Set() : new Set(folders.map((f) => f.id)));
+  };
+
+  const handleQuickSelectAllFiles = () => {
+    const allSelected = files.length > 0 && selectedFiles.size === files.length;
+    setSelectedFiles(allSelected ? new Set() : new Set(files.map((f) => f.id)));
+  };
+
+  const handleQuickSelectAll = () => {
+    const totalItems = folders.length + files.length;
+    const allSelected = selectedFolders.size + selectedFiles.size === totalItems;
+    if (allSelected) {
+      setSelectedFolders(new Set());
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFolders(new Set(folders.map((f) => f.id)));
+      setSelectedFiles(new Set(files.map((f) => f.id)));
+    }
+  };
+
   const openCopyDialog = () => {
     if (selectedFiles.size + selectedFolders.size === 0) return;
     setSingleCopyTarget(null);
@@ -1903,6 +1926,35 @@ export function FileManager() {
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
                 <span className="hidden sm:inline">Обновить</span>
               </Button>
+
+              {!isHistorySection && (folders.length > 0 || files.length > 0) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <CheckSquare className="h-4 w-4" />
+                      <span className="hidden sm:inline">Быстрый выбор</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {showFolders && folders.length > 0 && (
+                      <DropdownMenuItem onClick={handleQuickSelectAllFolders}>
+                        Все папки ({folders.length})
+                      </DropdownMenuItem>
+                    )}
+                    {files.length > 0 && (
+                      <DropdownMenuItem onClick={handleQuickSelectAllFiles}>
+                        Все файлы ({files.length})
+                      </DropdownMenuItem>
+                    )}
+                    {(folders.length > 0 || files.length > 0) && (
+                      <DropdownMenuItem onClick={handleQuickSelectAll}>
+                        Всё на странице ({folders.length + files.length})
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               {isPhotosSection && (
                 <div className="flex items-center rounded-lg border border-border p-0.5">
