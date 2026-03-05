@@ -1,25 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { createFolder } from "@/lib/folder-service";
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(request);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const parentId = searchParams.get("parentId");
   const folders = await prisma.folder.findMany({
-    where: { userId: session.user.id, parentId: parentId || null, deletedAt: null },
+    where: { userId, parentId: parentId || null, deletedAt: null },
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ folders });
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(request);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await request.json();
   const { name, parentId } = body;
@@ -29,7 +28,7 @@ export async function POST(request: NextRequest) {
     const folder = await createFolder(
       name,
       parentId && typeof parentId === "string" ? parentId : null,
-      session.user.id
+      userId
     );
     return NextResponse.json(folder);
   } catch (e) {

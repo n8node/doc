@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { createShareLink, listShareLinks } from "@/lib/share-service";
 import { getPublicBaseUrl } from "@/lib/app-url";
 
@@ -16,15 +15,15 @@ function getShareBaseUrl(request: NextRequest): string {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(request);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get("fileId");
   const folderId = searchParams.get("folderId");
 
-  const links = await listShareLinks(session.user.id, { fileId, folderId });
+  const links = await listShareLinks(userId, { fileId, folderId });
   return NextResponse.json({
     links: links.map((l) => ({
       id: l.id,
@@ -43,8 +42,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(request);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
@@ -71,7 +70,7 @@ export async function POST(request: NextRequest) {
       folderId: targetType === "FOLDER" ? folderId : null,
       expiresAt: exp,
       oneTime: !!oneTime,
-      userId: session.user.id,
+      userId,
     });
     const baseUrl = getShareBaseUrl(request);
     const url = `${baseUrl}/s/${link.token}`;

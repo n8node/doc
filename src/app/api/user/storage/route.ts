@@ -1,17 +1,16 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+export async function GET(req: NextRequest) {
+  const userId = await getUserIdFromRequest(req);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const [user, trashAgg] = await Promise.all([
     prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: {
         storageUsed: true,
         storageQuota: true,
@@ -31,7 +30,7 @@ export async function GET() {
       },
     }),
     prisma.file.aggregate({
-      where: { userId: session.user.id, deletedAt: { not: null } },
+      where: { userId, deletedAt: { not: null } },
       _sum: { size: true },
     }),
   ]);

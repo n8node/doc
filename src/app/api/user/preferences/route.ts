@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const THEMES = ["light", "dark", "system"] as const;
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+export async function GET(req: NextRequest) {
+  const userId = await getUserIdFromRequest(req);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: userId },
     select: { preferences: true },
   });
 
@@ -27,8 +26,8 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(req);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -45,7 +44,7 @@ export async function PATCH(req: NextRequest) {
 
   if (Object.keys(updates).length === 0) {
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { preferences: true },
     });
     const prefs = (user?.preferences as Record<string, unknown>) ?? {};
@@ -56,7 +55,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: userId },
     select: { preferences: true },
   });
 
@@ -64,7 +63,7 @@ export async function PATCH(req: NextRequest) {
   const nextPrefs = { ...current, ...updates };
 
   await prisma.user.update({
-    where: { id: session.user.id },
+    where: { id: userId },
     data: { preferences: nextPrefs as Prisma.InputJsonValue },
   });
 

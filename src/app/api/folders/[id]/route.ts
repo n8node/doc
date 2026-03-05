@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { deleteFolderRecursive, moveFolder, renameFolder } from "@/lib/folder-service";
 import { softDeleteFolderRecursive, getTrashRetentionDays } from "@/lib/trash-service";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, ctx: Ctx) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+export async function GET(req: NextRequest, ctx: Ctx) {
+  const userId = await getUserIdFromRequest(req);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const folder = await prisma.folder.findFirst({
-    where: { id, userId: session.user.id, deletedAt: null },
+    where: { id, userId, deletedAt: null },
     select: { id: true, name: true, parentId: true },
   });
   if (!folder)
@@ -25,8 +24,8 @@ export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(req);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const body = await req.json();
@@ -34,14 +33,14 @@ export async function PATCH(
 
   try {
     if (name != null && typeof name === "string") {
-      const updated = await renameFolder(id, name, session.user.id);
+      const updated = await renameFolder(id, name, userId);
       return NextResponse.json(updated);
     }
     if (parentId !== undefined) {
       const f = await moveFolder(
         id,
         parentId && typeof parentId === "string" ? parentId : null,
-        session.user.id
+        userId
       );
       return NextResponse.json(f);
     }
@@ -55,20 +54,20 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(req);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   try {
-    const retentionDays = await getTrashRetentionDays(session.user.id);
+    const retentionDays = await getTrashRetentionDays(userId);
     if (retentionDays > 0) {
-      await softDeleteFolderRecursive(id, session.user.id);
+      await softDeleteFolderRecursive(id, userId);
       return NextResponse.json({ ok: true, trashed: true });
     }
-    const result = await deleteFolderRecursive(id, session.user.id);
+    const result = await deleteFolderRecursive(id, userId);
     return NextResponse.json(result);
   } catch (e) {
     return NextResponse.json(

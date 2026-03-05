@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { createFileRecordFromS3Object } from "@/lib/file-service";
 import { headUploadedObject } from "@/lib/s3-upload";
 import { verifyUploadSessionToken } from "@/lib/upload-session";
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -35,7 +34,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Сессия загрузки недействительна или истекла" }, { status: 400 });
   }
 
-  if (payload.userId !== session.user.id) {
+  if (payload.userId !== userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import {
   processDocument,
@@ -15,8 +14,8 @@ import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
  * Body: { fileId: string } or { fileIds: string[] }
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -40,14 +39,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const quotaError = await checkEmbeddingQuota(session.user.id);
+  const quotaError = await checkEmbeddingQuota(userId);
   if (quotaError) return quotaError;
 
   if (fileIds.length === 1) {
-    return processSingle(fileIds[0], session.user.id);
+    return processSingle(fileIds[0], userId);
   }
 
-  return processBulk(fileIds, session.user.id);
+  return processBulk(fileIds, userId);
 }
 
 async function checkEmbeddingQuota(userId: string): Promise<NextResponse | null> {
@@ -156,8 +155,8 @@ async function processBulk(fileIds: string[], userId: string) {
  * GET /api/files/process?fileId=xxx — check processing status
  */
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -167,7 +166,7 @@ export async function GET(request: NextRequest) {
   }
 
   const file = await prisma.file.findFirst({
-    where: { id: fileId, userId: session.user.id },
+    where: { id: fileId, userId },
     select: { id: true, aiMetadata: true },
   });
   if (!file) {

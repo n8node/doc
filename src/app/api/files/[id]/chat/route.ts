@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import {
   sendDocumentChatMessage,
   getDocumentChatHistory,
@@ -11,15 +10,15 @@ import { hasFeature } from "@/lib/plan-service";
  * GET /api/files/[id]/chat — load chat history for document
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(req);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const allowed = await hasFeature(session.user.id, "document_chat");
+  const allowed = await hasFeature(userId, "document_chat");
   if (!allowed) {
     return NextResponse.json(
       { error: "Функция AI чатов по документам недоступна на вашем тарифе. Обновите тариф." },
@@ -28,7 +27,7 @@ export async function GET(
   }
 
   const { id: fileId } = await ctx.params;
-  const messages = await getDocumentChatHistory(fileId, session.user.id);
+  const messages = await getDocumentChatHistory(fileId, userId);
   if (messages === null) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
@@ -44,12 +43,12 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(req);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const allowed = await hasFeature(session.user.id, "document_chat");
+  const allowed = await hasFeature(userId, "document_chat");
   if (!allowed) {
     return NextResponse.json(
       { error: "Функция AI чатов по документам недоступна на вашем тарифе. Обновите тариф." },
@@ -79,7 +78,7 @@ export async function POST(
   try {
     const result = await sendDocumentChatMessage({
       fileId,
-      userId: session.user.id,
+      userId,
       content,
     });
     return NextResponse.json(result);

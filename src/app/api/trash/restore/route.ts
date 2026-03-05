@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { restoreFile, restoreFolderRecursive } from "@/lib/trash-service";
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(req);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (Array.isArray(fileIds)) {
     for (const id of fileIds) {
       try {
-        await restoreFile(id, session.user.id);
+        await restoreFile(id, userId);
         restoredCount++;
       } catch (e) {
         errors.push(e instanceof Error ? e.message : `File ${id} error`);
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (Array.isArray(folderIds)) {
     for (const id of folderIds) {
       try {
-        await restoreFolderRecursive(id, session.user.id);
+        await restoreFolderRecursive(id, userId);
         restoredCount++;
       } catch (e) {
         errors.push(e instanceof Error ? e.message : `Folder ${id} error`);

@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { deleteFile, moveFile, renameFile } from "@/lib/file-service";
 import { softDeleteFile, getTrashRetentionDays } from "@/lib/trash-service";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(req);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const file = await prisma.file.findFirst({
-    where: { id, userId: session.user.id, deletedAt: null },
+    where: { id, userId, deletedAt: null },
   });
   if (!file)
     return NextResponse.json({ error: "File not found" }, { status: 404 });
@@ -33,22 +32,22 @@ export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(req);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const body = await req.json();
   const { name, folderId } = body;
   try {
     if (name != null && typeof name === "string") {
-      const f = await renameFile(id, name, session.user.id);
+      const f = await renameFile(id, name, userId);
       return NextResponse.json({ id: f.id, name: f.name, folderId: f.folderId });
     }
     if (folderId !== undefined) {
       const f = await moveFile(
         id,
         folderId && typeof folderId === "string" ? folderId : null,
-        session.user.id
+        userId
       );
       return NextResponse.json({ id: f.id, name: f.name, folderId: f.folderId });
     }
@@ -62,20 +61,20 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(req);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   try {
-    const retentionDays = await getTrashRetentionDays(session.user.id);
+    const retentionDays = await getTrashRetentionDays(userId);
     if (retentionDays > 0) {
-      await softDeleteFile(id, session.user.id);
+      await softDeleteFile(id, userId);
       return NextResponse.json({ ok: true, trashed: true });
     }
-    await deleteFile(id, session.user.id);
+    await deleteFile(id, userId);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(

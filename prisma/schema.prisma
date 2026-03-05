@@ -31,6 +31,7 @@ model User {
   shareLinks    ShareLink[]
   historyEvents HistoryEvent[]
   documentChatMessages DocumentChatMessage[]
+  apiKeys        UserApiKey[]
   preferences   Json?       @map("preferences") // { theme?: string, emailNotifications?: boolean, ... }
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
@@ -84,6 +85,21 @@ model Folder {
   @@map("folders")
   @@index([userId, parentId])
   @@index([userId, deletedAt])
+}
+
+model UserApiKey {
+  id         String    @id @default(cuid()) @map("id")
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String    @map("name")
+  keyToken   String    @unique @map("key_token") // qk_<keyToken>__<secret>, for lookup
+  keyHash    String    @map("key_hash")
+  keyPrefix  String    @map("key_prefix")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("user_api_keys")
+  @@index([userId])
 }
 
 model ShareLink {

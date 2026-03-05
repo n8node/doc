@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { permanentDeleteFile, permanentDeleteFolderFromTrash } from "@/lib/trash-service";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(req);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -17,9 +16,9 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
 
   try {
     if (type === "folder") {
-      await permanentDeleteFolderFromTrash(id, session.user.id);
+      await permanentDeleteFolderFromTrash(id, userId);
     } else {
-      await permanentDeleteFile(id, session.user.id);
+      await permanentDeleteFile(id, userId);
     }
     return NextResponse.json({ ok: true });
   } catch (e) {

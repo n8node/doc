@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/file-service";
 import { getMaxFileSize } from "@/lib/plan-service";
 import { formatBytes } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -24,7 +23,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const maxSize = await getMaxFileSize(session.user.id);
+  const maxSize = await getMaxFileSize(userId);
   if (BigInt(file.size) > maxSize) {
     return NextResponse.json(
       { error: `Файл слишком большой. Максимум: ${formatBytes(Number(maxSize))}` },
@@ -33,7 +32,7 @@ export async function POST(request: NextRequest) {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: userId },
   });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const created = await uploadFile({
-      userId: session.user.id,
+      userId,
       file,
       folderId: folderId && typeof folderId === "string" ? folderId : null,
       mediaDurationSeconds,

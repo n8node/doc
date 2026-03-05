@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { copyFile, deleteFile, moveFile } from "@/lib/file-service";
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(request);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
@@ -24,7 +23,7 @@ export async function POST(request: NextRequest) {
     for (const id of ids) {
       if (typeof id !== "string") continue;
       try {
-        await deleteFile(id, session.user.id);
+        await deleteFile(id, userId);
         ok++;
       } catch (e) {
         console.error(`[files/bulk] delete ${id}:`, e);
@@ -37,7 +36,7 @@ export async function POST(request: NextRequest) {
     for (const id of ids) {
       if (typeof id !== "string") continue;
       try {
-        await moveFile(id, targetFolderId, session.user.id);
+        await moveFile(id, targetFolderId, userId);
         ok++;
       } catch (e) {
         console.error(`[files/bulk] move ${id}:`, e);
@@ -50,7 +49,7 @@ export async function POST(request: NextRequest) {
     for (const id of ids) {
       if (typeof id !== "string") continue;
       try {
-        await copyFile(id, targetFolderId, session.user.id);
+        await copyFile(id, targetFolderId, userId);
         ok++;
       } catch (e) {
         console.error(`[files/bulk] copy ${id}:`, e);

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 
 const DOCUMENT_MIMES = [
@@ -14,8 +13,8 @@ const DOCUMENT_MIMES = [
 ];
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -38,7 +37,7 @@ export async function GET(request: NextRequest) {
     createdAt?: { gte?: Date; lte?: Date };
     shareLinks?: { some: { OR: Array<{ expiresAt: null } | { expiresAt: { gt: Date } }> } };
   } = {
-    userId: session.user.id,
+    userId,
     deletedAt: null,
   };
 

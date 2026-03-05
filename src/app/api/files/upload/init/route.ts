@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { getMaxFileSize } from "@/lib/plan-service";
 import { formatBytes } from "@/lib/utils";
@@ -9,8 +8,8 @@ import { getPresignedUploadUrl } from "@/lib/s3-upload";
 import { createUploadSessionToken } from "@/lib/upload-session";
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Некорректный размер файла" }, { status: 400 });
   }
 
-  const maxSize = await getMaxFileSize(session.user.id);
+  const maxSize = await getMaxFileSize(userId);
   if (BigInt(size) > maxSize) {
     return NextResponse.json(
       { error: `Файл слишком большой. Максимум: ${formatBytes(Number(maxSize))}` },
@@ -74,7 +73,7 @@ export async function POST(request: NextRequest) {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: userId },
     select: { storageUsed: true, storageQuota: true },
   });
   if (!user) {
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest) {
 
   if (folderId) {
     const folder = await prisma.folder.findFirst({
-      where: { id: folderId, userId: session.user.id, deletedAt: null },
+      where: { id: folderId, userId: userId, deletedAt: null },
       select: { id: true },
     });
     if (!folder) {
@@ -95,7 +94,7 @@ export async function POST(request: NextRequest) {
   }
 
   const s3Key = buildS3Key({
-    userId: session.user.id,
+    userId: userId,
     fileName: name,
     folderId,
   });
@@ -106,7 +105,7 @@ export async function POST(request: NextRequest) {
   });
 
   const uploadSessionToken = createUploadSessionToken({
-    userId: session.user.id,
+    userId: userId,
     s3Key,
     name,
     mimeType,

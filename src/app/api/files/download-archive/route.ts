@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { getStreamFromS3 } from "@/lib/s3-download";
 import archiver from "archiver";
@@ -10,8 +9,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  const userId = await getUserIdFromRequest(req);
+  if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   const files = await prisma.file.findMany({
-    where: { id: { in: fileIds }, userId: session.user.id, deletedAt: null },
+    where: { id: { in: fileIds }, userId, deletedAt: null },
     select: { id: true, name: true, s3Key: true },
   });
 
