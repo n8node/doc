@@ -6,7 +6,7 @@ import type {
 } from "./types";
 
 const DOCLING_URL = process.env.DOCLING_URL || "http://localhost:8000";
-const REQUEST_TIMEOUT_MS = 300_000; // 5 min for large documents
+const REQUEST_TIMEOUT_MS = 2_100_000; // 35 min for transcription (Whisper on CPU is slow)
 
 class DoclingClient {
   private baseUrl: string;
