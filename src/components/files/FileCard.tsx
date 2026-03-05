@@ -349,6 +349,23 @@ export function FileCard({
                 </button>
               </>
             )}
+            {onChat && isProcessed && (
+              <>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChat();
+                  }}
+                  className="flex items-center gap-1 rounded bg-cyan-500/10 px-1.5 py-0.5 text-cyan-600 transition-colors hover:bg-cyan-500/20"
+                  title="Чат по документу"
+                >
+                  <MessageCircle className="h-3 w-3" />
+                  Чат
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -473,24 +490,6 @@ export function FileCard({
                 </button>
               </TooltipTrigger>
               <TooltipContent>Анализ документа</TooltipContent>
-            </Tooltip>
-          )}
-
-          {onChat && isProcessed && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onChat();
-                  }}
-                  className={cn(ACTION_BTN, "text-cyan-500 hover:bg-cyan-500/10")}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Чат по документу</TooltipContent>
             </Tooltip>
           )}
 
