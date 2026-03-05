@@ -1927,7 +1927,7 @@ export function FileManager() {
                 <span className="hidden sm:inline">Обновить</span>
               </Button>
 
-              {!isHistorySection && (folders.length > 0 || files.length > 0) && (
+              {isTrashSection && (folders.length > 0 || files.length > 0) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -1937,7 +1937,7 @@ export function FileManager() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    {showFolders && folders.length > 0 && (
+                    {folders.length > 0 && (
                       <DropdownMenuItem onClick={handleQuickSelectAllFolders}>
                         Все папки ({folders.length})
                       </DropdownMenuItem>
@@ -2039,6 +2039,39 @@ export function FileManager() {
 
                   <div className="-mx-1 overflow-x-auto px-1 pb-1">
                     <div className="flex min-w-max items-center gap-2">
+                      {!isHistorySection && (folders.length > 0 || files.length > 0) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="flex h-10 min-w-[140px] items-center justify-between gap-2 rounded-xl border border-primary/40 bg-primary/5 px-3 text-sm text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25"
+                            >
+                              <span className="flex items-center gap-2 truncate">
+                                <CheckSquare className="h-4 w-4 shrink-0" />
+                                Быстрый выбор
+                              </span>
+                              <ChevronDown className="h-4 w-4 shrink-0 text-primary/80" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-56">
+                            {showFolders && folders.length > 0 && (
+                              <DropdownMenuItem onClick={handleQuickSelectAllFolders}>
+                                Все папки ({folders.length})
+                              </DropdownMenuItem>
+                            )}
+                            {files.length > 0 && (
+                              <DropdownMenuItem onClick={handleQuickSelectAllFiles}>
+                                Все файлы ({files.length})
+                              </DropdownMenuItem>
+                            )}
+                            {(folders.length > 0 || files.length > 0) && (
+                              <DropdownMenuItem onClick={handleQuickSelectAll}>
+                                Всё на странице ({folders.length + files.length})
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                       {isPhotosSection ? (
                         <div className={getFilterTriggerClass(true)}>
                           <span className="truncate">{activeTypeLabel}</span>
