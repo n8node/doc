@@ -22,6 +22,7 @@ export async function GET() {
       id: p.id,
       name: p.name,
       type: p.type,
+      purpose: p.purpose,
       baseUrl: p.baseUrl,
       modelName: p.modelName,
       chatModelName: p.chatModelName,
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, type, baseUrl, modelName, chatModelName, apiKey, folderId, config } = body;
+  const { name, type, purpose, baseUrl, modelName, chatModelName, apiKey, folderId, config } = body;
 
   if (!name || typeof name !== "string") {
     return NextResponse.json({ error: "name обязателен" }, { status: 400 });
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
   if (!type || !["CLOUD", "SELF_HOSTED", "LOCAL"].includes(type)) {
     return NextResponse.json({ error: "type должен быть CLOUD, SELF_HOSTED или LOCAL" }, { status: 400 });
   }
+  const purposeVal = purpose === "TRANSCRIPTION" ? "TRANSCRIPTION" : "EMBEDDING_CHAT";
 
   const existing = await prisma.aiProvider.findUnique({ where: { name } });
   if (existing) {
@@ -62,9 +64,10 @@ export async function POST(request: NextRequest) {
     data: {
       name,
       type,
+      purpose: purposeVal,
       baseUrl: baseUrl || null,
       modelName: modelName || null,
-      chatModelName: chatModelName || null,
+      chatModelName: purposeVal === "EMBEDDING_CHAT" ? (chatModelName || null) : null,
       apiKey: apiKey ? encryptApiKey(apiKey) : null,
       folderId: folderId || null,
       isActive: false,

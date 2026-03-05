@@ -25,6 +25,7 @@ export async function GET(
     id: provider.id,
     name: provider.name,
     type: provider.type,
+    purpose: provider.purpose,
     baseUrl: provider.baseUrl,
     modelName: provider.modelName,
     chatModelName: provider.chatModelName,
