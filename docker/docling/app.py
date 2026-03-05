@@ -12,6 +12,7 @@ from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from docling.document_converter import DocumentConverter
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel import asr_model_specs
@@ -157,6 +158,7 @@ async def transcribe_media(
     Transcribe audio or video to Markdown text (paragraphs with timestamps).
     Supports: WAV, MP3, M4A, AAC, OGG, FLAC, MP4, AVI, MOV.
     """
+    print(f"[transcribe] Request received: {file.filename}", flush=True)
     if not file.filename:
         raise HTTPException(400, "Filename is required")
 
@@ -177,9 +179,12 @@ async def transcribe_media(
         tmp.write(content)
         tmp_path = tmp.name
 
-    try:
+    def _transcribe(path: str):
         converter = get_asr_converter()
-        result = converter.convert(tmp_path)
+        return converter.convert(path)
+
+    try:
+        result = await run_in_threadpool(_transcribe, tmp_path)
         doc = result.document
         text = doc.export_to_markdown()
 
