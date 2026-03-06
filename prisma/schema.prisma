@@ -32,7 +32,8 @@ model User {
   historyEvents HistoryEvent[]
   documentChatMessages DocumentChatMessage[]
   apiKeys        UserApiKey[]
-  preferences   Json?       @map("preferences") // { theme?: string, emailNotifications?: boolean, ... }
+  notifications  Notification[]
+  preferences   Json?       @map("preferences") // { theme?: string, notifications?: { storage, trash, payment, ... } }
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
@@ -299,4 +300,30 @@ enum TaskStatus {
   completed
   failed
   cancelled
+}
+
+enum NotificationType {
+  STORAGE
+  TRASH
+  PAYMENT
+  AI_TASK
+  QUOTA
+  SHARE_LINK
+}
+
+model Notification {
+  id        String           @id @default(cuid()) @map("id")
+  userId    String           @map("user_id")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @map("type")
+  category  String           @map("category") // "info" | "warning" | "success" | "error"
+  title     String           @map("title")
+  body      String?          @map("body")
+  payload   Json?            @map("payload") // { fileId?, linkId?, percent?, ... }
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@map("notifications")
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
 }
