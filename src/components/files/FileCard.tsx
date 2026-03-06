@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn, formatBytes } from "@/lib/utils";
+import { TranscriptionProgressBar } from "./TranscriptionProgressBar";
 
 interface FileCardProps {
   id: string;
@@ -73,6 +74,7 @@ interface FileCardProps {
   isTranscribing?: boolean;
   transcribeError?: string;
   transcribeEstimateMinutes?: number;
+  transcribeStartedAt?: number;
 }
 
 interface FolderCardProps {
@@ -248,6 +250,7 @@ export function FileCard({
   isTranscribable = false,
   isTranscribing,
   transcribeEstimateMinutes,
+  transcribeStartedAt,
   transcribeError,
 }: FileCardProps) {
   const { icon: Icon, color, bg } = getFileIcon(mimeType);
@@ -358,17 +361,18 @@ export function FileCard({
             {isTranscribable && isTranscribing && (
               <>
                 <span>•</span>
-                <span
-                  className="flex items-center gap-1 text-amber-500 animate-pulse"
-                  title={
-                    transcribeEstimateMinutes
-                      ? `Транскрибируется... (~${transcribeEstimateMinutes} мин)`
-                      : "Транскрибируется..."
-                  }
-                >
-                  <Mic2 className="h-3 w-3" />
-                  Транскрипция...
-                </span>
+                {transcribeEstimateMinutes != null && transcribeEstimateMinutes > 0 && transcribeStartedAt != null ? (
+                  <TranscriptionProgressBar
+                    startTimestamp={transcribeStartedAt}
+                    estimatedSeconds={transcribeEstimateMinutes * 60}
+                    variant="compact"
+                  />
+                ) : (
+                  <span className="flex items-center gap-1 text-amber-500 animate-pulse" title="Транскрибируется...">
+                    <Mic2 className="h-3 w-3" />
+                    Транскрипция...
+                  </span>
+                )}
               </>
             )}
             {isTranscribable && transcribeError && !isTranscribing && (

@@ -58,6 +58,7 @@ import { MoveDialog } from "./MoveDialog";
 import { RenameDialog } from "./RenameDialog";
 import { DocumentChatDialog } from "./DocumentChatDialog";
 import { TranscriptDialog } from "./TranscriptDialog";
+import { TranscriptionProgressBar } from "./TranscriptionProgressBar";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { cn, formatBytes } from "@/lib/utils";
@@ -222,6 +223,7 @@ export function FileManager() {
   const [transcribingFiles, setTranscribingFiles] = useState<Set<string>>(new Set());
   const [transcribeError, setTranscribeError] = useState<Map<string, string>>(new Map());
   const [transcribeEstimateMinutes, setTranscribeEstimateMinutes] = useState<Map<string, number>>(new Map());
+  const [transcribeStartedAt, setTranscribeStartedAt] = useState<Map<string, number>>(new Map());
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState<number | null>(null);
   const [embeddingTokensUsedThisMonth, setEmbeddingTokensUsedThisMonth] = useState<number>(0);
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState<number | null>(null);
@@ -1116,6 +1118,7 @@ export function FileManager() {
         const estMin = data.estimatedProcessingMinutes as number | undefined;
         if (estMin != null && estMin > 0) {
           setTranscribeEstimateMinutes((m) => new Map(m).set(id, estMin));
+          setTranscribeStartedAt((m) => new Map(m).set(id, Date.now()));
         }
         const loadingMsg =
           estMin != null && estMin > 0
@@ -1124,6 +1127,11 @@ export function FileManager() {
         toast.loading(loadingMsg, { id: toastId });
         await pollTranscribeStatus(id, toastId);
         setTranscribeEstimateMinutes((m) => {
+          const n = new Map(m);
+          n.delete(id);
+          return n;
+        });
+        setTranscribeStartedAt((m) => {
           const n = new Map(m);
           n.delete(id);
           return n;
@@ -1262,6 +1270,13 @@ export function FileManager() {
           }
           continue;
         }
+        if (res.status === 202 && data.status === "processing") {
+          const estMin = data.estimatedProcessingMinutes as number | undefined;
+          if (estMin != null && estMin > 0) {
+            setTranscribeEstimateMinutes((m) => new Map(m).set(id, estMin));
+            setTranscribeStartedAt((m) => new Map(m).set(id, Date.now()));
+          }
+        }
       } catch {
         pending.delete(id);
         failed++;
@@ -1287,6 +1302,8 @@ export function FileManager() {
           if (data.status === "completed" && data.transcriptText != null) {
             pending.delete(id);
             succeeded++;
+            setTranscribeEstimateMinutes((m) => { const n = new Map(m); n.delete(id); return n; });
+            setTranscribeStartedAt((m) => { const n = new Map(m); n.delete(id); return n; });
             setTranscribingFiles((s) => {
               const n = new Set(s);
               n.delete(id);
@@ -1296,6 +1313,8 @@ export function FileManager() {
             pending.delete(id);
             failed++;
             setTranscribeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+            setTranscribeEstimateMinutes((m) => { const n = new Map(m); n.delete(id); return n; });
+            setTranscribeStartedAt((m) => { const n = new Map(m); n.delete(id); return n; });
             setTranscribingFiles((s) => {
               const n = new Set(s);
               n.delete(id);
@@ -1309,13 +1328,15 @@ export function FileManager() {
     }
 
     if (pending.size > 0) {
-      pending.forEach((id) => {
+      pending.forEach((fileId) => {
+        setTranscribeEstimateMinutes((m) => { const n = new Map(m); n.delete(fileId); return n; });
+        setTranscribeStartedAt((m) => { const n = new Map(m); n.delete(fileId); return n; });
         setTranscribingFiles((s) => {
           const n = new Set(s);
-          n.delete(id);
+          n.delete(fileId);
           return n;
         });
-        setTranscribeError((m) => new Map(m).set(id, "Таймаут ожидания"));
+        setTranscribeError((m) => new Map(m).set(fileId, "Таймаут ожидания"));
       });
       failed += pending.size;
     }
@@ -2067,6 +2088,7 @@ export function FileManager() {
       isTranscribing={transcribingFiles.has(file.id)}
       transcribeError={transcribeError.get(file.id)}
       transcribeEstimateMinutes={transcribeEstimateMinutes.get(file.id)}
+      transcribeStartedAt={transcribeStartedAt.get(file.id)}
     />
   );
 
@@ -2945,18 +2967,26 @@ export function FileManager() {
                                       AI
                                     </span>
                                   )}
-                                  {TRANSCRIBABLE_MIMES.has(file.mimeType) && transcribingFiles.has(file.id) && (
-                                    <span
-                                      className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse"
-                                      title={
-                                        transcribeEstimateMinutes.get(file.id)
-                                          ? `Транскрибируется... (~${transcribeEstimateMinutes.get(file.id)} мин)`
-                                          : "Транскрибируется..."
-                                      }
-                                    >
-                                      <Mic2 className="h-4 w-4" />
-                                    </span>
-                                  )}
+                                  {TRANSCRIBABLE_MIMES.has(file.mimeType) && transcribingFiles.has(file.id) && (() => {
+                                    const estMin = transcribeEstimateMinutes.get(file.id);
+                                    const startedAt = transcribeStartedAt.get(file.id);
+                                    if (estMin != null && estMin > 0 && startedAt != null) {
+                                      return (
+                                        <TranscriptionProgressBar
+                                          key={file.id}
+                                          startTimestamp={startedAt}
+                                          estimatedSeconds={estMin * 60}
+                                          variant="compact"
+                                          className="rounded-md p-1.5"
+                                        />
+                                      );
+                                    }
+                                    return (
+                                      <span className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse" title="Транскрибируется...">
+                                        <Mic2 className="h-4 w-4" />
+                                      </span>
+                                    );
+                                  })()}
                                   {TRANSCRIBABLE_MIMES.has(file.mimeType) && transcribeError.get(file.id) && !transcribingFiles.has(file.id) && (
                                     <span className="flex items-center rounded-md p-1.5 text-red-500" title={transcribeError.get(file.id)}>
                                       <Mic2 className="h-4 w-4" />
