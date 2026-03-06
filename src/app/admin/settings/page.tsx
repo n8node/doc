@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { useState, Suspense } from "react";
 import { S3SettingsForm } from "@/components/admin/S3SettingsForm";
 import { AiProvidersForm } from "@/components/admin/AiProvidersForm";
+import { YookassaSettingsForm } from "@/components/admin/YookassaSettingsForm";
 
 type Tab = "s3" | "yookassa" | "ai";
 
@@ -33,39 +34,7 @@ function AdminSettingsContent() {
 
       <Card className="p-6">
         {tab === "s3" && <S3SettingsForm />}
-        {tab === "yookassa" && (
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">ЮKassa</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Настройки для приёма платежей
-            </p>
-            <div className="mt-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground">
-                  Shop ID
-                </label>
-                <input
-                  type="text"
-                  placeholder=""
-                  className="mt-1 w-full max-w-md rounded-xl border border-border bg-surface px-4 py-2.5 text-foreground"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground">
-                  Secret Key
-                </label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  className="mt-1 w-full max-w-md rounded-xl border border-border bg-surface px-4 py-2.5 text-foreground"
-                />
-              </div>
-              <button className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-soft hover:bg-primary/90">
-                Тест API
-              </button>
-            </div>
-          </div>
-        )}
+        {tab === "yookassa" && <YookassaSettingsForm />}
         {tab === "ai" && <AiProvidersForm />}
       </Card>
     </div>
