@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Key, Copy, Trash2 } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -236,11 +237,41 @@ export default function ApiDocsPage() {
             <CardHeader>
               <CardTitle>Эндпоинты</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Основные операции с файлами и папками
+                Операции сгруппированы по объектам
               </p>
             </CardHeader>
             <CardContent>
-          <div className="space-y-6">
+          <Accordion type="multiple" defaultValue={["auth", "files"]} className="space-y-1">
+            <AccordionItem value="auth" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-muted-foreground" />
+                  Аутентификация и базовый URL
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">2</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <p className="text-sm text-muted-foreground">
+                    Базовый URL: <code className="rounded bg-surface2 px-1">{loading ? "…" : baseUrl || "—"}</code>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Bearer API ключ в заголовке <code className="rounded bg-surface2 px-1">Authorization</code>
+                  </p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="files" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  Файлы
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">17</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
             <Section
               method="GET"
               path="/api/v1/files"
@@ -317,44 +348,6 @@ export default function ApiDocsPage() {
                 { name: "threshold", type: "number", desc: "Порог схожести (по умолчанию 0.3)" },
               ]}
             />
-            <div className="border-b border-border/70 pb-4">
-              <p className="mb-3 text-sm font-semibold text-foreground">Векторная база (эмбеддинги)</p>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Управление эмбеддингами по API ключу. Указывайте заголовок: <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;ключ&gt;</code>
-              </p>
-            </div>
-            <Section
-              method="GET"
-              path="/api/v1/files/embeddings"
-              desc="Список файлов с эмбеддингами (обработанных AI). Доступно по API ключу."
-            />
-            <Section
-              method="GET"
-              path="/api/v1/files/{id}/embeddings"
-              desc="Список чанков (эмбеддингов) файла с пагинацией"
-              params={[
-                { name: "page", type: "number", desc: "Страница (по умолчанию 1)" },
-                { name: "limit", type: "number", desc: "Строк на странице (10–100, по умолчанию 20)" },
-              ]}
-            />
-            <Section
-              method="DELETE"
-              path="/api/v1/files/{id}/embeddings"
-              desc="Удалить чанки по ID. Body: { ids: string[] }"
-              body={{ ids: "string[]" }}
-            />
-            <Section
-              method="GET"
-              path="/api/v1/files/process"
-              desc="Статус обработки документа"
-              params={[{ name: "fileId", type: "string", desc: "ID файла" }]}
-            />
-            <Section
-              method="POST"
-              path="/api/v1/files/process"
-              desc="Запуск обработки документа (извлечение текста, эмбеддинги)"
-              body={{ fileId: "string", fileIds: "string[]" }}
-            />
             <Section
               method="GET"
               path="/api/v1/files/activity"
@@ -388,6 +381,83 @@ export default function ApiDocsPage() {
               desc="Отправить сообщение в чат по документу"
               body={{ content: "string" }}
             />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="embeddings" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                  Векторная база (эмбеддинги)
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">3</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    По API ключу: <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;ключ&gt;</code>
+                  </p>
+                  <Section
+                    method="GET"
+                    path="/api/v1/files/embeddings"
+                    desc="Список файлов с эмбеддингами (обработанных AI)"
+                  />
+                  <Section
+                    method="GET"
+                    path="/api/v1/files/{id}/embeddings"
+                    desc="Список чанков файла с пагинацией"
+                    params={[
+                      { name: "page", type: "number", desc: "Страница (по умолчанию 1)" },
+                      { name: "limit", type: "number", desc: "Строк на странице (10–100, по умолчанию 20)" },
+                    ]}
+                  />
+                  <Section
+                    method="DELETE"
+                    path="/api/v1/files/{id}/embeddings"
+                    desc="Удалить чанки по ID. Body: { ids: string[] }"
+                    body={{ ids: "string[]" }}
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="process" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                  Обработка документов
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">2</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <Section
+                    method="GET"
+                    path="/api/v1/files/process"
+                    desc="Статус обработки документа"
+                    params={[{ name: "fileId", type: "string", desc: "ID файла" }]}
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/files/process"
+                    desc="Запуск обработки (извлечение текста, эмбеддинги)"
+                    body={{ fileId: "string", fileIds: "string[]" }}
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="folders" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Folder className="h-4 w-4 text-muted-foreground" />
+                  Папки
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">7</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
             <Section
               method="GET"
               path="/api/v1/folders"
@@ -427,6 +497,20 @@ export default function ApiDocsPage() {
               desc="Массовые операции с папками"
               body={{ ids: "string[]", action: "delete | move | copy", parentId: "string | null" }}
             />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="share" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Share2 className="h-4 w-4 text-muted-foreground" />
+                  Общий доступ
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">3</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
             <Section
               method="GET"
               path="/api/v1/share"
@@ -449,6 +533,20 @@ export default function ApiDocsPage() {
               }}
             />
             <Section method="DELETE" path="/api/v1/share/{id}" desc="Отозвать ссылку" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="trash" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Archive className="h-4 w-4 text-muted-foreground" />
+                  Корзина
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">4</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
             <Section method="GET" path="/api/v1/trash" desc="Содержимое корзины" />
             <Section
               method="POST"
@@ -467,6 +565,20 @@ export default function ApiDocsPage() {
               path="/api/v1/trash/empty"
               desc="Очистить корзину полностью"
             />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="user" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  Пользователь
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">10</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
             <Section method="GET" path="/api/v1/user/me" desc="Текущий пользователь" />
             <Section method="GET" path="/api/v1/user/storage" desc="Использование хранилища" />
             <Section method="GET" path="/api/v1/user/api-info" desc="Базовый URL API" />
@@ -497,6 +609,20 @@ export default function ApiDocsPage() {
               body={{ password: "string" }}
             />
             <Section method="GET" path="/api/v1/user/document-chats" desc="Файлы с чатами по документам" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="plans" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  Тарифы
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">3</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
             <Section method="GET" path="/api/v1/plans" desc="Список тарифов (публичный)" />
             <Section method="GET" path="/api/v1/plans/me" desc="Текущий тариф пользователя" />
             <Section
@@ -505,7 +631,10 @@ export default function ApiDocsPage() {
               desc="Подписка на тариф"
               body={{ planId: "string", period: "monthly | yearly" }}
             />
-          </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
           </div>
         </div>
