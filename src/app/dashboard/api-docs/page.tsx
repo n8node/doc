@@ -317,15 +317,21 @@ export default function ApiDocsPage() {
                 { name: "threshold", type: "number", desc: "Порог схожести (по умолчанию 0.3)" },
               ]}
             />
+            <div className="border-b border-border/70 pb-4">
+              <p className="mb-3 text-sm font-semibold text-foreground">Векторная база (эмбеддинги)</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Управление эмбеддингами по API ключу. Указывайте заголовок: <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;ключ&gt;</code>
+              </p>
+            </div>
             <Section
               method="GET"
               path="/api/v1/files/embeddings"
-              desc="Список файлов с эмбеддингами (обработанных AI)"
+              desc="Список файлов с эмбеддингами (обработанных AI). Доступно по API ключу."
             />
             <Section
               method="GET"
               path="/api/v1/files/{id}/embeddings"
-              desc="Список чанков (эмбеддингов) файла"
+              desc="Список чанков (эмбеддингов) файла с пагинацией"
               params={[
                 { name: "page", type: "number", desc: "Страница (по умолчанию 1)" },
                 { name: "limit", type: "number", desc: "Строк на странице (10–100, по умолчанию 20)" },
@@ -334,7 +340,7 @@ export default function ApiDocsPage() {
             <Section
               method="DELETE"
               path="/api/v1/files/{id}/embeddings"
-              desc="Удалить чанки по ID"
+              desc="Удалить чанки по ID. Body: { ids: string[] }"
               body={{ ids: "string[]" }}
             />
             <Section
