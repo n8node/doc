@@ -241,14 +241,13 @@ export default function ApiDocsPage() {
               </p>
             </CardHeader>
             <CardContent>
-          <Accordion type="multiple" defaultValue={["auth", "files"]} className="space-y-1">
+          <Accordion type="multiple" defaultValue={[]} className="space-y-1">
             <AccordionItem value="auth" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Key className="h-4 w-4 text-muted-foreground" />
-                  Аутентификация и базовый URL
+                  Аутентификация и базовый URL (2 методов)
                 </span>
-                <span className="text-xs font-normal text-muted-foreground">2</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 pt-2">
@@ -266,9 +265,8 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
-                  Файлы
+                  Файлы (17 методов)
                 </span>
-                <span className="text-xs font-normal text-muted-foreground">17</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 pt-2">
@@ -389,9 +387,8 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Database className="h-4 w-4 text-muted-foreground" />
-                  Векторная база (эмбеддинги)
+                  Векторная база (эмбеддинги) (3 методов)
                 </span>
-                <span className="text-xs font-normal text-muted-foreground">3</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 pt-2">
@@ -426,9 +423,8 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-muted-foreground" />
-                  Обработка документов
+                  Обработка документов (2 методов)
                 </span>
-                <span className="text-xs font-normal text-muted-foreground">2</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 pt-2">
@@ -452,9 +448,8 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Folder className="h-4 w-4 text-muted-foreground" />
-                  Папки
+                  Папки (7 методов)
                 </span>
-                <span className="text-xs font-normal text-muted-foreground">7</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 pt-2">
@@ -505,9 +500,8 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Share2 className="h-4 w-4 text-muted-foreground" />
-                  Общий доступ
+                  Общий доступ (3 методов)
                 </span>
-                <span className="text-xs font-normal text-muted-foreground">3</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 pt-2">
@@ -541,9 +535,8 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Archive className="h-4 w-4 text-muted-foreground" />
-                  Корзина
+                  Корзина (4 методов)
                 </span>
-                <span className="text-xs font-normal text-muted-foreground">4</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 pt-2">
@@ -573,9 +566,8 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  Пользователь
+                  Пользователь (10 методов)
                 </span>
-                <span className="text-xs font-normal text-muted-foreground">10</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 pt-2">
@@ -617,9 +609,8 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  Тарифы
+                  Тарифы (3 методов)
                 </span>
-                <span className="text-xs font-normal text-muted-foreground">3</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 pt-2">
