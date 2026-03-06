@@ -221,6 +221,7 @@ export function FileManager() {
   const [analyzeError, setAnalyzeError] = useState<Map<string, string>>(new Map());
   const [transcribingFiles, setTranscribingFiles] = useState<Set<string>>(new Set());
   const [transcribeError, setTranscribeError] = useState<Map<string, string>>(new Map());
+  const [transcribeEstimateMinutes, setTranscribeEstimateMinutes] = useState<Map<string, number>>(new Map());
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState<number | null>(null);
   const [embeddingTokensUsedThisMonth, setEmbeddingTokensUsedThisMonth] = useState<number>(0);
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState<number | null>(null);
@@ -1112,7 +1113,21 @@ export function FileManager() {
         return;
       }
       if (res.status === 202 && data.status === "processing") {
+        const estMin = data.estimatedProcessingMinutes as number | undefined;
+        if (estMin != null && estMin > 0) {
+          setTranscribeEstimateMinutes((m) => new Map(m).set(id, estMin));
+        }
+        const loadingMsg =
+          estMin != null && estMin > 0
+            ? `Транскрибация... (~${estMin} мин)`
+            : "Транскрибация...";
+        toast.loading(loadingMsg, { id: toastId });
         await pollTranscribeStatus(id, toastId);
+        setTranscribeEstimateMinutes((m) => {
+          const n = new Map(m);
+          n.delete(id);
+          return n;
+        });
         loadData();
         return;
       }
@@ -2051,6 +2066,7 @@ export function FileManager() {
       isTranscribable={TRANSCRIBABLE_MIMES.has(file.mimeType)}
       isTranscribing={transcribingFiles.has(file.id)}
       transcribeError={transcribeError.get(file.id)}
+      transcribeEstimateMinutes={transcribeEstimateMinutes.get(file.id)}
     />
   );
 
@@ -2930,7 +2946,14 @@ export function FileManager() {
                                     </span>
                                   )}
                                   {TRANSCRIBABLE_MIMES.has(file.mimeType) && transcribingFiles.has(file.id) && (
-                                    <span className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse" title="Транскрибируется...">
+                                    <span
+                                      className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse"
+                                      title={
+                                        transcribeEstimateMinutes.get(file.id)
+                                          ? `Транскрибируется... (~${transcribeEstimateMinutes.get(file.id)} мин)`
+                                          : "Транскрибируется..."
+                                      }
+                                    >
                                       <Mic2 className="h-4 w-4" />
                                     </span>
                                   )}

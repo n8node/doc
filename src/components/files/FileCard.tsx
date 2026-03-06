@@ -72,6 +72,7 @@ interface FileCardProps {
   isTranscribable?: boolean;
   isTranscribing?: boolean;
   transcribeError?: string;
+  transcribeEstimateMinutes?: number;
 }
 
 interface FolderCardProps {
@@ -246,6 +247,7 @@ export function FileCard({
   analyzeError,
   isTranscribable = false,
   isTranscribing,
+  transcribeEstimateMinutes,
   transcribeError,
 }: FileCardProps) {
   const { icon: Icon, color, bg } = getFileIcon(mimeType);
@@ -356,7 +358,14 @@ export function FileCard({
             {isTranscribable && isTranscribing && (
               <>
                 <span>•</span>
-                <span className="flex items-center gap-1 text-amber-500 animate-pulse" title="Транскрибируется...">
+                <span
+                  className="flex items-center gap-1 text-amber-500 animate-pulse"
+                  title={
+                    transcribeEstimateMinutes
+                      ? `Транскрибируется... (~${transcribeEstimateMinutes} мин)`
+                      : "Транскрибируется..."
+                  }
+                >
                   <Mic2 className="h-3 w-3" />
                   Транскрипция...
                 </span>
