@@ -220,6 +220,8 @@ export function FileManager() {
 
   const [analyzingFiles, setAnalyzingFiles] = useState<Set<string>>(new Set());
   const [analyzeError, setAnalyzeError] = useState<Map<string, string>>(new Map());
+  const [analyzeEstimateMinutes, setAnalyzeEstimateMinutes] = useState<Map<string, number>>(new Map());
+  const [analyzeStartedAt, setAnalyzeStartedAt] = useState<Map<string, number>>(new Map());
   const [transcribingFiles, setTranscribingFiles] = useState<Set<string>>(new Set());
   const [transcribeError, setTranscribeError] = useState<Map<string, string>>(new Map());
   const [transcribeEstimateMinutes, setTranscribeEstimateMinutes] = useState<Map<string, number>>(new Map());
@@ -1201,7 +1203,19 @@ export function FileManager() {
         return;
       }
       if (res.status === 202 && data.status === "processing") {
+        const estMin = data.estimatedProcessingMinutes as number | undefined;
+        if (estMin != null && estMin > 0) {
+          setAnalyzeEstimateMinutes((m) => new Map(m).set(id, estMin));
+          setAnalyzeStartedAt((m) => new Map(m).set(id, Date.now()));
+        }
+        const loadingMsg =
+          estMin != null && estMin > 0
+            ? `Анализ документа... (~${estMin} мин)`
+            : "Анализ документа...";
+        toast.loading(loadingMsg, { id: toastId });
         await pollProcessStatus(id, toastId);
+        setAnalyzeEstimateMinutes((m) => { const n = new Map(m); n.delete(id); return n; });
+        setAnalyzeStartedAt((m) => { const n = new Map(m); n.delete(id); return n; });
         loadData();
         return;
       }
@@ -2084,6 +2098,8 @@ export function FileManager() {
       isProcessable={PROCESSABLE_MIMES.has(file.mimeType)}
       isAnalyzing={analyzingFiles.has(file.id)}
       analyzeError={analyzeError.get(file.id)}
+      analyzeEstimateMinutes={analyzeEstimateMinutes.get(file.id)}
+      analyzeStartedAt={analyzeStartedAt.get(file.id)}
       isTranscribable={TRANSCRIBABLE_MIMES.has(file.mimeType)}
       isTranscribing={transcribingFiles.has(file.id)}
       transcribeError={transcribeError.get(file.id)}
@@ -2938,11 +2954,29 @@ export function FileManager() {
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </button>
-                                  {PROCESSABLE_MIMES.has(file.mimeType) && analyzingFiles.has(file.id) && (
-                                    <span className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse" title="Анализируется...">
-                                      <BrainCircuit className="h-4 w-4" />
-                                    </span>
-                                  )}
+                                  {PROCESSABLE_MIMES.has(file.mimeType) && analyzingFiles.has(file.id) && (() => {
+                                    const estMin = analyzeEstimateMinutes.get(file.id);
+                                    const startedAt = analyzeStartedAt.get(file.id);
+                                    if (estMin != null && estMin > 0 && startedAt != null) {
+                                      return (
+                                        <TranscriptionProgressBar
+                                          key={file.id}
+                                          startTimestamp={startedAt}
+                                          estimatedSeconds={estMin * 60}
+                                          variant="compact"
+                                          label="Анализ"
+                                          icon={ScanSearch}
+                                          color="emerald"
+                                          className="rounded-md p-1.5"
+                                        />
+                                      );
+                                    }
+                                    return (
+                                      <span className="flex items-center rounded-md p-1.5 text-emerald-500 animate-pulse" title="Анализируется...">
+                                        <ScanSearch className="h-4 w-4" />
+                                      </span>
+                                    );
+                                  })()}
                                   {PROCESSABLE_MIMES.has(file.mimeType) && analyzeError.get(file.id) && !analyzingFiles.has(file.id) && (
                                     <span className="flex items-center rounded-md p-1.5 text-red-500" title={analyzeError.get(file.id)}>
                                       <BrainCircuit className="h-4 w-4" />

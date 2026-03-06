@@ -6,6 +6,7 @@ import {
   getProcessingStatus,
   isProcessable,
 } from "@/lib/docling/processing-service";
+import { estimateAnalysisTime } from "@/lib/docling/analysis-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
 
@@ -100,8 +101,16 @@ async function processSingle(fileId: string, userId: string) {
     console.error("[process] Background failed:", err);
   });
 
+  const estimate = estimateAnalysisTime(file.size, file.mimeType);
+
   return NextResponse.json(
-    { status: "processing", fileId: file.id, message: "Обработка запущена" },
+    {
+      status: "processing",
+      fileId: file.id,
+      message: "Обработка запущена",
+      estimatedProcessingSeconds: estimate.estimatedProcessingSeconds,
+      estimatedProcessingMinutes: estimate.estimatedProcessingMinutes,
+    },
     { status: 202 },
   );
 }

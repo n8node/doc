@@ -70,6 +70,8 @@ interface FileCardProps {
   isProcessable?: boolean;
   isAnalyzing?: boolean;
   analyzeError?: string;
+  analyzeEstimateMinutes?: number;
+  analyzeStartedAt?: number;
   isTranscribable?: boolean;
   isTranscribing?: boolean;
   transcribeError?: string;
@@ -247,6 +249,8 @@ export function FileCard({
   isProcessable = false,
   isAnalyzing,
   analyzeError,
+  analyzeEstimateMinutes,
+  analyzeStartedAt,
   isTranscribable = false,
   isTranscribing,
   transcribeEstimateMinutes,
@@ -334,10 +338,21 @@ export function FileCard({
             {isProcessable && isAnalyzing && (
               <>
                 <span>•</span>
-                <span className="flex items-center gap-1 text-amber-500 animate-pulse" title="Анализируется...">
-                  <BrainCircuit className="h-3 w-3" />
-                  Анализ...
-                </span>
+                {analyzeEstimateMinutes != null && analyzeEstimateMinutes > 0 && analyzeStartedAt != null ? (
+                  <TranscriptionProgressBar
+                    startTimestamp={analyzeStartedAt}
+                    estimatedSeconds={analyzeEstimateMinutes * 60}
+                    variant="compact"
+                    label="Анализ"
+                    icon={ScanSearch}
+                    color="emerald"
+                  />
+                ) : (
+                  <span className="flex items-center gap-1 text-emerald-500 animate-pulse" title="Анализируется...">
+                    <ScanSearch className="h-3 w-3" />
+                    Анализ...
+                  </span>
+                )}
               </>
             )}
             {isProcessable && analyzeError && !isAnalyzing && (
