@@ -116,7 +116,7 @@ export function ShareDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md overflow-hidden p-0">
+      <DialogContent className="max-w-md min-w-0 overflow-hidden p-0">
         {/* Header */}
         <div className="border-b border-border bg-surface2/50 px-6 py-4">
           <DialogHeader>
@@ -126,13 +126,13 @@ export function ShareDialog({
               </div>
               <div className="min-w-0 flex-1 overflow-hidden">
                 <DialogTitle className="text-left">Поделиться</DialogTitle>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-sm text-muted-foreground">
                   {targetType === "FILE" ? (
                     <FileIcon className="h-3.5 w-3.5 shrink-0" />
                   ) : (
                     <FolderOpen className="h-3.5 w-3.5 shrink-0" />
                   )}
-                  <span className="truncate" title={targetName}>{targetName}</span>
+                  <span className="min-w-0 flex-1 truncate" title={targetName}>{targetName}</span>
                 </div>
               </div>
             </div>

@@ -138,7 +138,7 @@ export function ShareLinksListDialog({
             <Link2 className="h-5 w-5 shrink-0 text-primary" />
             Публичные ссылки
           </DialogTitle>
-          <p className="min-w-0 truncate text-sm text-muted-foreground" title={targetName}>
+          <p className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm text-muted-foreground" title={targetName}>
             {targetName}
           </p>
         </DialogHeader>
