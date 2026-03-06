@@ -12,8 +12,6 @@ import {
   ExternalLink,
   Calendar,
   Loader2,
-  FileIcon,
-  FolderOpen,
   Mail,
   Info,
 } from "lucide-react";
@@ -124,16 +122,8 @@ export function ShareDialog({
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <Link2 className="h-5 w-5 text-primary" />
               </div>
-              <div className="min-w-0 flex-1 overflow-hidden">
+              <div>
                 <DialogTitle className="text-left">Поделиться</DialogTitle>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-sm text-muted-foreground">
-                  {targetType === "FILE" ? (
-                    <FileIcon className="h-3.5 w-3.5 shrink-0" />
-                  ) : (
-                    <FolderOpen className="h-3.5 w-3.5 shrink-0" />
-                  )}
-                  <span className="min-w-0 flex-1 truncate" title={targetName}>{targetName}</span>
-                </div>
               </div>
             </div>
           </DialogHeader>
