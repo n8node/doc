@@ -242,25 +242,6 @@ export default function ApiDocsPage() {
             </CardHeader>
             <CardContent>
           <Accordion type="multiple" defaultValue={[]} className="space-y-1">
-            <AccordionItem value="auth" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
-              <AccordionTrigger className="hover:no-underline">
-                <span className="flex items-center gap-2">
-                  <Key className="h-4 w-4 text-muted-foreground" />
-                  Аутентификация и базовый URL (2 методов)
-                </span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pt-2">
-                  <p className="text-sm text-muted-foreground">
-                    Базовый URL: <code className="rounded bg-surface2 px-1">{loading ? "…" : baseUrl || "—"}</code>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Bearer API ключ в заголовке <code className="rounded bg-surface2 px-1">Authorization</code>
-                  </p>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
             <AccordionItem value="files" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
