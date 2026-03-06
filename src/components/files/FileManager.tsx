@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -261,6 +261,8 @@ export function FileManager() {
   const [filterSize, setFilterSize] = useState<string>("all");
   const [filterDate, setFilterDate] = useState<string>("all");
   const [filterHasShareLink, setFilterHasShareLink] = useState(false);
+  const [filterProcessed, setFilterProcessed] = useState<"all" | "yes" | "no">("all");
+  const [filterTranscribed, setFilterTranscribed] = useState<"all" | "yes" | "no">("all");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [selectedCustomDate, setSelectedCustomDate] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
@@ -1911,19 +1913,19 @@ export function FileManager() {
   };
 
   const handleQuickSelectAllFiles = () => {
-    const allSelected = files.length > 0 && selectedFiles.size === files.length;
-    setSelectedFiles(allSelected ? new Set() : new Set(files.map((f) => f.id)));
+    const allSelected = filteredFiles.length > 0 && selectedFiles.size === filteredFiles.length;
+    setSelectedFiles(allSelected ? new Set() : new Set(filteredFiles.map((f) => f.id)));
   };
 
   const handleQuickSelectAll = () => {
-    const totalItems = folders.length + files.length;
+    const totalItems = folders.length + filteredFiles.length;
     const allSelected = selectedFolders.size + selectedFiles.size === totalItems;
     if (allSelected) {
       setSelectedFolders(new Set());
       setSelectedFiles(new Set());
     } else {
       setSelectedFolders(new Set(folders.map((f) => f.id)));
-      setSelectedFiles(new Set(files.map((f) => f.id)));
+      setSelectedFiles(new Set(filteredFiles.map((f) => f.id)));
     }
   };
 
@@ -1979,10 +1981,24 @@ export function FileManager() {
     .reduce((sum, f) => sum + f.size, 0);
   const selectedCount = selectedFiles.size + selectedFolders.size;
 
+  const filteredFiles = useMemo(() => {
+    if (isHistorySection || isTrashSection) return files;
+    return files.filter((f) => {
+      const meta = f.aiMetadata as { processedAt?: string; transcriptProcessedAt?: string } | null;
+      const hasProcessed = !!(meta && meta.processedAt);
+      const hasTranscribed = !!(meta && meta.transcriptProcessedAt);
+      if (filterProcessed === "yes" && !hasProcessed) return false;
+      if (filterProcessed === "no" && hasProcessed) return false;
+      if (filterTranscribed === "yes" && !hasTranscribed) return false;
+      if (filterTranscribed === "no" && hasTranscribed) return false;
+      return true;
+    });
+  }, [files, filterProcessed, filterTranscribed, isHistorySection, isTrashSection]);
+
   const recentFileGroups = isRecentSection
     ? (() => {
         const grouped = new Map<string, FileItem[]>();
-        for (const file of files) {
+        for (const file of filteredFiles) {
           const dateKey = toDateKey(new Date(file.createdAt));
           const items = grouped.get(dateKey) ?? [];
           items.push(file);
@@ -2110,17 +2126,24 @@ export function FileManager() {
 
   const typeFilterActive = !isPhotosSection && filterType !== "all";
   const shareFilterActive = !isSharedSection && filterHasShareLink;
+  const processedFilterActive = filterProcessed !== "all";
+  const transcribedFilterActive = filterTranscribed !== "all";
   const activeFiltersCount =
     (typeFilterActive ? 1 : 0) +
     (filterSize !== "all" ? 1 : 0) +
     (filterDate !== "all" ? 1 : 0) +
-    (shareFilterActive ? 1 : 0);
+    (shareFilterActive ? 1 : 0) +
+    (processedFilterActive ? 1 : 0) +
+    (transcribedFilterActive ? 1 : 0);
   const hasActiveFilters = activeFiltersCount > 0;
+
   const resetFilters = () => {
     setFilterType("all");
     setFilterSize("all");
     setFilterDate("all");
     setFilterHasShareLink(false);
+    setFilterProcessed("all");
+    setFilterTranscribed("all");
     setSelectedCustomDate(null);
   };
   const activeTypeLabel =
@@ -2194,8 +2217,8 @@ export function FileManager() {
   const showPhotoGrid = isPhotosSection && viewMode === "grid";
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
   const isEmpty = (showFolders || showTrashFolders)
-    ? folders.length === 0 && files.length === 0
-    : files.length === 0;
+    ? folders.length === 0 && filteredFiles.length === 0
+    : filteredFiles.length === 0;
   const isSubfolder = showFolders && currentFolderId !== null;
 
   return (
@@ -2219,7 +2242,7 @@ export function FileManager() {
                 <span className="hidden sm:inline">Обновить</span>
               </Button>
 
-              {isTrashSection && (folders.length > 0 || files.length > 0) && (
+              {isTrashSection && (folders.length > 0 || filteredFiles.length > 0) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -2234,14 +2257,14 @@ export function FileManager() {
                         Все папки ({folders.length})
                       </DropdownMenuItem>
                     )}
-                    {files.length > 0 && (
-                      <DropdownMenuItem onClick={handleQuickSelectAllFiles}>
-                        Все файлы ({files.length})
+                            {filteredFiles.length > 0 && (
+                                <DropdownMenuItem onClick={handleQuickSelectAllFiles}>
+                                  Все файлы ({filteredFiles.length})
                       </DropdownMenuItem>
                     )}
-                    {(folders.length > 0 || files.length > 0) && (
-                      <DropdownMenuItem onClick={handleQuickSelectAll}>
-                        Всё на странице ({folders.length + files.length})
+                            {(folders.length > 0 || filteredFiles.length > 0) && (
+                                <DropdownMenuItem onClick={handleQuickSelectAll}>
+                                  Всё на странице ({folders.length + filteredFiles.length})
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -2273,7 +2296,7 @@ export function FileManager() {
                 </div>
               )}
 
-              {isTrashSection && files.length + folders.length > 0 && (
+              {isTrashSection && filteredFiles.length + folders.length > 0 && (
                 <Button
                   size="sm"
                   variant="destructive"
@@ -2331,7 +2354,7 @@ export function FileManager() {
 
                   <div className="-mx-1 overflow-x-auto px-1 pb-1">
                     <div className="flex min-w-max items-center gap-2">
-                      {!isHistorySection && (folders.length > 0 || files.length > 0) && (
+                      {!isHistorySection && (folders.length > 0 || filteredFiles.length > 0) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
@@ -2351,14 +2374,14 @@ export function FileManager() {
                                 Все папки ({folders.length})
                               </DropdownMenuItem>
                             )}
-                            {files.length > 0 && (
+                            {filteredFiles.length > 0 && (
                               <DropdownMenuItem onClick={handleQuickSelectAllFiles}>
-                                Все файлы ({files.length})
+                                Все файлы ({filteredFiles.length})
                               </DropdownMenuItem>
                             )}
-                            {(folders.length > 0 || files.length > 0) && (
+                            {(folders.length > 0 || filteredFiles.length > 0) && (
                               <DropdownMenuItem onClick={handleQuickSelectAll}>
-                                Всё на странице ({folders.length + files.length})
+                                Всё на странице ({folders.length + filteredFiles.length})
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
@@ -2452,6 +2475,70 @@ export function FileManager() {
                               )}
                             </DropdownMenuItem>
                           ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className={getFilterTriggerClass(filterProcessed !== "all")}
+                          >
+                            <span className="truncate">
+                              {filterProcessed === "all"
+                                ? "AI анализ"
+                                : filterProcessed === "yes"
+                                  ? "AI: обработаны"
+                                  : "AI: не обработаны"}
+                            </span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                          <DropdownMenuItem onClick={() => setFilterProcessed("all")} className="justify-between">
+                            <span>Все</span>
+                            {filterProcessed === "all" && <Check className="h-4 w-4 text-primary" />}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setFilterProcessed("yes")} className="justify-between">
+                            <span>Обработаны</span>
+                            {filterProcessed === "yes" && <Check className="h-4 w-4 text-primary" />}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setFilterProcessed("no")} className="justify-between">
+                            <span>Не обработаны</span>
+                            {filterProcessed === "no" && <Check className="h-4 w-4 text-primary" />}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className={getFilterTriggerClass(filterTranscribed !== "all")}
+                          >
+                            <span className="truncate">
+                              {filterTranscribed === "all"
+                                ? "Транскрибация"
+                                : filterTranscribed === "yes"
+                                  ? "Транскрипт: есть"
+                                  : "Транскрипт: нет"}
+                            </span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                          <DropdownMenuItem onClick={() => setFilterTranscribed("all")} className="justify-between">
+                            <span>Все</span>
+                            {filterTranscribed === "all" && <Check className="h-4 w-4 text-primary" />}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setFilterTranscribed("yes")} className="justify-between">
+                            <span>Есть</span>
+                            {filterTranscribed === "yes" && <Check className="h-4 w-4 text-primary" />}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setFilterTranscribed("no")} className="justify-between">
+                            <span>Нет</span>
+                            {filterTranscribed === "no" && <Check className="h-4 w-4 text-primary" />}
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
 
@@ -2675,10 +2762,10 @@ export function FileManager() {
                 </div>
               )}
 
-              {files.length > 0 && (
-                <div className="space-y-2">
-                  <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Файлы ({files.length})
+              {filteredFiles.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Файлы ({filteredFiles.length})
                   </p>
                   <div className="space-y-1">
                     {files.map((file, index) => {
@@ -2807,7 +2894,7 @@ export function FileManager() {
               )}
 
               {/* Files */}
-              {files.length > 0 && (
+              {filteredFiles.length > 0 && (
                 <>
                   {isRecentSection ? (
                     <div className="space-y-4">
@@ -2827,10 +2914,10 @@ export function FileManager() {
                   ) : showPhotoGrid ? (
                     <div className="space-y-2">
                       <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Фото ({files.length})
+                        Фото ({filteredFiles.length})
                       </p>
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                        {files.map((file, index) => {
+                        {filteredFiles.map((file, index) => {
                           const selected = selectedFiles.has(file.id);
                           const createdLabel = new Date(file.createdAt).toLocaleDateString("ru-RU", {
                             day: "numeric",
@@ -3068,10 +3155,10 @@ export function FileManager() {
                   ) : (
                     <div className="space-y-2">
                       <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {isSharedSection ? "Общий доступ" : "Файлы"} ({files.length})
+                        {isSharedSection ? "Общий доступ" : "Файлы"} ({filteredFiles.length})
                       </p>
                       <div className="space-y-1">
-                        {files.map((file, index) => renderListFile(file, index + folders.length))}
+                        {filteredFiles.map((file, index) => renderListFile(file, index + folders.length))}
                       </div>
                     </div>
                   )}
