@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, LayoutDashboard, LogOut } from "lucide-react";
+import { Bell, ChevronDown, LayoutDashboard, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +50,13 @@ export function UserMenu({ initial, email, isAdmin }: UserMenuProps) {
             <DropdownMenuSeparator />
           </>
         )}
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/notifications" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Уведомления
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/api/auth/signout" className="flex items-center gap-2 text-muted-foreground">
             <LogOut className="h-4 w-4" />

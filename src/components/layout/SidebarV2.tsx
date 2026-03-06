@@ -19,7 +19,6 @@ import {
   HardDrive,
   Trash2,
   Key,
-  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
@@ -46,7 +45,6 @@ const sectionItems: SectionItem[] = [
 ];
 
 const extraNavItems = [
-  { href: "/dashboard/notifications", icon: Bell, label: "Уведомления" },
   { href: "/dashboard/search", icon: Search, label: "Поиск" },
   { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
   { href: "/dashboard/api-docs", icon: Key, label: "API" },
