@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -50,10 +51,17 @@ const featureLabels: Record<string, string> = {
 };
 
 export default function DashboardPlansPage() {
+  const searchParams = useSearchParams();
   const [plans, setPlans] = useState<PlanItem[]>([]);
   const [currentPlan, setCurrentPlan] = useState<UserPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get("payment") === "success") {
+      toast.success("Оплата прошла успешно! Тариф активирован.");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     Promise.all([
@@ -68,16 +76,20 @@ export default function DashboardPlansPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleSubscribe = async (planId: string) => {
+  const handleSubscribe = async (planId: string, period: "monthly" | "yearly" = "monthly") => {
     setSubscribing(planId);
     try {
       const res = await fetch("/api/v1/plans/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ planId, period }),
       });
       const data = await res.json();
       if (res.ok) {
+        if (data.requiresPayment && data.confirmationUrl) {
+          window.location.href = data.confirmationUrl;
+          return;
+        }
         toast.success(`Тариф "${data.plan.name}" активирован!`);
         const meRes = await fetch("/api/v1/plans/me");
         const meData = await meRes.json();
@@ -268,30 +280,43 @@ export default function DashboardPlansPage() {
                 </div>
 
                 {/* Action */}
-                <div className="border-t border-border p-6 pt-4">
+                <div className="border-t border-border p-6 pt-4 space-y-2">
                   {current ? (
                     <Button disabled className="w-full" variant="outline">
                       <Check className="mr-2 h-4 w-4" />
                       Текущий тариф
                     </Button>
                   ) : (
-                    <Button
-                      className="w-full"
-                      variant={isPopular ? "default" : "outline"}
-                      onClick={() => handleSubscribe(plan.id)}
-                      disabled={subscribing === plan.id}
-                    >
-                      {subscribing === plan.id ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Подключение...
-                        </>
-                      ) : plan.isFree ? (
-                        "Выбрать бесплатный"
-                      ) : (
-                        `Подключить за ${plan.priceMonthly ?? "?"} ₽/мес`
+                    <>
+                      <Button
+                        className="w-full"
+                        variant={isPopular ? "default" : "outline"}
+                        onClick={() => handleSubscribe(plan.id, "monthly")}
+                        disabled={subscribing === plan.id}
+                      >
+                        {subscribing === plan.id ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Подключение...
+                          </>
+                        ) : plan.isFree ? (
+                          "Выбрать бесплатный"
+                        ) : (
+                          `Подключить за ${plan.priceMonthly ?? "?"} ₽/мес`
+                        )}
+                      </Button>
+                      {!plan.isFree && plan.priceYearly != null && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-muted-foreground hover:text-foreground"
+                          onClick={() => handleSubscribe(plan.id, "yearly")}
+                          disabled={subscribing === plan.id}
+                        >
+                          или {plan.priceYearly} ₽/год
+                        </Button>
                       )}
-                    </Button>
+                    </>
                   )}
                 </div>
               </Card>
