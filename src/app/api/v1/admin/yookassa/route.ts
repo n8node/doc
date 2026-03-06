@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { configStore } from "@/lib/config-store";
+import { getPublicBaseUrl } from "@/lib/app-url";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -19,11 +20,15 @@ export async function GET() {
     configStore.get("yookassa.enabled"),
   ]);
 
+  const baseUrl = getPublicBaseUrl();
+  const webhookCallbackUrl = `${baseUrl}/api/wallet/topup/callback`;
+
   return NextResponse.json({
     shopId: shopId ?? "",
     secretKeySet: !!secretKey,
     returnUrl: returnUrl ?? "https://qoqon.ru/dashboard/plans",
     enabled: enabled !== "false",
+    webhookCallbackUrl,
   });
 }
 

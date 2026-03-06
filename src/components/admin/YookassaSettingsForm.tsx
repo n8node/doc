@@ -26,6 +26,7 @@ export function YookassaSettingsForm() {
     returnUrl: DEFAULT_RETURN_URL,
     enabled: true,
   });
+  const [webhookCallbackUrl, setWebhookCallbackUrl] = useState<string>("");
 
   useEffect(() => {
     fetch("/api/v1/admin/yookassa")
@@ -35,6 +36,7 @@ export function YookassaSettingsForm() {
         if (data.returnUrl) setValues((v) => ({ ...v, returnUrl: data.returnUrl }));
         if (typeof data.enabled === "boolean") setValues((v) => ({ ...v, enabled: data.enabled }));
         if (data.secretKeySet) setValues((v) => ({ ...v, secretKey: "••••••••" }));
+        if (data.webhookCallbackUrl) setWebhookCallbackUrl(data.webhookCallbackUrl);
       })
       .catch(() => toast.error("Не удалось загрузить настройки"))
       .finally(() => setLoading(false));
@@ -267,16 +269,36 @@ export function YookassaSettingsForm() {
 
       <div className="rounded-xl border border-border bg-surface2 p-4">
         <h3 className="font-medium text-foreground">Инструкция по подключению</h3>
-        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+        <ol className="mt-3 list-decimal space-y-3 pl-5 text-sm text-muted-foreground">
           <li>Зарегистрируйтесь в{" "}
             <Link href="https://yookassa.ru" target="_blank" rel="noopener noreferrer" className="text-primary underline">
               ЮKassa
             </Link>{" "}
-            и создайте магазин.
-          </li>
+            и создайте магазин.</li>
           <li>В настройках магазина скопируйте Shop ID.</li>
           <li>Перейдите в Интеграция → Ключи API и создайте секретный ключ.</li>
           <li>Вставьте данные в форму выше и сохраните.</li>
+          <li>
+            В ЮKassa → Интеграция → HTTP-уведомления добавьте URL:
+            <div className="mt-2 flex items-center gap-2">
+              <code className="flex-1 break-all rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">
+                {webhookCallbackUrl || "https://ваш-домен/api/wallet/topup/callback"}
+              </code>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const url = webhookCallbackUrl || "https://ваш-домен/api/wallet/topup/callback";
+                  void navigator.clipboard.writeText(url);
+                  toast.success("URL скопирован");
+                }}
+              >
+                Копировать
+              </Button>
+            </div>
+          </li>
+          <li>Нажмите «Проверить подключение».</li>
+          <li>Включите переключатель «Приём платежей».</li>
         </ol>
       </div>
     </div>
