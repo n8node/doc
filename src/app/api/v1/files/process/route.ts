@@ -6,7 +6,7 @@ import {
   getProcessingStatus,
   isProcessable,
 } from "@/lib/docling/processing-service";
-import { createNotificationIfEnabled } from "@/lib/notification-service";
+import { createNotificationIfEnabled, createQuota80WarningIfNeeded } from "@/lib/notification-service";
 import { estimateAnalysisTime } from "@/lib/docling/analysis-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
@@ -60,6 +60,7 @@ async function checkEmbeddingQuota(userId: string): Promise<NextResponse | null>
   if (quota == null) return null;
 
   const used = await getEmbeddingTokensUsedThisMonth(userId);
+  createQuota80WarningIfNeeded(userId, used, quota, "embedding").catch(() => {});
   if (used >= quota) {
     createNotificationIfEnabled({
       userId,

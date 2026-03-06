@@ -6,7 +6,7 @@ import {
   getTranscriptionStatus,
   isTranscribable,
 } from "@/lib/docling/transcription-service";
-import { createNotificationIfEnabled } from "@/lib/notification-service";
+import { createNotificationIfEnabled, createQuota80WarningIfNeeded } from "@/lib/notification-service";
 import { estimateTranscriptionTime } from "@/lib/docling/transcription-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
 import { getUserPlan } from "@/lib/plan-service";
@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
 
   if (quota != null) {
     const used = await getTranscriptionMinutesUsedThisMonth(userId);
+    createQuota80WarningIfNeeded(userId, used, quota, "transcription").catch(() => {});
     if (used + durationMinutes > quota) {
       createNotificationIfEnabled({
         userId,

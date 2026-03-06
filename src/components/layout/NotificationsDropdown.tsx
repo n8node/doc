@@ -37,24 +37,44 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 }
 
+function fetchUnreadCount(
+  setUnreadCount: (n: number) => void
+) {
+  fetch("/api/v1/notifications?limit=1")
+    .then((r) => r.json())
+    .then((d: NotificationsResponse) => setUnreadCount(d?.unreadCount ?? 0))
+    .catch(() => setUnreadCount(0));
+}
+
 export function NotificationsDropdown() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<NotificationsResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetchUnreadCount(setUnreadCount);
+    const interval = setInterval(() => fetchUnreadCount(setUnreadCount), 10000);
+    const onRefresh = () => fetchUnreadCount(setUnreadCount);
+    window.addEventListener("notifications:refresh", onRefresh);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("notifications:refresh", onRefresh);
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     fetch("/api/v1/notifications?limit=8")
       .then((r) => r.json())
-      .then((d) => {
+      .then((d: NotificationsResponse) => {
         setData(d);
+        setUnreadCount(d?.unreadCount ?? 0);
       })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, [open]);
-
-  const unreadCount = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
 
   return (

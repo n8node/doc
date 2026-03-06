@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { createShareLink, listShareLinks } from "@/lib/share-service";
+import { createShareLinkExpiryNotifications } from "@/lib/notification-service";
 import { getPublicBaseUrl } from "@/lib/app-url";
 
 function getShareBaseUrl(request: NextRequest): string {
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
   const folderId = searchParams.get("folderId");
 
   const links = await listShareLinks(userId, { fileId, folderId });
+  createShareLinkExpiryNotifications(userId, links).catch(() => {});
   return NextResponse.json({
     links: links.map((l) => ({
       id: l.id,

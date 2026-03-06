@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
-import { createNotificationIfEnabled } from "@/lib/notification-service";
+import { createNotificationIfEnabled, createStorage90WarningIfNeeded } from "@/lib/notification-service";
 import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/file-service";
 import { getMaxFileSize } from "@/lib/plan-service";
@@ -68,6 +68,13 @@ export async function POST(request: NextRequest) {
       folderId: folderId && typeof folderId === "string" ? folderId : null,
       mediaDurationSeconds,
     });
+    const userAfter = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { storageUsed: true, storageQuota: true },
+    });
+    if (userAfter) {
+      createStorage90WarningIfNeeded(userId, userAfter.storageUsed, userAfter.storageQuota).catch(() => {});
+    }
     return NextResponse.json({
       id: created.id,
       name: created.name,

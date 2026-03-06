@@ -939,6 +939,7 @@ export function FileManager() {
         toast.warning(`Загружено: ${completed}, отменено: ${cancelled}${errors > 0 ? `, ошибок: ${errors}` : ""}`);
       } else if (completed > 0 && errors === 0) {
         toast.success(`Загружено файлов: ${completed}`);
+        window.dispatchEvent(new CustomEvent("notifications:refresh"));
       } else if (completed > 0 && errors > 0) {
         toast.warning(`Загружено: ${completed}, ошибок: ${errors}`);
       } else if (errors > 0) {
@@ -1086,9 +1087,11 @@ export function FileManager() {
         const data = await res.json();
         if (data.status === "completed" && data.transcriptText != null) {
           toast.success("Транскрипт готов", { id: toastId });
+          window.dispatchEvent(new CustomEvent("notifications:refresh"));
           return "ok";
         }
         if (data.status === "failed" || data.error) {
+          window.dispatchEvent(new CustomEvent("notifications:refresh"));
           toast.error(data.error || "Ошибка транскрибации", { id: toastId });
           setTranscribeError((m) => new Map(m).set(fileId, data.error || "Ошибка"));
           return "err";
@@ -1176,9 +1179,11 @@ export function FileManager() {
             `Документ обработан${meta.numPages ? `, ${meta.numPages} стр.` : ""}`,
             { id: toastId },
           );
+          window.dispatchEvent(new CustomEvent("notifications:refresh"));
           return "ok";
         }
         if (data.status === "failed" || data.error) {
+          window.dispatchEvent(new CustomEvent("notifications:refresh"));
           const errMsg = data.error || "Ошибка обработки";
           if (isScanPdfError(errMsg)) setScanPdfModalOpen(true);
           toast.error(isScanPdfError(errMsg) ? "Документ — скан, анализ недоступен" : errMsg, { id: toastId });
@@ -1370,6 +1375,7 @@ export function FileManager() {
     } else {
       toast.error(`Транскрибация: ${succeeded} успешно, ${failed} с ошибками`, { id: toastId });
     }
+    window.dispatchEvent(new CustomEvent("notifications:refresh"));
 
     setBulkTranscribing(false);
     clearSelection();
@@ -1462,6 +1468,7 @@ export function FileManager() {
     } else {
       toast.error(`Анализ: ${succeeded} успешно, ${failed} с ошибками`, { id: toastId });
     }
+    window.dispatchEvent(new CustomEvent("notifications:refresh"));
 
     setBulkAnalyzing(false);
     clearSelection();

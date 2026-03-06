@@ -113,3 +113,97 @@ export async function deleteAllNotifications(userId: string) {
     where: { userId },
   });
 }
+
+/** Avoid duplicate warning notifications within 24h for same type+key */
+async function hasRecentNotification(
+  userId: string,
+  type: string,
+  payloadKey: string,
+  payloadVal: number | string,
+  withinHours = 24
+): Promise<boolean> {
+  const since = new Date(Date.now() - withinHours * 3600 * 1000);
+  const existing = await prisma.notification.findFirst({
+    where: {
+      userId,
+      type: type as "QUOTA" | "STORAGE" | "SHARE_LINK",
+      createdAt: { gte: since },
+      payload: { path: [payloadKey], equals: payloadVal } as object,
+    },
+  });
+  return !!existing;
+}
+
+export async function createQuota80WarningIfNeeded(
+  userId: string,
+  used: number,
+  quota: number,
+  kind: "embedding" | "transcription"
+): Promise<void> {
+  if (quota <= 0 || used < Math.ceil(quota * 0.8) || used >= quota) return;
+  const hasRecent = await hasRecentNotification(userId, "QUOTA", "warningPercent", 80);
+  if (hasRecent) return;
+  await createNotificationIfEnabled({
+    userId,
+    type: "QUOTA",
+    category: "warning",
+    title: kind === "embedding" ? "Лимит анализа почти исчерпан" : "Лимит транскрибации почти исчерпан",
+    body: `Использовано ~${Math.round((used / quota) * 100)}% лимита. Обновите тариф при необходимости.`,
+    payload: { used, quota, warningPercent: 80 },
+  });
+}
+
+export async function createStorage90WarningIfNeeded(
+  userId: string,
+  used: bigint,
+  quota: bigint
+): Promise<void> {
+  if (quota <= BigInt(0)) return;
+  const ratio = Number(used) / Number(quota);
+  if (ratio < 0.9) return;
+  const hasRecent = await hasRecentNotification(userId, "STORAGE", "warningPercent", 90);
+  if (hasRecent) return;
+  await createNotificationIfEnabled({
+    userId,
+    type: "STORAGE",
+    category: "warning",
+    title: "Хранилище почти заполнено",
+    body: `Использовано ~${Math.round(ratio * 100)}% объёма. Освободите место или смените тариф.`,
+    payload: { used: used.toString(), quota: quota.toString(), warningPercent: 90 },
+  });
+}
+
+export async function createShareLinkExpiryNotifications(
+  userId: string,
+  links: Array<{ id: string; expiresAt: Date | null; file?: { name: string } | null; folder?: { name: string } | null }>
+): Promise<void> {
+  const now = Date.now();
+  const day = 86400 * 1000;
+  for (const link of links) {
+    if (!link.expiresAt) continue;
+    const expMs = link.expiresAt.getTime();
+    const daysLeft = Math.ceil((expMs - now) / day);
+    const targetName = link.file?.name ?? link.folder?.name ?? "файл";
+    const hasRecent = await hasRecentNotification(userId, "SHARE_LINK", "linkId", link.id, 24);
+    if (hasRecent) continue;
+    if (daysLeft <= 0) {
+      await createNotificationIfEnabled({
+        userId,
+        type: "SHARE_LINK",
+        category: "warning",
+        title: "Ссылка истекла",
+        body: `Публичная ссылка на "${targetName}" больше недействительна.`,
+        payload: { linkId: link.id, expired: true },
+      });
+    } else if (daysLeft <= 3) {
+      await createNotificationIfEnabled({
+        userId,
+        type: "SHARE_LINK",
+        category: "warning",
+        title: "Ссылка скоро истекает",
+        body: `Ссылка на "${targetName}" истекает через ${daysLeft} дн.`,
+        payload: { linkId: link.id, daysLeft },
+      });
+    }
+  }
+}

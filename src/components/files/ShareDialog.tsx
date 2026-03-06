@@ -85,6 +85,7 @@ export function ShareDialog({
       if (res.ok && data.url) {
         setUrl(data.url);
         toast.success("Ссылка создана");
+        window.dispatchEvent(new CustomEvent("notifications:refresh"));
       } else {
         toast.error(data.error || "Ошибка");
       }
