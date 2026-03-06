@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import {
+  getTelegramConfig,
+  sendTelegramMessage,
+  formatRegisterMessage,
+} from "@/lib/telegram";
 
 export async function POST(req: NextRequest) {
   try {
@@ -50,6 +55,19 @@ export async function POST(req: NextRequest) {
         maxFileSize: freePlan?.maxFileSize ?? BigInt(512 * 1024 * 1024),
       },
     });
+
+    try {
+      const tg = await getTelegramConfig();
+      if (tg.notifyRegisterEnabled && tg.botToken && tg.chatId) {
+        const text = formatRegisterMessage(tg.registerMessage, {
+          email,
+          name: name?.trim() || null,
+        });
+        await sendTelegramMessage(tg.botToken, tg.chatId, text);
+      }
+    } catch {
+      // ignore telegram errors, do not affect registration
+    }
 
     return NextResponse.json({ ok: true });
   } catch {
