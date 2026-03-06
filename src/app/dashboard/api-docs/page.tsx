@@ -101,7 +101,7 @@ export default function ApiDocsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-6xl space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Документация API</h1>
         <p className="mt-1 text-muted-foreground">
@@ -109,51 +109,137 @@ export default function ApiDocsPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl modal-glass overflow-hidden">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
-            Аутентификация
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Используйте API ключ в заголовке <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;ваш_ключ&gt;</code>.
-            Создайте ключ в блоке ниже.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <pre className="overflow-x-auto rounded-lg bg-surface2 p-4 text-sm">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.9fr)] items-start">
+        {/* Левая колонка: API ключи */}
+        <div className="rounded-2xl modal-glass overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              API ключи
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Используйте API ключи для интеграции (n8n, скрипты и т.д.). Указывайте ключ в заголовке <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;key&gt;</code>
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {baseUrl && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Базовый URL API</label>
+                <div className="flex items-center gap-2">
+                  <Input readOnly value={baseUrl} className="font-mono text-sm" />
+                  <Button variant="outline" size="icon" onClick={() => handleCopyKey(baseUrl)} title="Копировать">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Создать новый ключ</label>
+              <form onSubmit={handleCreateApiKey} className="flex gap-2">
+                <Input
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                  placeholder="Например: n8n интеграция"
+                  className="max-w-xs"
+                />
+                <Button type="submit" disabled={creatingKey}>
+                  {creatingKey && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Создать
+                </Button>
+              </form>
+            </div>
+            {newKeyValue && (
+              <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3">
+                <p className="mb-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                  Сохраните ключ — он больше не будет показан
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 truncate rounded bg-surface2 px-2 py-1 text-sm font-mono">{newKeyValue}</code>
+                  <Button variant="outline" size="sm" onClick={() => handleCopyKey(newKeyValue)}>Копировать</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setNewKeyValue(null)}>Закрыть</Button>
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Ваши ключи</label>
+              {apiKeys.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Нет активных ключей</p>
+              ) : (
+                <ul className="space-y-2">
+                  {apiKeys.map((k) => (
+                    <li key={k.id} className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface2/50 px-4 py-3">
+                      <div>
+                        <p className="font-medium">{k.name}</p>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {k.keyPrefix}
+                          {k.lastUsedAt ? ` · Использован ${new Date(k.lastUsedAt).toLocaleString("ru-RU")}` : ""}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-destructive"
+                        disabled={deletingKeyId === k.id}
+                        onClick={() => handleDeleteApiKey(k.id)}
+                      >
+                        {deletingKeyId === k.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        Удалить
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </CardContent>
+        </div>
+
+        {/* Правая колонка: документация */}
+        <div className="space-y-6">
+          <div className="rounded-2xl modal-glass overflow-hidden">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Аутентификация
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Используйте API ключ в заголовке <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;ваш_ключ&gt;</code>.
+                Создайте ключ в блоке слева.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <pre className="overflow-x-auto rounded-lg bg-surface2 p-4 text-sm">
 {`curl -X GET "${baseUrl || "https://example.com"}/files" \\
   -H "Authorization: Bearer qk_xxxxxxxx__yyyyyyyy"`}
-          </pre>
-        </CardContent>
-      </div>
+              </pre>
+            </CardContent>
+          </div>
 
-      <div className="rounded-2xl modal-glass overflow-hidden">
-        <CardHeader>
-          <CardTitle>Базовый URL</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Загрузка…
-              </span>
-            ) : baseUrl ? (
-              <code className="rounded bg-surface2 px-1">{baseUrl}</code>
-            ) : (
-              "Войдите, чтобы увидеть URL"
-            )}
-          </p>
-        </CardHeader>
-      </div>
+          <div className="rounded-2xl modal-glass overflow-hidden">
+            <CardHeader>
+              <CardTitle>Базовый URL</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Загрузка…
+                  </span>
+                ) : baseUrl ? (
+                  <code className="rounded bg-surface2 px-1">{baseUrl}</code>
+                ) : (
+                  "Войдите, чтобы увидеть URL"
+                )}
+              </p>
+            </CardHeader>
+          </div>
 
-      <div className="rounded-2xl modal-glass overflow-hidden">
-        <CardHeader>
-          <CardTitle>Эндпоинты</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Основные операции с файлами и папками
-          </p>
-        </CardHeader>
-        <CardContent>
+          <div className="rounded-2xl modal-glass overflow-hidden">
+            <CardHeader>
+              <CardTitle>Эндпоинты</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Основные операции с файлами и папками
+              </p>
+            </CardHeader>
+            <CardContent>
           <div className="space-y-6">
             <Section
               method="GET"
@@ -395,88 +481,8 @@ export default function ApiDocsPage() {
             />
           </div>
         </CardContent>
-      </div>
-
-      <div className="rounded-2xl modal-glass overflow-hidden">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
-            API ключи
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Используйте API ключи для интеграции (n8n, скрипты и т.д.). Указывайте ключ в заголовке <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;key&gt;</code>
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {baseUrl && (
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Базовый URL API</label>
-              <div className="flex items-center gap-2">
-                <Input readOnly value={baseUrl} className="font-mono text-sm" />
-                <Button variant="outline" size="icon" onClick={() => handleCopyKey(baseUrl)} title="Копировать">
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">Создать новый ключ</label>
-            <form onSubmit={handleCreateApiKey} className="flex gap-2">
-              <Input
-                value={newKeyName}
-                onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="Например: n8n интеграция"
-                className="max-w-xs"
-              />
-              <Button type="submit" disabled={creatingKey}>
-                {creatingKey && <Loader2 className="h-4 w-4 animate-spin" />}
-                Создать
-              </Button>
-            </form>
           </div>
-          {newKeyValue && (
-            <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3">
-              <p className="mb-2 text-sm font-medium text-amber-700 dark:text-amber-400">
-                Сохраните ключ — он больше не будет показан
-              </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded bg-surface2 px-2 py-1 text-sm font-mono">{newKeyValue}</code>
-                <Button variant="outline" size="sm" onClick={() => handleCopyKey(newKeyValue)}>Копировать</Button>
-                <Button variant="ghost" size="sm" onClick={() => setNewKeyValue(null)}>Закрыть</Button>
-              </div>
-            </div>
-          )}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">Ваши ключи</label>
-            {apiKeys.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Нет активных ключей</p>
-            ) : (
-              <ul className="space-y-2">
-                {apiKeys.map((k) => (
-                  <li key={k.id} className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface2/50 px-4 py-3">
-                    <div>
-                      <p className="font-medium">{k.name}</p>
-                      <p className="font-mono text-xs text-muted-foreground">
-                        {k.keyPrefix}
-                        {k.lastUsedAt ? ` · Использован ${new Date(k.lastUsedAt).toLocaleString("ru-RU")}` : ""}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground hover:text-destructive"
-                      disabled={deletingKeyId === k.id}
-                      onClick={() => handleDeleteApiKey(k.id)}
-                    >
-                      {deletingKeyId === k.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                      Удалить
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </CardContent>
+        </div>
       </div>
     </div>
   );
