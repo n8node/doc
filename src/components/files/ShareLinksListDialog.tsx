@@ -133,12 +133,12 @@ export function ShareLinksListDialog({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="min-w-0 overflow-hidden">
           <DialogTitle className="flex items-center gap-2">
-            <Link2 className="h-5 w-5 text-primary" />
+            <Link2 className="h-5 w-5 shrink-0 text-primary" />
             Публичные ссылки
           </DialogTitle>
-          <p className="text-sm text-muted-foreground truncate">
+          <p className="min-w-0 truncate text-sm text-muted-foreground" title={targetName}>
             {targetName}
           </p>
         </DialogHeader>
