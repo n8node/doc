@@ -6,6 +6,7 @@ import {
   getTranscriptionStatus,
   isTranscribable,
 } from "@/lib/docling/transcription-service";
+import { estimateTranscriptionTime } from "@/lib/docling/transcription-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
 import { getUserPlan } from "@/lib/plan-service";
 import { getTranscriptionMinutesUsedThisMonth } from "@/lib/ai/transcription-usage";
@@ -67,13 +68,16 @@ export async function POST(request: NextRequest) {
 
   const metadata = file.mediaMetadata as { durationSeconds?: number } | null;
   let durationSeconds = metadata?.durationSeconds;
+  let durationSource: "metadata" | "file-size-fallback" = "metadata";
   // Fallback for audio: estimate duration from file size if unknown (~2 min per MB for compressed audio)
   if (
     (durationSeconds == null || !Number.isFinite(durationSeconds) || durationSeconds < 0) &&
     file.size
   ) {
     const sizeMb = Number(file.size) / (1024 * 1024);
-    durationSeconds = Math.max(1, Math.min(120, Math.ceil(sizeMb * 2))); // 1–120 min
+    const estimatedMinutes = Math.max(1, Math.min(120, Math.ceil(sizeMb * 2)));
+    durationSeconds = estimatedMinutes * 60;
+    durationSource = "file-size-fallback";
   }
   if (
     durationSeconds == null ||
@@ -145,8 +149,16 @@ export async function POST(request: NextRequest) {
     },
   );
 
+  const estimate = estimateTranscriptionTime(durationSeconds, durationSource);
+
   return NextResponse.json(
-    { status: "processing", fileId: file.id, message: "Транскрибация запущена" },
+    {
+      status: "processing",
+      fileId: file.id,
+      message: "Транскрибация запущена",
+      estimatedProcessingSeconds: estimate.estimatedProcessingSeconds,
+      estimatedProcessingMinutes: estimate.estimatedProcessingMinutes,
+    },
     { status: 202 },
   );
 }
