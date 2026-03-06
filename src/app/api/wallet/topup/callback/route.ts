@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  getTelegramConfig,
+  sendTelegramMessage,
+  formatPaymentMessage,
+} from "@/lib/telegram";
 
 /**
  * POST /api/wallet/topup/callback
@@ -37,6 +42,33 @@ export async function POST(req: NextRequest) {
             },
           }),
         ]);
+
+        try {
+          const tg = await getTelegramConfig();
+          if (tg.notifyPaymentEnabled && tg.botToken && tg.chatId) {
+            const paid = await prisma.payment.findUnique({
+              where: { id: existing.id },
+              select: {
+                amount: true,
+                currency: true,
+                user: { select: { email: true, name: true } },
+                plan: { select: { name: true } },
+              },
+            });
+            if (paid) {
+              const text = formatPaymentMessage(tg.paymentMessage, {
+                userEmail: paid.user.email,
+                userName: paid.user.name,
+                planName: paid.plan?.name ?? "",
+                amount: paid.amount / 100,
+                currency: paid.currency,
+              });
+              await sendTelegramMessage(tg.botToken, tg.chatId, text);
+            }
+          }
+        } catch {
+          // ignore telegram errors
+        }
       }
     }
 
