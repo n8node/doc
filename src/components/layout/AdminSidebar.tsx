@@ -11,6 +11,7 @@ const navItems = [
   { href: "/admin/settings?tab=s3", label: "S3", icon: "☁️" },
   { href: "/admin/settings?tab=yookassa", label: "ЮKassa", icon: "💳" },
   { href: "/admin/settings?tab=ai", label: "AI-провайдеры", icon: "🤖" },
+  { href: "/admin/settings?tab=telegram", label: "Telegram", icon: "📱" },
   { href: "/admin/users", label: "Пользователи", icon: "👥" },
 ];
 

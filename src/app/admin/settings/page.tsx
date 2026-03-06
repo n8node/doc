@@ -6,8 +6,9 @@ import { useState, Suspense } from "react";
 import { S3SettingsForm } from "@/components/admin/S3SettingsForm";
 import { AiProvidersForm } from "@/components/admin/AiProvidersForm";
 import { YookassaSettingsForm } from "@/components/admin/YookassaSettingsForm";
+import { TelegramSettingsForm } from "@/components/admin/TelegramSettingsForm";
 
-type Tab = "s3" | "yookassa" | "ai";
+type Tab = "s3" | "yookassa" | "ai" | "telegram";
 
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
@@ -17,7 +18,7 @@ function AdminSettingsContent() {
   return (
     <div className="space-y-6">
       <div className="flex gap-2 border-b border-border pb-2">
-        {(["s3", "yookassa", "ai"] as const).map((t) => (
+        {(["s3", "yookassa", "ai", "telegram"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -27,7 +28,7 @@ function AdminSettingsContent() {
                 : "text-muted-foreground hover:bg-surface2"
             }`}
           >
-            {t === "s3" ? "S3 хранилище" : t === "yookassa" ? "ЮKassa" : "AI-провайдеры"}
+            {t === "s3" ? "S3 хранилище" : t === "yookassa" ? "ЮKassa" : t === "ai" ? "AI-провайдеры" : "Telegram"}
           </button>
         ))}
       </div>
@@ -36,6 +37,7 @@ function AdminSettingsContent() {
         {tab === "s3" && <S3SettingsForm />}
         {tab === "yookassa" && <YookassaSettingsForm />}
         {tab === "ai" && <AiProvidersForm />}
+        {tab === "telegram" && <TelegramSettingsForm />}
       </Card>
     </div>
   );
