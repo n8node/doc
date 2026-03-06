@@ -23,9 +23,25 @@ export default function EmbeddingsPage() {
   const loadFiles = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/files/embeddings");
-      const data = await res.json();
-      setFiles(data.files ?? []);
+      const res = await fetch("/api/v1/files/embeddings", { credentials: "include" });
+      const text = await res.text();
+      let data: { files?: EmbeddingFileItem[] } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        setFiles([]);
+        return;
+      }
+      const list = Array.isArray(data.files) ? data.files : [];
+      setFiles(list.map((f) => ({
+        id: String(f?.id ?? ""),
+        name: String(f?.name ?? ""),
+        mimeType: String(f?.mimeType ?? ""),
+        size: Number(f?.size) || 0,
+        folder: f?.folder ?? null,
+        embeddingsCount: Number(f?.embeddingsCount) || 0,
+        createdAt: String(f?.createdAt ?? ""),
+      })));
     } catch {
       setFiles([]);
     } finally {
@@ -93,14 +109,18 @@ export default function EmbeddingsPage() {
                     <td className="px-4 py-3 text-muted-foreground">
                       {f.folder?.name ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatBytes(f.size)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatBytes(Math.max(0, Number(f.size) || 0))}
+                    </td>
                     <td className="px-4 py-3 font-medium">{f.embeddingsCount}</td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">
-                      {new Date(f.createdAt).toLocaleDateString("ru-RU", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {f.createdAt
+                        ? new Date(f.createdAt).toLocaleDateString("ru-RU", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -28,9 +28,9 @@ const ROWS_OPTIONS = [10, 20, 50, 100];
 export default function EmbeddingsDetailPage({
   params,
 }: {
-  params: Promise<{ fileId: string }>;
+  params: { fileId: string };
 }) {
-  const { fileId } = use(params);
+  const { fileId } = params;
   const router = useRouter();
   const [fileName, setFileName] = useState<string>("");
   const [embeddings, setEmbeddings] = useState<EmbeddingItem[]>([]);
