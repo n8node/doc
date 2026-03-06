@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Bell } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { NotificationsDropdown } from "./NotificationsDropdown";
 import { Input } from "@/components/ui/input";
 import { UserMenu } from "./UserMenu";
 
@@ -31,13 +31,7 @@ export async function DashboardHeader({
             className="w-64"
           />
         </div>
-        <button
-          type="button"
-          className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
-          aria-label="Уведомления"
-        >
-          <Bell className="h-5 w-5" />
-        </button>
+        <NotificationsDropdown />
         <ThemeToggle />
         <UserMenu
           initial={initial}
