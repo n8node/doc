@@ -1,6 +1,5 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Raw SQL operations for pgvector embeddings.
@@ -131,6 +130,69 @@ export async function deleteEmbeddingsByFileId(fileId: string): Promise<void> {
   await prisma.$executeRaw`
     DELETE FROM document_embeddings WHERE file_id = ${fileId}
   `;
+}
+
+export interface EmbeddingListItem {
+  id: string;
+  chunkIndex: number;
+  chunkText: string;
+  createdAt: Date;
+}
+
+export async function listEmbeddings(
+  fileId: string,
+  userId: string,
+  page: number,
+  limit: number,
+): Promise<{ items: EmbeddingListItem[]; total: number }> {
+  const file = await prisma.file.findFirst({
+    where: { id: fileId, userId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!file) return { items: [], total: 0 };
+
+  const offset = (page - 1) * limit;
+  const [items, countResult] = await Promise.all([
+    prisma.$queryRaw<Array<{ id: string; chunk_index: number; chunk_text: string; created_at: Date }>>`
+      SELECT id, chunk_index, chunk_text, created_at
+      FROM document_embeddings
+      WHERE file_id = ${fileId}
+      ORDER BY chunk_index ASC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `,
+    prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*)::bigint as count FROM document_embeddings WHERE file_id = ${fileId}
+    `,
+  ]);
+
+  return {
+    items: items.map((r) => ({
+      id: r.id,
+      chunkIndex: r.chunk_index,
+      chunkText: r.chunk_text,
+      createdAt: r.created_at,
+    })),
+    total: Number(countResult[0].count),
+  };
+}
+
+export async function deleteEmbeddingsByIds(
+  fileId: string,
+  userId: string,
+  ids: string[],
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const file = await prisma.file.findFirst({
+    where: { id: fileId, userId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!file) return 0;
+
+  const result = await prisma.$executeRaw(
+    Prisma.sql`DELETE FROM document_embeddings WHERE file_id = ${fileId} AND id = ANY(${ids})`,
+  );
+  return typeof result === "number" ? result : 0;
 }
 
 export async function hasEmbeddings(fileId: string): Promise<boolean> {

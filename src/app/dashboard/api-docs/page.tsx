@@ -319,6 +319,26 @@ export default function ApiDocsPage() {
             />
             <Section
               method="GET"
+              path="/api/v1/files/embeddings"
+              desc="Список файлов с эмбеддингами (обработанных AI)"
+            />
+            <Section
+              method="GET"
+              path="/api/v1/files/{id}/embeddings"
+              desc="Список чанков (эмбеддингов) файла"
+              params={[
+                { name: "page", type: "number", desc: "Страница (по умолчанию 1)" },
+                { name: "limit", type: "number", desc: "Строк на странице (10–100, по умолчанию 20)" },
+              ]}
+            />
+            <Section
+              method="DELETE"
+              path="/api/v1/files/{id}/embeddings"
+              desc="Удалить чанки по ID"
+              body={{ ids: "string[]" }}
+            />
+            <Section
+              method="GET"
               path="/api/v1/files/process"
               desc="Статус обработки документа"
               params={[{ name: "fileId", type: "string", desc: "ID файла" }]}
