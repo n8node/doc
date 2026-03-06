@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell, TriangleAlert, Key, Copy, ExternalLink } from "lucide-react";
+import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell, TriangleAlert } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn, formatBytes } from "@/lib/utils";
 
@@ -52,14 +52,6 @@ interface ShareLinkItem {
   createdAt: string;
 }
 
-interface ApiKeyItem {
-  id: string;
-  name: string;
-  keyPrefix: string;
-  lastUsedAt: string | null;
-  createdAt: string;
-}
-
 export default function DashboardSettingsPage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,12 +80,6 @@ export default function DashboardSettingsPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>([]);
-  const [baseUrl, setBaseUrl] = useState("");
-  const [newKeyName, setNewKeyName] = useState("");
-  const [creatingKey, setCreatingKey] = useState(false);
-  const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
-  const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null);
   const { setTheme } = useTheme();
 
   useEffect(() => {
@@ -129,16 +115,6 @@ export default function DashboardSettingsPage() {
   }, []);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/v1/user/api-keys").then((r) => r.json()),
-      fetch("/api/v1/user/api-info").then((r) => r.json()),
-    ]).then(([keysRes, infoRes]) => {
-      if (Array.isArray(keysRes.keys)) setApiKeys(keysRes.keys);
-      if (infoRes.baseUrl) setBaseUrl(infoRes.baseUrl);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
     fetch("/api/v1/user/preferences")
       .then((r) => r.json())
       .then((d) => {
@@ -164,68 +140,6 @@ export default function DashboardSettingsPage() {
       })
       .catch(() => {});
   }, [setTheme]);
-
-  const handleCreateApiKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = newKeyName.trim() || "API Key";
-    setCreatingKey(true);
-    try {
-      const res = await fetch("/api/v1/user/api-keys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const text = await res.text();
-      let data: { error?: string; id?: string; name?: string; key?: string; keyPrefix?: string; createdAt?: string } = {};
-      try {
-        if (text) data = JSON.parse(text);
-      } catch {
-        if (!res.ok) throw new Error(`Ошибка сервера ${res.status}`);
-      }
-      if (!res.ok) throw new Error(data.error ?? `Ошибка создания ключа (${res.status})`);
-      setApiKeys((prev) => [
-        {
-          id: data.id ?? "",
-          name: data.name ?? "API Key",
-          keyPrefix: data.keyPrefix ?? "qk_...",
-          lastUsedAt: null,
-          createdAt: data.createdAt ?? new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-      setNewKeyName("");
-      setNewKeyValue(data.key ?? null);
-      toast.success("API ключ создан. Сохраните его — он больше не будет показан.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Ошибка создания ключа");
-    } finally {
-      setCreatingKey(false);
-    }
-  };
-
-  const handleDeleteApiKey = async (id: string) => {
-    setDeletingKeyId(id);
-    try {
-      const res = await fetch(`/api/v1/user/api-keys/${id}`, { method: "DELETE" });
-      const text = await res.text();
-      let data: { error?: string } = {};
-      try {
-        if (text) data = JSON.parse(text);
-      } catch { /* empty or invalid JSON */ }
-      if (!res.ok) throw new Error(data.error ?? `Ошибка удаления (${res.status})`);
-      setApiKeys((prev) => prev.filter((k) => k.id !== id));
-      toast.success("Ключ удалён");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Ошибка удаления ключа");
-    } finally {
-      setDeletingKeyId(null);
-    }
-  };
-
-  const handleCopyKey = (value: string) => {
-    void navigator.clipboard.writeText(value);
-    toast.success("Ключ скопирован");
-  };
 
   const handleRevokeShareLink = async (id: string) => {
     try {
@@ -490,125 +404,6 @@ export default function DashboardSettingsPage() {
               Сменить пароль
             </Button>
           </form>
-        </CardContent>
-      </div>
-
-      {/* API ключи */}
-      <div className="rounded-2xl modal-glass overflow-hidden lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
-            API ключи
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Используйте API ключи для интеграции с внешними сервисами (n8n, скрипты и т.д.).
-            Указывайте ключ в заголовке <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;key&gt;</code>
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {baseUrl && (
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Базовый URL API
-              </label>
-              <div className="flex items-center gap-2">
-                <Input
-                  readOnly
-                  value={baseUrl}
-                  className="font-mono text-sm"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleCopyKey(baseUrl)}
-                  title="Копировать"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Создать новый ключ
-            </label>
-            <form onSubmit={handleCreateApiKey} className="flex gap-2">
-              <Input
-                value={newKeyName}
-                onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="Например: n8n интеграция"
-                className="max-w-xs"
-              />
-              <Button type="submit" disabled={creatingKey}>
-                {creatingKey && <Loader2 className="h-4 w-4 animate-spin" />}
-                Создать
-              </Button>
-            </form>
-          </div>
-          {newKeyValue && (
-            <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3">
-              <p className="mb-2 text-sm font-medium text-amber-700 dark:text-amber-400">
-                Сохраните ключ — он больше не будет показан
-              </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded bg-surface2 px-2 py-1 text-sm font-mono">
-                  {newKeyValue}
-                </code>
-                <Button variant="outline" size="sm" onClick={() => handleCopyKey(newKeyValue)}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setNewKeyValue(null)}>
-                  Закрыть
-                </Button>
-              </div>
-            </div>
-          )}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Ваши ключи
-            </label>
-            {apiKeys.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Нет активных ключей
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {apiKeys.map((k) => (
-                  <li
-                    key={k.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface2/50 px-4 py-3"
-                  >
-                    <div>
-                      <p className="font-medium">{k.name}</p>
-                      <p className="font-mono text-xs text-muted-foreground">
-                        {k.keyPrefix}
-                        {k.lastUsedAt
-                          ? ` · Использован ${new Date(k.lastUsedAt).toLocaleString("ru-RU")}`
-                          : ""}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground hover:text-destructive"
-                      disabled={deletingKeyId === k.id}
-                      onClick={() => handleDeleteApiKey(k.id)}
-                    >
-                      {deletingKeyId === k.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                      Удалить
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <Link
-            href="/dashboard/api-docs"
-            className={cn(buttonVariants({ variant: "outline" }), "inline-flex items-center gap-2")}
-          >
-            Документация API
-            <ExternalLink className="h-4 w-4" />
-          </Link>
         </CardContent>
       </div>
 

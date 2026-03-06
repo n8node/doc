@@ -1,25 +1,103 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
-import { Loader2, Key, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2, Key, Copy, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface ApiKeyItem {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
 
 export default function ApiDocsPage() {
   const [baseUrl, setBaseUrl] = useState("");
   const [loading, setLoading] = useState(true);
+  const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>([]);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
+  const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/v1/user/api-info")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.baseUrl) setBaseUrl(d.baseUrl);
+    Promise.all([
+      fetch("/api/v1/user/api-info").then((r) => r.json()),
+      fetch("/api/v1/user/api-keys").then((r) => r.json()),
+    ])
+      .then(([infoRes, keysRes]) => {
+        if (infoRes.baseUrl) setBaseUrl(infoRes.baseUrl);
+        if (Array.isArray(keysRes.keys)) setApiKeys(keysRes.keys);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const handleCreateApiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newKeyName.trim() || "API Key";
+    setCreatingKey(true);
+    try {
+      const res = await fetch("/api/v1/user/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const text = await res.text();
+      let data: { error?: string; id?: string; name?: string; key?: string; keyPrefix?: string; createdAt?: string } = {};
+      try {
+        if (text) data = JSON.parse(text);
+      } catch {
+        if (!res.ok) throw new Error(`Ошибка сервера ${res.status}`);
+      }
+      if (!res.ok) throw new Error(data.error ?? `Ошибка создания ключа (${res.status})`);
+      setApiKeys((prev) => [
+        {
+          id: data.id ?? "",
+          name: data.name ?? "API Key",
+          keyPrefix: data.keyPrefix ?? "qk_...",
+          lastUsedAt: null,
+          createdAt: data.createdAt ?? new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+      setNewKeyName("");
+      setNewKeyValue(data.key ?? null);
+      toast.success("API ключ создан. Сохраните его — он больше не будет показан.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка создания ключа");
+    } finally {
+      setCreatingKey(false);
+    }
+  };
+
+  const handleDeleteApiKey = async (id: string) => {
+    setDeletingKeyId(id);
+    try {
+      const res = await fetch(`/api/v1/user/api-keys/${id}`, { method: "DELETE" });
+      const text = await res.text();
+      let data: { error?: string } = {};
+      try {
+        if (text) data = JSON.parse(text);
+      } catch { /* empty */ }
+      if (!res.ok) throw new Error(data.error ?? `Ошибка удаления (${res.status})`);
+      setApiKeys((prev) => prev.filter((k) => k.id !== id));
+      toast.success("Ключ удалён");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка удаления ключа");
+    } finally {
+      setDeletingKeyId(null);
+    }
+  };
+
+  const handleCopyKey = (value: string) => {
+    void navigator.clipboard.writeText(value);
+    toast.success("Скопировано");
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -38,7 +116,7 @@ export default function ApiDocsPage() {
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Используйте API ключ в заголовке <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;ваш_ключ&gt;</code>.
-            Ключи создаются в <Link href="/dashboard/settings" className="text-primary underline">настройках</Link>.
+            Создайте ключ в блоке ниже.
           </p>
         </CardHeader>
         <CardContent>
@@ -318,14 +396,86 @@ export default function ApiDocsPage() {
         </CardContent>
       </div>
 
-      <div className="flex items-center justify-between rounded-2xl modal-glass p-6">
-        <p className="text-sm text-muted-foreground">
-          Создавайте и удаляйте API ключи в настройках
-        </p>
-        <Link href="/dashboard/settings" className={cn(buttonVariants(), "gap-2")}>
-          Настройки
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+      <div className="rounded-2xl modal-glass overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            API ключи
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Используйте API ключи для интеграции (n8n, скрипты и т.д.). Указывайте ключ в заголовке <code className="rounded bg-surface2 px-1">Authorization: Bearer &lt;key&gt;</code>
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {baseUrl && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Базовый URL API</label>
+              <div className="flex items-center gap-2">
+                <Input readOnly value={baseUrl} className="font-mono text-sm" />
+                <Button variant="outline" size="icon" onClick={() => handleCopyKey(baseUrl)} title="Копировать">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">Создать новый ключ</label>
+            <form onSubmit={handleCreateApiKey} className="flex gap-2">
+              <Input
+                value={newKeyName}
+                onChange={(e) => setNewKeyName(e.target.value)}
+                placeholder="Например: n8n интеграция"
+                className="max-w-xs"
+              />
+              <Button type="submit" disabled={creatingKey}>
+                {creatingKey && <Loader2 className="h-4 w-4 animate-spin" />}
+                Создать
+              </Button>
+            </form>
+          </div>
+          {newKeyValue && (
+            <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3">
+              <p className="mb-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                Сохраните ключ — он больше не будет показан
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 truncate rounded bg-surface2 px-2 py-1 text-sm font-mono">{newKeyValue}</code>
+                <Button variant="outline" size="sm" onClick={() => handleCopyKey(newKeyValue)}>Копировать</Button>
+                <Button variant="ghost" size="sm" onClick={() => setNewKeyValue(null)}>Закрыть</Button>
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">Ваши ключи</label>
+            {apiKeys.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Нет активных ключей</p>
+            ) : (
+              <ul className="space-y-2">
+                {apiKeys.map((k) => (
+                  <li key={k.id} className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface2/50 px-4 py-3">
+                    <div>
+                      <p className="font-medium">{k.name}</p>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {k.keyPrefix}
+                        {k.lastUsedAt ? ` · Использован ${new Date(k.lastUsedAt).toLocaleString("ru-RU")}` : ""}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      disabled={deletingKeyId === k.id}
+                      onClick={() => handleDeleteApiKey(k.id)}
+                    >
+                      {deletingKeyId === k.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      Удалить
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </CardContent>
       </div>
     </div>
   );

@@ -47,7 +47,7 @@ const sectionItems: SectionItem[] = [
 const extraNavItems = [
   { href: "/dashboard/search", icon: Search, label: "Поиск" },
   { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
-  { href: "/dashboard/api-docs", icon: Key, label: "API" },
+  { href: "/dashboard/api-docs", icon: Key, label: "API настройки" },
   { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },
 ];
 
