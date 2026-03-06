@@ -101,7 +101,7 @@ export default function ApiDocsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div className="max-w-6xl space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Документация API</h1>
         <p className="mt-1 text-muted-foreground">
