@@ -27,7 +27,9 @@ import {
   BrainCircuit,
   MessageCircle,
   Mic2,
+  Database,
 } from "lucide-react";
+import Link from "next/link";
 import {
   Tooltip,
   TooltipContent,
@@ -454,6 +456,20 @@ export function FileCard({
                   <MessageCircle className="h-3 w-3" />
                   Чат
                 </button>
+              </>
+            )}
+            {isProcessed && (
+              <>
+                <span>•</span>
+                <Link
+                  href={`/dashboard/embeddings/${id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 rounded bg-violet-500/10 px-1.5 py-0.5 text-violet-600 transition-colors hover:bg-violet-500/20"
+                  title="Таблица эмбеддингов"
+                >
+                  <Database className="h-3 w-3" />
+                  Эмбеддинг
+                </Link>
               </>
             )}
           </div>
