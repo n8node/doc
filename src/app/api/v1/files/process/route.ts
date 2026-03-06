@@ -6,6 +6,7 @@ import {
   getProcessingStatus,
   isProcessable,
 } from "@/lib/docling/processing-service";
+import { createNotificationIfEnabled } from "@/lib/notification-service";
 import { estimateAnalysisTime } from "@/lib/docling/analysis-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
@@ -60,6 +61,14 @@ async function checkEmbeddingQuota(userId: string): Promise<NextResponse | null>
 
   const used = await getEmbeddingTokensUsedThisMonth(userId);
   if (used >= quota) {
+    createNotificationIfEnabled({
+      userId,
+      type: "QUOTA",
+      category: "warning",
+      title: "Лимит анализа исчерпан",
+      body: "Токенов на анализ документов по тарифу недостаточно. Обновите тариф или дождитесь следующего месяца.",
+      payload: { used, quota },
+    }).catch(() => {});
     return NextResponse.json(
       {
         error: "Лимит токенов на анализ документов по вашему тарифу исчерпан. Обновите тариф или дождитесь следующего месяца.",

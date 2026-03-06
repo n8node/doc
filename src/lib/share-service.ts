@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { prisma } from "./prisma";
 import { recordHistoryEvent } from "./history-service";
+import { createNotificationIfEnabled } from "./notification-service";
 
 export interface CreateShareLinkInput {
   targetType: "FILE" | "FOLDER";
@@ -64,6 +65,23 @@ export async function createShareLink(input: CreateShareLinkInput) {
     });
   } catch {
     // history must not break share operations
+  }
+
+  const expAt = created.expiresAt ?? expiresAt;
+  if (expAt) {
+    const expDate = expAt instanceof Date ? expAt : new Date(expAt);
+    const daysLeft = Math.ceil((expDate.getTime() - Date.now()) / 86400000);
+    const targetName = targetType === "FILE" ? fileName : folderName;
+    createNotificationIfEnabled({
+      userId,
+      type: "SHARE_LINK",
+      category: "info",
+      title: "Публичная ссылка создана",
+      body: targetName
+        ? `Ссылка на "${targetName}" истекает через ${daysLeft} дн.`
+        : `Ссылка истекает через ${daysLeft} дн.`,
+      payload: { linkId: created.id, expiresAt: expDate.toISOString() },
+    }).catch(() => {});
   }
 
   return created;

@@ -3,6 +3,7 @@ import { getS3Config } from "./s3-config";
 import { createS3Client } from "./s3";
 import { prisma } from "./prisma";
 import { recordHistoryEvent } from "./history-service";
+import { createNotificationIfEnabled } from "./notification-service";
 
 function generateBatchId(): string {
   return `trash_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -120,6 +121,18 @@ export async function softDeleteFile(id: string, userId: string) {
   } catch {
     // history must not break core operations
   }
+
+  const retentionDays = await getTrashRetentionDays(userId);
+  if (retentionDays > 0) {
+    createNotificationIfEnabled({
+      userId,
+      type: "TRASH",
+      category: "info",
+      title: "Файл в корзине",
+      body: `Файлы в корзине будут удалены через ${retentionDays} дн.`,
+      payload: { fileId: file.id },
+    }).catch(() => {});
+  }
 }
 
 export async function softDeleteFolderRecursive(id: string, userId: string) {
@@ -156,6 +169,18 @@ export async function softDeleteFolderRecursive(id: string, userId: string) {
     });
   } catch {
     // history must not break core operations
+  }
+
+  const retentionDays = await getTrashRetentionDays(userId);
+  if (retentionDays > 0) {
+    createNotificationIfEnabled({
+      userId,
+      type: "TRASH",
+      category: "info",
+      title: "Папка в корзине",
+      body: `Файлы в корзине будут удалены через ${retentionDays} дн.`,
+      payload: { folderId: folder.id },
+    }).catch(() => {});
   }
 }
 

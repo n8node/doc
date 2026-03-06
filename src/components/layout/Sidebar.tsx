@@ -12,6 +12,7 @@ import {
   LogOut,
   HardDrive,
   Crown,
+  Bell,
 } from "lucide-react";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
 import { SidebarFolderTree } from "./SidebarFolderTree";
@@ -19,6 +20,7 @@ import { buildDashboardFilesUrl, DEFAULT_FILES_SECTION } from "@/lib/files-navig
 
 const navItems = [
   { href: buildDashboardFilesUrl({ section: DEFAULT_FILES_SECTION }), icon: FolderOpen, label: "Файлы" },
+  { href: "/dashboard/notifications", icon: Bell, label: "Уведомления" },
   { href: "/dashboard/search", icon: Search, label: "Поиск" },
   { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
   { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },

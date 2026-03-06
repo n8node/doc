@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
+import { createNotificationIfEnabled } from "@/lib/notification-service";
 import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/file-service";
 import { getMaxFileSize } from "@/lib/plan-service";
@@ -41,6 +42,13 @@ export async function POST(request: NextRequest) {
   const quota = user.storageQuota;
   const used = user.storageUsed;
   if (used + BigInt(file.size) > quota) {
+    createNotificationIfEnabled({
+      userId,
+      type: "STORAGE",
+      category: "error",
+      title: "Хранилище переполнено",
+      body: "Превышен лимит хранилища. Удалите файлы или смените тариф.",
+    }).catch(() => {});
     return NextResponse.json(
       { error: "Превышен лимит хранилища" },
       { status: 403 }

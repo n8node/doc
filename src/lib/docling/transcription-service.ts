@@ -2,6 +2,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Config } from "../s3-config";
 import { createS3Client } from "../s3";
 import { getDoclingClient } from "./client";
+import { createNotificationIfEnabled } from "../notification-service";
 import { prisma } from "../prisma";
 import type { ProcessingStatus } from "./types";
 
@@ -106,6 +107,15 @@ export async function transcribeFile(
       },
     });
 
+    createNotificationIfEnabled({
+      userId,
+      type: "AI_TASK",
+      category: "success",
+      title: "Транскрипция готова",
+      body: "Документ обработан",
+      payload: { fileId, filename },
+    }).catch(() => {});
+
     return {
       fileId,
       text: result.text,
@@ -122,6 +132,15 @@ export async function transcribeFile(
         completedAt: new Date(),
       },
     });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    createNotificationIfEnabled({
+      userId,
+      type: "AI_TASK",
+      category: "error",
+      title: "Транскрипция не удалась",
+      body: errMsg.length > 200 ? errMsg.slice(0, 200) + "…" : errMsg,
+      payload: { fileId, filename },
+    }).catch(() => {});
     throw error;
   }
 }

@@ -6,6 +6,7 @@ import {
   getTranscriptionStatus,
   isTranscribable,
 } from "@/lib/docling/transcription-service";
+import { createNotificationIfEnabled } from "@/lib/notification-service";
 import { estimateTranscriptionTime } from "@/lib/docling/transcription-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
 import { getUserPlan } from "@/lib/plan-service";
@@ -115,6 +116,14 @@ export async function POST(request: NextRequest) {
   if (quota != null) {
     const used = await getTranscriptionMinutesUsedThisMonth(userId);
     if (used + durationMinutes > quota) {
+      createNotificationIfEnabled({
+        userId,
+        type: "QUOTA",
+        category: "warning",
+        title: "Лимит транскрибации исчерпан",
+        body: "Минут транскрибации по тарифу недостаточно. Обновите тариф или дождитесь следующего месяца.",
+        payload: { used, quota },
+      }).catch(() => {});
       return NextResponse.json(
         {
           error:

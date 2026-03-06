@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import type { NotificationType } from "@prisma/client";
 
@@ -10,6 +11,41 @@ export interface CreateNotificationInput {
   payload?: Record<string, unknown> | null;
 }
 
+const NOTIFICATION_TYPE_KEYS: Record<string, string> = {
+  STORAGE: "storage",
+  TRASH: "trash",
+  PAYMENT: "payment",
+  AI_TASK: "aiTask",
+  QUOTA: "quota",
+  SHARE_LINK: "shareLink",
+};
+
+async function isNotificationTypeEnabled(
+  userId: string,
+  type: string
+): Promise<boolean> {
+  const key = NOTIFICATION_TYPE_KEYS[type];
+  if (!key) return true;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { preferences: true },
+  });
+  const prefs = user?.preferences as Record<string, unknown> | null;
+  const notifications = prefs?.notifications as Record<string, boolean> | undefined;
+  const val = notifications && typeof notifications[key] === "boolean"
+    ? notifications[key]
+    : undefined;
+  return val !== false;
+}
+
+export async function createNotificationIfEnabled(
+  input: CreateNotificationInput
+): Promise<void> {
+  const enabled = await isNotificationTypeEnabled(input.userId, input.type);
+  if (!enabled) return;
+  await createNotification(input);
+}
+
 export async function createNotification(input: CreateNotificationInput) {
   return prisma.notification.create({
     data: {
@@ -18,7 +54,7 @@ export async function createNotification(input: CreateNotificationInput) {
       category: input.category,
       title: input.title,
       body: input.body ?? null,
-      payload: (input.payload ?? null) as object | null,
+      payload: input.payload ? (input.payload as Prisma.InputJsonValue) : undefined,
     },
   });
 }

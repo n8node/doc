@@ -3,6 +3,7 @@ import { getS3Config } from "../s3-config";
 import { createS3Client } from "../s3";
 import { getDoclingClient } from "./client";
 import { runEmbeddingPipeline } from "../ai/embedding-pipeline";
+import { createNotificationIfEnabled } from "../notification-service";
 import { prisma } from "../prisma";
 import type { DocumentProcessingResult, ProcessingStatus } from "./types";
 
@@ -91,6 +92,15 @@ export async function processDocument(
       console.error(`[Docling] Embedding pipeline failed for ${fileId}:`, embErr);
     }
 
+    createNotificationIfEnabled({
+      userId,
+      type: "AI_TASK",
+      category: "success",
+      title: "Анализ завершён",
+      body: `Документ обработан: ${result.num_pages ? `${result.num_pages} стр.` : ""}`.trim() || undefined,
+      payload: { fileId, filename },
+    }).catch(() => {});
+
     return {
       fileId,
       text: result.text,
@@ -108,6 +118,15 @@ export async function processDocument(
         completedAt: new Date(),
       },
     });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    createNotificationIfEnabled({
+      userId,
+      type: "AI_TASK",
+      category: "error",
+      title: "Анализ не удался",
+      body: errMsg.length > 200 ? errMsg.slice(0, 200) + "…" : errMsg,
+      payload: { fileId, filename },
+    }).catch(() => {});
     throw error;
   }
 }
