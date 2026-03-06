@@ -120,7 +120,6 @@ export default function DashboardSettingsPage() {
       .then((d) => {
         if (d.theme) {
           setSavedTheme(d.theme);
-          setTheme(d.theme);
         }
         if (typeof d.emailNotifications === "boolean") {
           setEmailNotifications(d.emailNotifications);
@@ -139,7 +138,7 @@ export default function DashboardSettingsPage() {
         }
       })
       .catch(() => {});
-  }, [setTheme]);
+  }, []);
 
   const handleRevokeShareLink = async (id: string) => {
     try {
