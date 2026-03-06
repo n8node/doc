@@ -76,6 +76,15 @@ export default function DashboardSettingsPage() {
   const [savingTheme, setSavingTheme] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [savingNotifications, setSavingNotifications] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    storage: true,
+    trash: true,
+    payment: true,
+    aiTask: true,
+    quota: true,
+    shareLink: true,
+  });
+  const [savingNotificationPrefs, setSavingNotificationPrefs] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -139,6 +148,18 @@ export default function DashboardSettingsPage() {
         }
         if (typeof d.emailNotifications === "boolean") {
           setEmailNotifications(d.emailNotifications);
+        }
+        if (d.notifications && typeof d.notifications === "object") {
+          const n = d.notifications as Record<string, boolean>;
+          setNotificationPrefs((p) => ({
+            ...p,
+            ...(typeof n.storage === "boolean" && { storage: n.storage }),
+            ...(typeof n.trash === "boolean" && { trash: n.trash }),
+            ...(typeof n.payment === "boolean" && { payment: n.payment }),
+            ...(typeof n.aiTask === "boolean" && { aiTask: n.aiTask }),
+            ...(typeof n.quota === "boolean" && { quota: n.quota }),
+            ...(typeof n.shareLink === "boolean" && { shareLink: n.shareLink }),
+          }));
         }
       })
       .catch(() => {});
@@ -766,20 +787,70 @@ export default function DashboardSettingsPage() {
             Уведомления
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Email-уведомления о важных событиях (оплата, смена пароля и т.д.)
+            Управление уведомлениями в интерфейсе и по email
           </p>
         </CardHeader>
-        <CardContent>
-          <label className="flex cursor-pointer items-center gap-3">
-            <input
-              type="checkbox"
-              checked={emailNotifications}
-              disabled={savingNotifications}
-              onChange={(e) => handleEmailNotificationsChange(e.target.checked)}
-              className="h-4 w-4 rounded border-border accent-primary"
-            />
-            <span className="text-sm font-medium">Получать уведомления на email</span>
-          </label>
+        <CardContent className="space-y-6">
+          <div>
+            <p className="text-sm font-medium mb-2">Email</p>
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={emailNotifications}
+                disabled={savingNotifications}
+                onChange={(e) => handleEmailNotificationsChange(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              <span className="text-sm">Получать уведомления на email</span>
+            </label>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Уведомления в приложении (колокольчик)</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Показывать уведомления о:
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[
+                { key: "storage" as const, label: "Хранилище (заполненность)" },
+                { key: "trash" as const, label: "Корзина" },
+                { key: "payment" as const, label: "Оплата и подписка" },
+                { key: "aiTask" as const, label: "AI анализ и транскрипция" },
+                { key: "quota" as const, label: "Лимиты (токены, минуты)" },
+                { key: "shareLink" as const, label: "Публичные ссылки" },
+              ].map(({ key, label }) => (
+                <label key={key} className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={notificationPrefs[key]}
+                    disabled={savingNotificationPrefs}
+                    onChange={async (e) => {
+                      const v = e.target.checked;
+                      setNotificationPrefs((p) => ({ ...p, [key]: v }));
+                      setSavingNotificationPrefs(true);
+                      try {
+                        const res = await fetch("/api/v1/user/preferences", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            notifications: { ...notificationPrefs, [key]: v },
+                          }),
+                        });
+                        if (!res.ok) throw new Error("Ошибка");
+                        toast.success("Сохранено");
+                      } catch {
+                        setNotificationPrefs((p) => ({ ...p, [key]: !v }));
+                        toast.error("Не удалось сохранить");
+                      } finally {
+                        setSavingNotificationPrefs(false);
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-border accent-primary"
+                  />
+                  <span className="text-sm">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         </CardContent>
       </div>
 
