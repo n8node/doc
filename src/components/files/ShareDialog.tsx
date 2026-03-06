@@ -41,7 +41,7 @@ const expiryOptions = [
 export function ShareDialog({
   targetType,
   targetId,
-  targetName,
+  targetName: _targetName,
   onClose,
 }: ShareDialogProps) {
   const [expiresIn, setExpiresIn] = useState("7");
@@ -106,8 +106,8 @@ export function ShareDialog({
 
   const handleMailShare = () => {
     if (url) {
-      const subject = encodeURIComponent(`Доступ к ${targetType === "FILE" ? "файлу" : "папке"}: ${targetName}`);
-      const body = encodeURIComponent(`Привет!\n\nДелюсь ${targetType === "FILE" ? "файлом" : "папкой"} "${targetName}":\n${url}\n\nСсылка ${expiryDate ? `действует до ${expiryDate}` : "бессрочная"}.`);
+      const subject = encodeURIComponent(`Доступ к ${targetType === "FILE" ? "файлу" : "папке"}`);
+      const body = encodeURIComponent(`Привет!\n\nДелюсь ${targetType === "FILE" ? "файлом" : "папкой"}:\n${url}\n\nСсылка ${expiryDate ? `действует до ${expiryDate}` : "бессрочная"}.`);
       window.open(`mailto:?subject=${subject}&body=${body}`);
     }
   };

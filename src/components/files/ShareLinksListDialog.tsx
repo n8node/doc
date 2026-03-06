@@ -45,7 +45,7 @@ export function ShareLinksListDialog({
   onClose,
   fileId,
   folderId,
-  targetName,
+  targetName: _targetName,
   isAdmin = false,
 }: ShareLinksListDialogProps) {
   const [links, setLinks] = useState<ShareLinkItem[]>([]);
