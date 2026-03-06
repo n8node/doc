@@ -48,14 +48,15 @@ function formatRelativeDate(dateStr: string): string {
     return `Вчера ${timeLabel}`;
   }
   if (diffDays < 7) {
-    return date.toLocaleDateString("ru-RU", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    const weekday = date.toLocaleDateString("ru-RU", { weekday: "short" });
+    return `${weekday} ${timeLabel}`;
   }
-  return date.toLocaleDateString("ru-RU", {
+  const datePart = date.toLocaleDateString("ru-RU", {
     day: "2-digit",
     month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
+    year: "numeric",
   });
+  return `${datePart} ${timeLabel}`;
 }
 
 export function DocumentChatCard({ item, index, onClick }: DocumentChatCardProps) {
