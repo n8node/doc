@@ -16,11 +16,11 @@ export interface TelegramConfig {
   paymentMessage: string;
 }
 
-const DEFAULT_REGISTER_MESSAGE = `🆕 Новый пользователь
+export const DEFAULT_REGISTER_MESSAGE = `🆕 Новый пользователь
 Email: {email}
 Имя: {name}`;
 
-const DEFAULT_PAYMENT_MESSAGE = `💰 Оплата тарифа
+export const DEFAULT_PAYMENT_MESSAGE = `💰 Оплата тарифа
 Пользователь: {userEmail} ({userName})
 Тариф: {planName}
 Сумма: {amount} {currency}`;
