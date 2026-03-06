@@ -27,6 +27,7 @@ import {
   Pencil,
   ScanSearch,
   BrainCircuit,
+  FileWarning,
   CheckSquare,
   Mic2,
 } from "lucide-react";
@@ -187,6 +188,10 @@ function parseViewMode(value: string | null | undefined, fallback: "list" | "gri
   return fallback;
 }
 
+function isScanPdfError(err: string): boolean {
+  return /EasyOCR|OCR engine|pip install easyocr/i.test(err ?? "");
+}
+
 export function FileManager() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -279,6 +284,7 @@ export function FileManager() {
   const [moving, setMoving] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [scanPdfModalOpen, setScanPdfModalOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{
     type: "file" | "folder";
     id: string;
@@ -1173,8 +1179,10 @@ export function FileManager() {
           return "ok";
         }
         if (data.status === "failed" || data.error) {
-          toast.error(data.error || "Ошибка обработки", { id: toastId });
-          setAnalyzeError((m) => new Map(m).set(fileId, data.error || "Ошибка"));
+          const errMsg = data.error || "Ошибка обработки";
+          if (isScanPdfError(errMsg)) setScanPdfModalOpen(true);
+          toast.error(isScanPdfError(errMsg) ? "Документ — скан, анализ недоступен" : errMsg, { id: toastId });
+          setAnalyzeError((m) => new Map(m).set(fileId, errMsg));
           return "err";
         }
       } catch {
@@ -1430,7 +1438,9 @@ export function FileManager() {
           } else if (data.status === "failed" || data.error) {
             pending.delete(id);
             failed++;
-            setAnalyzeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+            const errMsg = data.error || "Ошибка";
+            if (isScanPdfError(errMsg)) setScanPdfModalOpen(true);
+            setAnalyzeError((m) => new Map(m).set(id, errMsg));
             setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
           }
         } catch {
@@ -3332,6 +3342,21 @@ export function FileManager() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Scan PDF error dialog */}
+      <Dialog open={scanPdfModalOpen} onOpenChange={setScanPdfModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileWarning className="h-5 w-5 text-amber-500" />
+              Анализ недоступен
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Этот PDF не содержит текстового слоя (это скан). Анализ сканированных документов пока недоступен.
+          </p>
         </DialogContent>
       </Dialog>
 
