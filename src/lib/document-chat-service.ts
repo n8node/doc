@@ -89,6 +89,30 @@ export async function sendDocumentChatMessage(
     systemPrompt: enhancedSystem,
   });
 
+  const usage = completion.usage;
+  const totalTokens = usage
+    ? (usage.totalTokens ?? usage.promptTokens + usage.completionTokens)
+    : 0;
+  if (totalTokens > 0) {
+    await prisma.aiTask.create({
+      data: {
+        type: "CHAT",
+        status: "completed",
+        userId: input.userId,
+        fileId: input.fileId,
+        providerId: active.providerId,
+        input: { action: "chat", fileId: input.fileId },
+        output: {
+          promptTokens: usage?.promptTokens ?? 0,
+          completionTokens: usage?.completionTokens ?? 0,
+          totalTokens,
+          model: completion.model ?? active.providerName,
+        },
+        completedAt: new Date(),
+      },
+    });
+  }
+
   const [, assistantMsg] = await prisma.$transaction([
     prisma.documentChatMessage.create({
       data: {
