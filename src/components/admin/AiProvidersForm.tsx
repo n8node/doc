@@ -16,6 +16,9 @@ import {
   Zap,
   BarChart3,
   Mic2,
+  FileCode2,
+  MessageSquare,
+  Search,
 } from "lucide-react";
 
 interface ProviderItem {
@@ -579,7 +582,7 @@ function ProviderCard({
                 onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
                 className="h-4 w-4 rounded border-border accent-primary"
               />
-              Активен (использовать для embeddings)
+              Активен (эмбеддинг, чат, поиск)
             </label>
             <Button
               size="sm"
@@ -686,6 +689,7 @@ export function AiProvidersForm() {
   const embeddingProviders = providers.filter(
     (p) => (p.purpose ?? "EMBEDDING_CHAT") === "EMBEDDING_CHAT",
   );
+  const activeEmbeddingProvider = embeddingProviders.find((p) => p.isActive) ?? null;
   const transcriptionProviders = providers.filter(
     (p) => p.purpose === "TRANSCRIPTION",
   );
@@ -864,12 +868,81 @@ export function AiProvidersForm() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-foreground">AI-провайдеры (эмбеддинг и чат)</h2>
+        <h2 className="text-lg font-semibold text-foreground">Провайдеры для работы с документами</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Подключите нейросеть для генерации embeddings и семантического поиска по документам.
-          Нужен хотя бы один активный провайдер.
+          Один активный провайдер используется для всех трёх функций. Добавьте и активируйте нужный.
         </p>
       </div>
+
+      <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-3">
+        <div className="rounded-xl border border-border bg-surface2/30 p-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
+              <FileCode2 className="h-4 w-4" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">Эмбеддинг документов</h3>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Создание векторных представлений при обработке и загрузке документов.
+          </p>
+          <div className="mt-2">
+            {activeEmbeddingProvider ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {PROVIDER_PRESETS[activeEmbeddingProvider.name]?.label ?? activeEmbeddingProvider.name}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">Нет активного провайдера</span>
+            )}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface2/30 p-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600">
+              <MessageSquare className="h-4 w-4" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">Чат с документом</h3>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Ответы на вопросы пользователя по содержанию документа (RAG).
+          </p>
+          <div className="mt-2">
+            {activeEmbeddingProvider ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {PROVIDER_PRESETS[activeEmbeddingProvider.name]?.label ?? activeEmbeddingProvider.name}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">Нет активного провайдера</span>
+            )}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface2/30 p-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
+              <Search className="h-4 w-4" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">Семантический поиск</h3>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Поиск по смыслу, а не по ключевым словам в файлах.
+          </p>
+          <div className="mt-2">
+            {activeEmbeddingProvider ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {PROVIDER_PRESETS[activeEmbeddingProvider.name]?.label ?? activeEmbeddingProvider.name}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">Нет активного провайдера</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Провайдеры (общие для всех функций)
+      </p>
 
       {embeddingProviders.length > 0 && (
         <div className="space-y-3">

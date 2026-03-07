@@ -10,7 +10,10 @@ export async function getActiveProvider(): Promise<{
   providerName: string;
 } | null> {
   const row = await prisma.aiProvider.findFirst({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      purpose: "EMBEDDING_CHAT",
+    },
     orderBy: { updatedAt: "desc" },
   });
 
