@@ -113,6 +113,7 @@ export async function transcribeFile(
           format: result.format,
           minutesUsed: durationMinutes,
           provider: useOpenAi ? "openai_whisper" : "docling",
+          modelName: useOpenAi && provider?.modelName ? provider.modelName : (useOpenAi ? "OpenAI" : "QoQon"),
         },
         completedAt: new Date(),
       },

@@ -56,12 +56,14 @@ export async function runEmbeddingPipeline(
     let created = 0;
     let totalPromptTokens = 0;
     let totalTokens = 0;
+    let modelName: string | undefined;
 
     for (const chunk of chunks) {
       const result = await provider.generateEmbedding(chunk.text);
       if (result.vector.length === 0) continue;
 
       dimensions = result.dimensions;
+      if (result.model && !modelName) modelName = result.model;
       if (result.usage) {
         totalPromptTokens += result.usage.promptTokens;
         totalTokens += result.usage.totalTokens;
@@ -96,6 +98,7 @@ export async function runEmbeddingPipeline(
           embeddingsCreated: created,
           dimensions,
           providerName,
+          ...(modelName && { modelName }),
           ...(tokensUsed != null && { tokensUsed, promptTokens: totalPromptTokens }),
         },
         completedAt: new Date(),
