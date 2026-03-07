@@ -3,6 +3,7 @@ import { configStore } from "@/lib/config-store";
 import { getAuthSettings } from "@/lib/telegram-auth";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
+import { getTelegramConfig, sendTelegramMessage, formatRegisterMessage } from "@/lib/telegram";
 
 /**
  * POST /api/auth/telegram/qr/link
@@ -52,8 +53,10 @@ export async function POST(req: NextRequest) {
     let user = await prisma.user.findUnique({
       where: { telegramUserId: tgId },
     });
+    let isNewUser = false;
 
     if (!user) {
+      isNewUser = true;
       const freePlan = await prisma.plan.findFirst({ where: { isFree: true } });
       const placeholderEmail = `tg_${tgId}@qoqon.placeholder`;
       const randomPassword = crypto.randomUUID() + crypto.randomUUID();
@@ -72,6 +75,25 @@ export async function POST(req: NextRequest) {
           telegramUsername: telegramUsername || null,
         },
       });
+    }
+
+    if (isNewUser) {
+      try {
+        const tg = await getTelegramConfig();
+        if (tg.notifyRegisterEnabled && tg.botToken && tg.chatId) {
+          const displayNameForNotify = [displayName, telegramUsername ? `@${telegramUsername}` : null]
+            .filter(Boolean)
+            .join(" ")
+            .trim() || (telegramUsername ? `@${telegramUsername}` : "—");
+          const text = formatRegisterMessage(tg.registerMessage, {
+            email: `Telegram (${user.email})`,
+            name: displayNameForNotify,
+          });
+          await sendTelegramMessage(tg.botToken, tg.chatId, text);
+        }
+      } catch {
+        // ignore, do not affect auth
+      }
     }
 
     await prisma.telegramLoginToken.update({
