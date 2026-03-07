@@ -233,6 +233,9 @@ export function FileManager() {
   const [transcribeStartedAt, setTranscribeStartedAt] = useState<Map<string, number>>(new Map());
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState<number | null>(null);
   const [embeddingTokensUsedThisMonth, setEmbeddingTokensUsedThisMonth] = useState<number>(0);
+  const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState<number | null>(null);
+  const [aiAnalysisDocumentsUsedThisMonth, setAiAnalysisDocumentsUsedThisMonth] = useState<number>(0);
+  const [documentAnalysisAllowed, setDocumentAnalysisAllowed] = useState(false);
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState<number | null>(null);
   const [transcriptionMinutesUsedThisMonth, setTranscriptionMinutesUsedThisMonth] = useState<number>(0);
   const [documentChatAllowed, setDocumentChatAllowed] = useState(false);
@@ -574,6 +577,9 @@ export function FileManager() {
           const planData = await planRes.json();
           setEmbeddingTokensQuota(planData.embeddingTokensQuota ?? null);
           setEmbeddingTokensUsedThisMonth(planData.embeddingTokensUsedThisMonth ?? 0);
+          setAiAnalysisDocumentsQuota(planData.aiAnalysisDocumentsQuota ?? null);
+          setAiAnalysisDocumentsUsedThisMonth(planData.aiAnalysisDocumentsUsedThisMonth ?? 0);
+          setDocumentAnalysisAllowed(!!planData.features?.document_analysis);
           setTranscriptionMinutesQuota(planData.transcriptionMinutesQuota ?? null);
           setTranscriptionMinutesUsedThisMonth(planData.transcriptionMinutesUsedThisMonth ?? 0);
           setDocumentChatAllowed(!!planData.features?.document_chat);
@@ -581,6 +587,9 @@ export function FileManager() {
       } catch {
         setEmbeddingTokensQuota(null);
         setEmbeddingTokensUsedThisMonth(0);
+        setAiAnalysisDocumentsQuota(null);
+        setAiAnalysisDocumentsUsedThisMonth(0);
+        setDocumentAnalysisAllowed(false);
         setTranscriptionMinutesQuota(null);
         setTranscriptionMinutesUsedThisMonth(0);
       }
@@ -1074,6 +1083,12 @@ export function FileManager() {
   const embeddingQuotaExceeded =
     embeddingTokensQuota != null && embeddingTokensUsedThisMonth >= embeddingTokensQuota;
 
+  const analysisDocumentsQuotaExceeded =
+    aiAnalysisDocumentsQuota != null && aiAnalysisDocumentsUsedThisMonth >= aiAnalysisDocumentsQuota;
+
+  const analysisAllowed =
+    documentAnalysisAllowed && !embeddingQuotaExceeded && !analysisDocumentsQuotaExceeded;
+
   const transcriptionQuotaExceeded =
     transcriptionMinutesQuota != null &&
     (transcriptionMinutesUsedThisMonth ?? 0) >= transcriptionMinutesQuota;
@@ -1214,10 +1229,11 @@ export function FileManager() {
         const msg = data.error || "Ошибка обработки";
         toast.error(msg, { id: toastId });
         setAnalyzeError((m) => new Map(m).set(id, msg));
-        if (res.status === 403 && data.code === "EMBEDDING_QUOTA_EXCEEDED") loadData();
+        if (res.status === 403 && (data.code === "EMBEDDING_QUOTA_EXCEEDED" || data.code === "DOCUMENT_ANALYSIS_DISABLED" || data.code === "AI_ANALYSIS_DOCUMENTS_QUOTA_EXCEEDED")) loadData();
         return;
       }
       if (res.status === 202 && data.status === "processing") {
+        setAiAnalysisDocumentsUsedThisMonth((c) => c + 1);
         const estMin = data.estimatedProcessingMinutes as number | undefined;
         if (estMin != null && estMin > 0) {
           setAnalyzeEstimateMinutes((m) => new Map(m).set(id, estMin));
@@ -1414,10 +1430,12 @@ export function FileManager() {
           const msg = data.error || "Ошибка";
           setAnalyzeError((m) => new Map(m).set(id, msg));
           setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
-          if (res.status === 403 && data.code === "EMBEDDING_QUOTA_EXCEEDED") {
+          if (res.status === 403 && (data.code === "EMBEDDING_QUOTA_EXCEEDED" || data.code === "DOCUMENT_ANALYSIS_DISABLED" || data.code === "AI_ANALYSIS_DOCUMENTS_QUOTA_EXCEEDED")) {
             loadData();
             toast.error(msg, { id: toastId });
           }
+        } else if (res.status === 202 && data.status === "processing") {
+          setAiAnalysisDocumentsUsedThisMonth((c) => c + 1);
         }
       } catch {
         pending.delete(id);
@@ -2098,7 +2116,7 @@ export function FileManager() {
         setShareLinksTarget({ type: "FILE", id: file.id, name: file.name })
       }
       onProcess={
-        !embeddingQuotaExceeded &&
+        analysisAllowed &&
         PROCESSABLE_MIMES.has(file.mimeType) &&
         !file.aiMetadata?.processedAt &&
         !analyzingFiles.has(file.id)
@@ -3086,7 +3104,7 @@ export function FileManager() {
                                       <BrainCircuit className="h-4 w-4" />
                                     </span>
                                   )}
-                                  {!embeddingQuotaExceeded &&
+                                  {analysisAllowed &&
                                     PROCESSABLE_MIMES.has(file.mimeType) &&
                                     !file.aiMetadata?.processedAt &&
                                     !analyzingFiles.has(file.id) && (
@@ -3217,7 +3235,7 @@ export function FileManager() {
           onDelete={handleBulkDelete}
           onClear={clearSelection}
           onAiAnalyze={
-            !embeddingQuotaExceeded &&
+            analysisAllowed &&
             selectedFiles.size > 0 &&
             files.some((f) => selectedFiles.has(f.id) && PROCESSABLE_MIMES.has(f.mimeType) && !f.aiMetadata?.processedAt)
               ? handleBulkAnalyze

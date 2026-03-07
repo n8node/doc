@@ -13,6 +13,7 @@ export async function GET() {
       storageQuota: true,
       maxFileSize: true,
       features: true,
+      aiAnalysisDocumentsQuota: true,
       priceMonthly: true,
       priceYearly: true,
       isPopular: true,

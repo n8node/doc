@@ -21,6 +21,7 @@ interface PlanData {
   maxFileSize: number;
   trashRetentionDays: number;
   embeddingTokensQuota: number | null;
+  aiAnalysisDocumentsQuota?: number | null;
   transcriptionMinutesQuota?: number | null;
   maxTranscriptionVideoMinutes?: number;
   maxTranscriptionAudioMinutes?: number;
@@ -45,6 +46,7 @@ const featureLabels: Record<string, string> = {
   folder_share: "Шаринг папок",
   ai_search: "AI-поиск",
   document_chat: "AI чаты по документам",
+  document_analysis: "AI-анализ документов",
   transcription: "Транскрибация",
 };
 
@@ -68,8 +70,10 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     folder_share: true,
     ai_search: false,
     document_chat: false,
+    document_analysis: false,
   });
   const [trashDays, setTrashDays] = useState("0");
+  const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState("");
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState("");
   const [maxTranscriptionVideoMinutes, setMaxTranscriptionVideoMinutes] = useState("60");
@@ -106,6 +110,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setEmbeddingTokensQuota(
         plan.embeddingTokensQuota != null ? String(plan.embeddingTokensQuota) : "",
       );
+      setAiAnalysisDocumentsQuota(
+        plan.aiAnalysisDocumentsQuota != null ? String(plan.aiAnalysisDocumentsQuota) : "",
+      );
       setTranscriptionMinutesQuota(
         plan.transcriptionMinutesQuota != null ? String(plan.transcriptionMinutesQuota) : "",
       );
@@ -127,6 +134,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setMaxFileMb("512");
       setTrashDays("0");
       setEmbeddingTokensQuota("");
+      setAiAnalysisDocumentsQuota("");
       setTranscriptionMinutesQuota("");
       setMaxTranscriptionVideoMinutes("60");
       setMaxTranscriptionAudioMinutes("120");
@@ -138,6 +146,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         folder_share: true,
         ai_search: false,
         document_chat: false,
+        document_analysis: false,
         transcription: false,
       });
       setPriceMonthly("");
@@ -161,6 +170,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       trashRetentionDays: parseInt(trashDays, 10) || 0,
       embeddingTokensQuota: embeddingTokensQuota.trim()
         ? Math.max(0, parseInt(embeddingTokensQuota, 10) || 0) || null
+        : null,
+      aiAnalysisDocumentsQuota: aiAnalysisDocumentsQuota.trim()
+        ? Math.max(0, parseInt(aiAnalysisDocumentsQuota, 10) || 0) || null
         : null,
       transcriptionMinutesQuota: transcriptionMinutesQuota.trim()
         ? Math.max(0, parseInt(transcriptionMinutesQuota, 10) || 0) || null
@@ -294,6 +306,29 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
             <p className="mt-1 text-xs text-muted-foreground">
               Оставьте пустым для безлимита. Учитываются токены при эмбеддинге (AI-анализ).
             </p>
+          </div>
+
+          {/* AI-анализ документов */}
+          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
+            <h4 className="text-sm font-medium">AI-анализ документов</h4>
+            <p className="text-xs text-muted-foreground">
+              Функция включается в блоке «Функции» (чекбокс «AI-анализ документов»). Квота — документов в месяц.
+            </p>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Документов в месяц (квота)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={aiAnalysisDocumentsQuota}
+                onChange={(e) => setAiAnalysisDocumentsQuota(e.target.value)}
+                placeholder="Без лимита"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Оставьте пустым для безлимита.
+              </p>
+            </div>
           </div>
 
           {/* Транскрибация — REMINDER: video fields commented, restore when video transcription enabled */}

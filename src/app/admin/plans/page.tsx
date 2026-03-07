@@ -33,6 +33,7 @@ interface PlanItem {
   maxFileSize: number;
   trashRetentionDays: number;
   embeddingTokensQuota: number | null;
+  aiAnalysisDocumentsQuota?: number | null;
   features: Record<string, boolean>;
   priceMonthly: number | null;
   priceYearly: number | null;
@@ -125,6 +126,17 @@ function PlanCard({
                   : "без лимита"}
               </span>
             </div>
+            {plan.features?.document_analysis && (
+              <div className="flex items-center gap-2 text-sm">
+                <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  AI-анализ док.:{" "}
+                  {plan.aiAnalysisDocumentsQuota != null
+                    ? `${plan.aiAnalysisDocumentsQuota}/мес`
+                    : "безлимит"}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-2 text-sm">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span>Пользователей: {plan.usersCount}</span>

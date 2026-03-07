@@ -12,6 +12,7 @@ const FREE_PLAN_DEFAULTS = {
     folder_share: true,
     ai_search: false,
     document_chat: false,
+    document_analysis: false,
   } as Record<string, boolean>,
 };
 
@@ -28,6 +29,7 @@ export async function getUserPlan(userId: string) {
       storageQuota: user.plan.storageQuota,
       maxFileSize: user.plan.maxFileSize,
       embeddingTokensQuota: user.plan.embeddingTokensQuota,
+      aiAnalysisDocumentsQuota: user.plan.aiAnalysisDocumentsQuota,
       transcriptionMinutesQuota: user.plan.transcriptionMinutesQuota,
       maxTranscriptionVideoMinutes: user.plan.maxTranscriptionVideoMinutes,
       maxTranscriptionAudioMinutes: user.plan.maxTranscriptionAudioMinutes,
@@ -40,6 +42,7 @@ export async function getUserPlan(userId: string) {
     storageQuota: user.storageQuota,
     maxFileSize: user.maxFileSize,
     embeddingTokensQuota: null,
+    aiAnalysisDocumentsQuota: null,
     transcriptionMinutesQuota: null,
     maxTranscriptionVideoMinutes: 60,
     maxTranscriptionAudioMinutes: 120,

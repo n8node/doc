@@ -28,6 +28,7 @@ interface PlanItem {
   storageQuota: number;
   maxFileSize: number;
   features: Record<string, boolean>;
+  aiAnalysisDocumentsQuota?: number | null;
   priceMonthly: number | null;
   priceYearly: number | null;
   trashRetentionDays: number;
@@ -48,6 +49,7 @@ const featureLabels: Record<string, string> = {
   folder_share: "Шаринг папок",
   ai_search: "AI-поиск по документам",
   document_chat: "AI чаты по документам",
+  document_analysis: "AI-анализ документов",
 };
 
 export default function DashboardPlansPage() {
@@ -273,6 +275,14 @@ export default function DashboardPlansPage() {
                         )}
                         <span className={enabled ? "text-foreground" : "text-muted-foreground"}>
                           {label}
+                          {key === "document_analysis" && enabled && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              ({plan.aiAnalysisDocumentsQuota != null
+                                ? `${plan.aiAnalysisDocumentsQuota} док./мес`
+                                : "безлимит"})
+                            </span>
+                          )}
                         </span>
                       </div>
                     );

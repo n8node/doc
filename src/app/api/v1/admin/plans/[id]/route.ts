@@ -17,6 +17,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const body = await req.json();
   const {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
+    aiAnalysisDocumentsQuota,
     transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
     features, priceMonthly, priceYearly, isPopular,
   } = body;
@@ -35,6 +36,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       embeddingTokensQuota === null || embeddingTokensQuota === ""
         ? null
         : Math.max(0, parseInt(String(embeddingTokensQuota), 10) || 0) || null;
+  }
+  if (aiAnalysisDocumentsQuota !== undefined) {
+    data.aiAnalysisDocumentsQuota =
+      aiAnalysisDocumentsQuota === null || aiAnalysisDocumentsQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(aiAnalysisDocumentsQuota), 10) || 0) || null;
   }
   if (transcriptionMinutesQuota !== undefined) {
     data.transcriptionMinutesQuota =
@@ -66,6 +73,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     storageQuota: Number(plan.storageQuota),
     maxFileSize: Number(plan.maxFileSize),
     embeddingTokensQuota: plan.embeddingTokensQuota,
+    aiAnalysisDocumentsQuota: plan.aiAnalysisDocumentsQuota,
   });
 }
 
