@@ -10,6 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell, TriangleAlert } from "lucide-react";
 import { AccountLinkingBlock } from "@/components/settings/AccountLinkingBlock";
+import { UserAiConfigBlock } from "@/components/settings/UserAiConfigBlock";
 import { useTheme } from "next-themes";
 import { cn, formatBytes } from "@/lib/utils";
 
@@ -363,6 +364,9 @@ export default function DashboardSettingsPage() {
         />
         </div>
       )}
+
+      {/* Свой API-ключ для AI */}
+      <UserAiConfigBlock />
 
       {/* Безопасность */}
       <div className="rounded-2xl modal-glass overflow-hidden">

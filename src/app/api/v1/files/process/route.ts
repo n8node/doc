@@ -10,6 +10,7 @@ import { createNotificationIfEnabled, createQuota80WarningIfNeeded } from "@/lib
 import { estimateAnalysisTime } from "@/lib/docling/analysis-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
+import { userUsesOwnKey } from "@/lib/ai/get-provider-for-user";
 import { getAnalysisDocumentsUsedThisMonth } from "@/lib/ai/analysis-documents-usage";
 import { getUserPlan } from "@/lib/plan-service";
 
@@ -46,8 +47,11 @@ export async function POST(request: NextRequest) {
   const docAnalysisError = await checkDocumentAnalysisAccess(userId, fileIds.length);
   if (docAnalysisError) return docAnalysisError;
 
-  const quotaError = await checkEmbeddingQuota(userId);
-  if (quotaError) return quotaError;
+  const usesOwnKey = await userUsesOwnKey(userId);
+  if (!usesOwnKey) {
+    const quotaError = await checkEmbeddingQuota(userId);
+    if (quotaError) return quotaError;
+  }
 
   if (fileIds.length === 1) {
     return processSingle(fileIds[0], userId);

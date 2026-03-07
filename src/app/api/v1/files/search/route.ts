@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
-import { getActiveProvider } from "@/lib/ai/get-active-provider";
+import { getProviderForUser } from "@/lib/ai/get-provider-for-user";
 import { findSimilar } from "@/lib/docling/vector-store";
 import { prisma } from "@/lib/prisma";
 
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("threshold") ?? "0.3",
   );
 
-  const active = await getActiveProvider();
+  const active = await getProviderForUser(userId);
   if (!active) {
     return NextResponse.json(
       { error: "AI-провайдер не настроен. Обратитесь к администратору." },

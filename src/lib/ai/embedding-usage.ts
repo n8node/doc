@@ -19,6 +19,7 @@ export async function getEmbeddingTokensUsedThisMonth(userId: string): Promise<n
       userId,
       type: "EMBEDDING",
       status: "completed",
+      usedOwnKey: { not: true },
       completedAt: { gte: since },
     },
     select: { output: true },

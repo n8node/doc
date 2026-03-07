@@ -48,6 +48,7 @@ const featureLabels: Record<string, string> = {
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
   transcription: "Транскрибация",
+  own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
 };
 
 const bytesToGb = (bytes: number) => +(bytes / (1024 * 1024 * 1024)).toFixed(2);
@@ -71,6 +72,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     ai_search: false,
     document_chat: false,
     document_analysis: false,
+    own_ai_keys: false,
   });
   const [trashDays, setTrashDays] = useState("0");
   const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState("");
@@ -148,6 +150,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         document_chat: false,
         document_analysis: false,
         transcription: false,
+        own_ai_keys: false,
       });
       setPriceMonthly("");
       setPriceYearly("");

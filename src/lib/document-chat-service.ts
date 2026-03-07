@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { configStore } from "@/lib/config-store";
-import { getActiveProvider } from "@/lib/ai/get-active-provider";
+import { getProviderForUser } from "@/lib/ai/get-provider-for-user";
 import { findSimilarForFile, getChunksForFile } from "@/lib/docling/vector-store";
 import { hasEmbeddings } from "@/lib/docling/vector-store";
 
@@ -40,7 +40,7 @@ export async function sendDocumentChatMessage(
     throw new Error("Документ не обработан. Запустите обработку документа для чата.");
   }
 
-  const active = await getActiveProvider();
+  const active = await getProviderForUser(input.userId);
   if (!active) {
     throw new Error("AI-провайдер не настроен. Обратитесь к администратору.");
   }
@@ -100,7 +100,8 @@ export async function sendDocumentChatMessage(
         status: "completed",
         userId: input.userId,
         fileId: input.fileId,
-        providerId: active.providerId,
+        providerId: active.usedOwnKey ? null : active.providerId,
+        usedOwnKey: active.usedOwnKey || undefined,
         input: { action: "chat", fileId: input.fileId },
         output: {
           promptTokens: usage?.promptTokens ?? 0,

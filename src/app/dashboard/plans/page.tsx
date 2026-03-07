@@ -50,6 +50,7 @@ const featureLabels: Record<string, string> = {
   ai_search: "AI-поиск по документам",
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
+  own_ai_keys: "Свой API-ключ (токены не списываются)",
 };
 
 export default function DashboardPlansPage() {

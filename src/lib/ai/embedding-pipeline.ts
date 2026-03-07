@@ -1,4 +1,4 @@
-import { getActiveProvider } from "./get-active-provider";
+import { getProviderForUser } from "./get-provider-for-user";
 import { chunkText } from "./chunker";
 import { insertEmbedding, deleteEmbeddingsByFileId } from "@/lib/docling/vector-store";
 import { prisma } from "@/lib/prisma";
@@ -18,12 +18,12 @@ export async function runEmbeddingPipeline(
   contentHash: string,
   userId: string,
 ): Promise<EmbeddingPipelineResult> {
-  const active = await getActiveProvider();
+  const active = await getProviderForUser(userId);
   if (!active) {
     throw new Error("Нет активного AI-провайдера. Настройте его в Админка → Настройки → AI-провайдеры");
   }
 
-  const { provider, providerId, providerName } = active;
+  const { provider, providerId, providerName, usedOwnKey } = active;
 
   const task = await prisma.aiTask.create({
     data: {
@@ -31,7 +31,8 @@ export async function runEmbeddingPipeline(
       status: "processing",
       userId,
       fileId,
-      providerId,
+      providerId: usedOwnKey ? null : providerId,
+      usedOwnKey: usedOwnKey || undefined,
       input: { action: "embedding", contentHash, textLength: text.length },
     },
   });
@@ -45,6 +46,7 @@ export async function runEmbeddingPipeline(
         where: { id: task.id },
         data: {
           status: "completed",
+          usedOwnKey: usedOwnKey || undefined,
           output: { chunksCount: 0, embeddingsCreated: 0, reason: "empty text" },
           completedAt: new Date(),
         },
@@ -93,6 +95,7 @@ export async function runEmbeddingPipeline(
       where: { id: task.id },
       data: {
         status: "completed",
+        usedOwnKey: usedOwnKey || undefined,
         output: {
           chunksCount: chunks.length,
           embeddingsCreated: created,
