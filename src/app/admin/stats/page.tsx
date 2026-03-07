@@ -44,7 +44,8 @@ interface UsageStats {
   };
 }
 
-function formatNumber(n: number): string {
+function formatNumber(n: number | null | undefined): string {
+  if (n == null || typeof n !== "number") return "0";
   return n.toLocaleString("ru-RU");
 }
 
