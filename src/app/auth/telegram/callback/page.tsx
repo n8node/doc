@@ -23,7 +23,7 @@ function TelegramCallbackContent() {
       }
 
       const params = Object.fromEntries(new URLSearchParams(paramString));
-      const { id, hash: tgHash, auth_date, first_name, last_name, username } = params;
+      const { id, hash: tgHash, auth_date, first_name, last_name, username, photo_url } = params;
       if (!id || !tgHash) {
         setError("Неполные данные");
         return;
@@ -37,6 +37,7 @@ function TelegramCallbackContent() {
         last_name: last_name || "",
         username: username || "",
       };
+      if (photo_url) initData.photo_url = photo_url;
 
       try {
         const res = await fetch("/api/auth/telegram/widget", {
