@@ -382,7 +382,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
                   onChange={(e) => setTranscriptionProviderId(e.target.value)}
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                 >
-                  <option value="">Docling (Whisper) по умолчанию</option>
+                  <option value="">QoQon (Whisper) по умолчанию</option>
                   {transcriptionProviders.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}

@@ -920,7 +920,7 @@ export function AiProvidersForm() {
         <h2 className="text-lg font-semibold text-foreground">Провайдеры транскрибации</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Опционально. Премиум-провайдеры для более качественной транскрибации аудио и видео.
-          По умолчанию используется Docling (Whisper).
+          По умолчанию используется QoQon (Whisper).
         </p>
       </div>
 

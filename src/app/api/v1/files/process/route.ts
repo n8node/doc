@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   const available = await docling.isAvailable();
   if (!available) {
     return NextResponse.json(
-      { error: "Сервис обработки документов недоступен (Docling)" },
+      { error: "Сервис обработки документов недоступен (QoQon)" },
       { status: 503 },
     );
   }

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const available = await docling.isAvailable();
     if (!available) {
       return NextResponse.json(
-        { error: "Сервис транскрибации недоступен (Docling)" },
+        { error: "Сервис транскрибации недоступен (QoQon)" },
         { status: 503 },
       );
     }
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       ? "OpenAI"
       : useOpenAi && provider?.baseUrl.includes("api.openai.com")
         ? "OpenAI"
-        : "Docling";
+        : "QoQon";
 
   return NextResponse.json(
     {
