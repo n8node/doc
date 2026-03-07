@@ -42,6 +42,53 @@ export interface SimilarityResult {
   metadata: Record<string, unknown> | null;
 }
 
+/**
+ * Escape LIKE pattern special chars: % and _
+ */
+function escapeLikePattern(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+/**
+ * Keyword search: chunks where chunk_text contains the query (ILIKE).
+ * Results are returned with similarity 1.0 (keyword match).
+ */
+export async function findSimilarByKeyword(
+  userId: string,
+  query: string,
+  limit = 20,
+): Promise<SimilarityResult[]> {
+  const words = query.trim().split(/\s+/).filter((w) => w.length >= 2);
+  if (words.length === 0) return [];
+
+  const conditions = words.map((w) => {
+    const pattern = "%" + escapeLikePattern(w) + "%";
+    return Prisma.sql`de.chunk_text ILIKE ${pattern}`;
+  });
+  const orClause = Prisma.join(conditions, " OR ");
+
+  const results = await prisma.$queryRaw<
+    Array<{ id: string; file_id: string; chunk_text: string; chunk_index: number; metadata: unknown }>
+  >(Prisma.sql`
+    SELECT de.id, de.file_id, de.chunk_text, de.chunk_index, de.metadata
+    FROM document_embeddings de
+    JOIN files f ON f.id = de.file_id
+    WHERE f.user_id = ${userId}
+      AND f.deleted_at IS NULL
+      AND (${orClause})
+    LIMIT ${limit}
+  `);
+
+  return results.map((r) => ({
+    id: r.id,
+    fileId: r.file_id,
+    chunkText: r.chunk_text,
+    chunkIndex: r.chunk_index,
+    similarity: 1,
+    metadata: (r.metadata as Record<string, unknown>) ?? null,
+  }));
+}
+
 export async function findSimilar(
   queryVector: number[],
   userId: string,

@@ -1,5 +1,5 @@
 import { getProviderForUser } from "./get-provider-for-user";
-import { chunkText } from "./chunker";
+import { chunkText, isNoiseChunk } from "./chunker";
 import { insertEmbedding, deleteEmbeddingsByFileId } from "@/lib/docling/vector-store";
 import { prisma } from "@/lib/prisma";
 
@@ -61,6 +61,7 @@ export async function runEmbeddingPipeline(
     let modelName: string | undefined;
 
     for (const chunk of chunks) {
+      if (isNoiseChunk(chunk.text)) continue;
       const result = await provider.generateEmbedding(chunk.text);
       if (result.vector.length === 0) continue;
 

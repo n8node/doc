@@ -324,7 +324,7 @@ export default function ApiDocsPage() {
               params={[
                 { name: "q", type: "string", desc: "Поисковый запрос" },
                 { name: "limit", type: "number", desc: "Макс. результатов (по умолчанию 20)" },
-                { name: "threshold", type: "number", desc: "Порог схожести (по умолчанию 0.3)" },
+                { name: "threshold", type: "number", desc: "Порог схожести (по умолчанию 0.55)" },
               ]}
             />
             <Section

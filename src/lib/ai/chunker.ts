@@ -1,6 +1,28 @@
 const DEFAULT_CHUNK_SIZE = 500;
 const DEFAULT_OVERLAP = 50;
 
+/** Email pattern (simple). */
+const EMAIL_RE = /\b[\w.-]+@[\w.-]+\.\w{2,}\b/g;
+/** Phone pattern: +7, 8, digits with spaces/dashes. */
+const PHONE_RE = /[\d\s\-+()]{10,}/g;
+
+/**
+ * Chunk is "noise" if >50% of non-whitespace chars are emails or phone-like sequences.
+ * Such chunks (e.g. from Excel contact tables) produce poor search results.
+ */
+export function isNoiseChunk(text: string): boolean {
+  if (!text || text.trim().length < 50) return false;
+  const trimmed = text.replace(/\s+/g, "");
+  if (trimmed.length < 30) return false;
+  let noiseLength = 0;
+  let m: RegExpExecArray | null;
+  EMAIL_RE.lastIndex = 0;
+  while ((m = EMAIL_RE.exec(text)) !== null) noiseLength += m[0].replace(/\s/g, "").length;
+  PHONE_RE.lastIndex = 0;
+  while ((m = PHONE_RE.exec(text)) !== null) noiseLength += m[0].replace(/\s/g, "").length;
+  return noiseLength / trimmed.length > 0.5;
+}
+
 export interface TextChunk {
   text: string;
   index: number;

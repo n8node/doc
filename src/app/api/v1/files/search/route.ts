@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { getProviderForUser } from "@/lib/ai/get-provider-for-user";
-import { findSimilar } from "@/lib/docling/vector-store";
+import { findSimilar, findSimilarByKeyword } from "@/lib/docling/vector-store";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     50,
   );
   const threshold = parseFloat(
-    request.nextUrl.searchParams.get("threshold") ?? "0.3",
+    request.nextUrl.searchParams.get("threshold") ?? "0.55",
   );
 
   const active = await getProviderForUser(userId);
@@ -32,26 +32,47 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const embResult = await active.provider.generateEmbedding(q);
-    if (embResult.vector.length === 0) {
-      return NextResponse.json({ results: [], query: q });
+    const [keywordResults, semanticResults] = await Promise.all([
+      findSimilarByKeyword(userId, q, limit),
+      (async () => {
+        const embResult = await active.provider.generateEmbedding(q);
+        if (embResult.vector.length === 0) return [];
+        return findSimilar(embResult.vector, userId, limit, threshold);
+      })(),
+    ]);
+
+    const seen = new Set<string>();
+    const merged: Array<{
+      id: string;
+      fileId: string;
+      chunkText: string;
+      chunkIndex: number;
+      similarity: number;
+      metadata: Record<string, unknown> | null;
+      fromKeyword: boolean;
+    }> = [];
+    for (const s of keywordResults) {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        merged.push({ ...s, fromKeyword: true });
+      }
+    }
+    for (const s of semanticResults) {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        merged.push({ ...s, fromKeyword: false });
+      }
+      if (merged.length >= limit) break;
     }
 
-    const similar = await findSimilar(
-      embResult.vector,
-      userId,
-      limit,
-      threshold,
-    );
-
-    const fileIds = Array.from(new Set(similar.map((s) => s.fileId)));
+    const fileIds = Array.from(new Set(merged.map((s) => s.fileId)));
     const files = await prisma.file.findMany({
       where: { id: { in: fileIds } },
       select: { id: true, name: true, mimeType: true, size: true },
     });
     const fileMap = new Map(files.map((f) => [f.id, f]));
 
-    const results = similar.map((s) => {
+    const results = merged.slice(0, limit).map((s) => {
       const file = fileMap.get(s.fileId);
       return {
         id: s.id,
