@@ -2,9 +2,11 @@
 Docling document processing microservice for qoqon.ru.
 Accepts uploaded files and returns extracted text, tables, and metadata.
 Supports ASR (audio/video transcription) via Whisper.
+Legacy Office formats (.doc, .xls, .ppt) are converted via LibreOffice before processing.
 """
 
 import os
+import subprocess
 import tempfile
 import hashlib
 from pathlib import Path
@@ -32,6 +34,14 @@ SUPPORTED_EXTENSIONS = {
     ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm",
     ".png", ".jpg", ".jpeg", ".tiff", ".bmp",
     ".txt", ".md", ".csv", ".rtf",
+    ".doc", ".xls", ".ppt",  # Legacy Office — конвертируются через LibreOffice
+}
+
+# Legacy Office formats: extension -> LibreOffice target format
+LEGACY_OFFICE = {
+    ".doc": "docx",
+    ".xls": "xlsx",
+    ".ppt": "pptx",
 }
 
 ASR_EXTENSIONS = {
@@ -58,6 +68,38 @@ def get_asr_converter() -> DocumentConverter:
             }
         )
     return _asr_converter
+
+
+def _convert_legacy_office_to_ooxml(src_path: str, ext: str) -> str:
+    """
+    Convert legacy Office (.doc, .xls, .ppt) to Open XML using LibreOffice.
+    Returns path to the converted file.
+    """
+    target_format = LEGACY_OFFICE.get(ext)
+    if not target_format:
+        raise ValueError(f"Not a legacy Office format: {ext}")
+    src = Path(src_path)
+    out_dir = src.parent
+    result = subprocess.run(
+        [
+            "libreoffice",
+            "--headless",
+            "--convert-to",
+            target_format,
+            "--outdir",
+            str(out_dir),
+            src_path,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"LibreOffice conversion failed: {result.stderr or result.stdout}")
+    converted = out_dir / (src.stem + "." + target_format)
+    if not converted.exists():
+        raise RuntimeError(f"LibreOffice did not produce output: {converted}")
+    return str(converted)
 
 
 def get_converter() -> DocumentConverter:
@@ -113,9 +155,18 @@ async def extract_document(
         tmp.write(content)
         tmp_path = tmp.name
 
+    converted_path: Optional[str] = None
     try:
+        if ext in LEGACY_OFFICE:
+            converted_path = _convert_legacy_office_to_ooxml(tmp_path, ext)
+            path_to_convert = converted_path
+            ext_for_result = "." + LEGACY_OFFICE[ext]
+        else:
+            path_to_convert = tmp_path
+            ext_for_result = ext
+
         converter = get_converter()
-        result = converter.convert(tmp_path)
+        result = converter.convert(path_to_convert)
         doc = result.document
 
         if output_format == "markdown":
@@ -142,12 +193,16 @@ async def extract_document(
             "text": text,
             "tables": tables,
             "num_pages": num_pages,
-            "format": ext,
+            "format": ext_for_result,
         })
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "Conversion timeout (LibreOffice)")
     except Exception as e:
         raise HTTPException(500, f"Processing failed: {str(e)}")
     finally:
         Path(tmp_path).unlink(missing_ok=True)
+        if converted_path and Path(converted_path).exists():
+            Path(converted_path).unlink(missing_ok=True)
 
 
 @app.post("/transcribe")

@@ -8,6 +8,8 @@ const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingm
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const MSWORD_MIME = "application/msword";
+const MSEXCEL_MIME = "application/vnd.ms-excel";
+const MSPOWERPOINT_MIME = "application/vnd.ms-powerpoint";
 
 /** PDF: OCR, таблицы — самый тяжёлый */
 const PDF_BASE = 8;
@@ -61,7 +63,11 @@ export function estimateAnalysisTime(
     base = OFFICE_BASE;
     factor = OFFICE_FACTOR;
     format = "office";
-  } else if (mimeType === MSWORD_MIME) {
+  } else if (
+    mimeType === MSWORD_MIME ||
+    mimeType === MSEXCEL_MIME ||
+    mimeType === MSPOWERPOINT_MIME
+  ) {
     base = MSWORD_BASE;
     factor = MSWORD_FACTOR;
     format = "msword";

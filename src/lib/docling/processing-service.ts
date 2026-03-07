@@ -13,6 +13,8 @@ const PROCESSABLE_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/msword",
+  "application/vnd.ms-excel",
+  "application/vnd.ms-powerpoint",
   "text/html",
   "text/plain",
   "text/csv",
