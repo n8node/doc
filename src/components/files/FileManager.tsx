@@ -452,7 +452,7 @@ export function FileManager() {
     const clearUrl = () => {
       const nextParams = new URLSearchParams(searchParams.toString());
       nextParams.delete("highlightFileId");
-      router.replace(`/dashboard/files?${nextParams.toString()}`);
+      router.replace(`/dashboard/files?${nextParams.toString()}`, { scroll: false });
     };
 
     window.setTimeout(scrollToFile, 150);
