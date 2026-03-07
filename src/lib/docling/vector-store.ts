@@ -50,24 +50,58 @@ function escapeLikePattern(s: string): string {
 }
 
 /**
- * Keyword search: chunks where chunk_text contains the query (ILIKE).
- * Results are returned with similarity 1.0 (keyword match).
+ * Full-text search: chunks matching query via PostgreSQL FTS (russian config).
+ * Uses ts_rank for relevance ordering. Falls back to ILIKE if FTS returns nothing.
  */
 export async function findSimilarByKeyword(
   userId: string,
   query: string,
   limit = 20,
 ): Promise<SimilarityResult[]> {
-  const words = query.trim().split(/\s+/).filter((w) => w.length >= 2);
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+
+  const words = trimmed.split(/\s+/).filter((w) => w.length >= 2);
   if (words.length === 0) return [];
 
+  try {
+    const results = await prisma.$queryRaw<
+      Array<{ id: string; file_id: string; chunk_text: string; chunk_index: number; metadata: unknown; rank: number }>
+    >(Prisma.sql`
+      SELECT de.id, de.file_id, de.chunk_text, de.chunk_index, de.metadata,
+             ts_rank(to_tsvector('russian', de.chunk_text), plainto_tsquery('russian', ${trimmed})) AS rank
+      FROM document_embeddings de
+      JOIN files f ON f.id = de.file_id
+      WHERE f.user_id = ${userId}
+        AND f.deleted_at IS NULL
+        AND to_tsvector('russian', de.chunk_text) @@ plainto_tsquery('russian', ${trimmed})
+      ORDER BY rank DESC
+      LIMIT ${limit}
+    `);
+
+    if (results.length > 0) {
+      const maxRank = Math.max(...results.map((r) => Number(r.rank)), 0.001);
+      return results.map((r) => ({
+        id: r.id,
+        fileId: r.file_id,
+        chunkText: r.chunk_text,
+        chunkIndex: r.chunk_index,
+        similarity: Math.min(1, Number(r.rank) / maxRank),
+        metadata: (r.metadata as Record<string, unknown>) ?? null,
+      }));
+    }
+  } catch {
+    /* FTS may fail on edge cases, fall through to ILIKE */
+  }
+
+  /* Fallback: ILIKE for short queries or when FTS returns nothing */
   const conditions = words.map((w) => {
     const pattern = "%" + escapeLikePattern(w) + "%";
     return Prisma.sql`de.chunk_text ILIKE ${pattern}`;
   });
   const orClause = Prisma.join(conditions, " OR ");
 
-  const results = await prisma.$queryRaw<
+  const fallbackResults = await prisma.$queryRaw<
     Array<{ id: string; file_id: string; chunk_text: string; chunk_index: number; metadata: unknown }>
   >(Prisma.sql`
     SELECT de.id, de.file_id, de.chunk_text, de.chunk_index, de.metadata
@@ -79,7 +113,7 @@ export async function findSimilarByKeyword(
     LIMIT ${limit}
   `);
 
-  return results.map((r) => ({
+  return fallbackResults.map((r) => ({
     id: r.id,
     fileId: r.file_id,
     chunkText: r.chunk_text,
