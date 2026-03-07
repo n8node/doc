@@ -239,13 +239,16 @@ export function UserAiConfigBlock() {
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">Провайдер</label>
           <div className="flex flex-wrap gap-2">
-            {Object.entries(PROVIDER_OPTIONS).map(([key, { label }]) => (
+            {Object.entries(PROVIDER_OPTIONS).map(([key, { label, baseUrl: url }]) => (
               <Button
                 key={key}
                 type="button"
                 variant={providerName === key ? "default" : "outline"}
                 size="sm"
-                onClick={() => setProviderName(key)}
+                onClick={() => {
+                  setProviderName(key);
+                  setBaseUrl(url);
+                }}
               >
                 {label}
               </Button>
@@ -255,7 +258,7 @@ export function UserAiConfigBlock() {
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">
-            API-ключ {config?.hasApiKey && <span className="text-emerald-500">(установлен)</span>}
+            API-ключ {config?.hasApiKey && isActive && <span className="text-emerald-500">(установлен)</span>}
           </label>
           <div className="relative max-w-md">
             <Input
