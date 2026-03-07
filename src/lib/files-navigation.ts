@@ -24,6 +24,7 @@ export function parseFilesSection(value: string | null | undefined): FilesSectio
 interface BuildDashboardFilesUrlInput {
   section?: FilesSection | null;
   folderId?: string | null;
+  highlightFileId?: string | null;
   intent?: string | null;
   view?: "list" | "grid" | null;
 }
@@ -33,6 +34,7 @@ export function buildDashboardFilesUrl(input: BuildDashboardFilesUrlInput = {}) 
   params.set("section", input.section ?? DEFAULT_FILES_SECTION);
 
   if (input.folderId) params.set("folderId", input.folderId);
+  if (input.highlightFileId) params.set("highlightFileId", input.highlightFileId);
   if (input.intent) params.set("intent", input.intent);
   if (input.view) params.set("view", input.view);
 

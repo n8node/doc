@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
   const threshold = parseFloat(
     request.nextUrl.searchParams.get("threshold") ?? "0.55",
   );
+  const searchByName = request.nextUrl.searchParams.get("searchByName") !== "false";
 
   const active = await getProviderForUser(userId);
   if (!active) {
@@ -67,16 +68,18 @@ export async function GET(request: NextRequest) {
 
     const fileIds = Array.from(new Set(merged.map((s) => s.fileId)));
     const files = await prisma.file.findMany({
-      where: { id: { in: fileIds } },
-      select: { id: true, name: true, mimeType: true, size: true },
+      where: { id: { in: fileIds }, userId, deletedAt: null },
+      select: { id: true, name: true, mimeType: true, size: true, folderId: true },
     });
     const fileMap = new Map(files.map((f) => [f.id, f]));
 
-    const results = merged.slice(0, limit).map((s) => {
+    const chunkResults = merged.slice(0, limit).map((s) => {
       const file = fileMap.get(s.fileId);
       return {
+        type: "chunk" as const,
         id: s.id,
         fileId: s.fileId,
+        folderId: file?.folderId ?? null,
         fileName: file?.name ?? "Неизвестный файл",
         mimeType: file?.mimeType ?? "",
         fileSize: file?.size != null ? Number(file.size) : 0,
@@ -86,6 +89,47 @@ export async function GET(request: NextRequest) {
         metadata: s.metadata,
       };
     });
+
+    let fileResults: Array<{
+      type: "file";
+      id: string;
+      fileId: string;
+      folderId: string | null;
+      fileName: string;
+      mimeType: string;
+      fileSize: number;
+      similarity: number;
+    }> = [];
+    if (searchByName) {
+      const words = q.trim().split(/\s+/).filter((w) => w.length >= 2);
+      if (words.length > 0) {
+        const nameMatches = await prisma.file.findMany({
+          where: {
+            userId,
+            deletedAt: null,
+            OR: words.map((w) => ({ name: { contains: w, mode: "insensitive" as const } })),
+          },
+          select: { id: true, name: true, mimeType: true, size: true, folderId: true },
+          take: limit,
+        });
+        const chunkFileIds = new Set(chunkResults.map((r) => r.fileId));
+        fileResults = nameMatches
+          .filter((f) => !chunkFileIds.has(f.id))
+          .slice(0, Math.min(limit - chunkResults.length, 10))
+          .map((f) => ({
+            type: "file" as const,
+            id: `file_${f.id}`,
+            fileId: f.id,
+            folderId: f.folderId,
+            fileName: f.name,
+            mimeType: f.mimeType,
+            fileSize: Number(f.size),
+            similarity: 1,
+          }));
+      }
+    }
+
+    const results = [...chunkResults, ...fileResults];
 
     return NextResponse.json({
       results,

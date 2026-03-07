@@ -1,21 +1,39 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { Search, FileText, Loader2, Sparkles, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Search, FileText, Loader2, Sparkles, AlertCircle, FolderOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { buildDashboardFilesUrl } from "@/lib/files-navigation";
 
-interface SearchResult {
+interface SearchResultChunk {
+  type: "chunk";
   id: string;
   fileId: string;
+  folderId: string | null;
   fileName: string;
   mimeType: string;
   fileSize: number;
   chunkText: string;
   chunkIndex: number;
   similarity: number;
+  metadata?: Record<string, unknown> | null;
 }
+
+interface SearchResultFile {
+  type: "file";
+  id: string;
+  fileId: string;
+  folderId: string | null;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  similarity: number;
+}
+
+type SearchResult = SearchResultChunk | SearchResultFile;
 
 interface SearchResponse {
   results: SearchResult[];
@@ -71,6 +89,7 @@ export default function DashboardSearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [threshold, setThreshold] = useState(0.55);
   const [limit, setLimit] = useState(20);
+  const [searchByName, setSearchByName] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
 
   const handleSearch = useCallback(async () => {
@@ -85,8 +104,14 @@ export default function DashboardSearchPage() {
     setError(null);
 
     try {
+      const params = new URLSearchParams({
+        q,
+        limit: String(limit),
+        threshold: String(threshold),
+        searchByName: searchByName ? "true" : "false",
+      });
       const res = await fetch(
-        `/api/v1/files/search?q=${encodeURIComponent(q)}&limit=${limit}&threshold=${threshold}`,
+        `/api/v1/files/search?${params.toString()}`,
         { signal: controller.signal },
       );
       const data = await res.json();
@@ -103,7 +128,7 @@ export default function DashboardSearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [query, threshold, limit]);
+  }, [query, threshold, limit, searchByName]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSearch();
@@ -183,6 +208,24 @@ export default function DashboardSearchPage() {
             ))}
           </select>
         </div>
+        <div className="flex items-center gap-3 pt-2">
+          <input
+            type="checkbox"
+            id="search-by-name"
+            checked={searchByName}
+            onChange={(e) => setSearchByName(e.target.checked)}
+            className="h-4 w-4 rounded border-border accent-primary"
+          />
+          <label
+            htmlFor="search-by-name"
+            className="text-sm font-medium text-foreground cursor-pointer"
+          >
+            Поиск по названиям файлов
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Показывать файлы, чьё имя совпадает с запросом.
+          </p>
+        </div>
       </div>
 
       {error && (
@@ -197,7 +240,7 @@ export default function DashboardSearchPage() {
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
               {response.total > 0
-                ? `Найдено ${response.total} фрагмент${response.total === 1 ? "" : response.total < 5 ? "а" : "ов"}`
+                ? `Найдено ${response.total} результат${response.total === 1 ? "" : response.total < 5 ? "а" : "ов"}`
                 : "Ничего не найдено"}
             </span>
             {response.provider && (
@@ -237,17 +280,51 @@ export default function DashboardSearchPage() {
                       {formatFileSize(r.fileSize)}
                     </span>
                   </div>
-                  <SimilarityBadge score={r.similarity} />
+                  <div className="flex items-center gap-2">
+                    <SimilarityBadge score={r.similarity} />
+                    {r.folderId != null && (
+                      <Link
+                        href={buildDashboardFilesUrl({
+                          folderId: r.folderId,
+                          highlightFileId: r.fileId,
+                        })}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface2/80 transition-colors"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        Посмотреть на диске
+                      </Link>
+                    )}
+                    {r.folderId == null && (
+                      <Link
+                        href={buildDashboardFilesUrl({
+                          highlightFileId: r.fileId,
+                        })}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface2/80 transition-colors"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        Посмотреть на диске
+                      </Link>
+                    )}
+                  </div>
                 </div>
-                <p
-                  className="mt-2 line-clamp-4 text-sm leading-relaxed text-muted-foreground"
-                  dangerouslySetInnerHTML={{
-                    __html: highlightMatch(r.chunkText, response.query),
-                  }}
-                />
-                <div className="mt-2 text-xs text-muted-foreground">
-                  Фрагмент #{r.chunkIndex + 1}
-                </div>
+                {r.type === "chunk" && (
+                  <>
+                    <p
+                      className="mt-2 line-clamp-4 text-sm leading-relaxed text-muted-foreground"
+                      dangerouslySetInnerHTML={{
+                        __html: highlightMatch(r.chunkText, response.query),
+                      }}
+                    />
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Фрагмент #{r.chunkIndex + 1}
+                    </div>
+                  </>
+                )}
+                {r.type === "file" && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Совпадение по названию файла
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}

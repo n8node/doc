@@ -197,6 +197,7 @@ export function FileManager() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderIdParam = searchParams.get("folderId");
+  const highlightFileIdParam = searchParams.get("highlightFileId");
   const intentParam = searchParams.get("intent");
   const viewParam = searchParams.get("view");
   const activeSection = parseFilesSection(searchParams.get("section"));
@@ -414,6 +415,23 @@ export function FileManager() {
     setSelectedFiles(new Set());
     setSelectedFolders(new Set());
   }, [activeSection, currentFolderId]);
+
+  // Подсветка и прокрутка к файлу при переходе по ссылке "Посмотреть на диске"
+  useEffect(() => {
+    if (!highlightFileIdParam || loading) return;
+    const allFiles = files;
+    const fileExists = allFiles.some((f) => f.id === highlightFileIdParam);
+    if (!fileExists) return;
+    setSelectedFiles(new Set([highlightFileIdParam]));
+    const timer = window.setTimeout(() => {
+      const el = document.querySelector(`[data-file-id="${highlightFileIdParam}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete("highlightFileId");
+      router.replace(`/dashboard/files?${nextParams.toString()}`);
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [highlightFileIdParam, loading, files, router, searchParams]);
 
   const buildBaseFileFilterParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -2087,8 +2105,8 @@ export function FileManager() {
     : [];
 
   const renderListFile = (file: FileItem, index: number) => (
+    <div key={file.id} data-file-id={file.id}>
     <FileCard
-      key={file.id}
       id={file.id}
       name={file.name}
       mimeType={file.mimeType}
@@ -2180,6 +2198,7 @@ export function FileManager() {
       transcribeEstimateMinutes={transcribeEstimateMinutes.get(file.id)}
       transcribeStartedAt={transcribeStartedAt.get(file.id)}
     />
+    </div>
   );
 
   const typeFilterActive = !isPhotosSection && filterType !== "all";
@@ -2984,6 +3003,7 @@ export function FileManager() {
                           return (
                             <motion.div
                               key={file.id}
+                              data-file-id={file.id}
                               initial={{ opacity: 0, y: 12 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.25, delay: index * 0.02 }}
