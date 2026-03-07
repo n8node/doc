@@ -3075,12 +3075,11 @@ export function FileManager() {
                             <motion.div
                               key={file.id}
                               data-file-id={file.id}
-                              className="scroll-mt-28"
                               initial={{ opacity: 0, y: 12 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.25, delay: index * 0.02 }}
                               className={cn(
-                                "group relative overflow-hidden rounded-2xl border bg-surface2/35 transition-all",
+                                "scroll-mt-28 group relative overflow-hidden rounded-2xl border bg-surface2/35 transition-all",
                                 selected
                                   ? "border-primary/70 bg-primary/5 shadow-[0_10px_28px_-18px_hsl(var(--primary)/0.9)]"
                                   : "border-border/70 hover:border-primary/40 hover:bg-surface2/55"
