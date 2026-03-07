@@ -2,10 +2,16 @@
 
 import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Search, FileText, Loader2, Sparkles, AlertCircle, FolderOpen } from "lucide-react";
+import { Search, FileText, Loader2, Sparkles, AlertCircle, FolderOpen, Filter, ChevronDown, Check, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { buildDashboardFilesUrl } from "@/lib/files-navigation";
 
 interface SearchResultChunk {
@@ -134,6 +140,24 @@ export default function DashboardSearchPage() {
     if (e.key === "Enter") handleSearch();
   };
 
+  const defaultThreshold = 0.55;
+  const defaultLimit = 20;
+  const defaultSearchByName = true;
+  const hasActiveSettings =
+    threshold !== defaultThreshold || limit !== defaultLimit || searchByName !== defaultSearchByName;
+  const resetSearchSettings = () => {
+    setThreshold(defaultThreshold);
+    setLimit(defaultLimit);
+    setSearchByName(defaultSearchByName);
+  };
+
+  const getFilterTriggerClass = (active: boolean) =>
+    `relative z-[1] flex h-10 min-w-[150px] items-center justify-between gap-2 rounded-xl border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 ${
+      active
+        ? "border-primary/60 bg-primary/10 text-primary shadow-sm"
+        : "border-border bg-surface2 text-foreground hover:bg-surface2/80"
+    }`;
+
   return (
     <div className="space-y-6">
       <div>
@@ -160,71 +184,109 @@ export default function DashboardSearchPage() {
         </Button>
       </div>
 
-      <div className="rounded-xl border border-border bg-surface2/30 px-4 py-3 space-y-4">
-        <p className="text-xs text-muted-foreground">
-          Поиск гибридный: сначала по точным словам, затем по смыслу (семантика).
-        </p>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
-            Порог релевантности
-          </label>
+      <div className="rounded-2xl modal-glass-soft p-3 sm:p-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Filter className="h-4 w-4" />
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">Настройки поиска</span>
+                {hasActiveSettings && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    изменено
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {hasActiveSettings && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetSearchSettings}
+                className="h-8 gap-1.5 rounded-lg text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Сбросить
+              </Button>
+            )}
+          </div>
+
           <p className="text-xs text-muted-foreground">
-            Чем выше — тем строже отбор. Ниже — больше результатов, но может быть шум.
+            Поиск гибридный: сначала по точным словам, затем по смыслу (семантика).
           </p>
-          <div className="flex flex-wrap gap-2">
-            {THRESHOLD_PRESETS.map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => setThreshold(p.value)}
-                className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                  threshold === p.value
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-surface2 text-muted-foreground hover:bg-surface2/80 hover:text-foreground"
+
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <div className="flex min-w-max items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={getFilterTriggerClass(threshold !== defaultThreshold)}
+                  >
+                    <span className="truncate">
+                      {THRESHOLD_PRESETS.find((p) => p.value === threshold)?.label ?? "Порог"} ({threshold})
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {THRESHOLD_PRESETS.map((p) => (
+                    <DropdownMenuItem
+                      key={p.value}
+                      onClick={() => setThreshold(p.value)}
+                      className="justify-between"
+                    >
+                      <span>{p.label} ({p.value})</span>
+                      {threshold === p.value && <Check className="h-4 w-4 text-primary" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={getFilterTriggerClass(limit !== defaultLimit)}
+                  >
+                    <span className="truncate">Результатов: {limit}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {LIMIT_OPTIONS.map((n) => (
+                    <DropdownMenuItem
+                      key={n}
+                      onClick={() => setLimit(n)}
+                      className="justify-between"
+                    >
+                      <span>{n}</span>
+                      {limit === n && <Check className="h-4 w-4 text-primary" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <label
+                className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition-colors ${
+                  searchByName
+                    ? "border-primary/60 bg-primary/10 text-primary"
+                    : "border-border/70 bg-background/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 }`}
               >
-                {p.label} ({p.value})
-              </button>
-            ))}
+                <input
+                  type="checkbox"
+                  checked={searchByName}
+                  onChange={(e) => setSearchByName(e.target.checked)}
+                  className="sr-only"
+                />
+                <span className="whitespace-nowrap">По названиям файлов</span>
+              </label>
+            </div>
           </div>
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="search-limit" className="text-sm font-medium text-foreground">
-            Количество результатов
-          </label>
-          <p className="text-xs text-muted-foreground">
-            Максимальное число фрагментов в выдаче.
-          </p>
-          <select
-            id="search-limit"
-            value={limit}
-            onChange={(e) => setLimit(Number(e.target.value))}
-            className="h-10 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            {LIMIT_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-3 pt-2">
-          <input
-            type="checkbox"
-            id="search-by-name"
-            checked={searchByName}
-            onChange={(e) => setSearchByName(e.target.checked)}
-            className="h-4 w-4 rounded border-border accent-primary"
-          />
-          <label
-            htmlFor="search-by-name"
-            className="text-sm font-medium text-foreground cursor-pointer"
-          >
-            Поиск по названиям файлов
-          </label>
-          <p className="text-xs text-muted-foreground">
-            Показывать файлы, чьё имя совпадает с запросом.
-          </p>
         </div>
       </div>
 
