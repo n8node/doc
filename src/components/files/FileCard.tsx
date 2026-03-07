@@ -51,6 +51,7 @@ interface FileCardProps {
     numPages?: number;
     tablesCount?: number;
     transcriptProcessedAt?: string;
+    transcriptProvider?: string;
   } | null;
   hasShareLink?: boolean;
   shareLinksCount?: number;
@@ -76,6 +77,7 @@ interface FileCardProps {
   analyzeStartedAt?: number;
   isTranscribable?: boolean;
   isTranscribing?: boolean;
+  transcribingProvider?: string;
   transcribeError?: string;
   transcribeEstimateMinutes?: number;
   transcribeStartedAt?: number;
@@ -255,6 +257,7 @@ export function FileCard({
   analyzeStartedAt,
   isTranscribable = false,
   isTranscribing,
+  transcribingProvider,
   transcribeEstimateMinutes,
   transcribeStartedAt,
   transcribeError,
@@ -266,6 +269,17 @@ export function FileCard({
   const isVideo = mimeType.startsWith("video/");
   const isProcessed = !!aiMetadata?.processedAt;
   const isTranscribed = !!aiMetadata?.transcriptProcessedAt;
+
+  const formatTranscriptProvider = (p: string | undefined): string => {
+    if (!p) return "";
+    if (p === "openai_whisper" || p === "OpenAI") return "OpenAI";
+    if (p === "docling" || p === "Docling") return "Docling";
+    return p;
+  };
+
+  const transcriptProviderDisplay =
+    isTranscribing ? formatTranscriptProvider(transcribingProvider) : formatTranscriptProvider(aiMetadata?.transcriptProvider);
+  const transcriptProviderSuffix = transcriptProviderDisplay ? ` — ${transcriptProviderDisplay}` : "";
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -379,15 +393,20 @@ export function FileCard({
               <>
                 <span>•</span>
                 {transcribeEstimateMinutes != null && transcribeEstimateMinutes > 0 && transcribeStartedAt != null ? (
-                  <TranscriptionProgressBar
-                    startTimestamp={transcribeStartedAt}
-                    estimatedSeconds={transcribeEstimateMinutes * 60}
-                    variant="compact"
-                  />
+                  <span className="flex items-center gap-1.5">
+                    <TranscriptionProgressBar
+                      startTimestamp={transcribeStartedAt}
+                      estimatedSeconds={transcribeEstimateMinutes * 60}
+                      variant="compact"
+                    />
+                    {transcriptProviderSuffix && (
+                      <span className="text-amber-600 font-medium">Транскрипция{transcriptProviderSuffix}</span>
+                    )}
+                  </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-amber-500 animate-pulse" title="Транскрибируется...">
+                  <span className="flex items-center gap-1 text-amber-500 animate-pulse" title={`Транскрибируется...${transcriptProviderSuffix}`}>
                     <Mic2 className="h-3 w-3" />
-                    Транскрипция...
+                    Транскрипция{transcriptProviderSuffix || "…"}
                   </span>
                 )}
               </>
@@ -412,15 +431,15 @@ export function FileCard({
                       onViewTranscript();
                     }}
                     className="flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-amber-600 font-medium transition-colors hover:bg-amber-500/20"
-                    title="Просмотр транскрипта"
+                    title={`Просмотр транскрипта${transcriptProviderSuffix}`}
                   >
                     <Mic2 className="h-3 w-3" />
-                    Транскрипт
+                    Транскрипт{transcriptProviderSuffix}
                   </button>
                 ) : (
-                  <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-amber-600 font-medium" title="Транскрипт готов">
+                  <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-amber-600 font-medium" title={`Транскрипт готов${transcriptProviderSuffix}`}>
                     <Mic2 className="h-3 w-3" />
-                    Транскрипт
+                    Транскрипт{transcriptProviderSuffix}
                   </span>
                 )}
               </>

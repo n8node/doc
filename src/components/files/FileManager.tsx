@@ -77,6 +77,7 @@ interface FileItem {
     numPages?: number;
     tablesCount?: number;
     transcriptProcessedAt?: string;
+    transcriptProvider?: string;
   } | null;
   createdAt: string;
   hasShareLink?: boolean;
@@ -228,6 +229,7 @@ export function FileManager() {
   const [analyzeEstimateMinutes, setAnalyzeEstimateMinutes] = useState<Map<string, number>>(new Map());
   const [analyzeStartedAt, setAnalyzeStartedAt] = useState<Map<string, number>>(new Map());
   const [transcribingFiles, setTranscribingFiles] = useState<Set<string>>(new Set());
+  const [transcribingProvider, setTranscribingProvider] = useState<Map<string, string>>(new Map());
   const [transcribeError, setTranscribeError] = useState<Map<string, string>>(new Map());
   const [transcribeEstimateMinutes, setTranscribeEstimateMinutes] = useState<Map<string, number>>(new Map());
   const [transcribeStartedAt, setTranscribeStartedAt] = useState<Map<string, number>>(new Map());
@@ -1144,9 +1146,13 @@ export function FileManager() {
       }
       if (res.status === 202 && data.status === "processing") {
         const estMin = data.estimatedProcessingMinutes as number | undefined;
+        const provider = data.provider as string | undefined;
         if (estMin != null && estMin > 0) {
           setTranscribeEstimateMinutes((m) => new Map(m).set(id, estMin));
           setTranscribeStartedAt((m) => new Map(m).set(id, Date.now()));
+        }
+        if (provider) {
+          setTranscribingProvider((m) => new Map(m).set(id, provider));
         }
         const loadingMsg =
           estMin != null && estMin > 0
@@ -1175,6 +1181,11 @@ export function FileManager() {
     } finally {
       setTranscribingFiles((s) => {
         const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
+      setTranscribingProvider((m) => {
+        const n = new Map(m);
         n.delete(id);
         return n;
       });
@@ -1304,6 +1315,7 @@ export function FileManager() {
           pending.delete(id);
           failed++;
           setTranscribeError((m) => new Map(m).set(id, data.error || "Ошибка"));
+          setTranscribingProvider((m) => { const n = new Map(m); n.delete(id); return n; });
           setTranscribingFiles((s) => {
             const n = new Set(s);
             n.delete(id);
@@ -1317,15 +1329,20 @@ export function FileManager() {
         }
         if (res.status === 202 && data.status === "processing") {
           const estMin = data.estimatedProcessingMinutes as number | undefined;
+          const provider = data.provider as string | undefined;
           if (estMin != null && estMin > 0) {
             setTranscribeEstimateMinutes((m) => new Map(m).set(id, estMin));
             setTranscribeStartedAt((m) => new Map(m).set(id, Date.now()));
+          }
+          if (provider) {
+            setTranscribingProvider((m) => new Map(m).set(id, provider));
           }
         }
       } catch {
         pending.delete(id);
         failed++;
         setTranscribeError((m) => new Map(m).set(id, "Сетевая ошибка"));
+        setTranscribingProvider((m) => { const n = new Map(m); n.delete(id); return n; });
         setTranscribingFiles((s) => {
           const n = new Set(s);
           n.delete(id);
@@ -1349,6 +1366,7 @@ export function FileManager() {
             succeeded++;
             setTranscribeEstimateMinutes((m) => { const n = new Map(m); n.delete(id); return n; });
             setTranscribeStartedAt((m) => { const n = new Map(m); n.delete(id); return n; });
+            setTranscribingProvider((m) => { const n = new Map(m); n.delete(id); return n; });
             setTranscribingFiles((s) => {
               const n = new Set(s);
               n.delete(id);
@@ -1360,6 +1378,7 @@ export function FileManager() {
             setTranscribeError((m) => new Map(m).set(id, data.error || "Ошибка"));
             setTranscribeEstimateMinutes((m) => { const n = new Map(m); n.delete(id); return n; });
             setTranscribeStartedAt((m) => { const n = new Map(m); n.delete(id); return n; });
+            setTranscribingProvider((m) => { const n = new Map(m); n.delete(id); return n; });
             setTranscribingFiles((s) => {
               const n = new Set(s);
               n.delete(id);
@@ -1376,6 +1395,7 @@ export function FileManager() {
       pending.forEach((fileId) => {
         setTranscribeEstimateMinutes((m) => { const n = new Map(m); n.delete(fileId); return n; });
         setTranscribeStartedAt((m) => { const n = new Map(m); n.delete(fileId); return n; });
+        setTranscribingProvider((m) => { const n = new Map(m); n.delete(fileId); return n; });
         setTranscribingFiles((s) => {
           const n = new Set(s);
           n.delete(fileId);
@@ -2153,6 +2173,7 @@ export function FileManager() {
       analyzeStartedAt={analyzeStartedAt.get(file.id)}
       isTranscribable={TRANSCRIBABLE_MIMES.has(file.mimeType)}
       isTranscribing={transcribingFiles.has(file.id)}
+      transcribingProvider={transcribingProvider.get(file.id)}
       transcribeError={transcribeError.get(file.id)}
       transcribeEstimateMinutes={transcribeEstimateMinutes.get(file.id)}
       transcribeStartedAt={transcribeStartedAt.get(file.id)}
@@ -3126,6 +3147,9 @@ export function FileManager() {
                                   {TRANSCRIBABLE_MIMES.has(file.mimeType) && transcribingFiles.has(file.id) && (() => {
                                     const estMin = transcribeEstimateMinutes.get(file.id);
                                     const startedAt = transcribeStartedAt.get(file.id);
+                                    const prov = transcribingProvider.get(file.id);
+                                    const provDisplay = prov === "OpenAI" || prov === "openai_whisper" ? "OpenAI" : prov === "Docling" || prov === "docling" ? "Docling" : prov || "";
+                                    const transcribeLabel = provDisplay ? `Транскрипция — ${provDisplay}` : "Транскрипция";
                                     if (estMin != null && estMin > 0 && startedAt != null) {
                                       return (
                                         <TranscriptionProgressBar
@@ -3134,11 +3158,12 @@ export function FileManager() {
                                           estimatedSeconds={estMin * 60}
                                           variant="compact"
                                           className="rounded-md p-1.5"
+                                          label={transcribeLabel}
                                         />
                                       );
                                     }
                                     return (
-                                      <span className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse" title="Транскрибируется...">
+                                      <span className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse" title={provDisplay ? `Транскрипция — ${provDisplay}` : "Транскрибируется..."}>
                                         <Mic2 className="h-4 w-4" />
                                       </span>
                                     );
@@ -3167,7 +3192,11 @@ export function FileManager() {
                                       type="button"
                                       onClick={() => setTranscriptFile({ id: file.id, name: file.name })}
                                       className="flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-500/20"
-                                      title="Просмотр транскрипта"
+                                      title={(() => {
+                                        const p = (file.aiMetadata as { transcriptProvider?: string })?.transcriptProvider;
+                                        const d = p === "openai_whisper" ? "OpenAI" : p === "docling" ? "Docling" : p || "";
+                                        return `Транскрипт${d ? ` — ${d}` : ""}`;
+                                      })()}
                                     >
                                       <Mic2 className="h-3.5 w-3.5" />
                                     </button>

@@ -134,6 +134,7 @@ export async function transcribeFile(
           transcriptContentHash: result.content_hash,
           transcriptFormat: result.format,
           transcriptProcessedAt: new Date().toISOString(),
+          transcriptProvider: useOpenAi ? "openai_whisper" : "docling",
         },
       },
     });

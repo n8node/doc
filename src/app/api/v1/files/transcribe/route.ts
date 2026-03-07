@@ -177,6 +177,13 @@ export async function POST(request: NextRequest) {
 
   const estimate = estimateTranscriptionTime(durationSeconds, durationSource);
 
+  const providerDisplay =
+    useOpenAi && provider?.name === "openai_whisper"
+      ? "OpenAI"
+      : useOpenAi && provider?.baseUrl.includes("api.openai.com")
+        ? "OpenAI"
+        : "Docling";
+
   return NextResponse.json(
     {
       status: "processing",
@@ -184,6 +191,7 @@ export async function POST(request: NextRequest) {
       message: "Транскрибация запущена",
       estimatedProcessingSeconds: estimate.estimatedProcessingSeconds,
       estimatedProcessingMinutes: estimate.estimatedProcessingMinutes,
+      provider: providerDisplay,
     },
     { status: 202 },
   );
