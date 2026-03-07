@@ -154,6 +154,15 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
   const nothingToShow = !accountLinking.canLinkTelegram && !accountLinking.canLinkEmail;
   const bothLinked = accountLinking.hasTelegram && !accountLinking.isPlaceholderEmail;
 
+  const subtitle =
+    bothLinked
+      ? "Вход доступен по email и Telegram"
+      : accountLinking.canLinkEmail && accountLinking.canLinkTelegram
+        ? "Привяжите Telegram или email для входа разными способами"
+        : accountLinking.canLinkEmail
+          ? "Привяжите email для входа по паролю"
+          : "Привяжите Telegram для входа по QR и кнопке";
+
   if (nothingToShow && !bothLinked) return null;
 
   return (
@@ -164,7 +173,7 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
           Привязка аккаунтов
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Привяжите Telegram или email для входа разными способами
+          {subtitle}
         </p>
       </CardHeader>
       <CardContent className="space-y-6">

@@ -319,12 +319,25 @@ export default function DashboardSettingsPage() {
               <label className="mb-1.5 block text-sm font-medium text-foreground">
                 Email
               </label>
-              <p className="text-sm text-muted-foreground">
-                {profile?.email ?? "—"}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Email используется для входа и не редактируется здесь
-              </p>
+              {profile?.accountLinking?.isPlaceholderEmail ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Email пока не привязан
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Привяжите email ниже, чтобы входить по паролю
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    {profile?.email ?? "—"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Email используется для входа и не редактируется здесь
+                  </p>
+                </>
+              )}
             </div>
             <Button type="submit" disabled={savingProfile}>
               {savingProfile && (
