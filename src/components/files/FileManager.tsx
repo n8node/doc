@@ -416,20 +416,17 @@ export function FileManager() {
     setSelectedFolders(new Set());
   }, [activeSection, currentFolderId]);
 
-  // Подсветка и прокрутка к файлу при переходе по ссылке "Посмотреть на диске"
+  // Подсветка файла при переходе по ссылке "Посмотреть на диске" (файл поднимается первым через displayFiles)
   useEffect(() => {
     if (!highlightFileIdParam || loading) return;
-    const allFiles = files;
-    const fileExists = allFiles.some((f) => f.id === highlightFileIdParam);
+    const fileExists = files.some((f) => f.id === highlightFileIdParam);
     if (!fileExists) return;
     setSelectedFiles(new Set([highlightFileIdParam]));
     const timer = window.setTimeout(() => {
-      const el = document.querySelector(`[data-file-id="${highlightFileIdParam}"]`);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
       const nextParams = new URLSearchParams(searchParams.toString());
       nextParams.delete("highlightFileId");
       router.replace(`/dashboard/files?${nextParams.toString()}`);
-    }, 150);
+    }, 100);
     return () => window.clearTimeout(timer);
   }, [highlightFileIdParam, loading, files, router, searchParams]);
 
@@ -2070,6 +2067,15 @@ export function FileManager() {
     });
   }, [files, filterProcessed, filterTranscribed, isHistorySection, isTrashSection]);
 
+  const displayFiles = useMemo(() => {
+    if (!highlightFileIdParam || isHistorySection || isTrashSection) return filteredFiles;
+    const idx = filteredFiles.findIndex((f) => f.id === highlightFileIdParam);
+    if (idx <= 0) return filteredFiles;
+    const copy = [...filteredFiles];
+    const [highlighted] = copy.splice(idx, 1);
+    return [highlighted, ...copy];
+  }, [filteredFiles, highlightFileIdParam, isHistorySection, isTrashSection]);
+
   const recentFileGroups = isRecentSection
     ? (() => {
         const grouped = new Map<string, FileItem[]>();
@@ -2971,7 +2977,7 @@ export function FileManager() {
               )}
 
               {/* Files */}
-              {filteredFiles.length > 0 && (
+              {(isRecentSection ? filteredFiles : displayFiles).length > 0 && (
                 <>
                   {isRecentSection ? (
                     <div className="space-y-4">
@@ -2991,10 +2997,10 @@ export function FileManager() {
                   ) : showPhotoGrid ? (
                     <div className="space-y-2">
                       <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Фото ({filteredFiles.length})
+                        Фото ({displayFiles.length})
                       </p>
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                        {filteredFiles.map((file, index) => {
+                        {displayFiles.map((file, index) => {
                           const selected = selectedFiles.has(file.id);
                           const createdLabel = new Date(file.createdAt).toLocaleDateString("ru-RU", {
                             day: "numeric",
@@ -3242,10 +3248,10 @@ export function FileManager() {
                   ) : (
                     <div className="space-y-2">
                       <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {isSharedSection ? "Общий доступ" : "Файлы"} ({filteredFiles.length})
+                        {isSharedSection ? "Общий доступ" : "Файлы"} ({displayFiles.length})
                       </p>
                       <div className="space-y-1">
-                        {filteredFiles.map((file, index) => renderListFile(file, index + folders.length))}
+                        {displayFiles.map((file, index) => renderListFile(file, index + folders.length))}
                       </div>
                     </div>
                   )}
