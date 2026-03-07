@@ -8,6 +8,7 @@ const navItems = [
   { href: "/admin/settings?tab=auth", label: "Авторизация", icon: "🔐" },
   { href: "/admin/plans", label: "Тарифы", icon: "👑" },
   { href: "/admin/payments", label: "Платежи", icon: "📋" },
+  { href: "/admin/stats", label: "Статистика AI", icon: "📊" },
   { href: "/admin/storage", label: "Storage", icon: "📁" },
   { href: "/admin/settings?tab=s3", label: "S3", icon: "☁️" },
   { href: "/admin/settings?tab=yookassa", label: "ЮKassa", icon: "💳" },
@@ -26,6 +27,7 @@ export function AdminSidebar() {
     if (pathname === "/admin/storage" && href === "/admin/storage") return true;
     if (pathname === "/admin/plans" && href === "/admin/plans") return true;
     if (pathname === "/admin/payments" && href === "/admin/payments") return true;
+    if (pathname === "/admin/stats" && href === "/admin/stats") return true;
     if (pathname === "/admin/settings") {
       if (href === "/admin/settings" && !tab) return true;
       if (tab && href.includes(`tab=${tab}`)) return true;
