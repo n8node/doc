@@ -3149,22 +3149,23 @@ export function FileManager() {
                                     const startedAt = transcribeStartedAt.get(file.id);
                                     const prov = transcribingProvider.get(file.id);
                                     const provDisplay = prov === "OpenAI" || prov === "openai_whisper" ? "OpenAI" : prov === "Docling" || prov === "docling" ? "Docling" : prov || "";
-                                    const transcribeLabel = provDisplay ? `Транскрипция — ${provDisplay}` : "Транскрипция";
                                     if (estMin != null && estMin > 0 && startedAt != null) {
                                       return (
-                                        <TranscriptionProgressBar
-                                          key={file.id}
-                                          startTimestamp={startedAt}
-                                          estimatedSeconds={estMin * 60}
-                                          variant="compact"
-                                          className="rounded-md p-1.5"
-                                          label={transcribeLabel}
-                                        />
+                                        <span key={file.id} className="flex items-center gap-1">
+                                          <TranscriptionProgressBar
+                                            startTimestamp={startedAt}
+                                            estimatedSeconds={estMin * 60}
+                                            variant="compact"
+                                            className="rounded-md p-1.5"
+                                          />
+                                          {provDisplay && <span className="text-xs font-medium text-amber-600">{provDisplay}</span>}
+                                        </span>
                                       );
                                     }
                                     return (
-                                      <span className="flex items-center rounded-md p-1.5 text-amber-500 animate-pulse" title={provDisplay ? `Транскрипция — ${provDisplay}` : "Транскрибируется..."}>
+                                      <span className="flex items-center gap-1 rounded-md p-1.5 text-amber-500 animate-pulse" title={provDisplay ? `Транскрибируется... ${provDisplay}` : "Транскрибируется..."}>
                                         <Mic2 className="h-4 w-4" />
+                                        {provDisplay && <span className="text-xs font-medium text-amber-600">{provDisplay}</span>}
                                       </span>
                                     );
                                   })()}

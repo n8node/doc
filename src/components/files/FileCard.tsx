@@ -399,14 +399,17 @@ export function FileCard({
                       estimatedSeconds={transcribeEstimateMinutes * 60}
                       variant="compact"
                     />
-                    {transcriptProviderSuffix && (
-                      <span className="text-amber-600 font-medium">Транскрипция{transcriptProviderSuffix}</span>
+                    {transcriptProviderDisplay && (
+                      <span className="text-amber-600 font-medium">{transcriptProviderDisplay}</span>
                     )}
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-amber-500 animate-pulse" title={`Транскрибируется...${transcriptProviderSuffix}`}>
+                  <span className="flex items-center gap-1 text-amber-500 animate-pulse" title={transcriptProviderDisplay ? `Транскрибируется... ${transcriptProviderDisplay}` : "Транскрибируется..."}>
                     <Mic2 className="h-3 w-3" />
-                    Транскрипция{transcriptProviderSuffix || "…"}
+                    Транскрипция…
+                    {transcriptProviderDisplay && (
+                      <span className="text-amber-600 font-medium">{transcriptProviderDisplay}</span>
+                    )}
                   </span>
                 )}
               </>
