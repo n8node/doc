@@ -1,12 +1,12 @@
--- AlterTable
-ALTER TABLE "users" ADD COLUMN "telegram_user_id" BIGINT,
-ADD COLUMN "telegram_username" TEXT;
+-- AlterTable (idempotent - safe if columns already exist from db push)
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "telegram_user_id" BIGINT;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "telegram_username" TEXT;
 
--- CreateIndex
-CREATE UNIQUE INDEX "users_telegram_user_id_key" ON "users"("telegram_user_id");
+-- CreateIndex (idempotent)
+CREATE UNIQUE INDEX IF NOT EXISTS "users_telegram_user_id_key" ON "users"("telegram_user_id");
 
--- CreateTable
-CREATE TABLE "telegram_login_tokens" (
+-- CreateTable (idempotent)
+CREATE TABLE IF NOT EXISTS "telegram_login_tokens" (
     "id" TEXT NOT NULL,
     "token" TEXT NOT NULL,
     "telegram_user_id" BIGINT,
@@ -19,11 +19,7 @@ CREATE TABLE "telegram_login_tokens" (
     CONSTRAINT "telegram_login_tokens_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "telegram_login_tokens_token_key" ON "telegram_login_tokens"("token");
-
--- CreateIndex
-CREATE INDEX "telegram_login_tokens_token_idx" ON "telegram_login_tokens"("token");
-
--- CreateIndex
-CREATE INDEX "telegram_login_tokens_expires_at_idx" ON "telegram_login_tokens"("expires_at");
+-- CreateIndex (idempotent)
+CREATE UNIQUE INDEX IF NOT EXISTS "telegram_login_tokens_token_key" ON "telegram_login_tokens"("token");
+CREATE INDEX IF NOT EXISTS "telegram_login_tokens_token_idx" ON "telegram_login_tokens"("token");
+CREATE INDEX IF NOT EXISTS "telegram_login_tokens_expires_at_idx" ON "telegram_login_tokens"("expires_at");

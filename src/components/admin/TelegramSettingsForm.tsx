@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Send, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Loader2, Send, Eye, EyeOff, CheckCircle, Play, Square } from "lucide-react";
 
 export function TelegramSettingsForm() {
   const [loading, setLoading] = useState(true);
@@ -12,6 +12,8 @@ export function TelegramSettingsForm() {
   const [testing, setTesting] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [botRunning, setBotRunning] = useState<boolean | null>(null);
+  const [botAction, setBotAction] = useState(false);
   const [values, setValues] = useState({
     botToken: "",
     chatId: "",
@@ -20,6 +22,17 @@ export function TelegramSettingsForm() {
     registerMessage: "",
     paymentMessage: "",
   });
+
+  const fetchBotStatus = () => {
+    fetch("/api/v1/admin/telegram-bot")
+      .then((r) => r.json())
+      .then((data) => setBotRunning(data.running === true))
+      .catch(() => setBotRunning(null));
+  };
+
+  useEffect(() => {
+    fetchBotStatus();
+  }, []);
 
   useEffect(() => {
     fetch("/api/v1/admin/telegram")
@@ -38,6 +51,46 @@ export function TelegramSettingsForm() {
       .catch(() => toast.error("Не удалось загрузить настройки"))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleBotStart = async () => {
+    setBotAction(true);
+    try {
+      const res = await fetch("/api/v1/admin/telegram-bot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success(data.message);
+        setBotRunning(true);
+      } else toast.error(data.message ?? "Ошибка");
+    } catch {
+      toast.error("Ошибка запроса");
+    } finally {
+      setBotAction(false);
+    }
+  };
+
+  const handleBotStop = async () => {
+    setBotAction(true);
+    try {
+      const res = await fetch("/api/v1/admin/telegram-bot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "stop" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success(data.message);
+        setBotRunning(false);
+      } else toast.error(data.message ?? "Ошибка");
+    } catch {
+      toast.error("Ошибка запроса");
+    } finally {
+      setBotAction(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -209,6 +262,39 @@ export function TelegramSettingsForm() {
             "Сохранить"
           )}
         </Button>
+      </div>
+
+      <div className="rounded-xl border border-border bg-surface2 p-4">
+        <h3 className="flex items-center gap-2 font-medium text-foreground">
+          <Play className="h-4 w-4" />
+          Бот для входа через QR
+        </h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Бот обрабатывает /start login_xxx при входе по QR. Запускается внутри приложения.
+        </p>
+        <div className="mt-4 flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            Статус: {botRunning === null ? "—" : botRunning ? "запущен" : "остановлен"}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBotStart}
+            disabled={botAction || botRunning === true}
+          >
+            {botAction ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Play className="mr-1 h-4 w-4" />}
+            Запустить
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBotStop}
+            disabled={botAction || botRunning === false}
+          >
+            <Square className="mr-1 h-4 w-4" />
+            Остановить
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-surface2 p-4">
