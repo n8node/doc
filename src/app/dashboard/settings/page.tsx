@@ -338,6 +338,7 @@ export default function DashboardSettingsPage() {
 
       {/* Привязка аккаунтов */}
       {profile?.accountLinking && (
+        <div id="account-linking">
         <AccountLinkingBlock
           accountLinking={profile.accountLinking}
           onLinked={() => {
@@ -347,6 +348,7 @@ export default function DashboardSettingsPage() {
               .catch(() => {});
           }}
         />
+        </div>
       )}
 
       {/* Безопасность */}
@@ -371,67 +373,82 @@ export default function DashboardSettingsPage() {
               </p>
             </div>
           )}
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div>
-              <label
-                htmlFor="current-password"
-                className="mb-1.5 block text-sm font-medium text-foreground"
-              >
-                Текущий пароль
-              </label>
-              <Input
-                id="current-password"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="••••••••"
-                className="max-w-md"
-                required
-              />
+          {profile?.accountLinking?.isPlaceholderEmail ? (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+              <p>
+                Чтобы менять пароль, сначала{" "}
+                <a
+                  href="#account-linking"
+                  className="font-medium underline hover:text-amber-900 dark:hover:text-amber-100"
+                >
+                  привяжите email
+                </a>
+                .
+              </p>
             </div>
-            <div>
-              <label
-                htmlFor="new-password"
-                className="mb-1.5 block text-sm font-medium text-foreground"
-              >
-                Новый пароль
-              </label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Не менее 8 символов"
-                className="max-w-md"
-                minLength={8}
-                required
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="confirm-password"
-                className="mb-1.5 block text-sm font-medium text-foreground"
-              >
-                Подтверждение пароля
-              </label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Повторите новый пароль"
-                className="max-w-md"
-                minLength={8}
-                required
-              />
-            </div>
-            <Button type="submit" disabled={savingPassword}>
-              {savingPassword && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-              Сменить пароль
-            </Button>
-          </form>
+          ) : (
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="current-password"
+                  className="mb-1.5 block text-sm font-medium text-foreground"
+                >
+                  Текущий пароль
+                </label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="max-w-md"
+                  required
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="new-password"
+                  className="mb-1.5 block text-sm font-medium text-foreground"
+                >
+                  Новый пароль
+                </label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Не менее 8 символов"
+                  className="max-w-md"
+                  minLength={8}
+                  required
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="confirm-password"
+                  className="mb-1.5 block text-sm font-medium text-foreground"
+                >
+                  Подтверждение пароля
+                </label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Повторите новый пароль"
+                  className="max-w-md"
+                  minLength={8}
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={savingPassword}>
+                {savingPassword && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Сменить пароль
+              </Button>
+            </form>
+          )}
         </CardContent>
       </div>
 

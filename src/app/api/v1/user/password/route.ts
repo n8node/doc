@@ -34,11 +34,18 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { passwordHash: true },
+    select: { passwordHash: true, email: true },
   });
 
   if (!user?.passwordHash) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  if (user.email.endsWith("@qoqon.placeholder")) {
+    return NextResponse.json(
+      { error: "Смена пароля недоступна без привязанного email" },
+      { status: 403 }
+    );
   }
 
   const valid = await compare(currentPassword, user.passwordHash);
