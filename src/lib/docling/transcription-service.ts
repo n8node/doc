@@ -4,6 +4,8 @@ import { createS3Client } from "../s3";
 import { getDoclingClient } from "./client";
 import { createNotificationIfEnabled } from "../notification-service";
 import { prisma } from "../prisma";
+import { getTranscriptionProviderForUser } from "../ai/get-transcription-provider";
+import { transcribeWithOpenAiWhisper } from "../ai/openai-whisper";
 import type { ProcessingStatus } from "./types";
 
 // REMINDER: Video transcription disabled. API rejects video before reaching here. Restore when ready.
@@ -70,8 +72,36 @@ export async function transcribeFile(
 
   try {
     const buffer = await downloadFileFromS3(s3Key);
-    const docling = getDoclingClient();
-    const result = await docling.transcribeFromBuffer(buffer, filename);
+    let result: { text: string; content_hash: string; format: string };
+
+    const provider = await getTranscriptionProviderForUser(userId);
+    const useOpenAi =
+      provider &&
+      (provider.name === "openai_whisper" || provider.baseUrl.includes("api.openai.com"));
+
+    if (useOpenAi && provider) {
+      const openAiResult = await transcribeWithOpenAiWhisper(
+        buffer,
+        filename,
+        mimeType,
+        provider.apiKey,
+        provider.baseUrl,
+        provider.modelName,
+      );
+      result = {
+        text: openAiResult.text,
+        content_hash: openAiResult.contentHash,
+        format: openAiResult.format,
+      };
+    } else {
+      const docling = getDoclingClient();
+      const doclingResult = await docling.transcribeFromBuffer(buffer, filename);
+      result = {
+        text: doclingResult.text,
+        content_hash: doclingResult.content_hash,
+        format: doclingResult.format,
+      };
+    }
 
     await prisma.aiTask.update({
       where: { id: task.id },
@@ -82,6 +112,7 @@ export async function transcribeFile(
           contentHash: result.content_hash,
           format: result.format,
           minutesUsed: durationMinutes,
+          provider: useOpenAi ? "openai_whisper" : "docling",
         },
         completedAt: new Date(),
       },

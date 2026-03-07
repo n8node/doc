@@ -11,6 +11,7 @@ import { estimateTranscriptionTime } from "@/lib/docling/transcription-estimate"
 import { getDoclingClient } from "@/lib/docling/client";
 import { getUserPlan } from "@/lib/plan-service";
 import { getTranscriptionMinutesUsedThisMonth } from "@/lib/ai/transcription-usage";
+import { getTranscriptionProviderForUser } from "@/lib/ai/get-transcription-provider";
 
 function isVideoMime(mimeType: string): boolean {
   return mimeType.startsWith("video/");
@@ -35,13 +36,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "fileId is required" }, { status: 400 });
   }
 
-  const docling = getDoclingClient();
-  const available = await docling.isAvailable();
-  if (!available) {
-    return NextResponse.json(
-      { error: "Сервис транскрибации недоступен (Docling)" },
-      { status: 503 },
-    );
+  const provider = await getTranscriptionProviderForUser(userId);
+  const useOpenAi = provider && (provider.name === "openai_whisper" || provider.baseUrl.includes("api.openai.com"));
+
+  if (!useOpenAi) {
+    const docling = getDoclingClient();
+    const available = await docling.isAvailable();
+    if (!available) {
+      return NextResponse.json(
+        { error: "Сервис транскрибации недоступен (Docling)" },
+        { status: 503 },
+      );
+    }
   }
 
   const file = await prisma.file.findFirst({
@@ -64,6 +70,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: `Формат ${file.mimeType} не поддерживается для транскрибации` },
       { status: 415 },
+    );
+  }
+
+  if (useOpenAi && Number(file.size) > 25 * 1024 * 1024) {
+    return NextResponse.json(
+      {
+        error: "Файл слишком большой для OpenAI Whisper (макс. 25 МБ). Используйте файл меньше или другой тариф.",
+        code: "OPENAI_FILE_TOO_LARGE",
+      },
+      { status: 413 },
     );
   }
 
