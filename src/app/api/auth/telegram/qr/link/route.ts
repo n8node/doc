@@ -50,6 +50,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true }); // already linked
     }
 
+    if (record.linkUserId != null) {
+      const existingByTg = await prisma.user.findUnique({
+        where: { telegramUserId: tgId },
+      });
+      if (existingByTg && existingByTg.id !== record.linkUserId) {
+        return NextResponse.json(
+          { error: "Telegram already linked to another account" },
+          { status: 409 }
+        );
+      }
+      await prisma.user.update({
+        where: { id: record.linkUserId },
+        data: {
+          telegramUserId: tgId,
+          telegramUsername: telegramUsername || null,
+        },
+      });
+      await prisma.telegramLoginToken.update({
+        where: { token },
+        data: {
+          telegramUserId: tgId,
+          telegramUsername: telegramUsername || null,
+          telegramFirstName: firstName || null,
+          telegramLastName: lastName || null,
+        },
+      });
+      return NextResponse.json({ ok: true });
+    }
+
     let user = await prisma.user.findUnique({
       where: { telegramUserId: tgId },
     });

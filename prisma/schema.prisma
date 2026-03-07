@@ -196,6 +196,7 @@ model AdminConfig {
 model TelegramLoginToken {
   id               String    @id @default(cuid()) @map("id")
   token            String    @unique @map("token")
+  linkUserId       String?   @map("link_user_id")
   telegramUserId   BigInt?   @map("telegram_user_id")
   telegramUsername String?   @map("telegram_username")
   telegramFirstName String?  @map("telegram_first_name")
@@ -206,6 +207,7 @@ model TelegramLoginToken {
   @@map("telegram_login_tokens")
   @@index([token])
   @@index([expiresAt])
+  @@index([linkUserId])
 }
 
 model AiProvider {

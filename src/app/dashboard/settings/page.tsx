@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell, TriangleAlert } from "lucide-react";
+import { AccountLinkingBlock } from "@/components/settings/AccountLinkingBlock";
 import { useTheme } from "next-themes";
 import { cn, formatBytes } from "@/lib/utils";
 
@@ -18,6 +20,12 @@ interface ProfileData {
   lastLoginAt: string | null;
   createdAt: string;
   preferences?: Record<string, unknown>;
+  accountLinking?: {
+    canLinkTelegram: boolean;
+    canLinkEmail: boolean;
+    hasTelegram: boolean;
+    isPlaceholderEmail: boolean;
+  };
 }
 
 interface StorageData {
@@ -81,6 +89,14 @@ export default function DashboardSettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
   const { setTheme } = useTheme();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("linked") === "telegram") {
+      toast.success("Telegram успешно привязан");
+      window.history.replaceState({}, "", "/dashboard/settings");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetch("/api/v1/user/me")
@@ -319,6 +335,19 @@ export default function DashboardSettingsPage() {
           </form>
         </CardContent>
       </div>
+
+      {/* Привязка аккаунтов */}
+      {profile?.accountLinking && (
+        <AccountLinkingBlock
+          accountLinking={profile.accountLinking}
+          onLinked={() => {
+            fetch("/api/v1/user/me")
+              .then((r) => r.json())
+              .then((d) => setProfile((p) => (p ? { ...p, accountLinking: d.accountLinking } : null)))
+              .catch(() => {});
+          }}
+        />
+      )}
 
       {/* Безопасность */}
       <div className="rounded-2xl modal-glass overflow-hidden">

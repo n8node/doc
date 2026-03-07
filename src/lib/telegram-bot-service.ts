@@ -94,9 +94,11 @@ async function pollLoop() {
         if (!msg?.text?.startsWith("/start ")) continue;
 
         const rest = msg.text.slice(7).trim();
-        if (!rest.startsWith("login_")) continue;
+        const isLogin = rest.startsWith("login_");
+        const isLink = rest.startsWith("link_");
+        if (!isLogin && !isLink) continue;
 
-        const token = rest.slice(6);
+        const token = isLogin ? rest.slice(6) : rest.slice(5);
         const from = msg.from;
         if (!from) continue;
 

@@ -32,6 +32,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ status: "pending" });
     }
 
+    if (record.linkUserId != null) {
+      await prisma.telegramLoginToken.delete({ where: { token } }).catch(() => {});
+      return NextResponse.json({ status: "linked" });
+    }
+
     const user = await prisma.user.findUnique({
       where: { telegramUserId: record.telegramUserId },
     });

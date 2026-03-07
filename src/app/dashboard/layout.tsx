@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SidebarV2 } from "@/components/layout/SidebarV2";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { NotificationBanner } from "@/components/dashboard/NotificationBanner";
 import { sidebarV2Enabled } from "@/lib/feature-flags";
 
 export default async function DashboardLayout({
@@ -22,7 +23,12 @@ export default async function DashboardLayout({
           title="Личный кабинет"
           subtitle="Управление файлами и настройками"
         />
-        <main className="min-h-[calc(100vh-4.5rem)] p-6">{children}</main>
+        <main className="min-h-[calc(100vh-4.5rem)] p-6">
+          <div className="mb-4">
+            <NotificationBanner />
+          </div>
+          {children}
+        </main>
       </div>
     </div>
   );

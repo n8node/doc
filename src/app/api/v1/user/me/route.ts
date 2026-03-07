@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
       lastLoginAt: true,
       createdAt: true,
       preferences: true,
+      telegramUserId: true,
+      telegramUsername: true,
     },
   });
 
@@ -25,6 +27,11 @@ export async function GET(req: NextRequest) {
   }
 
   const prefs = user.preferences as Record<string, unknown> | null;
+  const isPlaceholderEmail = user.email.endsWith("@qoqon.placeholder");
+  const hasTelegram = user.telegramUserId != null;
+  const canLinkTelegram = !isPlaceholderEmail && !hasTelegram;
+  const canLinkEmail = isPlaceholderEmail && hasTelegram;
+
   return NextResponse.json({
     id: user.id,
     email: user.email,
@@ -32,5 +39,13 @@ export async function GET(req: NextRequest) {
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
     preferences: prefs ?? {},
+    telegramUserId: user.telegramUserId?.toString() ?? null,
+    telegramUsername: user.telegramUsername ?? null,
+    accountLinking: {
+      canLinkTelegram,
+      canLinkEmail,
+      hasTelegram,
+      isPlaceholderEmail,
+    },
   });
 }
