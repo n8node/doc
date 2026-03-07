@@ -14,13 +14,15 @@ function TelegramCallbackContent() {
     const run = async () => {
       if (typeof window === "undefined") return;
 
-      const hash = window.location.hash.slice(1);
-      if (!hash) {
+      const hashPart = window.location.hash.slice(1);
+      const queryPart = window.location.search.slice(1);
+      const paramString = hashPart || queryPart;
+      if (!paramString) {
         setError("Нет данных от Telegram");
         return;
       }
 
-      const params = Object.fromEntries(new URLSearchParams(hash));
+      const params = Object.fromEntries(new URLSearchParams(paramString));
       const { id, hash: tgHash, auth_date, first_name, last_name, username } = params;
       if (!id || !tgHash) {
         setError("Неполные данные");

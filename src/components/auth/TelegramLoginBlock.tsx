@@ -23,6 +23,7 @@ export function TelegramLoginBlock({
 }) {
   const widgetRef = useRef<HTMLDivElement>(null);
   const [qrToken, setQrToken] = useState<string | null>(null);
+  const qrTokenRef = useRef<string | null>(null);
   const [qrStatus, setQrStatus] = useState<"idle" | "pending" | "linked" | "expired">("idle");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
@@ -60,7 +61,9 @@ export function TelegramLoginBlock({
       const res = await fetch("/api/auth/telegram/qr/create", { method: "POST" });
       const data = await res.json();
       if (res.ok && data.token) {
-        setQrToken(data.token);
+        const token = data.token;
+        qrTokenRef.current = token;
+        setQrToken(token);
         setQrStatus("pending");
         pollRef.current = setInterval(pollStatus, 2000);
       }
@@ -70,9 +73,10 @@ export function TelegramLoginBlock({
   };
 
   const pollStatus = async () => {
-    if (!qrToken) return;
+    const token = qrTokenRef.current;
+    if (!token) return;
     try {
-      const res = await fetch(`/api/auth/telegram/qr/status?token=${qrToken}`);
+      const res = await fetch(`/api/auth/telegram/qr/status?token=${token}`);
       const data = await res.json();
       if (data.status === "linked" && data.sessionToken) {
         if (pollRef.current) {
