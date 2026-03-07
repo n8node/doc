@@ -61,8 +61,8 @@ function SectionCard({
   icon: React.ElementType;
   total: number;
   unit: string;
-  byModel: Array<{ model: string } & Record<string, number>>;
-  byUser: Array<{ userId: string; email: string; name: string | null } & Record<string, number>>;
+  byModel: Array<{ model: string; minutes?: number; tokens?: number; tasks: number }>;
+  byUser: Array<{ userId: string; email: string; name: string | null; minutes?: number; tokens?: number; tasks: number }>;
   valueKey: string;
 }) {
   const [view, setView] = useState<"model" | "user">("model");
