@@ -56,11 +56,21 @@ function SimilarityBadge({ score }: { score: number }) {
   );
 }
 
+const THRESHOLD_PRESETS = [
+  { value: 0.45, label: "Широкий" },
+  { value: 0.55, label: "Стандартный" },
+  { value: 0.65, label: "Строгий" },
+] as const;
+
+const LIMIT_OPTIONS = [10, 20, 50] as const;
+
 export default function DashboardSearchPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [threshold, setThreshold] = useState(0.55);
+  const [limit, setLimit] = useState(20);
   const abortRef = useRef<AbortController | null>(null);
 
   const handleSearch = useCallback(async () => {
@@ -76,7 +86,7 @@ export default function DashboardSearchPage() {
 
     try {
       const res = await fetch(
-        `/api/v1/files/search?q=${encodeURIComponent(q)}&limit=20&threshold=0.55`,
+        `/api/v1/files/search?q=${encodeURIComponent(q)}&limit=${limit}&threshold=${threshold}`,
         { signal: controller.signal },
       );
       const data = await res.json();
@@ -93,7 +103,7 @@ export default function DashboardSearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, threshold, limit]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSearch();
@@ -123,6 +133,56 @@ export default function DashboardSearchPage() {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           <span className="ml-2 hidden sm:inline">Найти</span>
         </Button>
+      </div>
+
+      <div className="rounded-xl border border-border bg-surface2/30 px-4 py-3 space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Поиск гибридный: сначала по точным словам, затем по смыслу (семантика).
+        </p>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
+            Порог релевантности
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Чем выше — тем строже отбор. Ниже — больше результатов, но может быть шум.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {THRESHOLD_PRESETS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => setThreshold(p.value)}
+                className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                  threshold === p.value
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-surface2 text-muted-foreground hover:bg-surface2/80 hover:text-foreground"
+                }`}
+              >
+                {p.label} ({p.value})
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="search-limit" className="text-sm font-medium text-foreground">
+            Количество результатов
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Максимальное число фрагментов в выдаче.
+          </p>
+          <select
+            id="search-limit"
+            value={limit}
+            onChange={(e) => setLimit(Number(e.target.value))}
+            className="h-10 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            {LIMIT_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error && (
