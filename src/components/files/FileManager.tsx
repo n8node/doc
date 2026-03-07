@@ -17,6 +17,10 @@ import {
   Trash2,
   FolderInput,
   FileImage,
+  FileText,
+  FileVideo,
+  FileAudio,
+  File,
   ChevronDown,
   RotateCcw,
   Check,
@@ -310,6 +314,9 @@ export function FileManager() {
   const [chatFile, setChatFile] = useState<{ id: string; name: string } | null>(null);
   const [transcriptFile, setTranscriptFile] = useState<{ id: string; name: string } | null>(null);
 
+  const [highlightOverlayFile, setHighlightOverlayFile] = useState<FileItem | null>(null);
+  const highlightFileIdToScrollRef = useRef<string | null>(null);
+
   const openUploadPicker = useCallback(() => {
     uploadInputRef.current?.click();
   }, []);
@@ -416,19 +423,34 @@ export function FileManager() {
     setSelectedFolders(new Set());
   }, [activeSection, currentFolderId]);
 
-  // Подсветка файла при переходе по ссылке "Посмотреть на диске" (файл поднимается первым через displayFiles)
+  // Overlay "Посмотреть на диске": блюр + плашка 1.5с → fade out → прокрутка к файлу (эксперимент)
   useEffect(() => {
     if (!highlightFileIdParam || loading) return;
-    const fileExists = files.some((f) => f.id === highlightFileIdParam);
-    if (!fileExists) return;
-    setSelectedFiles(new Set([highlightFileIdParam]));
+    const file = files.find((f) => f.id === highlightFileIdParam);
+    if (!file) return;
+    highlightFileIdToScrollRef.current = highlightFileIdParam;
+    setHighlightOverlayFile(file);
     const timer = window.setTimeout(() => {
-      const nextParams = new URLSearchParams(searchParams.toString());
-      nextParams.delete("highlightFileId");
-      router.replace(`/dashboard/files?${nextParams.toString()}`);
-    }, 100);
+      setHighlightOverlayFile(null);
+    }, 1500);
     return () => window.clearTimeout(timer);
-  }, [highlightFileIdParam, loading, files, router, searchParams]);
+  }, [highlightFileIdParam, loading, files]);
+
+  const handleHighlightOverlayExitComplete = useCallback(() => {
+    const id = highlightFileIdToScrollRef.current;
+    if (!id) return;
+    highlightFileIdToScrollRef.current = null;
+    setSelectedFiles(new Set([id]));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`[data-file-id="${id}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("highlightFileId");
+    router.replace(`/dashboard/files?${nextParams.toString()}`);
+  }, [router, searchParams]);
 
   const buildBaseFileFilterParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -2067,15 +2089,6 @@ export function FileManager() {
     });
   }, [files, filterProcessed, filterTranscribed, isHistorySection, isTrashSection]);
 
-  const displayFiles = useMemo(() => {
-    if (!highlightFileIdParam || isHistorySection || isTrashSection) return filteredFiles;
-    const idx = filteredFiles.findIndex((f) => f.id === highlightFileIdParam);
-    if (idx <= 0) return filteredFiles;
-    const copy = [...filteredFiles];
-    const [highlighted] = copy.splice(idx, 1);
-    return [highlighted, ...copy];
-  }, [filteredFiles, highlightFileIdParam, isHistorySection, isTrashSection]);
-
   const recentFileGroups = isRecentSection
     ? (() => {
         const grouped = new Map<string, FileItem[]>();
@@ -2304,8 +2317,53 @@ export function FileManager() {
     : filteredFiles.length === 0;
   const isSubfolder = showFolders && currentFolderId !== null;
 
+  const getHighlightFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith("image/")) return FileImage;
+    if (mimeType.startsWith("video/")) return FileVideo;
+    if (mimeType.startsWith("audio/")) return FileAudio;
+    return mimeType.includes("pdf") || mimeType.includes("document") || mimeType.includes("word")
+      ? FileText
+      : File;
+  };
+
   return (
     <>
+      <AnimatePresence onExitComplete={handleHighlightOverlayExitComplete}>
+        {highlightOverlayFile && (
+          <motion.div
+            key="highlight-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-background/70 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.3 }}
+              className="mx-4 flex max-w-sm items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 shadow-xl"
+            >
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                {(() => {
+                  const Icon = getHighlightFileIcon(highlightOverlayFile.mimeType);
+                  return <Icon className="h-7 w-7 text-primary" />;
+                })()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-foreground" title={highlightOverlayFile.name}>
+                  {highlightOverlayFile.name}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {formatBytes(highlightOverlayFile.size)}
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Card className="overflow-hidden">
         {/* Header */}
         <CardHeader className="space-y-4 border-b border-border bg-surface2/30">
@@ -2977,7 +3035,7 @@ export function FileManager() {
               )}
 
               {/* Files */}
-              {(isRecentSection ? filteredFiles : displayFiles).length > 0 && (
+              {filteredFiles.length > 0 && (
                 <>
                   {isRecentSection ? (
                     <div className="space-y-4">
@@ -2997,10 +3055,10 @@ export function FileManager() {
                   ) : showPhotoGrid ? (
                     <div className="space-y-2">
                       <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Фото ({displayFiles.length})
+                        Фото ({filteredFiles.length})
                       </p>
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                        {displayFiles.map((file, index) => {
+                        {filteredFiles.map((file, index) => {
                           const selected = selectedFiles.has(file.id);
                           const createdLabel = new Date(file.createdAt).toLocaleDateString("ru-RU", {
                             day: "numeric",
@@ -3248,10 +3306,10 @@ export function FileManager() {
                   ) : (
                     <div className="space-y-2">
                       <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {isSharedSection ? "Общий доступ" : "Файлы"} ({displayFiles.length})
+                        {isSharedSection ? "Общий доступ" : "Файлы"} ({filteredFiles.length})
                       </p>
                       <div className="space-y-1">
-                        {displayFiles.map((file, index) => renderListFile(file, index + folders.length))}
+                        {filteredFiles.map((file, index) => renderListFile(file, index + folders.length))}
                       </div>
                     </div>
                   )}
