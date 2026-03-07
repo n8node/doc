@@ -441,15 +441,22 @@ export function FileManager() {
     if (!id) return;
     highlightFileIdToScrollRef.current = null;
     setSelectedFiles(new Set([id]));
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const el = document.querySelector(`[data-file-id="${id}"]`);
-        el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    });
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.delete("highlightFileId");
-    router.replace(`/dashboard/files?${nextParams.toString()}`);
+
+    const scrollToFile = () => {
+      const el = document.querySelector(`[data-file-id="${id}"]`) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+
+    const clearUrl = () => {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete("highlightFileId");
+      router.replace(`/dashboard/files?${nextParams.toString()}`);
+    };
+
+    window.setTimeout(scrollToFile, 150);
+    window.setTimeout(clearUrl, 650);
   }, [router, searchParams]);
 
   const buildBaseFileFilterParams = useCallback(() => {
@@ -2124,7 +2131,7 @@ export function FileManager() {
     : [];
 
   const renderListFile = (file: FileItem, index: number) => (
-    <div key={file.id} data-file-id={file.id}>
+    <div key={file.id} data-file-id={file.id} className="scroll-mt-28">
     <FileCard
       id={file.id}
       name={file.name}
@@ -3068,6 +3075,7 @@ export function FileManager() {
                             <motion.div
                               key={file.id}
                               data-file-id={file.id}
+                              className="scroll-mt-28"
                               initial={{ opacity: 0, y: 12 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.25, delay: index * 0.02 }}
