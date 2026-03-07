@@ -307,6 +307,7 @@ enum AiTaskType {
   SUMMARIZE
   CLASSIFY
   TRANSCRIPTION
+  CHAT
 }
 
 enum AiProviderPurpose {
