@@ -6,9 +6,14 @@ import {
   sendTelegramMessage,
   formatRegisterMessage,
 } from "@/lib/telegram";
+import { getAuthSettings } from "@/lib/telegram-auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const authSettings = await getAuthSettings();
+    if (!authSettings.emailRegistrationEnabled) {
+      return NextResponse.json({ error: "Регистрация по email отключена" }, { status: 403 });
+    }
     const { email, password, name } = await req.json();
 
     if (!email || !password) {

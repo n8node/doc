@@ -14,7 +14,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "deploy": "bash deploy.sh",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "telegram:bot": "tsx scripts/telegram-bot.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1000.0",

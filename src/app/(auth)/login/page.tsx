@@ -1,11 +1,12 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, HardDrive, LogIn } from "lucide-react";
+import { TelegramLoginBlock } from "@/components/auth/TelegramLoginBlock";
 
 function LoginForm() {
   const router = useRouter();
@@ -16,6 +17,26 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authMethods, setAuthMethods] = useState<{
+    emailRegistrationEnabled: boolean;
+    telegramWidgetEnabled: boolean;
+    telegramQrEnabled: boolean;
+    telegramDomain: string;
+    telegramBotUsername: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/methods")
+      .then((r) => r.json())
+      .then(setAuthMethods)
+      .catch(() => setAuthMethods({
+        emailRegistrationEnabled: true,
+        telegramWidgetEnabled: false,
+        telegramQrEnabled: false,
+        telegramDomain: "qoqon.ru",
+        telegramBotUsername: "",
+      }));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,6 +85,13 @@ function LoginForm() {
           onSubmit={handleSubmit}
           className="rounded-2xl border border-border bg-surface p-8 shadow-soft"
         >
+          {authMethods && (authMethods.telegramWidgetEnabled || authMethods.telegramQrEnabled) && (
+            <div className="mb-6 flex flex-col gap-4 border-b border-border pb-6">
+              <TelegramLoginBlock methods={authMethods} callbackUrl={callbackUrl} />
+            </div>
+          )}
+          {authMethods?.emailRegistrationEnabled !== false && (
+          <>
           {error && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -132,13 +160,17 @@ function LoginForm() {
               </>
             )}
           </button>
+          </>
+          )}
 
+          {authMethods?.emailRegistrationEnabled !== false && (
           <p className="mt-5 text-center text-sm text-muted-foreground">
             Нет аккаунта?{" "}
             <Link href="/register" className="font-medium text-primary hover:underline">
               Зарегистрироваться
             </Link>
           </p>
+          )}
         </form>
       </motion.div>
     </main>

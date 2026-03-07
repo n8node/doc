@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "./prisma";
 import { getPublicBaseUrl } from "./app-url";
+import { verifyTelegramSessionToken } from "./telegram-session";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -14,6 +15,26 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        if (credentials.email === "__telegram__") {
+          const userId = verifyTelegramSessionToken(credentials.password);
+          if (!userId) return null;
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+          });
+          if (!user || user.isBlocked) return null;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+          });
+          return {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            name: user.name || user.email,
+          };
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });

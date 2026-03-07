@@ -7,8 +7,9 @@ import { S3SettingsForm } from "@/components/admin/S3SettingsForm";
 import { AiProvidersForm } from "@/components/admin/AiProvidersForm";
 import { YookassaSettingsForm } from "@/components/admin/YookassaSettingsForm";
 import { TelegramSettingsForm } from "@/components/admin/TelegramSettingsForm";
+import { AuthSettingsForm } from "@/components/admin/AuthSettingsForm";
 
-type Tab = "s3" | "yookassa" | "ai" | "telegram";
+type Tab = "s3" | "yookassa" | "ai" | "telegram" | "auth";
 
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
@@ -18,7 +19,7 @@ function AdminSettingsContent() {
   return (
     <div className="space-y-6">
       <div className="flex gap-2 border-b border-border pb-2">
-        {(["s3", "yookassa", "ai", "telegram"] as const).map((t) => (
+        {(["auth", "s3", "yookassa", "ai", "telegram"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -28,7 +29,7 @@ function AdminSettingsContent() {
                 : "text-muted-foreground hover:bg-surface2"
             }`}
           >
-            {t === "s3" ? "S3 хранилище" : t === "yookassa" ? "ЮKassa" : t === "ai" ? "AI-провайдеры" : "Telegram"}
+            {t === "auth" ? "Авторизация" : t === "s3" ? "S3 хранилище" : t === "yookassa" ? "ЮKassa" : t === "ai" ? "AI-провайдеры" : "Telegram"}
           </button>
         ))}
       </div>
@@ -38,6 +39,7 @@ function AdminSettingsContent() {
         {tab === "yookassa" && <YookassaSettingsForm />}
         {tab === "ai" && <AiProvidersForm />}
         {tab === "telegram" && <TelegramSettingsForm />}
+        {tab === "auth" && <AuthSettingsForm />}
       </Card>
     </div>
   );

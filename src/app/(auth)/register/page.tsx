@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, HardDrive, UserPlus } from "lucide-react";
+import { TelegramLoginBlock } from "@/components/auth/TelegramLoginBlock";
 
 function getPasswordStrength(pw: string) {
   let score = 0;
@@ -29,6 +30,26 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authMethods, setAuthMethods] = useState<{
+    emailRegistrationEnabled: boolean;
+    telegramWidgetEnabled: boolean;
+    telegramQrEnabled: boolean;
+    telegramDomain: string;
+    telegramBotUsername: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/methods")
+      .then((r) => r.json())
+      .then(setAuthMethods)
+      .catch(() => setAuthMethods({
+        emailRegistrationEnabled: true,
+        telegramWidgetEnabled: false,
+        telegramQrEnabled: false,
+        telegramDomain: "qoqon.ru",
+        telegramBotUsername: "",
+      }));
+  }, []);
 
   const strength = getPasswordStrength(password);
 
@@ -95,10 +116,15 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl border border-border bg-surface p-8 shadow-soft"
-        >
+        <div className="rounded-2xl border border-border bg-surface p-8 shadow-soft">
+          {authMethods && (authMethods.telegramWidgetEnabled || authMethods.telegramQrEnabled) && (
+            <div className={`flex flex-col gap-4 ${authMethods.emailRegistrationEnabled !== false ? "mb-6 border-b border-border pb-6" : ""}`}>
+              <p className="text-sm text-muted-foreground">Зарегистрируйтесь через Telegram</p>
+              <TelegramLoginBlock methods={authMethods} callbackUrl="/dashboard" />
+            </div>
+          )}
+          {authMethods?.emailRegistrationEnabled !== false && (
+          <form onSubmit={handleSubmit}>
           {error && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -224,6 +250,8 @@ export default function RegisterPage() {
               </>
             )}
           </button>
+          </form>
+          )}
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
             Уже есть аккаунт?{" "}
@@ -231,7 +259,7 @@ export default function RegisterPage() {
               Войти
             </Link>
           </p>
-        </form>
+        </div>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
           Регистрируясь, вы получаете бесплатный тариф с 25 ГБ хранилища
