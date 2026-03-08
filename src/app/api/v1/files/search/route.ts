@@ -23,6 +23,28 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("threshold") ?? "0.55",
   );
   const searchByName = request.nextUrl.searchParams.get("searchByName") !== "false";
+  const collectionId = request.nextUrl.searchParams.get("collectionId")?.trim() || null;
+
+  let collectionFileIds: string[] | undefined;
+  if (collectionId) {
+    const collection = await prisma.vectorCollection.findFirst({
+      where: { id: collectionId, userId },
+      include: { files: { select: { fileId: true } } },
+    });
+    if (!collection) {
+      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    }
+    collectionFileIds = collection.files.map((f) => f.fileId);
+    if (collectionFileIds.length === 0) {
+      return NextResponse.json({
+        results: [],
+        query: q,
+        provider: "",
+        total: 0,
+        collectionId,
+      });
+    }
+  }
 
   const active = await getProviderForUser(userId);
   if (!active) {
@@ -34,11 +56,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const [keywordResults, semanticResults] = await Promise.all([
-      findSimilarByKeyword(userId, q, limit),
+      findSimilarByKeyword(userId, q, limit, collectionFileIds),
       (async () => {
         const embResult = await active.provider.generateEmbedding(q);
         if (embResult.vector.length === 0) return [];
-        return findSimilar(embResult.vector, userId, limit, threshold);
+        return findSimilar(embResult.vector, userId, limit, threshold, collectionFileIds);
       })(),
     ]);
 
@@ -103,12 +125,16 @@ export async function GET(request: NextRequest) {
     if (searchByName) {
       const words = q.trim().split(/\s+/).filter((w) => w.length >= 2);
       if (words.length > 0) {
+        const nameWhere: { userId: string; deletedAt: null; id?: { in: string[] }; OR?: unknown[] } = {
+          userId,
+          deletedAt: null,
+          OR: words.map((w) => ({ name: { contains: w, mode: "insensitive" as const } })),
+        };
+        if (collectionFileIds && collectionFileIds.length > 0) {
+          nameWhere.id = { in: collectionFileIds };
+        }
         const nameMatches = await prisma.file.findMany({
-          where: {
-            userId,
-            deletedAt: null,
-            OR: words.map((w) => ({ name: { contains: w, mode: "insensitive" as const } })),
-          },
+          where: nameWhere,
           select: { id: true, name: true, mimeType: true, size: true, folderId: true },
           take: limit,
         });
@@ -131,12 +157,14 @@ export async function GET(request: NextRequest) {
 
     const results = [...chunkResults, ...fileResults];
 
-    return NextResponse.json({
+    const response: { results: typeof results; query: string; provider: string; total: number; collectionId?: string } = {
       results,
       query: q,
       provider: active.providerName,
       total: results.length,
-    });
+    };
+    if (collectionId) response.collectionId = collectionId;
+    return NextResponse.json(response);
   } catch (error) {
     console.error("[Search] Error:", error);
     return NextResponse.json(

@@ -52,17 +52,24 @@ function escapeLikePattern(s: string): string {
 /**
  * Full-text search: chunks matching query via PostgreSQL FTS (russian config).
  * Uses ts_rank for relevance ordering. Falls back to ILIKE if FTS returns nothing.
+ * @param fileIds - optional: restrict search to these file IDs (e.g. from RAG collection)
  */
 export async function findSimilarByKeyword(
   userId: string,
   query: string,
   limit = 20,
+  fileIds?: string[],
 ): Promise<SimilarityResult[]> {
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
 
   const words = trimmed.split(/\s+/).filter((w) => w.length >= 2);
   if (words.length === 0) return [];
+
+  const fileFilter =
+    fileIds && fileIds.length > 0
+      ? Prisma.sql`AND de.file_id = ANY(${fileIds}::text[])`
+      : Prisma.sql``;
 
   try {
     const results = await prisma.$queryRaw<
@@ -75,6 +82,7 @@ export async function findSimilarByKeyword(
       WHERE f.user_id = ${userId}
         AND f.deleted_at IS NULL
         AND to_tsvector('russian', de.chunk_text) @@ plainto_tsquery('russian', ${trimmed})
+        ${fileFilter}
       ORDER BY rank DESC
       LIMIT ${limit}
     `);
@@ -110,6 +118,7 @@ export async function findSimilarByKeyword(
     WHERE f.user_id = ${userId}
       AND f.deleted_at IS NULL
       AND (${orClause})
+      ${fileFilter}
     LIMIT ${limit}
   `);
 
@@ -123,13 +132,25 @@ export async function findSimilarByKeyword(
   }));
 }
 
+/**
+ * Semantic similarity search.
+ * @param fileIds - optional: restrict search to these file IDs (e.g. from RAG collection)
+ */
 export async function findSimilar(
   queryVector: number[],
   userId: string,
   limit = 10,
   threshold = 0.7,
+  fileIds?: string[],
 ): Promise<SimilarityResult[]> {
   const vectorStr = `[${queryVector.join(",")}]`;
+
+  if (fileIds && fileIds.length === 0) return [];
+
+  const fileFilter =
+    fileIds && fileIds.length > 0
+      ? Prisma.sql`AND de.file_id = ANY(${fileIds}::text[])`
+      : Prisma.sql``;
 
   const results = await prisma.$queryRaw<SimilarityResult[]>`
     SELECT
@@ -144,6 +165,7 @@ export async function findSimilar(
     WHERE f.user_id = ${userId}
       AND f.deleted_at IS NULL
       AND 1 - (de.vector <=> ${vectorStr}::vector) >= ${threshold}
+      ${fileFilter}
     ORDER BY de.vector <=> ${vectorStr}::vector
     LIMIT ${limit}
   `;
