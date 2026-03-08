@@ -10,6 +10,8 @@ import {
   BrainCircuit,
   FolderOpen,
   ChevronLeft,
+  MoreVertical,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -18,7 +20,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface EmbeddingFileItem {
   id: string;
@@ -49,6 +59,7 @@ export default function EmbeddingsPage() {
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [files, setFiles] = useState<EmbeddingFileItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -152,9 +163,9 @@ export default function EmbeddingsPage() {
                 {collections.map((c) => {
                   const processableCount = c.processableCount ?? c.filesCount;
                   return (
-                    <Link key={c.id} href={`/dashboard/embeddings?collection=${c.id}`}>
-                      <Card className="cursor-pointer border-border bg-surface transition-colors hover:bg-surface2/50">
-                        <CardContent className="flex items-center gap-3 p-4">
+                    <Card key={c.id} className="border-border bg-surface transition-colors hover:bg-surface2/50">
+                      <CardContent className="flex items-center gap-3 p-4">
+                        <Link href={`/dashboard/embeddings?collection=${c.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                           <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                             <FolderOpen className="h-5 w-5 text-primary/80" />
                             <BrainCircuit className="absolute right-0 bottom-0 h-4 w-4 rounded bg-primary/20 p-0.5 text-primary" />
@@ -199,9 +210,55 @@ export default function EmbeddingsPage() {
                             )}
                           </div>
                           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        </CardContent>
-                      </Card>
-                    </Link>
+                        </Link>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 shrink-0 p-0"
+                              disabled={deletingCollectionId !== null}
+                            >
+                              {deletingCollectionId === c.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <MoreVertical className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                if (!confirm("Удалить коллекцию? Вектора будут удалены, файлы останутся на диске.")) return;
+                                setDeletingCollectionId(c.id);
+                                try {
+                                  const res = await fetch(`/api/v1/rag/collections/${c.id}`, {
+                                    method: "DELETE",
+                                    credentials: "include",
+                                  });
+                                  const data = await res.json();
+                                  if (!res.ok) {
+                                    toast.error(data.error || "Ошибка удаления коллекции");
+                                    return;
+                                  }
+                                  toast.success("Коллекция удалена");
+                                  loadData();
+                                } catch {
+                                  toast.error("Ошибка удаления коллекции");
+                                } finally {
+                                  setDeletingCollectionId(null);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Удалить коллекцию
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>

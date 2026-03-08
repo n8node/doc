@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
+import { deleteEmbeddingsByFileId } from "@/lib/docling/vector-store";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -162,6 +163,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
 
 /**
  * DELETE /api/v1/rag/collections/[id] — delete RAG collection.
+ * Removes embeddings for all files in the collection; files remain on disk.
  */
 export async function DELETE(request: NextRequest, ctx: Ctx) {
   const userId = await getUserIdFromRequest(request);
@@ -173,10 +175,20 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
 
   const collection = await prisma.vectorCollection.findFirst({
     where: { id, userId },
+    include: { files: { select: { fileId: true } } },
   });
 
   if (!collection) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+  }
+
+  const fileIds = collection.files.map((f) => f.fileId);
+  for (const fileId of fileIds) {
+    await deleteEmbeddingsByFileId(fileId);
+    await prisma.file.update({
+      where: { id: fileId },
+      data: { hasEmbedding: false },
+    });
   }
 
   await prisma.vectorCollection.delete({

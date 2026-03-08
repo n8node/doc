@@ -10,6 +10,7 @@ import {
   FolderOpen,
   FileText,
   Trash2,
+  MoreVertical,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -85,6 +92,7 @@ export default function RagMemoryPage() {
     total?: number;
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
 
   const loadCollections = useCallback(async () => {
     setLoading(true);
@@ -302,6 +310,28 @@ export default function RagMemoryPage() {
     }
   };
 
+  const handleDeleteCollection = async (collectionId: string) => {
+    if (!confirm("Удалить коллекцию? Вектора будут удалены, файлы останутся на диске.")) return;
+    setDeletingCollectionId(collectionId);
+    try {
+      const res = await fetch(`/api/v1/rag/collections/${collectionId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Ошибка удаления коллекции");
+        return;
+      }
+      toast.success("Коллекция удалена");
+      loadCollections();
+    } catch {
+      toast.error("Ошибка удаления коллекции");
+    } finally {
+      setDeletingCollectionId(null);
+    }
+  };
+
   const handleDeleteVectors = async (collectionId: string) => {
     setDeletingId(collectionId);
     try {
@@ -478,6 +508,34 @@ export default function RagMemoryPage() {
                         Векторная база
                       </Button>
                     </Link>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          disabled={deletingCollectionId !== null}
+                        >
+                          {deletingCollectionId === c.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MoreVertical className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDeleteCollection(c.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Удалить коллекцию
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardContent>
               </Card>
