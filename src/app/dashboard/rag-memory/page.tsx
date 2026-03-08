@@ -12,6 +12,8 @@ import {
   Trash2,
   MoreVertical,
   Download,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,6 +98,19 @@ export default function RagMemoryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
   const [exportCollectionId, setExportCollectionId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const shortenId = (id: string, maxLen = 24) => {
+    if (id.length <= maxLen) return id;
+    return `${id.slice(0, 10)}…${id.slice(-8)}`;
+  };
+
+  const handleCopyId = async (id: string) => {
+    await navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    toast.success("ID коллекции скопирован");
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const loadCollections = useCallback(async () => {
     setLoading(true);
@@ -459,6 +474,28 @@ export default function RagMemoryPage() {
                           {c.folder.name}
                         </p>
                       )}
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyId(c.id)}
+                              className="mt-2 flex w-full items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-left font-mono text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10"
+                            >
+                              {copiedId === c.id ? (
+                                <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              )}
+                              <span className="min-w-0 truncate">{shortenId(c.id)}</span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-xs">
+                            <p>ID для API (collectionId)</p>
+                            <p className="mt-0.5 text-muted-foreground">Клик — скопировать</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
                   {isVectorizing && vecState && (
