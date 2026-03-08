@@ -14,6 +14,7 @@ import {
   Download,
   Copy,
   Check,
+  Database,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ExportDialog } from "@/components/rag/ExportDialog";
+import { N8nConnectionDialog } from "@/components/rag/N8nConnectionDialog";
 
 interface CollectionFile {
   id: string;
@@ -98,6 +100,11 @@ export default function RagMemoryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
   const [exportCollectionId, setExportCollectionId] = useState<string | null>(null);
+  const [n8nConnectionCollection, setN8nConnectionCollection] = useState<{
+    id: string;
+    name: string;
+    filesWithEmbeddings: number;
+  } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const shortenId = (id: string, maxLen = 24) => {
@@ -557,6 +564,21 @@ export default function RagMemoryPage() {
                       <Download className="h-3 w-3" />
                       Выгрузка
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() =>
+                        setN8nConnectionCollection({
+                          id: c.id,
+                          name: c.name,
+                          filesWithEmbeddings: c.filesWithEmbeddings,
+                        })
+                      }
+                    >
+                      <Database className="h-3 w-3" />
+                      n8n
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -723,6 +745,15 @@ export default function RagMemoryPage() {
           />
         ) : null;
       })()}
+
+      {n8nConnectionCollection && (
+        <N8nConnectionDialog
+          collectionId={n8nConnectionCollection.id}
+          collectionName={n8nConnectionCollection.name}
+          hasEmbeddings={n8nConnectionCollection.filesWithEmbeddings > 0}
+          onClose={() => setN8nConnectionCollection(null)}
+        />
+      )}
     </div>
   );
 }

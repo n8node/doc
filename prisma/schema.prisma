@@ -35,6 +35,7 @@ model User {
   userAiConfig         UserAiConfig?
   notifications        Notification[]
   vectorCollections    VectorCollection[]
+  n8nPgConnections     N8nPgConnection[]
   preferences          Json?                 @map("preferences") // { theme?: string, notifications?: { storage, trash, payment, ... } }
   telegramUserId       BigInt?               @unique @map("telegram_user_id")
   telegramUsername     String?               @map("telegram_username")
@@ -282,18 +283,35 @@ model DocumentEmbedding {
 }
 
 model VectorCollection {
-  id        String                 @id @default(cuid()) @map("id")
-  userId    String                 @map("user_id")
-  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String                 @map("name")
-  folderId  String?                @map("folder_id")
-  folder    Folder?                @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  files     VectorCollectionFile[]
-  createdAt DateTime               @default(now()) @map("created_at")
-  updatedAt DateTime               @updatedAt @map("updated_at")
+  id                   String                 @id @default(cuid()) @map("id")
+  userId               String                 @map("user_id")
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                 String                 @map("name")
+  folderId             String?                @map("folder_id")
+  folder               Folder?                @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  files                VectorCollectionFile[]
+  n8nPgConnections     N8nPgConnection[]
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
 
   @@index([userId])
   @@map("vector_collections")
+}
+
+model N8nPgConnection {
+  id           String           @id @default(cuid()) @map("id")
+  userId       String           @map("user_id")
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collectionId String           @map("collection_id")
+  collection   VectorCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  dbRoleName   String           @unique @map("db_role_name")
+  dbPasswordHash String         @map("db_password_hash")
+  viewName     String           @map("view_name")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([collectionId])
+  @@map("n8n_pg_connections")
 }
 
 model VectorCollectionFile {
