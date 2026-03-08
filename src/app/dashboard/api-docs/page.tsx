@@ -5,7 +5,7 @@ import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit } from "lucide-react";
+import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -237,7 +237,7 @@ export default function ApiDocsPage() {
             <CardHeader>
               <CardTitle>Эндпоинты</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Операции сгруппированы по объектам
+                Операции сгруппированы по объектам. Эндпоинты с пометкой «только сессия» работают только через веб-интерфейс (cookie), не по API-ключу.
               </p>
             </CardHeader>
             <CardContent>
@@ -246,7 +246,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
-                  Файлы (17 методов)
+                  Файлы (18 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -259,6 +259,11 @@ export default function ApiDocsPage() {
                 { name: "folderId", type: "string", desc: "ID папки (опционально)" },
                 { name: "scope", type: "all | \"\"", desc: "all — все подпапки" },
                 { name: "type", type: "image | video | audio | document | all", desc: "Фильтр по типу" },
+                { name: "sizeMin", type: "number", desc: "Мин. размер (байты)" },
+                { name: "sizeMax", type: "number", desc: "Макс. размер (байты)" },
+                { name: "dateFrom", type: "ISO date", desc: "Дата от" },
+                { name: "dateTo", type: "ISO date", desc: "Дата до" },
+                { name: "hasShareLink", type: "true", desc: "Только с публичными ссылками" },
               ]}
             />
             <Section
@@ -361,6 +366,11 @@ export default function ApiDocsPage() {
               desc="Отправить сообщение в чат по документу"
               body={{ content: "string" }}
             />
+            <Section
+              method="GET"
+              path="/api/v1/files/{id}/transcript"
+              desc="Транскрипт аудиофайла"
+            />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -369,7 +379,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <BrainCircuit className="h-4 w-4 text-muted-foreground" />
-                  RAG-память (8 методов)
+                  RAG-память (10 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -416,6 +426,17 @@ export default function ApiDocsPage() {
                     path="/api/v1/rag/collections/{id}/vectorize"
                     desc="Массовая векторизация файлов коллекции"
                   />
+                  <Section
+                    method="GET"
+                    path="/api/v1/rag/collections/{id}/export"
+                    desc="Экспорт векторов коллекции (SQL, Supabase, Qdrant)"
+                    params={[{ name: "format", type: "sql | supabase | qdrant", desc: "Формат выгрузки" }]}
+                  />
+                  <Section
+                    method="DELETE"
+                    path="/api/v1/rag/collections/{id}/embeddings"
+                    desc="Удалить эмбеддинги всех файлов коллекции"
+                  />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -460,7 +481,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-muted-foreground" />
-                  Обработка документов (2 методов)
+                  Обработка и транскрипция (6 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -476,6 +497,24 @@ export default function ApiDocsPage() {
                     path="/api/v1/files/process"
                     desc="Запуск обработки (извлечение текста, эмбеддинги)"
                     body={{ fileId: "string", fileIds: "string[]" }}
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/files/transcribe"
+                    desc="Запуск транскрипции аудио"
+                    body={{ fileId: "string" }}
+                  />
+                  <Section
+                    method="GET"
+                    path="/api/v1/files/transcribe"
+                    desc="Статус транскрипции"
+                    params={[{ name: "fileId", type: "string", desc: "ID файла" }]}
+                  />
+                  <Section
+                    method="GET"
+                    path="/api/v1/files/transcribe/estimate"
+                    desc="Оценка времени транскрипции"
+                    params={[{ name: "fileId", type: "string", desc: "ID файла" }]}
                   />
                 </div>
               </AccordionContent>
@@ -494,7 +533,11 @@ export default function ApiDocsPage() {
               method="GET"
               path="/api/v1/folders"
               desc="Список папок"
-              params={[{ name: "parentId", type: "string", desc: "ID родительской папки" }]}
+              params={[
+                { name: "parentId", type: "string", desc: "ID родительской папки" },
+                { name: "scope", type: "all | \"\"", desc: "all — все папки рекурсивно" },
+                { name: "hasShareLink", type: "true", desc: "Только папки с публичными ссылками" },
+              ]}
             />
             <Section
               method="POST"
@@ -568,6 +611,45 @@ export default function ApiDocsPage() {
               </AccordionContent>
             </AccordionItem>
 
+            <AccordionItem value="notifications" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-muted-foreground" />
+                  Уведомления (4 методов)
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <Section
+                    method="GET"
+                    path="/api/v1/notifications"
+                    desc="Список уведомлений"
+                    params={[
+                      { name: "limit", type: "number", desc: "Макс. записей (1–200, по умолчанию 50)" },
+                      { name: "offset", type: "number", desc: "Смещение" },
+                      { name: "type", type: "STORAGE | TRASH | PAYMENT | AI_TASK | QUOTA | SHARE_LINK", desc: "Фильтр по типу" },
+                      { name: "unreadOnly", type: "true", desc: "Только непрочитанные" },
+                    ]}
+                  />
+                  <Section
+                    method="DELETE"
+                    path="/api/v1/notifications"
+                    desc="Удалить все уведомления"
+                  />
+                  <Section
+                    method="PATCH"
+                    path="/api/v1/notifications/{id}/read"
+                    desc="Отметить уведомление прочитанным"
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/notifications/read-all"
+                    desc="Отметить все уведомления прочитанными"
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
             <AccordionItem value="trash" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
@@ -603,7 +685,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  Пользователь (10 методов)
+                  Пользователь (13 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -627,17 +709,32 @@ export default function ApiDocsPage() {
             <Section
               method="POST"
               path="/api/v1/user/password"
-              desc="Смена пароля"
+              desc="Смена пароля (только сессия)"
               body={{ currentPassword: "string", newPassword: "string" }}
             />
             <Section method="GET" path="/api/v1/user/payments" desc="История платежей" />
             <Section
               method="DELETE"
               path="/api/v1/user/account"
-              desc="Удалить аккаунт"
+              desc="Удалить аккаунт (только сессия)"
               body={{ password: "string" }}
             />
             <Section method="GET" path="/api/v1/user/document-chats" desc="Файлы с чатами по документам" />
+            <Section method="GET" path="/api/v1/user/ai-config" desc="AI-конфигурация (провайдеры, модели)" />
+            <Section
+              method="PUT"
+              path="/api/v1/user/ai-config"
+              desc="Обновить AI-конфигурацию"
+              body={{ providers: "array", defaultProviderId: "string | null" }}
+            />
+            <Section
+              method="POST"
+              path="/api/v1/user/ai-config/test"
+              desc="Тест подключения к AI-провайдеру"
+              body={{ providerId: "string" }}
+            />
+            <Section method="POST" path="/api/v1/user/link-email" desc="Привязать email" />
+            <Section method="POST" path="/api/v1/user/link-telegram" desc="Привязать Telegram" />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -656,7 +753,7 @@ export default function ApiDocsPage() {
             <Section
               method="POST"
               path="/api/v1/plans/subscribe"
-              desc="Подписка на тариф"
+              desc="Подписка на тариф (только сессия)"
               body={{ planId: "string", period: "monthly | yearly" }}
             />
                 </div>
@@ -687,7 +784,7 @@ function Section({
   const methodColor =
     method === "GET" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" :
     method === "POST" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" :
-    method === "PATCH" ? "bg-amber-500/20 text-amber-600 dark:text-amber-400" :
+    method === "PATCH" || method === "PUT" ? "bg-amber-500/20 text-amber-600 dark:text-amber-400" :
     method === "DELETE" ? "bg-red-500/20 text-red-600 dark:text-red-400" :
     "";
 
