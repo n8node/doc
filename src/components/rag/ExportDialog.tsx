@@ -144,7 +144,10 @@ export function ExportDialog({
                   {needsPgvector && (
                     <p className="flex items-start gap-2 rounded-lg bg-surface2/50 p-2.5 text-xs text-muted-foreground">
                       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      Для PostgreSQL и Supabase нужен pgvector. Выполните: <code className="rounded bg-muted px-1">CREATE EXTENSION IF NOT EXISTS vector;</code>
+                      Для PostgreSQL и Supabase нужен pgvector. Выполните:{" "}
+                      <code className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-foreground">
+                        CREATE EXTENSION IF NOT EXISTS vector;
+                      </code>
                     </p>
                   )}
                 </div>
