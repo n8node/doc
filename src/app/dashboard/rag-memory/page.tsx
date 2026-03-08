@@ -14,6 +14,12 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -37,6 +43,7 @@ interface Collection {
   folderId: string | null;
   folder: { id: string; name: string } | null;
   filesCount: number;
+  processableCount?: number;
   filesWithEmbeddings: number;
   files: CollectionFile[];
   createdAt: string;
@@ -315,8 +322,9 @@ export default function RagMemoryPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {collections.map((c) => {
-            const isFullyVectorized = c.filesCount > 0 && c.filesWithEmbeddings === c.filesCount;
-            const canDeleteVectors = c.filesCount > 0;
+            const processableCount = c.processableCount ?? c.filesCount;
+            const isFullyVectorized = processableCount > 0 && c.filesWithEmbeddings === processableCount;
+            const canDeleteVectors = c.filesWithEmbeddings > 0;
             const isVectorizing = vectorizingId === c.id;
             const progress = isVectorizing ? vectorizeProgress : null;
             return (
@@ -328,8 +336,35 @@ export default function RagMemoryPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold truncate">{c.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {c.filesCount} файлов • {c.filesWithEmbeddings} с эмбеддингами
+                      <p className="mt-1 text-xs text-muted-foreground flex items-center gap-0.5">
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dotted border-muted-foreground">
+                                {c.filesCount}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>Всего файлов в коллекции</TooltipContent>
+                          </Tooltip>
+                          <span>/</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dotted border-muted-foreground">
+                                {processableCount}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>Файлов с поддерживаемым форматом (PDF, DOCX, TXT и др.)</TooltipContent>
+                          </Tooltip>
+                          <span>/</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dotted border-muted-foreground">
+                                {c.filesWithEmbeddings}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>Файлов с созданными векторами (эмбеддингами)</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </p>
                       {c.folder && (
                         <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1">

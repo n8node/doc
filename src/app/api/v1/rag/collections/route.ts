@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
+import { isProcessable } from "@/lib/docling/processing-service";
 
 /**
  * GET /api/v1/rag/collections — list RAG collections (vector "brains").
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
     folderId: c.folderId,
     folder: c.folder,
     filesCount: c.files.length,
+    processableCount: c.files.filter((f) => isProcessable(f.file.mimeType)).length,
     filesWithEmbeddings: c.files.filter((f) => f.file.hasEmbedding).length,
     files: c.files.map((f) => ({
       id: f.file.id,
@@ -132,12 +134,17 @@ export async function POST(request: NextRequest) {
     },
   });
 
+  const processableCount = collection.files.filter((f) =>
+    isProcessable(f.file.mimeType)
+  ).length;
+
   return NextResponse.json({
     id: collection.id,
     name: collection.name,
     folderId: collection.folderId,
     folder: collection.folder,
     filesCount: collection.files.length,
+    processableCount,
     files: collection.files.map((f) => ({
       id: f.file.id,
       name: f.file.name,
