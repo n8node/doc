@@ -239,6 +239,7 @@ export interface EmbeddingListItem {
   id: string;
   chunkIndex: number;
   chunkText: string;
+  vectorPreview: string;
   createdAt: Date;
 }
 
@@ -256,8 +257,12 @@ export async function listEmbeddings(
 
   const offset = (page - 1) * limit;
   const [items, countResult] = await Promise.all([
-    prisma.$queryRaw<Array<{ id: string; chunk_index: number; chunk_text: string; created_at: Date }>>`
-      SELECT id, chunk_index, chunk_text, created_at
+    prisma.$queryRaw<
+      Array<{ id: string; chunk_index: number; chunk_text: string; vector_preview: string; created_at: Date }>
+    >`
+      SELECT id, chunk_index, chunk_text,
+             LEFT(vector::text, 120) || CASE WHEN LENGTH(vector::text) > 120 THEN '...' ELSE '' END AS vector_preview,
+             created_at
       FROM document_embeddings
       WHERE file_id = ${fileId}
       ORDER BY chunk_index ASC
@@ -274,6 +279,7 @@ export async function listEmbeddings(
       id: r.id,
       chunkIndex: r.chunk_index,
       chunkText: r.chunk_text,
+      vectorPreview: r.vector_preview ?? "",
       createdAt: r.created_at,
     })),
     total: Number(countResult[0].count),

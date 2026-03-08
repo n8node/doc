@@ -20,6 +20,7 @@ interface EmbeddingItem {
   id: string;
   chunkIndex: number;
   chunkText: string;
+  vectorPreview?: string;
   createdAt: string;
 }
 
@@ -251,6 +252,7 @@ export default function EmbeddingsDetailPage({
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">№</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Текст</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Вектор</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Дата</th>
                   <th className="w-12 px-4 py-3"></th>
                 </tr>
@@ -274,6 +276,11 @@ export default function EmbeddingsDetailPage({
                     <td className="px-4 py-3 text-muted-foreground">{e.chunkIndex + 1}</td>
                     <td className="px-4 py-3 max-w-md">
                       <span title={e.chunkText}>{truncate(e.chunkText, 200)}</span>
+                    </td>
+                    <td className="px-4 py-3 max-w-[200px]">
+                      <code className="block truncate text-xs text-muted-foreground" title={e.vectorPreview ?? ""}>
+                        {e.vectorPreview ?? "—"}
+                      </code>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">
                       {new Date(e.createdAt).toLocaleDateString("ru-RU", {

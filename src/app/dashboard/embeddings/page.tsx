@@ -21,6 +21,8 @@ interface EmbeddingFileItem {
   size: number;
   folder: { id: string; name: string } | null;
   embeddingsCount: number;
+  embeddingModel?: string;
+  embeddingTokensUsed?: number;
   createdAt: string;
 }
 
@@ -70,15 +72,20 @@ export default function EmbeddingsPage() {
       }
 
       setFiles(
-        filesList.map((f: EmbeddingFileItem) => ({
-          id: String(f?.id ?? ""),
-          name: String(f?.name ?? ""),
-          mimeType: String(f?.mimeType ?? ""),
-          size: Number(f?.size) || 0,
-          folder: f?.folder ?? null,
-          embeddingsCount: Number(f?.embeddingsCount) || 0,
-          createdAt: String(f?.createdAt ?? ""),
-        }))
+        filesList.map((f: EmbeddingFileItem & { aiMetadata?: Record<string, unknown> }) => {
+          const meta = f?.aiMetadata as { modelName?: string; embeddingsProvider?: string; embeddingTokensUsed?: number } | undefined;
+          return {
+            id: String(f?.id ?? ""),
+            name: String(f?.name ?? ""),
+            mimeType: String(f?.mimeType ?? ""),
+            size: Number(f?.size) || 0,
+            folder: f?.folder ?? null,
+            embeddingsCount: Number(f?.embeddingsCount) || 0,
+            embeddingModel: meta?.modelName ?? meta?.embeddingsProvider ?? undefined,
+            embeddingTokensUsed: typeof meta?.embeddingTokensUsed === "number" ? meta.embeddingTokensUsed : undefined,
+            createdAt: String(f?.createdAt ?? ""),
+          };
+        })
       );
     } catch {
       setCollections([]);
@@ -205,6 +212,12 @@ export default function EmbeddingsPage() {
                           Размер
                         </th>
                         <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                          Токены
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                          Модель
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                           Чанков
                         </th>
                         <th className="px-4 py-3 text-left font-medium text-muted-foreground">
@@ -227,6 +240,12 @@ export default function EmbeddingsPage() {
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">
                             {formatBytes(Math.max(0, Number(f.size) || 0))}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {f.embeddingTokensUsed != null ? f.embeddingTokensUsed.toLocaleString() : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground max-w-[140px] truncate" title={f.embeddingModel}>
+                            {f.embeddingModel ?? "—"}
                           </td>
                           <td className="px-4 py-3 font-medium">{f.embeddingsCount}</td>
                           <td className="px-4 py-3 text-muted-foreground text-xs">
@@ -292,6 +311,12 @@ export default function EmbeddingsPage() {
                         Размер
                       </th>
                       <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                        Токены
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                        Модель
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                         Чанков
                       </th>
                       <th className="px-4 py-3 text-left font-medium text-muted-foreground">
@@ -314,6 +339,12 @@ export default function EmbeddingsPage() {
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {formatBytes(Math.max(0, Number(f.size) || 0))}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {f.embeddingTokensUsed != null ? f.embeddingTokensUsed.toLocaleString() : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground max-w-[140px] truncate" title={f.embeddingModel}>
+                          {f.embeddingModel ?? "—"}
                         </td>
                         <td className="px-4 py-3 font-medium">{f.embeddingsCount}</td>
                         <td className="px-4 py-3 text-muted-foreground text-xs">

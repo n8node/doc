@@ -28,6 +28,7 @@ export async function GET(
       id: e.id,
       chunkIndex: e.chunkIndex,
       chunkText: e.chunkText,
+      vectorPreview: e.vectorPreview,
       createdAt: e.createdAt.toISOString(),
     })),
     total,
