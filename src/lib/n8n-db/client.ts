@@ -41,9 +41,20 @@ export function createN8nDbClient(): Client | null {
   const url = getN8nDbUrl();
   if (!url) return null;
 
-  const client = new Client({
-    connectionString: url,
-    ssl: { rejectUnauthorized: false },
-  });
-  return client;
+  try {
+    const u = new URL(url.replace(/^postgres:/, "postgresql:"));
+    const client = new Client({
+      host: u.hostname,
+      port: u.port ? parseInt(u.port, 10) : 5432,
+      database: u.pathname?.slice(1)?.replace(/^\//, "") || "postgres",
+      user: decodeURIComponent(u.username),
+      password: decodeURIComponent(u.password),
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    });
+    return client;
+  } catch {
+    return null;
+  }
 }
