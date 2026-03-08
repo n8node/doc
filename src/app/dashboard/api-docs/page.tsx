@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard } from "lucide-react";
+import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -320,11 +321,12 @@ export default function ApiDocsPage() {
             <Section
               method="GET"
               path="/api/v1/files/search"
-              desc="Семантический поиск по документам"
+              desc="Семантический поиск по документам. Для RAG в n8n: ?q=запрос&collectionId=id"
               params={[
                 { name: "q", type: "string", desc: "Поисковый запрос" },
                 { name: "limit", type: "number", desc: "Макс. результатов (по умолчанию 20)" },
                 { name: "threshold", type: "number", desc: "Порог схожести (по умолчанию 0.55)" },
+                { name: "collectionId", type: "string", desc: "ID RAG-коллекции — поиск только по ней" },
               ]}
             />
             <Section
@@ -360,6 +362,61 @@ export default function ApiDocsPage() {
               desc="Отправить сообщение в чат по документу"
               body={{ content: "string" }}
             />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="rag" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                  RAG-память (8 методов)
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Для n8n: HTTP Request → <code className="rounded bg-surface2 px-1">GET /api/v1/files/search?q=...&collectionId=...</code>
+                    {" "}
+                    <Link href="/dashboard/n8n-guide" className="text-primary hover:underline">Гайд по интеграции</Link>
+                  </p>
+                  <Section
+                    method="GET"
+                    path="/api/v1/rag/collections"
+                    desc="Список RAG-коллекций"
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/rag/collections"
+                    desc="Создать коллекцию"
+                    body={{ name: "string", folderId?: "string", fileIds?: "string[]" }}
+                  />
+                  <Section
+                    method="GET"
+                    path="/api/v1/rag/collections/{id}"
+                    desc="Коллекция по ID"
+                  />
+                  <Section
+                    method="PATCH"
+                    path="/api/v1/rag/collections/{id}"
+                    desc="Обновить коллекцию"
+                    body={{ name?: "string", folderId?: "string | null", fileIds?: "string[]" }}
+                  />
+                  <Section
+                    method="DELETE"
+                    path="/api/v1/rag/collections/{id}"
+                    desc="Удалить коллекцию"
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/rag/collections/{id}/validate"
+                    desc="Проверка: какие файлы можно векторизовать"
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/rag/collections/{id}/vectorize"
+                    desc="Массовая векторизация файлов коллекции"
+                  />
                 </div>
               </AccordionContent>
             </AccordionItem>
