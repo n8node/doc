@@ -1,0 +1,189 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
+import { prisma } from "@/lib/prisma";
+import {
+  processDocument,
+  isProcessable,
+} from "@/lib/docling/processing-service";
+import { createNotificationIfEnabled } from "@/lib/notification-service";
+import { getDoclingClient } from "@/lib/docling/client";
+import { checkDocumentAnalysisAccess } from "@/lib/docling/process-access";
+import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
+import { userUsesOwnKey } from "@/lib/ai/get-provider-for-user";
+import { getUserPlan } from "@/lib/plan-service";
+
+type Ctx = { params: Promise<{ id: string }> };
+
+/**
+ * POST /api/v1/rag/collections/[id]/vectorize — mass vectorization of collection files.
+ * Skips non-processable files and sends notifications for each skipped file.
+ */
+export async function POST(request: NextRequest, ctx: Ctx) {
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await ctx.params;
+
+  const collection = await prisma.vectorCollection.findFirst({
+    where: { id, userId },
+    include: {
+      files: {
+        include: {
+          file: true,
+        },
+      },
+    },
+  });
+
+  if (!collection) {
+    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+  }
+
+  const docling = getDoclingClient();
+  const available = await docling.isAvailable();
+  if (!available) {
+    return NextResponse.json(
+      { error: "Сервис обработки документов недоступен" },
+      { status: 503 }
+    );
+  }
+
+  const processableCount = collection.files.filter((f) =>
+    isProcessable(f.file.mimeType)
+  ).length;
+  const docAnalysisError = await checkDocumentAnalysisAccess(
+    userId,
+    processableCount
+  );
+  if (docAnalysisError) return docAnalysisError;
+
+  const usesOwnKey = await userUsesOwnKey(userId);
+  if (!usesOwnKey) {
+    const plan = await getUserPlan(userId);
+    const quota = plan?.embeddingTokensQuota ?? null;
+    if (quota != null) {
+      const used = await getEmbeddingTokensUsedThisMonth(userId);
+      if (used >= quota) {
+        return NextResponse.json(
+          {
+            error: "Лимит токенов на анализ исчерпан",
+            code: "EMBEDDING_QUOTA_EXCEEDED",
+            used,
+            quota,
+          },
+          { status: 403 }
+        );
+      }
+    }
+  }
+
+  const results: Array<{
+    fileId: string;
+    fileName: string;
+    success: boolean;
+    error?: string;
+    textLength?: number;
+    numPages?: number;
+    skipped?: boolean;
+  }> = [];
+  const skippedFiles: Array<{ fileName: string; reason: string }> = [];
+
+  for (const { file } of collection.files) {
+    if (!isProcessable(file.mimeType)) {
+      results.push({
+        fileId: file.id,
+        fileName: file.name,
+        success: false,
+        error: "Формат не поддерживается",
+        skipped: true,
+      });
+      skippedFiles.push({
+        fileName: file.name,
+        reason: "Формат не поддерживается для векторизации",
+      });
+      continue;
+    }
+
+    try {
+      const result = await processDocument(
+        file.id,
+        file.s3Key,
+        file.name,
+        file.mimeType,
+        userId
+      );
+      results.push({
+        fileId: file.id,
+        fileName: file.name,
+        success: true,
+        textLength: result.text.length,
+        numPages: result.numPages ?? undefined,
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      results.push({
+        fileId: file.id,
+        fileName: file.name,
+        success: false,
+        error: msg,
+        skipped: false,
+      });
+      skippedFiles.push({
+        fileName: file.name,
+        reason: msg,
+      });
+    }
+  }
+
+  const succeeded = results.filter((r) => r.success).length;
+  const failed = results.filter((r) => !r.success);
+
+  if (skippedFiles.length > 0) {
+    const skippedList = skippedFiles
+      .map((s) => `• ${s.fileName}: ${s.reason}`)
+      .join("\n");
+    await createNotificationIfEnabled({
+      userId,
+      type: "AI_TASK",
+      category: "warning",
+      title: "Часть файлов пропущена при векторизации",
+      body:
+        failed.length === 1
+          ? `${skippedFiles[0].fileName} — ${skippedFiles[0].reason}`
+          : `${failed.length} файлов не участвуют в векторной базе «${collection.name}»:\n${skippedList}`,
+      payload: {
+        collectionId: id,
+        collectionName: collection.name,
+        skippedCount: failed.length,
+        skipped: skippedFiles,
+      },
+    });
+  }
+
+  if (succeeded > 0) {
+    await createNotificationIfEnabled({
+      userId,
+      type: "AI_TASK",
+      category: "success",
+      title: "Векторизация завершена",
+      body: `Обработано ${succeeded} из ${results.length} файлов в «${collection.name}»`,
+      payload: {
+        collectionId: id,
+        collectionName: collection.name,
+        succeeded,
+        total: results.length,
+      },
+    });
+  }
+
+  return NextResponse.json({
+    collectionId: id,
+    collectionName: collection.name,
+    total: results.length,
+    succeeded,
+    failed: results.length - succeeded,
+    results,
+  });
+}
