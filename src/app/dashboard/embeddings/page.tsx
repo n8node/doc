@@ -12,6 +12,12 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatBytes } from "@/lib/utils";
 
 interface EmbeddingFileItem {
@@ -29,7 +35,10 @@ interface EmbeddingFileItem {
 interface CollectionSummary {
   id: string;
   name: string;
+  folderId: string | null;
+  folder: { id: string; name: string } | null;
   filesCount: number;
+  processableCount?: number;
   filesWithEmbeddings: number;
 }
 
@@ -52,10 +61,13 @@ export default function EmbeddingsPage() {
       const collData = await collRes.json();
       const collectionsList = Array.isArray(collData.collections) ? collData.collections : [];
       setCollections(
-        collectionsList.map((c: CollectionSummary) => ({
+        collectionsList.map((c: CollectionSummary & { folderId?: string; folder?: { id: string; name: string } | null; processableCount?: number }) => ({
           id: c.id,
           name: c.name,
+          folderId: c.folderId ?? null,
+          folder: c.folder ?? null,
           filesCount: c.filesCount ?? 0,
+          processableCount: c.processableCount ?? c.filesCount ?? 0,
           filesWithEmbeddings: c.filesWithEmbeddings ?? 0,
         }))
       );
@@ -137,25 +149,61 @@ export default function EmbeddingsPage() {
                 RAG-коллекции (папки с векторными данными)
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {collections.map((c) => (
-                  <Link key={c.id} href={`/dashboard/embeddings?collection=${c.id}`}>
-                    <Card className="cursor-pointer border-border bg-surface transition-colors hover:bg-surface2/50">
-                      <CardContent className="flex items-center gap-3 p-4">
-                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                          <FolderOpen className="h-5 w-5 text-primary/80" />
-                          <BrainCircuit className="absolute right-0 bottom-0 h-4 w-4 rounded bg-primary/20 p-0.5 text-primary" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium truncate">{c.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {c.filesWithEmbeddings} / {c.filesCount} с эмбеддингами
-                          </p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
+                {collections.map((c) => {
+                  const processableCount = c.processableCount ?? c.filesCount;
+                  return (
+                    <Link key={c.id} href={`/dashboard/embeddings?collection=${c.id}`}>
+                      <Card className="cursor-pointer border-border bg-surface transition-colors hover:bg-surface2/50">
+                        <CardContent className="flex items-center gap-3 p-4">
+                          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                            <FolderOpen className="h-5 w-5 text-primary/80" />
+                            <BrainCircuit className="absolute right-0 bottom-0 h-4 w-4 rounded bg-primary/20 p-0.5 text-primary" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{c.name}</p>
+                            <p className="mt-1 text-xs text-muted-foreground flex items-center gap-0.5">
+                              <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help border-b border-dotted border-muted-foreground">
+                                      {c.filesCount}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Всего файлов в коллекции</TooltipContent>
+                                </Tooltip>
+                                <span>/</span>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help border-b border-dotted border-muted-foreground">
+                                      {processableCount}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Файлов с поддерживаемым форматом (PDF, DOCX, TXT и др.)</TooltipContent>
+                                </Tooltip>
+                                <span>/</span>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help border-b border-dotted border-muted-foreground">
+                                      {c.filesWithEmbeddings}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Файлов с созданными векторами (эмбеддингами)</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </p>
+                            {c.folder && (
+                              <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1">
+                                <FolderOpen className="h-3 w-3" />
+                                {c.folder.name}
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
               </div>
               <Link
                 href="/dashboard/rag-memory"
