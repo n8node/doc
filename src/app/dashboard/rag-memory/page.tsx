@@ -316,6 +316,7 @@ export default function RagMemoryPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {collections.map((c) => {
             const isFullyVectorized = c.filesCount > 0 && c.filesWithEmbeddings === c.filesCount;
+            const canDeleteVectors = c.filesCount > 0;
             const isVectorizing = vectorizingId === c.id;
             const progress = isVectorizing ? vectorizeProgress : null;
             return (
@@ -366,7 +367,7 @@ export default function RagMemoryPage() {
                       )}
                       Векторизовать
                     </Button>
-                    {isFullyVectorized && (
+                    {canDeleteVectors && (
                       <Button
                         size="sm"
                         variant="destructive"
