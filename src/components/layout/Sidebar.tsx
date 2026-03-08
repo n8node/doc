@@ -13,6 +13,7 @@ import {
   HardDrive,
   Crown,
   Database,
+  BrainCircuit,
 } from "lucide-react";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
 import { SidebarFolderTree } from "./SidebarFolderTree";
@@ -21,6 +22,7 @@ import { buildDashboardFilesUrl, DEFAULT_FILES_SECTION } from "@/lib/files-navig
 const navItems = [
   { href: buildDashboardFilesUrl({ section: DEFAULT_FILES_SECTION }), icon: FolderOpen, label: "Файлы" },
   { href: "/dashboard/search", icon: Search, label: "Поиск" },
+  { href: "/dashboard/rag-memory", icon: BrainCircuit, label: "RAG-память" },
   { href: "/dashboard/embeddings", icon: Database, label: "Векторная база" },
   { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
   { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },

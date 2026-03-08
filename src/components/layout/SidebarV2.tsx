@@ -20,6 +20,7 @@ import {
   Trash2,
   Key,
   Database,
+  BrainCircuit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
@@ -47,6 +48,7 @@ const sectionItems: SectionItem[] = [
 
 const extraNavItems = [
   { href: "/dashboard/search", icon: Search, label: "Поиск" },
+  { href: "/dashboard/rag-memory", icon: BrainCircuit, label: "RAG-память" },
   { href: "/dashboard/embeddings", icon: Database, label: "Векторная база" },
   { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
   { href: "/dashboard/api-docs", icon: Key, label: "API настройки" },
