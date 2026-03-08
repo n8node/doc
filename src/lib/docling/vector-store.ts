@@ -311,6 +311,62 @@ export async function hasEmbeddings(fileId: string): Promise<boolean> {
   return Number(result[0].count) > 0;
 }
 
+export interface EmbeddingForExport {
+  id: string;
+  fileId: string;
+  vector: number[];
+  chunkText: string;
+  contentHash: string;
+  chunkIndex: number;
+  metadata: Record<string, unknown> | null;
+}
+
+/**
+ * Get all embeddings for a RAG collection (owner-checked by caller).
+ */
+export async function getEmbeddingsForCollection(
+  collectionId: string,
+  fileIds: string[]
+): Promise<EmbeddingForExport[]> {
+  if (fileIds.length === 0) return [];
+
+  const rows = await prisma.$queryRaw<
+    Array<{
+      id: string;
+      file_id: string;
+      vector_text: string;
+      chunk_text: string;
+      content_hash: string;
+      chunk_index: number;
+      metadata: unknown;
+    }>
+  >(Prisma.sql`
+    SELECT id, file_id, vector::text AS vector_text, chunk_text, content_hash, chunk_index, metadata
+    FROM document_embeddings
+    WHERE file_id IN (${Prisma.join(fileIds.map((f) => Prisma.sql`${f}`), ", ")})
+    ORDER BY file_id, chunk_index
+  `);
+
+  return rows.map((r) => {
+    let vector: number[] = [];
+    try {
+      const parsed = r.vector_text.replace(/^\[|\]$/g, "").split(",");
+      vector = parsed.map((s) => parseFloat(s.trim())).filter((n) => !Number.isNaN(n));
+    } catch {
+      /* fallback empty */
+    }
+    return {
+      id: r.id,
+      fileId: r.file_id,
+      vector,
+      chunkText: r.chunk_text,
+      contentHash: r.content_hash,
+      chunkIndex: r.chunk_index,
+      metadata: (r.metadata as Record<string, unknown>) ?? null,
+    };
+  });
+}
+
 export async function verifyPgvectorExtension(): Promise<boolean> {
   try {
     const result = await prisma.$queryRaw<[{ installed: boolean }]>`

@@ -11,6 +11,7 @@ import {
   FileText,
   Trash2,
   MoreVertical,
+  Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { ExportDialog } from "@/components/rag/ExportDialog";
 
 interface CollectionFile {
   id: string;
@@ -93,6 +95,7 @@ export default function RagMemoryPage() {
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
+  const [exportCollectionId, setExportCollectionId] = useState<string | null>(null);
 
   const loadCollections = useCallback(async () => {
     setLoading(true);
@@ -508,6 +511,17 @@ export default function RagMemoryPage() {
                         Векторная база
                       </Button>
                     </Link>
+                    {canDeleteVectors && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        onClick={() => setExportCollectionId(c.id)}
+                      >
+                        <Download className="h-3 w-3" />
+                        Выгрузка
+                      </Button>
+                    )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -662,6 +676,18 @@ export default function RagMemoryPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {exportCollectionId && (() => {
+        const coll = collections.find((x) => x.id === exportCollectionId);
+        return coll ? (
+          <ExportDialog
+            collectionId={coll.id}
+            collectionName={coll.name}
+            hasEmbeddings={coll.filesWithEmbeddings > 0}
+            onClose={() => setExportCollectionId(null)}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   MoreVertical,
   Trash2,
+  Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -29,6 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "sonner";
+import { ExportDialog } from "@/components/rag/ExportDialog";
 
 interface EmbeddingFileItem {
   id: string;
@@ -60,6 +62,7 @@ export default function EmbeddingsPage() {
   const [files, setFiles] = useState<EmbeddingFileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
+  const [exportCollection, setExportCollection] = useState<CollectionSummary | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -128,24 +131,37 @@ export default function EmbeddingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        {activeCollection && (
-          <Link
-            href="/dashboard/embeddings"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Назад
-          </Link>
-        )}
-        <div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {activeCollection && (
+            <Link
+              href="/dashboard/embeddings"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Назад
+            </Link>
+          )}
+          <div>
           <h1 className="text-2xl font-bold text-foreground">Векторная база</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {activeCollection
               ? `Коллекция «${activeCollection.name}»`
               : "RAG-коллекции и документы с эмбеддингами. Выберите коллекцию или файл."}
           </p>
+          </div>
         </div>
+        {activeCollection && activeCollection.filesWithEmbeddings > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 shrink-0"
+            onClick={() => setExportCollection(activeCollection)}
+          >
+            <Download className="h-4 w-4" />
+            Выгрузка
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -227,6 +243,14 @@ export default function EmbeddingsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {c.filesWithEmbeddings > 0 && (
+                              <DropdownMenuItem
+                                onClick={() => setExportCollection(c)}
+                              >
+                                <Download className="h-4 w-4" />
+                                Выгрузка
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={async (e) => {
@@ -478,6 +502,15 @@ export default function EmbeddingsPage() {
             </Card>
           )}
         </>
+      )}
+
+      {exportCollection && (
+        <ExportDialog
+          collectionId={exportCollection.id}
+          collectionName={exportCollection.name}
+          hasEmbeddings={exportCollection.filesWithEmbeddings > 0}
+          onClose={() => setExportCollection(null)}
+        />
       )}
     </div>
   );
