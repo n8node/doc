@@ -184,12 +184,42 @@ export default function RagMemoryPage() {
   };
 
   const handleVectorize = async (collectionId: string) => {
+    const coll = collections.find((x) => x.id === collectionId);
+    const filesCount = coll?.filesCount ?? 0;
+    const processableCount = coll?.processableCount ?? coll?.filesCount ?? 0;
+
     setVectorizingId(collectionId);
     setVectorizeState({
       stage: "fetching_files",
       message: "Получаем файлы…",
       progressPercent: 0,
     });
+
+    const stageTimeouts: ReturnType<typeof setTimeout>[] = [];
+    stageTimeouts.push(
+      setTimeout(() => {
+        setVectorizeState((s) =>
+          s ? { ...s, message: `Получаем файлы (${filesCount})`, progressPercent: 15 } : null
+        );
+      }, 400)
+    );
+    stageTimeouts.push(
+      setTimeout(() => {
+        setVectorizeState((s) =>
+          s ? { ...s, message: "Анализируем форматы файлов", progressPercent: 30 } : null
+        );
+      }, 800)
+    );
+    stageTimeouts.push(
+      setTimeout(() => {
+        setVectorizeState((s) =>
+          s
+            ? { ...s, message: `Получено ${processableCount} файлов пригодных к векторизации`, progressPercent: 40 }
+            : null
+        );
+      }, 1200)
+    );
+
     try {
       const res = await fetch(`/api/v1/rag/collections/${collectionId}/vectorize`, {
         method: "POST",
@@ -211,7 +241,6 @@ export default function RagMemoryPage() {
 
       let buffer = "";
       let finalData: { succeeded?: number; total?: number; failed?: number } = {};
-      let processableCount = 0;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -232,32 +261,8 @@ export default function RagMemoryPage() {
               succeeded?: number;
               failed?: number;
             };
-            if (ev.type === "stage") {
-              if (ev.stage === "fetching_files" && ev.filesCount != null) {
-                setVectorizeState({
-                  stage: "fetching_files",
-                  message: `Получаем файлы (${ev.filesCount})`,
-                  progressPercent: 15,
-                });
-              } else if (ev.stage === "analyzing_formats") {
-                setVectorizeState({
-                  stage: "analyzing_formats",
-                  message: "Анализируем форматы файлов",
-                  progressPercent: 30,
-                });
-              } else if (ev.stage === "ready" && ev.processableCount != null && ev.total != null) {
-                processableCount = ev.processableCount;
-                setVectorizeState({
-                  stage: "ready",
-                  message: `Получено ${ev.processableCount} файлов пригодных к векторизации`,
-                  progressPercent: 40,
-                  total: ev.total,
-                  processed: 0,
-                });
-              }
-            } else if (ev.type === "progress" && ev.processed != null && ev.total != null) {
-              const pc = ev.processableCount ?? processableCount;
-              const pct = pc > 0 ? 40 + (60 * ev.processed) / ev.total : 100;
+            if (ev.type === "progress" && ev.processed != null && ev.total != null) {
+              const pct = ev.total > 0 ? 40 + (60 * ev.processed) / ev.total : 100;
               setVectorizeState({
                 stage: "vectorizing",
                 message: `Векторизация: ${ev.processed} из ${ev.total}${ev.remaining != null ? ` (осталось ${ev.remaining})` : ""}`,
@@ -291,6 +296,7 @@ export default function RagMemoryPage() {
     } catch {
       toast.error("Ошибка векторизации");
     } finally {
+      stageTimeouts.forEach(clearTimeout);
       setVectorizingId(null);
       setVectorizeState(null);
     }
