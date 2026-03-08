@@ -29,6 +29,27 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
+  n8n-db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: n8n_db
+      POSTGRES_USER: n8n_admin
+      POSTGRES_PASSWORD: ${N8N_DB_PASSWORD:-n8n_change_me}
+    ports:
+      - "5433:5432"
+    volumes:
+      - n8n_db_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c shared_preload_libraries=vector
+      -c max_connections=100
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n_admin -d n8n_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -47,7 +68,7 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       REDIS_URL: redis://redis:6379
       DOCLING_URL: http://docling:8000
-      N8N_DB_URL: ${N8N_DB_URL:-}
+      N8N_DB_URL: ${N8N_DB_URL:-postgresql://n8n_admin:n8n_change_me@n8n-db:5432/n8n_db}
     deploy:
       resources:
         limits: { memory: 1G }
@@ -98,3 +119,4 @@ services:
 volumes:
   pg_data:
   redis_data:
+  n8n_db_data:
