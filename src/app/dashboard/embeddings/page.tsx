@@ -151,7 +151,7 @@ export default function EmbeddingsPage() {
           </p>
           </div>
         </div>
-        {activeCollection && activeCollection.filesWithEmbeddings > 0 && (
+        {activeCollection && (
           <Button
             variant="outline"
             size="sm"
@@ -243,14 +243,12 @@ export default function EmbeddingsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {c.filesWithEmbeddings > 0 && (
-                              <DropdownMenuItem
-                                onClick={() => setExportCollection(c)}
-                              >
-                                <Download className="h-4 w-4" />
-                                Выгрузка
-                              </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem
+                              onClick={() => setExportCollection(c)}
+                            >
+                              <Download className="h-4 w-4" />
+                              Выгрузка
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={async (e) => {

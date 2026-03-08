@@ -511,17 +511,15 @@ export default function RagMemoryPage() {
                         Векторная база
                       </Button>
                     </Link>
-                    {canDeleteVectors && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1"
-                        onClick={() => setExportCollectionId(c.id)}
-                      >
-                        <Download className="h-3 w-3" />
-                        Выгрузка
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => setExportCollectionId(c.id)}
+                    >
+                      <Download className="h-3 w-3" />
+                      Выгрузка
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
