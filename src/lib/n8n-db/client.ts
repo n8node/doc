@@ -17,16 +17,33 @@ export interface N8nDbConnectionParams {
   ssl: boolean;
 }
 
+/**
+ * Returns connection params for n8n (public host/port for external connections).
+ * Uses N8N_DB_PUBLIC_HOST and N8N_DB_PUBLIC_PORT when set, otherwise APP_URL host + port 5433.
+ */
 export function getN8nDbConnectionParams(): N8nDbConnectionParams | null {
   const url = getN8nDbUrl();
   if (!url) return null;
   try {
     const u = new URL(url.replace(/^postgres:/, "postgresql:"));
+    let publicHost = process.env.N8N_DB_PUBLIC_HOST;
+    if (!publicHost && process.env.APP_URL?.trim()) {
+      try {
+        const appUrl = process.env.APP_URL.trim();
+        publicHost = new URL(appUrl.startsWith("http") ? appUrl : `https://${appUrl}`).hostname;
+      } catch {
+        publicHost = null;
+      }
+    }
+    publicHost = publicHost || u.hostname;
+    const publicPort = process.env.N8N_DB_PUBLIC_PORT
+      ? parseInt(process.env.N8N_DB_PUBLIC_PORT, 10)
+      : 5433;
     return {
-      host: u.hostname,
-      port: u.port ? parseInt(u.port, 10) : 5432,
+      host: publicHost,
+      port: publicPort,
       database: u.pathname?.slice(1) || "postgres",
-      ssl: u.searchParams.get("sslmode") !== "disable",
+      ssl: u.searchParams.get("sslmode") === "require",
     };
   } catch {
     return null;

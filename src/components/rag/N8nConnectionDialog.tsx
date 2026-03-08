@@ -269,7 +269,7 @@ export function N8nConnectionDialog({
                     </div>
                     <p className="flex items-start gap-2 rounded-lg bg-surface2/50 p-2.5 text-xs text-muted-foreground">
                       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      n8n PGVector Store: ID=id, Vector=vector, Content=content, Metadata=metadata. SSL включён, проверка сертификата не требуется.
+                      n8n PGVector Store: ID=id, Vector=vector, Content=content, Metadata=metadata. Встроенный n8n-db — без SSL.
                     </p>
                     <Button variant="outline" onClick={() => setCreatedCreds(null)}>
                       Закрыть
