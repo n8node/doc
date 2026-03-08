@@ -19,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface N8nConnection {
   id: string;
@@ -75,11 +74,6 @@ export function N8nConnectionDialog({
 }: N8nConnectionDialogProps) {
   const [connections, setConnections] = useState<N8nConnection[]>([]);
   const [n8nDbEnabled, setN8nDbEnabled] = useState(false);
-  const [connectionParams, setConnectionParams] = useState<{
-    host: string;
-    port: number;
-    database: string;
-  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [createdCreds, setCreatedCreds] = useState<{
@@ -103,7 +97,6 @@ export function N8nConnectionDialog({
       const data = await res.json();
       setConnections(data.connections ?? []);
       setN8nDbEnabled(data.n8nDbEnabled ?? false);
-      setConnectionParams(data.connectionParams ?? null);
     } catch {
       setConnections([]);
     } finally {
