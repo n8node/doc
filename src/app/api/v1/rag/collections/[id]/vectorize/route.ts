@@ -14,8 +14,13 @@ import { getUserPlan } from "@/lib/plan-service";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+function streamLine(obj: Record<string, unknown>): string {
+  return JSON.stringify(obj) + "\n";
+}
+
 /**
  * POST /api/v1/rag/collections/[id]/vectorize — mass vectorization of collection files.
+ * Returns NDJSON stream: { type, processed?, total?, remaining?, currentFileName?, succeeded?, failed? }.
  * Skips non-processable files and sends notifications for each skipped file.
  */
 export async function POST(request: NextRequest, ctx: Ctx) {
@@ -50,9 +55,10 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     );
   }
 
-  const processableCount = collection.files.filter((f) =>
+  const processableFiles = collection.files.filter((f) =>
     isProcessable(f.file.mimeType)
-  ).length;
+  );
+  const processableCount = processableFiles.length;
   const docAnalysisError = await checkDocumentAnalysisAccess(
     userId,
     processableCount
@@ -79,6 +85,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     }
   }
 
+  const total = collection.files.length;
   const results: Array<{
     fileId: string;
     fileName: string;
@@ -90,100 +97,141 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   }> = [];
   const skippedFiles: Array<{ fileName: string; reason: string }> = [];
 
-  for (const { file } of collection.files) {
-    if (!isProcessable(file.mimeType)) {
-      results.push({
-        fileId: file.id,
-        fileName: file.name,
-        success: false,
-        error: "Формат не поддерживается",
-        skipped: true,
-      });
-      skippedFiles.push({
-        fileName: file.name,
-        reason: "Формат не поддерживается для векторизации",
-      });
-      continue;
-    }
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      let processed = 0;
+      for (const { file } of collection.files) {
+        if (!isProcessable(file.mimeType)) {
+          results.push({
+            fileId: file.id,
+            fileName: file.name,
+            success: false,
+            error: "Формат не поддерживается",
+            skipped: true,
+          });
+          skippedFiles.push({
+            fileName: file.name,
+            reason: "Формат не поддерживается для векторизации",
+          });
+          processed++;
+          controller.enqueue(
+            encoder.encode(
+              streamLine({
+                type: "progress",
+                processed,
+                total,
+                remaining: total - processed,
+                currentFileName: file.name,
+              })
+            )
+          );
+          continue;
+        }
 
-    try {
-      const result = await processDocument(
-        file.id,
-        file.s3Key,
-        file.name,
-        file.mimeType,
-        userId
+        try {
+          const result = await processDocument(
+            file.id,
+            file.s3Key,
+            file.name,
+            file.mimeType,
+            userId
+          );
+          results.push({
+            fileId: file.id,
+            fileName: file.name,
+            success: true,
+            textLength: result.text.length,
+            numPages: result.numPages ?? undefined,
+          });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          results.push({
+            fileId: file.id,
+            fileName: file.name,
+            success: false,
+            error: msg,
+            skipped: false,
+          });
+          skippedFiles.push({
+            fileName: file.name,
+            reason: msg,
+          });
+        }
+        processed++;
+        controller.enqueue(
+          encoder.encode(
+            streamLine({
+              type: "progress",
+              processed,
+              total,
+              remaining: total - processed,
+              currentFileName: file.name,
+            })
+          )
+        );
+      }
+
+      const succeeded = results.filter((r) => r.success).length;
+      const failed = results.filter((r) => !r.success);
+
+      if (skippedFiles.length > 0) {
+        const skippedList = skippedFiles
+          .map((s) => `• ${s.fileName}: ${s.reason}`)
+          .join("\n");
+        await createNotificationIfEnabled({
+          userId,
+          type: "AI_TASK",
+          category: "warning",
+          title: "Часть файлов пропущена при векторизации",
+          body:
+            failed.length === 1
+              ? `${skippedFiles[0].fileName} — ${skippedFiles[0].reason}`
+              : `${failed.length} файлов не участвуют в векторной базе «${collection.name}»:\n${skippedList}`,
+          payload: {
+            collectionId: id,
+            collectionName: collection.name,
+            skippedCount: failed.length,
+            skipped: skippedFiles,
+          },
+        });
+      }
+
+      if (succeeded > 0) {
+        await createNotificationIfEnabled({
+          userId,
+          type: "AI_TASK",
+          category: "success",
+          title: "Векторизация завершена",
+          body: `Обработано ${succeeded} из ${results.length} файлов в «${collection.name}»`,
+          payload: {
+            collectionId: id,
+            collectionName: collection.name,
+            succeeded,
+            total: results.length,
+          },
+        });
+      }
+
+      controller.enqueue(
+        encoder.encode(
+          streamLine({
+            type: "done",
+            collectionId: id,
+            total: results.length,
+            succeeded,
+            failed: results.length - succeeded,
+          })
+        )
       );
-      results.push({
-        fileId: file.id,
-        fileName: file.name,
-        success: true,
-        textLength: result.text.length,
-        numPages: result.numPages ?? undefined,
-      });
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      results.push({
-        fileId: file.id,
-        fileName: file.name,
-        success: false,
-        error: msg,
-        skipped: false,
-      });
-      skippedFiles.push({
-        fileName: file.name,
-        reason: msg,
-      });
-    }
-  }
+      controller.close();
+    },
+  });
 
-  const succeeded = results.filter((r) => r.success).length;
-  const failed = results.filter((r) => !r.success);
-
-  if (skippedFiles.length > 0) {
-    const skippedList = skippedFiles
-      .map((s) => `• ${s.fileName}: ${s.reason}`)
-      .join("\n");
-    await createNotificationIfEnabled({
-      userId,
-      type: "AI_TASK",
-      category: "warning",
-      title: "Часть файлов пропущена при векторизации",
-      body:
-        failed.length === 1
-          ? `${skippedFiles[0].fileName} — ${skippedFiles[0].reason}`
-          : `${failed.length} файлов не участвуют в векторной базе «${collection.name}»:\n${skippedList}`,
-      payload: {
-        collectionId: id,
-        collectionName: collection.name,
-        skippedCount: failed.length,
-        skipped: skippedFiles,
-      },
-    });
-  }
-
-  if (succeeded > 0) {
-    await createNotificationIfEnabled({
-      userId,
-      type: "AI_TASK",
-      category: "success",
-      title: "Векторизация завершена",
-      body: `Обработано ${succeeded} из ${results.length} файлов в «${collection.name}»`,
-      payload: {
-        collectionId: id,
-        collectionName: collection.name,
-        succeeded,
-        total: results.length,
-      },
-    });
-  }
-
-  return NextResponse.json({
-    collectionId: id,
-    collectionName: collection.name,
-    total: results.length,
-    succeeded,
-    failed: results.length - succeeded,
-    results,
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-cache",
+    },
   });
 }

@@ -9,6 +9,7 @@ import {
   Zap,
   FolderOpen,
   FileText,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,11 @@ export default function RagMemoryPage() {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [creating, setCreating] = useState(false);
   const [vectorizingId, setVectorizingId] = useState<string | null>(null);
+  const [vectorizeProgress, setVectorizeProgress] = useState<{
+    processed: number;
+    total: number;
+  } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadCollections = useCallback(async () => {
     setLoading(true);
@@ -168,27 +174,91 @@ export default function RagMemoryPage() {
   };
 
   const handleVectorize = async (collectionId: string) => {
+    const coll = collections.find((x) => x.id === collectionId);
     setVectorizingId(collectionId);
+    setVectorizeProgress({ processed: 0, total: coll?.filesCount ?? 0 });
     try {
       const res = await fetch(`/api/v1/rag/collections/${collectionId}/vectorize`, {
         method: "POST",
         credentials: "include",
       });
-      const data = await res.json();
 
       if (!res.ok) {
+        const data = await res.json();
         toast.error(data.error || "Ошибка векторизации");
         return;
       }
 
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) {
+        toast.error("Ошибка чтения ответа");
+        return;
+      }
+
+      let buffer = "";
+      let finalData: { succeeded?: number; total?: number; failed?: number } = {};
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const ev = JSON.parse(line) as { type: string; processed?: number; total?: number; remaining?: number; succeeded?: number; failed?: number };
+            if (ev.type === "progress" && ev.processed != null && ev.total != null) {
+              setVectorizeProgress({ processed: ev.processed, total: ev.total });
+            } else if (ev.type === "done") {
+              finalData = { succeeded: ev.succeeded, total: ev.total, failed: ev.failed };
+            }
+          } catch {
+            /* skip invalid lines */
+          }
+        }
+      }
+      if (buffer.trim()) {
+        try {
+          const ev = JSON.parse(buffer) as { type: string; succeeded?: number; total?: number; failed?: number };
+          if (ev.type === "done") {
+            finalData = { succeeded: ev.succeeded, total: ev.total, failed: ev.failed };
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
       toast.success(
-        `Векторизовано: ${data.succeeded} из ${data.total}${data.failed > 0 ? ` (${data.failed} пропущено)` : ""}`
+        `Векторизовано: ${finalData.succeeded ?? 0} из ${finalData.total ?? 0}${(finalData.failed ?? 0) > 0 ? ` (${finalData.failed} пропущено)` : ""}`
       );
       loadCollections();
     } catch {
       toast.error("Ошибка векторизации");
     } finally {
       setVectorizingId(null);
+      setVectorizeProgress(null);
+    }
+  };
+
+  const handleDeleteVectors = async (collectionId: string) => {
+    setDeletingId(collectionId);
+    try {
+      const res = await fetch(`/api/v1/rag/collections/${collectionId}/embeddings`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Ошибка удаления векторов");
+        return;
+      }
+      toast.success("Векторы удалены");
+      loadCollections();
+    } catch {
+      toast.error("Ошибка удаления векторов");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -244,51 +314,85 @@ export default function RagMemoryPage() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {collections.map((c) => (
-            <Card key={c.id} className="overflow-hidden border-border bg-surface">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                    <BrainCircuit className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold truncate">{c.name}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {c.filesCount} файлов • {c.filesWithEmbeddings} с эмбеддингами
-                    </p>
-                    {c.folder && (
-                      <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1">
-                        <FolderOpen className="h-3 w-3" />
-                        {c.folder.name}
+          {collections.map((c) => {
+            const isFullyVectorized = c.filesCount > 0 && c.filesWithEmbeddings === c.filesCount;
+            const isVectorizing = vectorizingId === c.id;
+            const progress = isVectorizing ? vectorizeProgress : null;
+            return (
+              <Card key={c.id} className="overflow-hidden border-border bg-surface">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <BrainCircuit className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate">{c.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {c.filesCount} файлов • {c.filesWithEmbeddings} с эмбеддингами
                       </p>
-                    )}
+                      {c.folder && (
+                        <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1">
+                          <FolderOpen className="h-3 w-3" />
+                          {c.folder.name}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1"
-                    onClick={() => handleVectorize(c.id)}
-                    disabled={vectorizingId !== null || c.filesCount === 0}
-                  >
-                    {vectorizingId === c.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Zap className="h-3 w-3" />
-                    )}
-                    Векторизовать
-                  </Button>
-                  <Link href="/dashboard/embeddings">
-                    <Button size="sm" variant="ghost" className="gap-1">
-                      <FileText className="h-3 w-3" />
-                      Векторная база
+                  {isVectorizing && progress && progress.total > 0 && (
+                    <div className="mt-3 space-y-1">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/20">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all duration-300"
+                          style={{ width: `${(progress.processed / progress.total) * 100}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Осталось файлов: {progress.total - progress.processed}
+                      </p>
+                    </div>
+                  )}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={`gap-1 ${isFullyVectorized ? "opacity-50 cursor-not-allowed" : ""}`}
+                      onClick={() => !isFullyVectorized && handleVectorize(c.id)}
+                      disabled={vectorizingId !== null || c.filesCount === 0 || isFullyVectorized}
+                    >
+                      {isVectorizing ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Zap className="h-3 w-3" />
+                      )}
+                      Векторизовать
                     </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    {isFullyVectorized && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="gap-1"
+                        onClick={() => handleDeleteVectors(c.id)}
+                        disabled={deletingId !== null}
+                      >
+                        {deletingId === c.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
+                        Удалить вектора
+                      </Button>
+                    )}
+                    <Link href="/dashboard/embeddings">
+                      <Button size="sm" variant="ghost" className="gap-1">
+                        <FileText className="h-3 w-3" />
+                        Векторная база
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
