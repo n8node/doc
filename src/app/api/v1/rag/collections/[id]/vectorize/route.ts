@@ -98,6 +98,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   const skippedFiles: Array<{ fileName: string; reason: string }> = [];
 
   const encoder = new TextEncoder();
+  const STAGE_DELAY_MS = 500;
+
   const stream = new ReadableStream({
     async start(controller) {
       controller.enqueue(
@@ -109,6 +111,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
           })
         )
       );
+      await new Promise((r) => setTimeout(r, STAGE_DELAY_MS));
+
       controller.enqueue(
         encoder.encode(
           streamLine({
@@ -118,6 +122,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
           })
         )
       );
+      await new Promise((r) => setTimeout(r, STAGE_DELAY_MS));
+
       controller.enqueue(
         encoder.encode(
           streamLine({
@@ -128,6 +134,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
           })
         )
       );
+      await new Promise((r) => setTimeout(r, STAGE_DELAY_MS));
 
       let processed = 0;
       for (const { file } of collection.files) {
