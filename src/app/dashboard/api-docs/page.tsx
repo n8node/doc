@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -378,7 +377,7 @@ export default function ApiDocsPage() {
                   <p className="text-xs text-muted-foreground">
                     Для n8n: HTTP Request → <code className="rounded bg-surface2 px-1">GET /api/v1/files/search?q=...&collectionId=...</code>
                     {" "}
-                    <Link href="/dashboard/n8n-guide" className="text-primary hover:underline">Гайд по интеграции</Link>
+                    <a href="/dashboard/n8n-guide" className="text-primary hover:underline">Гайд по интеграции</a>
                   </p>
                   <Section
                     method="GET"
@@ -389,7 +388,7 @@ export default function ApiDocsPage() {
                     method="POST"
                     path="/api/v1/rag/collections"
                     desc="Создать коллекцию"
-                    body={{ name: "string", folderId?: "string", fileIds?: "string[]" }}
+                    body={{ name: "string", folderId: "string (optional)", fileIds: "string[] (optional)" }}
                   />
                   <Section
                     method="GET"
@@ -400,7 +399,7 @@ export default function ApiDocsPage() {
                     method="PATCH"
                     path="/api/v1/rag/collections/{id}"
                     desc="Обновить коллекцию"
-                    body={{ name?: "string", folderId?: "string | null", fileIds?: "string[]" }}
+                    body={{ name: "string (optional)", folderId: "string | null (optional)", fileIds: "string[] (optional)" }}
                   />
                   <Section
                     method="DELETE"

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { getProviderForUser } from "@/lib/ai/get-provider-for-user";
 import { findSimilar, findSimilarByKeyword } from "@/lib/docling/vector-store";
@@ -125,7 +126,7 @@ export async function GET(request: NextRequest) {
     if (searchByName) {
       const words = q.trim().split(/\s+/).filter((w) => w.length >= 2);
       if (words.length > 0) {
-        const nameWhere: { userId: string; deletedAt: null; id?: { in: string[] }; OR?: unknown[] } = {
+        const nameWhere: Prisma.FileWhereInput = {
           userId,
           deletedAt: null,
           OR: words.map((w) => ({ name: { contains: w, mode: "insensitive" as const } })),
