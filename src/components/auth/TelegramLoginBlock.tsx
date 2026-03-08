@@ -111,16 +111,16 @@ export function TelegramLoginBlock({
   if (!methods.telegramWidgetEnabled && !methods.telegramQrEnabled) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="flex w-full flex-col items-center space-y-4 text-center">
       {methods.telegramWidgetEnabled && methods.telegramBotUsername && (
-        <div>
+        <div className="flex w-full flex-col items-center">
           <p className="mb-2 text-sm text-muted-foreground">Войти через Telegram</p>
-          <div ref={widgetRef} className="min-h-[40px]" />
+          <div ref={widgetRef} className="flex min-h-[40px] justify-center" />
         </div>
       )}
 
       {methods.telegramQrEnabled && (
-        <div>
+        <div className="flex w-full flex-col items-center">
           <p className="mb-2 text-sm text-muted-foreground">Войти по QR-коду</p>
           {qrStatus === "idle" && (
             <button
@@ -155,7 +155,7 @@ export function TelegramLoginBlock({
             </div>
           )}
           {qrStatus === "linked" && (
-            <div className="flex items-center gap-2 text-emerald-600">
+            <div className="flex items-center justify-center gap-2 text-emerald-600">
               <Loader2 className="h-4 w-4 animate-spin" />
               Вход...
             </div>

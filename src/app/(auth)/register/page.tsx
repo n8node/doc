@@ -118,7 +118,7 @@ export default function RegisterPage() {
 
         <div className="rounded-2xl border border-border bg-surface p-8 shadow-soft">
           {authMethods && (authMethods.telegramWidgetEnabled || authMethods.telegramQrEnabled) && (
-            <div className={`flex flex-col gap-4 ${authMethods.emailRegistrationEnabled !== false ? "mb-6 border-b border-border pb-6" : ""}`}>
+            <div className={`flex flex-col items-center gap-4 text-center ${authMethods.emailRegistrationEnabled !== false ? "mb-6 border-b border-border pb-6" : ""}`}>
               <p className="text-sm text-muted-foreground">Зарегистрируйтесь через Telegram</p>
               <TelegramLoginBlock methods={authMethods} callbackUrl="/dashboard" />
             </div>
