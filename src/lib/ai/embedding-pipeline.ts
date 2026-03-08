@@ -113,6 +113,7 @@ export async function runEmbeddingPipeline(
     await prisma.file.update({
       where: { id: fileId },
       data: {
+        hasEmbedding: created > 0,
         aiMetadata: {
           ...existingMeta,
           embeddingsCount: created,
