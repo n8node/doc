@@ -50,9 +50,10 @@ export async function createN8nConnection(
     await client.query("CREATE EXTENSION IF NOT EXISTS vector");
     // Ensure schema
     await client.query(`CREATE SCHEMA IF NOT EXISTS ${SCHEMA_NAME}`);
-    // Create role
-    await client.query(`CREATE ROLE "${dbRoleName}" WITH LOGIN PASSWORD $1`, [password]);
-    await client.query(`ALTER ROLE "${dbRoleName}" SET search_path = ${SCHEMA_NAME}`);
+    // Create role (PostgreSQL does not support $1 in PASSWORD clause)
+    const escapedPwd = password.replace(/'/g, "''");
+    await client.query(`CREATE ROLE "${dbRoleName}" WITH LOGIN PASSWORD '${escapedPwd}'`);
+    await client.query(`ALTER ROLE "${dbRoleName}" SET search_path = '${SCHEMA_NAME}'`);
     // Grant usage on schema
     await client.query(`GRANT USAGE ON SCHEMA ${SCHEMA_NAME} TO "${dbRoleName}"`);
 
