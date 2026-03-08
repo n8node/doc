@@ -13,6 +13,8 @@ export function TelegramSettingsForm() {
   const [showToken, setShowToken] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [botRunning, setBotRunning] = useState<boolean | null>(null);
+  const [autoStartEnabled, setAutoStartEnabled] = useState<boolean>(false);
+  const [autoStartSource, setAutoStartSource] = useState<"env" | "config" | null>(null);
   const [botAction, setBotAction] = useState(false);
   const [values, setValues] = useState({
     botToken: "",
@@ -26,7 +28,11 @@ export function TelegramSettingsForm() {
   const fetchBotStatus = () => {
     fetch("/api/v1/admin/telegram-bot")
       .then((r) => r.json())
-      .then((data) => setBotRunning(data.running === true))
+      .then((data) => {
+        setBotRunning(data.running === true);
+        setAutoStartEnabled(data.autoStartEnabled === true);
+        setAutoStartSource(data.autoStartSource ?? null);
+      })
       .catch(() => setBotRunning(null));
   };
 
@@ -64,6 +70,8 @@ export function TelegramSettingsForm() {
       if (data.ok) {
         toast.success(data.message);
         setBotRunning(true);
+        setAutoStartEnabled(true);
+        setAutoStartSource("config");
       } else toast.error(data.message ?? "Ошибка");
     } catch {
       toast.error("Ошибка запроса");
@@ -84,6 +92,7 @@ export function TelegramSettingsForm() {
       if (data.ok) {
         toast.success(data.message);
         setBotRunning(false);
+        fetchBotStatus(); // обновить autoStartEnabled (env может оставаться активным)
       } else toast.error(data.message ?? "Ошибка");
     } catch {
       toast.error("Ошибка запроса");
@@ -272,10 +281,23 @@ export function TelegramSettingsForm() {
         <p className="mt-2 text-sm text-muted-foreground">
           Бот обрабатывает /start login_xxx при входе по QR. Запускается внутри приложения.
         </p>
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <span className="text-sm text-muted-foreground">
             Статус: {botRunning === null ? "—" : botRunning ? "запущен" : "остановлен"}
           </span>
+          {autoStartEnabled && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400"
+              title={
+                autoStartSource === "env"
+                  ? "Автозапуск включён через TELEGRAM_BOT_AUTO_START"
+                  : "Бот будет запускаться при перезагрузке"
+              }
+            >
+              <CheckCircle className="h-3.5 w-3.5" />
+              Автозапуск при перезагрузке{autoStartSource === "env" ? " (env)" : ""}
+            </span>
+          )}
           <Button
             variant="outline"
             size="sm"

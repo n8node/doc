@@ -4,11 +4,20 @@ export async function register() {
       try {
         const { configStore } = await import("./src/lib/config-store");
         const { startTelegramBot, isTelegramBotRunning } = await import("./src/lib/telegram-bot-service");
-        const autoStart = await configStore.get("telegram.bot_auto_start");
-        if (autoStart === "true" && !isTelegramBotRunning()) {
+        const autoStartFromEnv = process.env.TELEGRAM_BOT_AUTO_START === "true";
+        const autoStartFromConfig = (await configStore.get("telegram.bot_auto_start")) === "true";
+        const shouldAutoStart = autoStartFromEnv || autoStartFromConfig;
+        if (shouldAutoStart && !isTelegramBotRunning()) {
           const r = await startTelegramBot();
-          if (r.ok) console.log("[telegram-bot] Auto-started on boot");
-          else console.warn("[telegram-bot] Auto-start failed:", r.message);
+          if (r.ok) {
+            console.log(
+              autoStartFromEnv
+                ? "[telegram-bot] Auto-started on boot (TELEGRAM_BOT_AUTO_START)"
+                : "[telegram-bot] Auto-started on boot"
+            );
+          } else {
+            console.warn("[telegram-bot] Auto-start failed:", r.message);
+          }
         }
       } catch (e) {
         console.warn("[telegram-bot] Auto-start check failed:", e);
