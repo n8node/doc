@@ -100,6 +100,35 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      controller.enqueue(
+        encoder.encode(
+          streamLine({
+            type: "stage",
+            stage: "fetching_files",
+            filesCount: total,
+          })
+        )
+      );
+      controller.enqueue(
+        encoder.encode(
+          streamLine({
+            type: "stage",
+            stage: "analyzing_formats",
+            filesCount: total,
+          })
+        )
+      );
+      controller.enqueue(
+        encoder.encode(
+          streamLine({
+            type: "stage",
+            stage: "ready",
+            processableCount,
+            total,
+          })
+        )
+      );
+
       let processed = 0;
       for (const { file } of collection.files) {
         if (!isProcessable(file.mimeType)) {
@@ -121,6 +150,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
                 type: "progress",
                 processed,
                 total,
+                processableCount,
                 remaining: total - processed,
                 currentFileName: file.name,
               })
@@ -165,6 +195,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
               type: "progress",
               processed,
               total,
+              processableCount,
               remaining: total - processed,
               currentFileName: file.name,
             })

@@ -77,9 +77,12 @@ export default function RagMemoryPage() {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [creating, setCreating] = useState(false);
   const [vectorizingId, setVectorizingId] = useState<string | null>(null);
-  const [vectorizeProgress, setVectorizeProgress] = useState<{
-    processed: number;
-    total: number;
+  const [vectorizeState, setVectorizeState] = useState<{
+    stage: "fetching_files" | "analyzing_formats" | "ready" | "vectorizing";
+    message: string;
+    progressPercent: number;
+    processed?: number;
+    total?: number;
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -181,9 +184,12 @@ export default function RagMemoryPage() {
   };
 
   const handleVectorize = async (collectionId: string) => {
-    const coll = collections.find((x) => x.id === collectionId);
     setVectorizingId(collectionId);
-    setVectorizeProgress({ processed: 0, total: coll?.filesCount ?? 0 });
+    setVectorizeState({
+      stage: "fetching_files",
+      message: "Получаем файлы…",
+      progressPercent: 0,
+    });
     try {
       const res = await fetch(`/api/v1/rag/collections/${collectionId}/vectorize`, {
         method: "POST",
@@ -205,6 +211,7 @@ export default function RagMemoryPage() {
 
       let buffer = "";
       let finalData: { succeeded?: number; total?: number; failed?: number } = {};
+      let processableCount = 0;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -214,9 +221,50 @@ export default function RagMemoryPage() {
         for (const line of lines) {
           if (!line.trim()) continue;
           try {
-            const ev = JSON.parse(line) as { type: string; processed?: number; total?: number; remaining?: number; succeeded?: number; failed?: number };
-            if (ev.type === "progress" && ev.processed != null && ev.total != null) {
-              setVectorizeProgress({ processed: ev.processed, total: ev.total });
+            const ev = JSON.parse(line) as {
+              type: string;
+              stage?: string;
+              filesCount?: number;
+              processableCount?: number;
+              total?: number;
+              processed?: number;
+              remaining?: number;
+              succeeded?: number;
+              failed?: number;
+            };
+            if (ev.type === "stage") {
+              if (ev.stage === "fetching_files" && ev.filesCount != null) {
+                setVectorizeState({
+                  stage: "fetching_files",
+                  message: `Получаем файлы (${ev.filesCount})`,
+                  progressPercent: 15,
+                });
+              } else if (ev.stage === "analyzing_formats") {
+                setVectorizeState({
+                  stage: "analyzing_formats",
+                  message: "Анализируем форматы файлов",
+                  progressPercent: 30,
+                });
+              } else if (ev.stage === "ready" && ev.processableCount != null && ev.total != null) {
+                processableCount = ev.processableCount;
+                setVectorizeState({
+                  stage: "ready",
+                  message: `Получено ${ev.processableCount} файлов пригодных к векторизации`,
+                  progressPercent: 40,
+                  total: ev.total,
+                  processed: 0,
+                });
+              }
+            } else if (ev.type === "progress" && ev.processed != null && ev.total != null) {
+              const pc = ev.processableCount ?? processableCount;
+              const pct = pc > 0 ? 40 + (60 * ev.processed) / ev.total : 100;
+              setVectorizeState({
+                stage: "vectorizing",
+                message: `Векторизация: ${ev.processed} из ${ev.total}${ev.remaining != null ? ` (осталось ${ev.remaining})` : ""}`,
+                progressPercent: Math.min(100, Math.round(pct)),
+                processed: ev.processed,
+                total: ev.total,
+              });
             } else if (ev.type === "done") {
               finalData = { succeeded: ev.succeeded, total: ev.total, failed: ev.failed };
             }
@@ -244,7 +292,7 @@ export default function RagMemoryPage() {
       toast.error("Ошибка векторизации");
     } finally {
       setVectorizingId(null);
-      setVectorizeProgress(null);
+      setVectorizeState(null);
     }
   };
 
@@ -326,7 +374,7 @@ export default function RagMemoryPage() {
             const isFullyVectorized = processableCount > 0 && c.filesWithEmbeddings === processableCount;
             const canDeleteVectors = c.filesWithEmbeddings > 0;
             const isVectorizing = vectorizingId === c.id;
-            const progress = isVectorizing ? vectorizeProgress : null;
+            const vecState = isVectorizing ? vectorizeState : null;
             return (
               <Card key={c.id} className="overflow-hidden border-border bg-surface">
                 <CardContent className="p-4">
@@ -374,16 +422,16 @@ export default function RagMemoryPage() {
                       )}
                     </div>
                   </div>
-                  {isVectorizing && progress && progress.total > 0 && (
+                  {isVectorizing && vecState && (
                     <div className="mt-3 space-y-1">
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/20">
                         <div
                           className="h-full rounded-full bg-primary transition-all duration-300"
-                          style={{ width: `${(progress.processed / progress.total) * 100}%` }}
+                          style={{ width: `${vecState.progressPercent}%` }}
                         />
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Осталось файлов: {progress.total - progress.processed}
+                        {vecState.message}
                       </p>
                     </div>
                   )}
