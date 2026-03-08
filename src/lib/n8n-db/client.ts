@@ -32,7 +32,7 @@ export function getN8nDbConnectionParams(): N8nDbConnectionParams | null {
         const appUrl = process.env.APP_URL.trim();
         publicHost = new URL(appUrl.startsWith("http") ? appUrl : `https://${appUrl}`).hostname;
       } catch {
-        publicHost = null;
+        publicHost = undefined;
       }
     }
     publicHost = publicHost || u.hostname;
