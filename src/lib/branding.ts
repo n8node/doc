@@ -29,10 +29,16 @@ export async function getBrandingConfig(): Promise<BrandingConfig> {
     ]);
     const siteName = (siteNameRaw ?? "").trim() || DEFAULT_SITE_NAME;
     const sidebarSubtitle = (sidebarSubtitleRaw ?? "").trim() || DEFAULT_SIDEBAR_SUBTITLE;
+    const logoUrl = logoKey
+      ? `${getBrandingAssetUrl("logo")}?v=${encodeURIComponent(logoKey)}`
+      : null;
+    const faviconUrl = faviconKey
+      ? `${getBrandingAssetUrl("favicon")}?v=${encodeURIComponent(faviconKey)}`
+      : null;
     return {
       siteName,
-      logoUrl: logoKey ? getBrandingAssetUrl("logo") : null,
-      faviconUrl: faviconKey ? getBrandingAssetUrl("favicon") : null,
+      logoUrl,
+      faviconUrl,
       sidebarSubtitle,
     };
   } catch {

@@ -3,17 +3,18 @@ import "./globals.css";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "sonner";
-import { getSiteName } from "@/lib/branding";
+import { getBrandingConfig } from "@/lib/branding";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const siteName = await getSiteName();
+  const branding = await getBrandingConfig();
+  const favicon = branding.faviconUrl || "/favicon.ico";
   return {
-    title: `${siteName} — Облачное хранилище с AI`,
+    title: `${branding.siteName} — Облачное хранилище с AI`,
     description: "Dropbox-подобный сервис для РФ с поиском по документам",
     icons: {
-      icon: "/api/public/branding/favicon",
-      shortcut: "/api/public/branding/favicon",
-      apple: "/api/public/branding/favicon",
+      icon: favicon,
+      shortcut: favicon,
+      apple: favicon,
     },
   };
 }
