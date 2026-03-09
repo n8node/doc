@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getAuthSettings } from "@/lib/telegram-auth";
 import { configStore } from "@/lib/config-store";
+import { getSiteName } from "@/lib/branding";
 
 export const dynamic = "force-dynamic";
 
 /** Public: returns which auth methods are enabled (for login/register pages) */
 export async function GET() {
-  const [settings, botUsername] = await Promise.all([
+  const [settings, botUsername, siteName] = await Promise.all([
     getAuthSettings(),
     configStore.get("auth.telegram_bot_username"),
+    getSiteName(),
   ]);
   return NextResponse.json({
     emailRegistrationEnabled: settings.emailRegistrationEnabled,
@@ -18,5 +20,6 @@ export async function GET() {
     telegramQrEnabled: settings.telegramQrEnabled,
     telegramDomain: settings.telegramDomain,
     telegramBotUsername: botUsername || "",
+    siteName,
   });
 }

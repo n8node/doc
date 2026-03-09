@@ -24,6 +24,7 @@ function LoginForm() {
     telegramQrEnabled: boolean;
     telegramDomain: string;
     telegramBotUsername: string;
+    siteName: string;
   } | null>(null);
 
   useEffect(() => {
@@ -37,6 +38,7 @@ function LoginForm() {
         telegramQrEnabled: false,
         telegramDomain: "qoqon.ru",
         telegramBotUsername: "",
+        siteName: "qoqon.ru",
       }));
   }, []);
 
@@ -79,7 +81,7 @@ function LoginForm() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">Вход в аккаунт</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Облачное хранилище qoqon.ru
+            Облачное хранилище {authMethods?.siteName || "qoqon.ru"}
           </p>
         </div>
 

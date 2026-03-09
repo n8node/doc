@@ -39,6 +39,7 @@ export default function RegisterPage() {
     telegramQrEnabled: boolean;
     telegramDomain: string;
     telegramBotUsername: string;
+    siteName: string;
   } | null>(null);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function RegisterPage() {
         telegramQrEnabled: false,
         telegramDomain: "qoqon.ru",
         telegramBotUsername: "",
+        siteName: "qoqon.ru",
       }));
   }, []);
 
@@ -143,7 +145,7 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">Создать аккаунт</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Облачное хранилище qoqon.ru
+            Облачное хранилище {authMethods?.siteName || "qoqon.ru"}
           </p>
         </div>
 

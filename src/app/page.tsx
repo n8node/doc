@@ -3,8 +3,11 @@ import { Footer } from "@/components/layout/Footer";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getSiteName } from "@/lib/branding";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const siteName = await getSiteName();
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -12,7 +15,7 @@ export default function HomePage() {
         <div className="container mx-auto max-w-6xl px-4 py-16">
           <Card glass className="p-12">
             <h1 className="mb-4 text-4xl font-bold tracking-tight text-foreground">
-              qoqon.ru
+              {siteName}
             </h1>
             <p className="mb-8 text-lg text-muted-foreground">
               Облачное хранилище с AI-поиском по документам
