@@ -97,22 +97,6 @@ export async function runEmbeddingPipeline(
         totalPromptTokens += result.usage.promptTokens;
         totalTokens += result.usage.totalTokens;
       }
-      const spent = result.usage?.totalTokens ?? result.usage?.promptTokens ?? 0;
-      if (spent > 0) {
-        await recordTokenUsageEvent({
-          userId,
-          category: "EMBEDDING",
-          sourceType: "embedding",
-          sourceId: fileId,
-          tokensIn: result.usage?.promptTokens ?? spent,
-          tokensTotal: spent,
-          provider: providerName,
-          model: result.model ?? undefined,
-          isBillable: !usedOwnKey,
-          metadata: { chunkIndex: chunk.index },
-        });
-      }
-
       const id = `${fileId}_chunk_${chunk.index}`;
       await insertEmbedding({
         id,
@@ -132,6 +116,20 @@ export async function runEmbeddingPipeline(
     }
 
     const tokensUsed = totalTokens > 0 ? totalTokens : totalPromptTokens > 0 ? totalPromptTokens : undefined;
+    if ((tokensUsed ?? 0) > 0) {
+      await recordTokenUsageEvent({
+        userId,
+        category: "EMBEDDING",
+        sourceType: "embedding",
+        sourceId: fileId,
+        tokensIn: totalPromptTokens > 0 ? totalPromptTokens : tokensUsed,
+        tokensTotal: tokensUsed,
+        provider: providerName,
+        model: modelName ?? undefined,
+        isBillable: !usedOwnKey,
+        metadata: { chunksCount: chunks.length, embeddingsCreated: created },
+      });
+    }
 
     await prisma.aiTask.update({
       where: { id: task.id },

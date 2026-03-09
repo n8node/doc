@@ -86,6 +86,50 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
+  const fileIds = Array.from(
+    new Set(
+      recent
+        .filter(
+          (e) =>
+            (e.sourceType === "embedding" ||
+              e.sourceType === "document_chat" ||
+              e.sourceType === "transcription") &&
+            typeof e.sourceId === "string" &&
+            e.sourceId.length > 0,
+        )
+        .map((e) => e.sourceId as string),
+    ),
+  );
+  const files = fileIds.length
+    ? await prisma.file.findMany({
+      where: { id: { in: fileIds } },
+      select: { id: true, name: true },
+    })
+    : [];
+  const fileNameById = new Map(files.map((f) => [f.id, f.name]));
+
+  const recentEventsFormatted = recent.map((e) => {
+    const fileName = e.sourceId ? fileNameById.get(e.sourceId) : null;
+    let title = "Операция";
+    if (e.sourceType === "embedding") {
+      title = `Эмбеддинг: ${fileName ?? "документ"}`;
+    } else if (e.sourceType === "document_chat") {
+      title = `Чат: ${fileName ?? "документ"}`;
+    } else if (e.sourceType === "transcription") {
+      title = `Транскрибация: ${fileName ?? "документ"}`;
+    } else if (e.sourceType === "search") {
+      title = "Поиск";
+    }
+
+    return {
+      id: e.id,
+      category: e.category,
+      title,
+      tokensTotal: e.tokensTotal,
+      createdAt: e.createdAt,
+    };
+  });
+
   const quotas = getPlanTokenQuotas(billing.plan);
   const totalQuota = getTotalQuota(quotas);
   const totalUsed = current.totalTokens;
@@ -132,7 +176,7 @@ export async function GET(request: NextRequest) {
     },
     currentCycle: current,
     sinceAnchor: sinceRegistration,
-    recentEvents: recent,
+    recentEvents: recentEventsFormatted,
     daily,
     freeVsPaid: {
       freeTokens,

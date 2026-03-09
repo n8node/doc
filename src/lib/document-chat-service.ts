@@ -87,20 +87,7 @@ export async function sendDocumentChatMessage(
   }
 
   const embResult = await active.provider.generateEmbedding(input.content);
-  if ((embResult.usage?.totalTokens ?? embResult.usage?.promptTokens ?? 0) > 0) {
-    await recordTokenUsageEvent({
-      userId: input.userId,
-      category: "CHAT_DOCUMENT",
-      sourceType: "document_chat",
-      sourceId: input.fileId,
-      tokensIn: embResult.usage?.promptTokens ?? embResult.usage?.totalTokens ?? 0,
-      tokensTotal: embResult.usage?.totalTokens ?? embResult.usage?.promptTokens ?? 0,
-      provider: active.providerName,
-      model: embResult.model ?? undefined,
-      isBillable: !active.usedOwnKey,
-      metadata: { phase: "context_embedding" },
-    });
-  }
+  const contextTokens = embResult.usage?.totalTokens ?? embResult.usage?.promptTokens ?? 0;
   const similar = await findSimilarForFile(
     embResult.vector,
     input.fileId,
@@ -157,22 +144,23 @@ export async function sendDocumentChatMessage(
   });
 
   const usage = completion.usage;
-  const totalTokens = usage
+  const completionTokens = usage
     ? (usage.totalTokens ?? usage.promptTokens + usage.completionTokens)
     : 0;
+  const totalTokens = completionTokens + contextTokens;
   if (totalTokens > 0) {
     await recordTokenUsageEvent({
       userId: input.userId,
       category: "CHAT_DOCUMENT",
       sourceType: "document_chat",
       sourceId: input.fileId,
-      tokensIn: usage?.promptTokens ?? 0,
+      tokensIn: (usage?.promptTokens ?? 0) + contextTokens,
       tokensOut: usage?.completionTokens ?? 0,
       tokensTotal: totalTokens,
       provider: active.providerName,
       model: completion.model ?? active.providerName,
       isBillable: !active.usedOwnKey,
-      metadata: { phase: "chat_completion" },
+      metadata: { contextEmbeddingTokens: contextTokens },
     });
 
     await prisma.aiTask.create({
@@ -187,7 +175,7 @@ export async function sendDocumentChatMessage(
         output: {
           promptTokens: usage?.promptTokens ?? 0,
           completionTokens: usage?.completionTokens ?? 0,
-          totalTokens,
+          totalTokens: completionTokens,
           model: completion.model ?? active.providerName,
         },
         completedAt: new Date(),

@@ -32,7 +32,7 @@ interface TokenUsageResponse {
   recentEvents: Array<{
     id: string;
     category: CategoryKey;
-    model: string | null;
+    title: string;
     tokensTotal: number;
     createdAt: string;
   }>;
@@ -288,7 +288,7 @@ export function TokenUsageWidget() {
                     {data.recentEvents.slice(0, 10).map((event) => (
                       <div key={event.id} className="flex items-center justify-between rounded-md bg-surface2/40 px-2 py-1.5">
                         <div>
-                          <p>{CATEGORY_LABELS[event.category]}</p>
+                          <p>{event.title}</p>
                           <p className="text-muted-foreground">
                             {new Date(event.createdAt).toLocaleString("ru-RU")}
                           </p>
