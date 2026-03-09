@@ -29,6 +29,8 @@ interface N8nConnection {
 }
 
 type N8nTarget = "DEFAULT" | "RF";
+// TODO(scale): re-enable RF target selection in UI when compliance/multi-region flow is revisited.
+const ENABLE_RF_TARGET_UI = false;
 
 interface N8nConnectionDialogProps {
   collectionId: string;
@@ -134,6 +136,7 @@ export function N8nConnectionDialog({
     }
     setCreating(true);
     setCreatedCreds(null);
+    const effectiveTarget: N8nTarget = ENABLE_RF_TARGET_UI ? selectedTarget : "DEFAULT";
     try {
       const res = await fetch(
         `/api/v1/rag/collections/${collectionId}/n8n-connections`,
@@ -141,7 +144,7 @@ export function N8nConnectionDialog({
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ target: selectedTarget }),
+          body: JSON.stringify({ target: effectiveTarget }),
         }
       );
       const data = await res.json();
@@ -259,9 +262,11 @@ export function N8nConnectionDialog({
                       <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
                         Сохраните данные — пароль больше не будет показан
                       </p>
-                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                        Цель: {targetLabel[createdCreds.target]}
-                      </p>
+                      {ENABLE_RF_TARGET_UI && (
+                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                          Цель: {targetLabel[createdCreds.target]}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-3">
                       <CopyField
@@ -317,36 +322,38 @@ export function N8nConnectionDialog({
                     exit={{ opacity: 0 }}
                     className="space-y-4"
                   >
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Куда создавать подключение</p>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <Button
-                          type="button"
-                          variant={selectedTarget === "DEFAULT" ? "default" : "outline"}
-                          className="justify-start"
-                          onClick={() => setSelectedTarget("DEFAULT")}
-                        >
-                          Стандартный сервер
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={selectedTarget === "RF" ? "default" : "outline"}
-                          className="justify-start"
-                          onClick={() => setSelectedTarget("RF")}
-                        >
-                          Внешний РФ сервер 🇷🇺
-                        </Button>
+                    {ENABLE_RF_TARGET_UI && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Куда создавать подключение</p>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <Button
+                            type="button"
+                            variant={selectedTarget === "DEFAULT" ? "default" : "outline"}
+                            className="justify-start"
+                            onClick={() => setSelectedTarget("DEFAULT")}
+                          >
+                            Стандартный сервер
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={selectedTarget === "RF" ? "default" : "outline"}
+                            className="justify-start"
+                            onClick={() => setSelectedTarget("RF")}
+                          >
+                            Внешний РФ сервер 🇷🇺
+                          </Button>
+                        </div>
+                        {!targetsStatus[selectedTarget] && (
+                          <p className="text-xs text-destructive">
+                            Для выбранного варианта не настроен URL подключения на сервере.
+                          </p>
+                        )}
                       </div>
-                      {!targetsStatus[selectedTarget] && (
-                        <p className="text-xs text-destructive">
-                          Для выбранного варианта не настроен URL подключения на сервере.
-                        </p>
-                      )}
-                    </div>
+                    )}
 
                     <Button
                       onClick={handleCreate}
-                      disabled={creating || !targetsStatus[selectedTarget]}
+                      disabled={creating || !targetsStatus.DEFAULT}
                       className="w-full gap-2"
                     >
                       {creating ? (
@@ -376,9 +383,11 @@ export function N8nConnectionDialog({
                                 <p className="text-xs text-muted-foreground">
                                   Таблица: {c.viewName} · {new Date(c.createdAt).toLocaleDateString("ru-RU")}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Цель: {targetLabel[(c.target === "RF" ? "RF" : "DEFAULT") as N8nTarget]}
-                                </p>
+                                {ENABLE_RF_TARGET_UI && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Цель: {targetLabel[(c.target === "RF" ? "RF" : "DEFAULT") as N8nTarget]}
+                                  </p>
+                                )}
                               </div>
                               <Button
                                 variant="ghost"
