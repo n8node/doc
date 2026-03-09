@@ -1,16 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Mail, Save, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
-type TemplateState = {
-  subject: string;
-  html: string;
-  text: string;
-};
 
 export function EmailSettingsForm() {
   const [loading, setLoading] = useState(true);
@@ -21,29 +15,18 @@ export function EmailSettingsForm() {
     enabled: false,
     smtpHost: "",
     smtpPort: 587,
-    smtpSecure: false,
+    smtpEncryption: "none" as "none" | "ssl" | "tls",
+    smtpAutoTls: true,
+    smtpAuthEnabled: true,
     smtpUsername: "",
     smtpPassword: "",
     smtpPasswordSet: false,
     smtpFromEmail: "no-reply@qoqon.ru",
     smtpFromName: "Qoqon",
     smtpReplyTo: "",
-    domain: "qoqon.ru",
-    dkimSelector: "mail",
-    dmarcPolicy: "none" as "none" | "quarantine" | "reject",
-    dmarcRua: "",
-    templates: {
-      verifyRegistration: {
-        subject: "",
-        html: "",
-        text: "",
-      } as TemplateState,
-      verifyLink: {
-        subject: "",
-        html: "",
-        text: "",
-      } as TemplateState,
-    },
+    smtpForceFromEmail: true,
+    smtpForceFromName: false,
+    smtpUseFromAsReplyTo: true,
   });
 
   useEffect(() => {
@@ -55,49 +38,26 @@ export function EmailSettingsForm() {
           enabled: data.enabled === true,
           smtpHost: data.smtpHost || "",
           smtpPort: Number(data.smtpPort || 587),
-          smtpSecure: data.smtpSecure === true,
+          smtpEncryption:
+            data.smtpEncryption === "ssl" || data.smtpEncryption === "tls"
+              ? data.smtpEncryption
+              : "none",
+          smtpAutoTls: data.smtpAutoTls !== false,
+          smtpAuthEnabled: data.smtpAuthEnabled !== false,
           smtpUsername: data.smtpUsername || "",
           smtpPassword: "",
           smtpPasswordSet: data.smtpPasswordSet === true,
           smtpFromEmail: data.smtpFromEmail || prev.smtpFromEmail,
           smtpFromName: data.smtpFromName || prev.smtpFromName,
           smtpReplyTo: data.smtpReplyTo || "",
-          domain: data.domain || prev.domain,
-          dkimSelector: data.dkimSelector || prev.dkimSelector,
-          dmarcPolicy:
-            data.dmarcPolicy === "quarantine" || data.dmarcPolicy === "reject" ? data.dmarcPolicy : "none",
-          dmarcRua: data.dmarcRua || "",
-          templates: {
-            verifyRegistration: {
-              subject: data.templates?.verifyRegistration?.subject || "",
-              html: data.templates?.verifyRegistration?.html || "",
-              text: data.templates?.verifyRegistration?.text || "",
-            },
-            verifyLink: {
-              subject: data.templates?.verifyLink?.subject || "",
-              html: data.templates?.verifyLink?.html || "",
-              text: data.templates?.verifyLink?.text || "",
-            },
-          },
+          smtpForceFromEmail: data.smtpForceFromEmail !== false,
+          smtpForceFromName: data.smtpForceFromName === true,
+          smtpUseFromAsReplyTo: data.smtpUseFromAsReplyTo === true,
         }));
       })
       .catch(() => toast.error("Не удалось загрузить email-настройки"))
       .finally(() => setLoading(false));
   }, []);
-
-  const dkimRecord = useMemo(
-    () =>
-      `${values.dkimSelector}._domainkey.${values.domain} IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLIC_KEY>"`,
-    [values.dkimSelector, values.domain]
-  );
-  const dmarcRecord = useMemo(() => {
-    const rua = values.dmarcRua ? `; rua=mailto:${values.dmarcRua}` : "";
-    return `_dmarc.${values.domain} IN TXT "v=DMARC1; p=${values.dmarcPolicy}${rua}"`;
-  }, [values.domain, values.dmarcPolicy, values.dmarcRua]);
-  const spfRecord = useMemo(
-    () => `${values.domain} IN TXT "v=spf1 mx a ~all"`,
-    [values.domain]
-  );
 
   const handleSave = async () => {
     setSaving(true);
@@ -157,21 +117,93 @@ export function EmailSettingsForm() {
       <div>
         <h2 className="text-lg font-semibold text-foreground">Email / SMTP</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Глобальная настройка почты, DNS-политик и шаблонов системных писем
+          Упрощенная настройка внешнего SMTP-сервера (например, Yandex 360)
         </p>
       </div>
 
-      <div className="space-y-6">
-        <label className="flex cursor-pointer items-center gap-3">
-          <input
-            type="checkbox"
-            checked={values.enabled}
-            onChange={(e) => setValues((v) => ({ ...v, enabled: e.target.checked }))}
-            className="h-4 w-4 rounded border-border accent-primary"
-          />
-          <span className="text-sm">Включить отправку email в системе</span>
-        </label>
+      <label className="flex cursor-pointer items-center gap-3">
+        <input
+          type="checkbox"
+          checked={values.enabled}
+          onChange={(e) => setValues((v) => ({ ...v, enabled: e.target.checked }))}
+          className="h-4 w-4 rounded border-border accent-primary"
+        />
+        <span className="text-sm">Включить отправку email в системе</span>
+      </label>
 
+      <div className="rounded-xl border border-border p-4">
+        <p className="mb-3 text-sm font-medium text-foreground">Быстрый пресет</p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            setValues((v) => ({
+              ...v,
+              smtpHost: "smtp.yandex.ru",
+              smtpPort: 465,
+              smtpEncryption: "ssl",
+              smtpAutoTls: true,
+              smtpAuthEnabled: true,
+            }))
+          }
+        >
+          Применить Yandex SMTP
+        </Button>
+      </div>
+
+      <div className="rounded-xl border border-border p-4 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">Настройки отправителя</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">Эл. адрес отправителя</label>
+            <Input
+              value={values.smtpFromEmail}
+              onChange={(e) => setValues((v) => ({ ...v, smtpFromEmail: e.target.value }))}
+              placeholder="hi@domain.tld"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">Имя отправителя</label>
+            <Input
+              value={values.smtpFromName}
+              onChange={(e) => setValues((v) => ({ ...v, smtpFromName: e.target.value }))}
+              placeholder="Qoqon"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={values.smtpForceFromEmail}
+              onChange={(e) => setValues((v) => ({ ...v, smtpForceFromEmail: e.target.checked }))}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm">Всегда использовать этот адрес отправителя</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={values.smtpForceFromName}
+              onChange={(e) => setValues((v) => ({ ...v, smtpForceFromName: e.target.checked }))}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm">Всегда использовать это имя отправителя</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={values.smtpUseFromAsReplyTo}
+              onChange={(e) => setValues((v) => ({ ...v, smtpUseFromAsReplyTo: e.target.checked }))}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm">Использовать этот адрес как Reply-To</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border p-4 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">SMTP подключение</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-foreground">SMTP host</label>
@@ -190,12 +222,54 @@ export function EmailSettingsForm() {
               onChange={(e) => setValues((v) => ({ ...v, smtpPort: Number(e.target.value || 587) }))}
             />
           </div>
+        </div>
+
+        <div>
+          <p className="mb-1 block text-sm font-medium text-foreground">Encryption</p>
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            {(["none", "ssl", "tls"] as const).map((mode) => (
+              <label key={mode} className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="smtpEncryption"
+                  checked={values.smtpEncryption === mode}
+                  onChange={() => setValues((v) => ({ ...v, smtpEncryption: mode }))}
+                  className="h-4 w-4 border-border accent-primary"
+                />
+                <span>{mode.toUpperCase()}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            checked={values.smtpAutoTls}
+            onChange={(e) => setValues((v) => ({ ...v, smtpAutoTls: e.target.checked }))}
+            className="h-4 w-4 rounded border-border accent-primary"
+          />
+          <span className="text-sm">Use Auto TLS</span>
+        </label>
+
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            checked={values.smtpAuthEnabled}
+            onChange={(e) => setValues((v) => ({ ...v, smtpAuthEnabled: e.target.checked }))}
+            className="h-4 w-4 rounded border-border accent-primary"
+          />
+          <span className="text-sm">Authentication</span>
+        </label>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-foreground">SMTP username</label>
             <Input
               value={values.smtpUsername}
               onChange={(e) => setValues((v) => ({ ...v, smtpUsername: e.target.value }))}
-              placeholder="smtp-user"
+              placeholder="hi@domain.tld"
+              disabled={!values.smtpAuthEnabled}
             />
           </div>
           <div>
@@ -205,191 +279,14 @@ export function EmailSettingsForm() {
               value={values.smtpPassword}
               onChange={(e) => setValues((v) => ({ ...v, smtpPassword: e.target.value }))}
               placeholder={values.smtpPasswordSet ? "•••••••• (сохранён)" : "Введите пароль"}
+              disabled={!values.smtpAuthEnabled}
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">From email</label>
-            <Input
-              value={values.smtpFromEmail}
-              onChange={(e) => setValues((v) => ({ ...v, smtpFromEmail: e.target.value }))}
-              placeholder="no-reply@domain.tld"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">From name</label>
-            <Input
-              value={values.smtpFromName}
-              onChange={(e) => setValues((v) => ({ ...v, smtpFromName: e.target.value }))}
-              placeholder="Qoqon"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">Reply-To</label>
-            <Input
-              value={values.smtpReplyTo}
-              onChange={(e) => setValues((v) => ({ ...v, smtpReplyTo: e.target.value }))}
-              placeholder="support@domain.tld"
-            />
-          </div>
-          <div className="flex items-end">
-            <label className="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={values.smtpSecure}
-                onChange={(e) => setValues((v) => ({ ...v, smtpSecure: e.target.checked }))}
-                className="h-4 w-4 rounded border-border accent-primary"
-              />
-              <span className="text-sm">Использовать SMTPS (secure)</span>
-            </label>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">DNS домен и DMARC</h3>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Домен</label>
-              <Input
-                value={values.domain}
-                onChange={(e) => setValues((v) => ({ ...v, domain: e.target.value }))}
-                placeholder="qoqon.ru"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">DKIM selector</label>
-              <Input
-                value={values.dkimSelector}
-                onChange={(e) => setValues((v) => ({ ...v, dkimSelector: e.target.value }))}
-                placeholder="mail"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">DMARC policy</label>
-              <select
-                value={values.dmarcPolicy}
-                onChange={(e) =>
-                  setValues((v) => ({
-                    ...v,
-                    dmarcPolicy: e.target.value as "none" | "quarantine" | "reject",
-                  }))
-                }
-                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="none">none</option>
-                <option value="quarantine">quarantine</option>
-                <option value="reject">reject</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">DMARC rua (email)</label>
-              <Input
-                value={values.dmarcRua}
-                onChange={(e) => setValues((v) => ({ ...v, dmarcRua: e.target.value }))}
-                placeholder="postmaster@qoqon.ru"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2 text-xs text-muted-foreground">
-            <p>SPF: <span className="font-mono">{spfRecord}</span></p>
-            <p>DKIM: <span className="font-mono">{dkimRecord}</span></p>
-            <p>DMARC: <span className="font-mono">{dmarcRecord}</span></p>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border p-4 space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">Шаблон: подтверждение регистрации</h3>
-          <Input
-            value={values.templates.verifyRegistration.subject}
-            onChange={(e) =>
-              setValues((v) => ({
-                ...v,
-                templates: {
-                  ...v.templates,
-                  verifyRegistration: { ...v.templates.verifyRegistration, subject: e.target.value },
-                },
-              }))
-            }
-            placeholder="Тема письма"
-          />
-          <textarea
-            value={values.templates.verifyRegistration.html}
-            onChange={(e) =>
-              setValues((v) => ({
-                ...v,
-                templates: {
-                  ...v.templates,
-                  verifyRegistration: { ...v.templates.verifyRegistration, html: e.target.value },
-                },
-              }))
-            }
-            rows={5}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          />
-          <textarea
-            value={values.templates.verifyRegistration.text}
-            onChange={(e) =>
-              setValues((v) => ({
-                ...v,
-                templates: {
-                  ...v.templates,
-                  verifyRegistration: { ...v.templates.verifyRegistration, text: e.target.value },
-                },
-              }))
-            }
-            rows={4}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          />
-        </div>
-
-        <div className="rounded-xl border border-border p-4 space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">Шаблон: подтверждение привязки email</h3>
-          <Input
-            value={values.templates.verifyLink.subject}
-            onChange={(e) =>
-              setValues((v) => ({
-                ...v,
-                templates: {
-                  ...v.templates,
-                  verifyLink: { ...v.templates.verifyLink, subject: e.target.value },
-                },
-              }))
-            }
-            placeholder="Тема письма"
-          />
-          <textarea
-            value={values.templates.verifyLink.html}
-            onChange={(e) =>
-              setValues((v) => ({
-                ...v,
-                templates: {
-                  ...v.templates,
-                  verifyLink: { ...v.templates.verifyLink, html: e.target.value },
-                },
-              }))
-            }
-            rows={5}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          />
-          <textarea
-            value={values.templates.verifyLink.text}
-            onChange={(e) =>
-              setValues((v) => ({
-                ...v,
-                templates: {
-                  ...v.templates,
-                  verifyLink: { ...v.templates.verifyLink, text: e.target.value },
-                },
-              }))
-            }
-            rows={4}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          />
         </div>
       </div>
 
       <div className="rounded-xl border border-border p-4 space-y-3">
-        <p className="text-sm font-medium text-foreground flex items-center gap-2">
+        <p className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Mail className="h-4 w-4" />
           Тестовая отправка
         </p>
