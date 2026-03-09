@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getSiteName } from "@/lib/branding";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const siteName = await getSiteName();
 
