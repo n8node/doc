@@ -124,11 +124,52 @@ export async function GET(request: NextRequest) {
     return {
       id: e.id,
       category: e.category,
+      sourceType: e.sourceType,
+      sourceId: e.sourceId,
       title,
       tokensTotal: e.tokensTotal,
       createdAt: e.createdAt,
     };
   });
+
+  const collapsedRecentEvents = (() => {
+    const result: Array<{
+      id: string;
+      category: CategoryKey;
+      title: string;
+      tokensTotal: number;
+      createdAt: Date;
+    }> = [];
+    const embeddingByDoc = new Map<string, number>();
+
+    for (const event of recentEventsFormatted) {
+      if (event.sourceType === "embedding" && typeof event.sourceId === "string" && event.sourceId.length > 0) {
+        const existingIndex = embeddingByDoc.get(event.sourceId);
+        if (existingIndex == null) {
+          embeddingByDoc.set(event.sourceId, result.length);
+          result.push({
+            id: `embedding:${event.sourceId}`,
+            category: event.category,
+            title: event.title,
+            tokensTotal: event.tokensTotal,
+            createdAt: event.createdAt,
+          });
+        } else {
+          result[existingIndex].tokensTotal += event.tokensTotal;
+        }
+      } else {
+        result.push({
+          id: event.id,
+          category: event.category,
+          title: event.title,
+          tokensTotal: event.tokensTotal,
+          createdAt: event.createdAt,
+        });
+      }
+    }
+
+    return result;
+  })();
 
   const quotas = getPlanTokenQuotas(billing.plan);
   const totalQuota = getTotalQuota(quotas);
@@ -176,7 +217,7 @@ export async function GET(request: NextRequest) {
     },
     currentCycle: current,
     sinceAnchor: sinceRegistration,
-    recentEvents: recentEventsFormatted,
+    recentEvents: collapsedRecentEvents,
     daily,
     freeVsPaid: {
       freeTokens,
