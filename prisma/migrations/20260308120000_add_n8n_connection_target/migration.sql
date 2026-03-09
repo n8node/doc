@@ -1,0 +1,2 @@
+ALTER TABLE "n8n_pg_connections"
+ADD COLUMN "target" TEXT NOT NULL DEFAULT 'DEFAULT';

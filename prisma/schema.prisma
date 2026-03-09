@@ -307,6 +307,7 @@ model N8nPgConnection {
   dbRoleName   String           @unique @map("db_role_name")
   dbPasswordHash String         @map("db_password_hash")
   viewName     String           @map("view_name")
+  target       String           @default("DEFAULT") @map("target")
   createdAt    DateTime         @default(now()) @map("created_at")
 
   @@index([userId])

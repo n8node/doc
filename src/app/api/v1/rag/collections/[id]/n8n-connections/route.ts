@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { getEmbeddingsForCollection } from "@/lib/docling/vector-store";
-import { isN8nDbEnabled, getN8nDbConnectionParams } from "@/lib/n8n-db/client";
+import {
+  getN8nDbTargetsStatus,
+  getN8nDbConnectionParams,
+  isN8nDbEnabled,
+  isN8nDbTarget,
+  type N8nDbTarget,
+} from "@/lib/n8n-db/client";
 import { createN8nConnection, hashN8nPassword } from "@/lib/n8n-db/service";
 import { nanoid } from "nanoid";
 
@@ -29,13 +35,15 @@ export async function GET(request: NextRequest, ctx: Ctx) {
     id: c.id,
     dbRoleName: c.dbRoleName,
     viewName: c.viewName,
+    target: c.target as N8nDbTarget,
     createdAt: c.createdAt.toISOString(),
   }));
 
   return NextResponse.json({
     connections,
-    n8nDbEnabled: isN8nDbEnabled(),
-    connectionParams: getN8nDbConnectionParams(),
+    targets: getN8nDbTargetsStatus(),
+    n8nDbEnabled: isN8nDbEnabled("DEFAULT"),
+    connectionParams: getN8nDbConnectionParams("DEFAULT"),
   });
 }
 
@@ -45,9 +53,17 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!isN8nDbEnabled()) {
+  const body = await request.json().catch(() => ({}));
+  const targetValue = typeof body?.target === "string" ? body.target : "DEFAULT";
+  const target: N8nDbTarget = isN8nDbTarget(targetValue) ? targetValue : "DEFAULT";
+
+  if (!isN8nDbEnabled(target)) {
     return NextResponse.json(
-      { error: "Подключение n8n не настроено на сервере" },
+      {
+        error: target === "RF"
+          ? "Подключение n8n (РФ сервер) не настроено на сервере"
+          : "Подключение n8n не настроено на сервере",
+      },
       { status: 503 }
     );
   }
@@ -79,7 +95,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     const result = await createN8nConnection(
       connectionId,
       collectionId,
-      embeddings
+      embeddings,
+      target
     );
 
     const passwordHash = await hashN8nPassword(result.dbPassword);
@@ -92,16 +109,18 @@ export async function POST(request: NextRequest, ctx: Ctx) {
         dbRoleName: result.dbRoleName,
         dbPasswordHash: passwordHash,
         viewName: result.viewName,
+        target,
       },
     });
 
-    const params = getN8nDbConnectionParams();
+    const params = getN8nDbConnectionParams(target);
 
     return NextResponse.json({
       connectionId: result.connectionId,
       dbRoleName: result.dbRoleName,
       dbPassword: result.dbPassword,
       viewName: result.viewName,
+      target,
       host: params?.host ?? "",
       port: params?.port ?? 5432,
       database: params?.database ?? "",

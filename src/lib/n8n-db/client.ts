@@ -1,13 +1,30 @@
 import { Client } from "pg";
 
-const N8N_DB_URL = process.env.N8N_DB_URL;
+export type N8nDbTarget = "DEFAULT" | "RF";
 
-export function getN8nDbUrl(): string | null {
-  return N8N_DB_URL && N8N_DB_URL.trim().length > 0 ? N8N_DB_URL.trim() : null;
+function normalizeTarget(target: N8nDbTarget | string | undefined): N8nDbTarget {
+  return target === "RF" ? "RF" : "DEFAULT";
 }
 
-export function isN8nDbEnabled(): boolean {
-  return !!getN8nDbUrl();
+export function getN8nDbUrl(target: N8nDbTarget = "DEFAULT"): string | null {
+  const t = normalizeTarget(target);
+  const raw = t === "RF" ? process.env.N8N_DB_URL_RF : process.env.N8N_DB_URL;
+  return raw && raw.trim().length > 0 ? raw.trim() : null;
+}
+
+export function isN8nDbEnabled(target: N8nDbTarget = "DEFAULT"): boolean {
+  return !!getN8nDbUrl(target);
+}
+
+export function getN8nDbTargetsStatus(): Record<N8nDbTarget, boolean> {
+  return {
+    DEFAULT: isN8nDbEnabled("DEFAULT"),
+    RF: isN8nDbEnabled("RF"),
+  };
+}
+
+export function isN8nDbTarget(value: string): value is N8nDbTarget {
+  return value === "DEFAULT" || value === "RF";
 }
 
 export interface N8nDbConnectionParams {
@@ -19,26 +36,40 @@ export interface N8nDbConnectionParams {
 
 /**
  * Returns connection params for n8n (public host/port for external connections).
- * Uses N8N_DB_PUBLIC_HOST and N8N_DB_PUBLIC_PORT when set, otherwise APP_URL host + port 5433.
+ * Uses target-specific public host/port variables when set.
  */
-export function getN8nDbConnectionParams(): N8nDbConnectionParams | null {
-  const url = getN8nDbUrl();
+export function getN8nDbConnectionParams(target: N8nDbTarget = "DEFAULT"): N8nDbConnectionParams | null {
+  const t = normalizeTarget(target);
+  const url = getN8nDbUrl(t);
   if (!url) return null;
+
   try {
     const u = new URL(url.replace(/^postgres:/, "postgresql:"));
-    let publicHost = process.env.N8N_DB_PUBLIC_HOST;
-    if (!publicHost && process.env.APP_URL?.trim()) {
-      try {
-        const appUrl = process.env.APP_URL.trim();
-        publicHost = new URL(appUrl.startsWith("http") ? appUrl : `https://${appUrl}`).hostname;
-      } catch {
-        publicHost = undefined;
+
+    let publicHost: string | undefined;
+    let publicPort: number;
+
+    if (t === "RF") {
+      publicHost = process.env.N8N_DB_PUBLIC_HOST_RF || undefined;
+      publicPort = process.env.N8N_DB_PUBLIC_PORT_RF
+        ? parseInt(process.env.N8N_DB_PUBLIC_PORT_RF, 10)
+        : (u.port ? parseInt(u.port, 10) : 5432);
+    } else {
+      publicHost = process.env.N8N_DB_PUBLIC_HOST || undefined;
+      if (!publicHost && process.env.APP_URL?.trim()) {
+        try {
+          const appUrl = process.env.APP_URL.trim();
+          publicHost = new URL(appUrl.startsWith("http") ? appUrl : `https://${appUrl}`).hostname;
+        } catch {
+          publicHost = undefined;
+        }
       }
+      publicPort = process.env.N8N_DB_PUBLIC_PORT
+        ? parseInt(process.env.N8N_DB_PUBLIC_PORT, 10)
+        : 5433;
     }
+
     publicHost = publicHost || u.hostname;
-    const publicPort = process.env.N8N_DB_PUBLIC_PORT
-      ? parseInt(process.env.N8N_DB_PUBLIC_PORT, 10)
-      : 5433;
     return {
       host: publicHost,
       port: publicPort,
@@ -52,10 +83,11 @@ export function getN8nDbConnectionParams(): N8nDbConnectionParams | null {
 
 /**
  * Create a pg Client for n8n_db. Caller must call client.end() when done.
- * Returns null if N8N_DB_URL is not configured.
+ * Returns null if target DB URL is not configured.
  */
-export function createN8nDbClient(): Client | null {
-  const url = getN8nDbUrl();
+export function createN8nDbClient(target: N8nDbTarget = "DEFAULT"): Client | null {
+  const t = normalizeTarget(target);
+  const url = getN8nDbUrl(t);
   if (!url) return null;
 
   try {

@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { hash } from "bcryptjs";
 import { createN8nDbClient } from "./client";
+import type { N8nDbTarget } from "./client";
 import type { EmbeddingForExport } from "@/lib/docling/vector-store";
 
 const ROLE_PREFIX = "n8n_conn_";
@@ -31,11 +32,12 @@ export interface N8nConnectionInfo {
 export async function createN8nConnection(
   connectionId: string,
   collectionId: string,
-  embeddings: EmbeddingForExport[]
+  embeddings: EmbeddingForExport[],
+  target: N8nDbTarget = "DEFAULT"
 ): Promise<CreateN8nConnectionResult> {
-  const client = createN8nDbClient();
+  const client = createN8nDbClient(target);
   if (!client) {
-    throw new Error("N8N_DB_URL не настроен");
+    throw new Error(target === "RF" ? "N8N_DB_URL_RF не настроен" : "N8N_DB_URL не настроен");
   }
 
   const shortId = sanitizeIdent(connectionId.slice(-12));
@@ -98,11 +100,12 @@ export async function createN8nConnection(
  */
 export async function revokeN8nConnection(
   dbRoleName: string,
-  viewName: string
+  viewName: string,
+  target: N8nDbTarget = "DEFAULT"
 ): Promise<void> {
-  const client = createN8nDbClient();
+  const client = createN8nDbClient(target);
   if (!client) {
-    throw new Error("N8N_DB_URL не настроен");
+    throw new Error(target === "RF" ? "N8N_DB_URL_RF не настроен" : "N8N_DB_URL не настроен");
   }
 
   await client.connect();
@@ -121,11 +124,12 @@ export async function revokeN8nConnection(
  */
 export async function syncN8nConnection(
   viewName: string,
-  embeddings: EmbeddingForExport[]
+  embeddings: EmbeddingForExport[],
+  target: N8nDbTarget = "DEFAULT"
 ): Promise<void> {
-  const client = createN8nDbClient();
+  const client = createN8nDbClient(target);
   if (!client) {
-    throw new Error("N8N_DB_URL не настроен");
+    throw new Error(target === "RF" ? "N8N_DB_URL_RF не настроен" : "N8N_DB_URL не настроен");
   }
 
   await client.connect();

@@ -24,8 +24,11 @@ interface N8nConnection {
   id: string;
   dbRoleName: string;
   viewName: string;
+  target?: "DEFAULT" | "RF";
   createdAt: string;
 }
+
+type N8nTarget = "DEFAULT" | "RF";
 
 interface N8nConnectionDialogProps {
   collectionId: string;
@@ -73,10 +76,15 @@ export function N8nConnectionDialog({
   onClose,
 }: N8nConnectionDialogProps) {
   const [connections, setConnections] = useState<N8nConnection[]>([]);
-  const [n8nDbEnabled, setN8nDbEnabled] = useState(false);
+  const [targetsStatus, setTargetsStatus] = useState<Record<N8nTarget, boolean>>({
+    DEFAULT: false,
+    RF: false,
+  });
+  const [selectedTarget, setSelectedTarget] = useState<N8nTarget>("DEFAULT");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [createdCreds, setCreatedCreds] = useState<{
+    target: N8nTarget;
     host: string;
     port: number;
     database: string;
@@ -86,6 +94,10 @@ export function N8nConnectionDialog({
   } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const targetLabel: Record<N8nTarget, string> = {
+    DEFAULT: "Стандартный сервер",
+    RF: "Внешний РФ сервер 🇷🇺",
+  };
 
   const loadConnections = async () => {
     setLoading(true);
@@ -96,7 +108,14 @@ export function N8nConnectionDialog({
       );
       const data = await res.json();
       setConnections(data.connections ?? []);
-      setN8nDbEnabled(data.n8nDbEnabled ?? false);
+      const status: Record<N8nTarget, boolean> = {
+        DEFAULT: Boolean(data?.targets?.DEFAULT),
+        RF: Boolean(data?.targets?.RF),
+      };
+      setTargetsStatus(status);
+      if (!status[selectedTarget] && status.DEFAULT) {
+        setSelectedTarget("DEFAULT");
+      }
     } catch {
       setConnections([]);
     } finally {
@@ -121,6 +140,8 @@ export function N8nConnectionDialog({
         {
           method: "POST",
           credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target: selectedTarget }),
         }
       );
       const data = await res.json();
@@ -129,6 +150,7 @@ export function N8nConnectionDialog({
         return;
       }
       setCreatedCreds({
+        target: (data.target === "RF" ? "RF" : "DEFAULT") as N8nTarget,
         host: data.host ?? "",
         port: data.port ?? 5432,
         database: data.database ?? "",
@@ -178,7 +200,13 @@ export function N8nConnectionDialog({
   if (loading) {
     return (
       <Dialog open onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-md min-w-0 overflow-hidden p-0">
+        <DialogContent
+          className="max-w-md min-w-0 overflow-hidden p-0"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>Загрузка подключения для n8n</DialogTitle>
+          </DialogHeader>
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -189,7 +217,10 @@ export function N8nConnectionDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg min-w-0 overflow-hidden p-0 max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-lg min-w-0 overflow-hidden p-0 max-h-[90vh] overflow-y-auto"
+        aria-describedby={undefined}
+      >
         <div className="border-b border-border bg-surface2/50 px-6 py-4">
           <DialogHeader>
             <div className="flex min-w-0 items-center gap-3">
@@ -205,7 +236,7 @@ export function N8nConnectionDialog({
         </div>
 
         <div className="p-6 space-y-6">
-          {!n8nDbEnabled ? (
+          {!targetsStatus.DEFAULT && !targetsStatus.RF ? (
             <p className="text-sm text-muted-foreground">
               Подключение к PostgreSQL для n8n не настроено на сервере.
             </p>
@@ -227,6 +258,9 @@ export function N8nConnectionDialog({
                     <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3">
                       <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
                         Сохраните данные — пароль больше не будет показан
+                      </p>
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                        Цель: {targetLabel[createdCreds.target]}
                       </p>
                     </div>
                     <div className="space-y-3">
@@ -269,7 +303,7 @@ export function N8nConnectionDialog({
                     </div>
                     <p className="flex items-start gap-2 rounded-lg bg-surface2/50 p-2.5 text-xs text-muted-foreground">
                       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      n8n PGVector Store: ID=id, Vector=vector, Content=content, Metadata=metadata. Встроенный n8n-db — без SSL.
+                      n8n PGVector Store: ID=id, Vector=vector, Content=content, Metadata=metadata.
                     </p>
                     <Button variant="outline" onClick={() => setCreatedCreds(null)}>
                       Закрыть
@@ -283,9 +317,36 @@ export function N8nConnectionDialog({
                     exit={{ opacity: 0 }}
                     className="space-y-4"
                   >
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Куда создавать подключение</p>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <Button
+                          type="button"
+                          variant={selectedTarget === "DEFAULT" ? "default" : "outline"}
+                          className="justify-start"
+                          onClick={() => setSelectedTarget("DEFAULT")}
+                        >
+                          Стандартный сервер
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={selectedTarget === "RF" ? "default" : "outline"}
+                          className="justify-start"
+                          onClick={() => setSelectedTarget("RF")}
+                        >
+                          Внешний РФ сервер 🇷🇺
+                        </Button>
+                      </div>
+                      {!targetsStatus[selectedTarget] && (
+                        <p className="text-xs text-destructive">
+                          Для выбранного варианта не настроен URL подключения на сервере.
+                        </p>
+                      )}
+                    </div>
+
                     <Button
                       onClick={handleCreate}
-                      disabled={creating}
+                      disabled={creating || !targetsStatus[selectedTarget]}
                       className="w-full gap-2"
                     >
                       {creating ? (
@@ -314,6 +375,9 @@ export function N8nConnectionDialog({
                                 <p className="font-mono text-sm">{c.dbRoleName}</p>
                                 <p className="text-xs text-muted-foreground">
                                   Таблица: {c.viewName} · {new Date(c.createdAt).toLocaleDateString("ru-RU")}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Цель: {targetLabel[(c.target === "RF" ? "RF" : "DEFAULT") as N8nTarget]}
                                 </p>
                               </div>
                               <Button
