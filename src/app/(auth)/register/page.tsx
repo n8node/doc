@@ -40,6 +40,7 @@ export default function RegisterPage() {
     telegramDomain: string;
     telegramBotUsername: string;
     siteName: string;
+    logoUrl?: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function RegisterPage() {
         telegramDomain: "qoqon.ru",
         telegramBotUsername: "",
         siteName: "qoqon.ru",
+        logoUrl: null,
       }));
   }, []);
 
@@ -140,9 +142,13 @@ export default function RegisterPage() {
       >
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-glow">
-            <HardDrive className="h-7 w-7 text-white" />
-          </div>
+          {authMethods?.logoUrl ? (
+            <img src={authMethods.logoUrl} alt="logo" className="mx-auto mb-4 h-14 w-14 rounded-2xl border border-border bg-background object-contain p-1" />
+          ) : (
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-glow">
+              <HardDrive className="h-7 w-7 text-white" />
+            </div>
+          )}
           <h1 className="text-2xl font-bold text-foreground">Создать аккаунт</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Облачное хранилище {authMethods?.siteName || "qoqon.ru"}

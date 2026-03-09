@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   FolderOpen,
@@ -31,6 +32,22 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [branding, setBranding] = useState<{ siteName: string; logoUrl: string | null }>({
+    siteName: "qoqon.ru",
+    logoUrl: null,
+  });
+
+  useEffect(() => {
+    fetch("/api/public/branding")
+      .then((r) => r.json())
+      .then((data) => {
+        setBranding({
+          siteName: typeof data.siteName === "string" && data.siteName.trim() ? data.siteName.trim() : "qoqon.ru",
+          logoUrl: typeof data.logoUrl === "string" && data.logoUrl ? data.logoUrl : null,
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <motion.aside
@@ -41,11 +58,15 @@ export function Sidebar() {
     >
       <div className="flex h-full flex-col">
         <div className="flex h-18 items-center gap-3 border-b border-border px-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-glow">
-            <HardDrive className="h-5 w-5 text-white" />
-          </div>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt="logo" className="h-10 w-10 rounded-xl border border-border bg-background object-contain p-1" />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-glow">
+              <HardDrive className="h-5 w-5 text-white" />
+            </div>
+          )}
           <span className="text-lg font-bold text-foreground">
-            qoqon.ru
+            {branding.siteName}
           </span>
         </div>
 

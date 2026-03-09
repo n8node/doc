@@ -3,11 +3,20 @@ import "./globals.css";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "sonner";
+import { getSiteName } from "@/lib/branding";
 
-export const metadata: Metadata = {
-  title: "qoqon.ru — Облачное хранилище с AI",
-  description: "Dropbox-подобный сервис для РФ с поиском по документам",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteName = await getSiteName();
+  return {
+    title: `${siteName} — Облачное хранилище с AI`,
+    description: "Dropbox-подобный сервис для РФ с поиском по документам",
+    icons: {
+      icon: "/api/public/branding/favicon",
+      shortcut: "/api/public/branding/favicon",
+      apple: "/api/public/branding/favicon",
+    },
+  };
+}
 
 export default function RootLayout({
   children,

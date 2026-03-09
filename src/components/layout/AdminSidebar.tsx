@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 const navItems = [
   { href: "/admin/settings", label: "Настройки", icon: "⚙️" },
+  { href: "/admin/settings?tab=branding", label: "Брендинг", icon: "🎨" },
   { href: "/admin/settings?tab=auth", label: "Авторизация", icon: "🔐" },
   { href: "/admin/plans", label: "Тарифы", icon: "👑" },
   { href: "/admin/payments", label: "Платежи", icon: "📋" },

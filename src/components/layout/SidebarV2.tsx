@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import {
   FolderOpen,
   Upload,
@@ -60,8 +60,24 @@ export function SidebarV2() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [branding, setBranding] = useState<{ siteName: string; logoUrl: string | null }>({
+    siteName: "qoqon.ru",
+    logoUrl: null,
+  });
   const activeSection = parseFilesSection(searchParams.get("section"));
   const isFilesPage = pathname === "/dashboard/files" || pathname.startsWith("/dashboard/files");
+
+  useEffect(() => {
+    fetch("/api/public/branding")
+      .then((r) => r.json())
+      .then((data) => {
+        setBranding({
+          siteName: typeof data.siteName === "string" && data.siteName.trim() ? data.siteName.trim() : "qoqon.ru",
+          logoUrl: typeof data.logoUrl === "string" && data.logoUrl ? data.logoUrl : null,
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   const handleUploadClick = () => {
     if (isFilesPage && activeSection === "my-files") {
@@ -80,11 +96,15 @@ export function SidebarV2() {
     >
       <div className="modal-glass flex h-full flex-col overflow-hidden rounded-3xl border border-border/70">
         <div className="flex h-20 items-center gap-3 border-b border-border/70 px-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary shadow-glow">
-            <HardDrive className="h-5 w-5 text-white drop-shadow" />
-          </div>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt="logo" className="h-11 w-11 rounded-2xl border border-border/70 bg-background object-contain p-1" />
+          ) : (
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary shadow-glow">
+              <HardDrive className="h-5 w-5 text-white drop-shadow" />
+            </div>
+          )}
           <div className="min-w-0">
-            <p className="truncate text-lg font-bold text-foreground">qoqon.ru</p>
+            <p className="truncate text-lg font-bold text-foreground">{branding.siteName}</p>
             <p className="text-xs text-muted-foreground">Новая навигация (beta)</p>
           </div>
         </div>
