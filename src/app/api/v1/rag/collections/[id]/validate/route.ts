@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { isProcessable } from "@/lib/docling/processing-service";
+import { checkRagMemoryAccess } from "@/lib/rag/access";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -14,6 +15,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const accessError = await checkRagMemoryAccess(userId);
+  if (accessError) return accessError;
 
   const { id } = await ctx.params;
 

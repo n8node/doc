@@ -11,6 +11,7 @@ import { checkDocumentAnalysisAccess } from "@/lib/docling/process-access";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
 import { userUsesOwnKey } from "@/lib/ai/get-provider-for-user";
 import { getUserPlan } from "@/lib/plan-service";
+import { checkRagMemoryAccess } from "@/lib/rag/access";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -28,6 +29,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const accessError = await checkRagMemoryAccess(userId);
+  if (accessError) return accessError;
 
   const { id } = await ctx.params;
 

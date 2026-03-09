@@ -157,6 +157,7 @@ model Plan {
   searchTokensQuota            Int?        @map("search_tokens_quota") // токенов поиска в месяц, null = без лимита
   transcriptionTokensQuota     Int?        @map("transcription_tokens_quota") // токенов транскрибации в месяц, null = без лимита
   aiAnalysisDocumentsQuota     Int?        @map("ai_analysis_documents_quota") // документов AI-анализа в месяц, null = без лимита
+  ragDocumentsQuota            Int?        @map("rag_documents_quota") // документов RAG-коллекций, null = без лимита
   features                     Json?       @map("features") // { "video_player": true, "transcription": true, "document_analysis": true, ... }
   transcriptionMinutesQuota    Int?        @map("transcription_minutes_quota") // минут транскрипции в месяц, null = без лимита
   maxTranscriptionVideoMinutes Int         @default(60) @map("max_transcription_video_minutes") // макс. длительность видео в одном файле

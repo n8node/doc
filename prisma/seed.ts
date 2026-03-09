@@ -30,6 +30,7 @@ async function main() {
         folder_share: true,
         ai_search: false,
         document_chat: false,
+        rag_memory: false,
       },
       priceMonthly: null,
       priceYearly: null,
@@ -45,6 +46,7 @@ async function main() {
         folder_share: true,
         ai_search: false,
         document_chat: false,
+        rag_memory: false,
       },
     },
   });

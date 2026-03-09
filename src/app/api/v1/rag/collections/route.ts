@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { isProcessable } from "@/lib/docling/processing-service";
+import {
+  checkRagMemoryAccess,
+  getRagDocumentsQuotaStatus,
+} from "@/lib/rag/access";
 
 /**
  * GET /api/v1/rag/collections — list RAG collections (vector "brains").
@@ -12,6 +16,8 @@ export async function GET(request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const accessError = await checkRagMemoryAccess(userId);
+  if (accessError) return accessError;
 
   const collections = await prisma.vectorCollection.findMany({
     where: { userId },
@@ -65,6 +71,8 @@ export async function POST(request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const accessError = await checkRagMemoryAccess(userId);
+  if (accessError) return accessError;
 
   const body = await request.json();
   const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -107,13 +115,41 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const requestedFilesCount = validFileIds.length;
+  let allowedFileIds = validFileIds;
+  let quotaWarning: string | null = null;
+
+  const ragQuota = await getRagDocumentsQuotaStatus(userId);
+  if (ragQuota.quota != null) {
+    const available = ragQuota.available ?? 0;
+    if (requestedFilesCount > 0 && available <= 0) {
+      return NextResponse.json(
+        {
+          error:
+            `Лимит документов RAG по вашему тарифу исчерпан (${ragQuota.used}/${ragQuota.quota}). ` +
+            "Удалите часть коллекций или обновите тариф.",
+          code: "RAG_DOCUMENTS_QUOTA_EXCEEDED",
+          quota: ragQuota.quota,
+          used: ragQuota.used,
+        },
+        { status: 403 }
+      );
+    }
+    if (requestedFilesCount > available) {
+      allowedFileIds = validFileIds.slice(0, available);
+      quotaWarning =
+        `По тарифу в коллекцию добавлено ${allowedFileIds.length} из ${requestedFilesCount} документов. ` +
+        `Лимит: ${ragQuota.quota} документов, занято: ${ragQuota.used}.`;
+    }
+  }
+
   const collection = await prisma.vectorCollection.create({
     data: {
       userId,
       name: name.slice(0, 255),
       folderId,
       files: {
-        create: validFileIds.map((fileId) => ({ fileId })),
+        create: allowedFileIds.map((fileId) => ({ fileId })),
       },
     },
     include: {
@@ -145,6 +181,7 @@ export async function POST(request: NextRequest) {
     folder: collection.folder,
     filesCount: collection.files.length,
     processableCount,
+    quotaWarning,
     files: collection.files.map((f) => ({
       id: f.file.id,
       name: f.file.name,

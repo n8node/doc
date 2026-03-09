@@ -15,6 +15,7 @@ import {
   Copy,
   Check,
   Database,
+  Crown,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,7 @@ interface FileOption {
 export default function RagMemoryPage() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createSource, setCreateSource] = useState<"folder" | "files">("folder");
@@ -122,10 +124,28 @@ export default function RagMemoryPage() {
   const loadCollections = useCallback(async () => {
     setLoading(true);
     try {
+      const planRes = await fetch("/api/v1/plans/me", { credentials: "include" });
+      const planData = await planRes.json();
+      const canUseRag = !!planData.features?.rag_memory;
+      setAllowed(canUseRag);
+      if (!canUseRag) {
+        setCollections([]);
+        return;
+      }
+
       const res = await fetch("/api/v1/rag/collections", { credentials: "include" });
       const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403 && data?.code === "RAG_MEMORY_DISABLED") {
+          setAllowed(false);
+          setCollections([]);
+          return;
+        }
+        throw new Error(data?.error || "Failed to load collections");
+      }
       setCollections(Array.isArray(data.collections) ? data.collections : []);
     } catch {
+      setAllowed(null);
       setCollections([]);
     } finally {
       setLoading(false);
@@ -203,6 +223,9 @@ export default function RagMemoryPage() {
         return;
       }
 
+      if (data.quotaWarning) {
+        toast.warning(data.quotaWarning);
+      }
       toast.success("RAG-память создана");
       setCreateOpen(false);
       setCreateName("");
@@ -391,6 +414,43 @@ export default function RagMemoryPage() {
     if (createFileIds.size === files.length) setCreateFileIds(new Set());
     else setCreateFileIds(new Set(files.map((f) => f.id)));
   };
+
+  if (loading && allowed === null) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (allowed === false) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">RAG-память</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Функция недоступна на вашем тарифе.
+          </p>
+        </div>
+        <Card className="border-border bg-surface">
+          <CardContent className="py-16 text-center">
+            <Crown className="mx-auto h-12 w-12 text-muted-foreground/50" />
+            <p className="mt-4 text-lg font-medium text-foreground">Обновите тариф</p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              RAG-память доступна только на тарифах с включённой функцией RAG. Перейдите в тарифы и подключите подходящий план.
+            </p>
+            <Link
+              href="/dashboard/plans"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Выбрать тариф
+              <span aria-hidden>→</span>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

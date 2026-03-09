@@ -25,6 +25,7 @@ interface PlanData {
   searchTokensQuota?: number | null;
   transcriptionTokensQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
+  ragDocumentsQuota?: number | null;
   transcriptionMinutesQuota?: number | null;
   maxTranscriptionVideoMinutes?: number;
   maxTranscriptionAudioMinutes?: number;
@@ -50,6 +51,7 @@ const featureLabels: Record<string, string> = {
   ai_search: "AI-поиск",
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
+  rag_memory: "RAG-память",
   transcription: "Транскрибация",
   own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
 };
@@ -75,10 +77,12 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     ai_search: false,
     document_chat: false,
     document_analysis: false,
+    rag_memory: false,
     own_ai_keys: false,
   });
   const [trashDays, setTrashDays] = useState("0");
   const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState("");
+  const [ragDocumentsQuota, setRagDocumentsQuota] = useState("");
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
   const [chatTokensQuota, setChatTokensQuota] = useState("");
   const [searchTokensQuota, setSearchTokensQuota] = useState("");
@@ -130,6 +134,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setAiAnalysisDocumentsQuota(
         plan.aiAnalysisDocumentsQuota != null ? String(plan.aiAnalysisDocumentsQuota) : "",
       );
+      setRagDocumentsQuota(
+        plan.ragDocumentsQuota != null ? String(plan.ragDocumentsQuota) : "",
+      );
       setTranscriptionMinutesQuota(
         plan.transcriptionMinutesQuota != null ? String(plan.transcriptionMinutesQuota) : "",
       );
@@ -155,6 +162,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setSearchTokensQuota("");
       setTranscriptionTokensQuota("");
       setAiAnalysisDocumentsQuota("");
+      setRagDocumentsQuota("");
       setTranscriptionMinutesQuota("");
       setMaxTranscriptionVideoMinutes("60");
       setMaxTranscriptionAudioMinutes("120");
@@ -167,6 +175,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         ai_search: false,
         document_chat: false,
         document_analysis: false,
+        rag_memory: false,
         transcription: false,
         own_ai_keys: false,
       });
@@ -203,6 +212,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         : null,
       aiAnalysisDocumentsQuota: aiAnalysisDocumentsQuota.trim()
         ? Math.max(0, parseInt(aiAnalysisDocumentsQuota, 10) || 0) || null
+        : null,
+      ragDocumentsQuota: ragDocumentsQuota.trim()
+        ? Math.max(0, parseInt(ragDocumentsQuota, 10) || 0) || null
         : null,
       transcriptionMinutesQuota: transcriptionMinutesQuota.trim()
         ? Math.max(0, parseInt(transcriptionMinutesQuota, 10) || 0) || null
@@ -391,6 +403,29 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
                 min={0}
                 value={aiAnalysisDocumentsQuota}
                 onChange={(e) => setAiAnalysisDocumentsQuota(e.target.value)}
+                placeholder="Без лимита"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Оставьте пустым для безлимита.
+              </p>
+            </div>
+          </div>
+
+          {/* RAG-память */}
+          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
+            <h4 className="text-sm font-medium">RAG-память</h4>
+            <p className="text-xs text-muted-foreground">
+              Функция включается в блоке «Функции» (чекбокс «RAG-память»). Квота — документов в коллекциях.
+            </p>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Документов в RAG-коллекциях (квота)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={ragDocumentsQuota}
+                onChange={(e) => setRagDocumentsQuota(e.target.value)}
                 placeholder="Без лимита"
               />
               <p className="mt-1 text-xs text-muted-foreground">

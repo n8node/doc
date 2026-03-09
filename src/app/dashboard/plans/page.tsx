@@ -33,6 +33,7 @@ interface PlanItem {
   chatTokensQuota?: number | null;
   searchTokensQuota?: number | null;
   transcriptionTokensQuota?: number | null;
+  ragDocumentsQuota?: number | null;
   priceMonthly: number | null;
   priceYearly: number | null;
   trashRetentionDays: number;
@@ -47,10 +48,9 @@ interface UserPlan {
 }
 
 const featureLabels: Record<string, string> = {
-  video_player: "Встроенный видеоплеер",
-  audio_player: "Встроенный аудиоплеер",
   share_links: "Публичные ссылки",
   folder_share: "Шаринг папок",
+  rag_memory: "RAG-память",
   ai_search: "AI-поиск по документам",
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
@@ -304,6 +304,12 @@ export default function DashboardPlansPage() {
                             <span className="text-muted-foreground">
                               {" "}
                               ({plan.transcriptionTokensQuota != null ? `${plan.transcriptionTokensQuota.toLocaleString()} ток./мес` : "безлимит"})
+                            </span>
+                          )}
+                          {key === "rag_memory" && enabled && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              ({plan.ragDocumentsQuota != null ? `${plan.ragDocumentsQuota} док.` : "безлимит"})
                             </span>
                           )}
                         </span>

@@ -37,6 +37,7 @@ interface PlanItem {
   searchTokensQuota?: number | null;
   transcriptionTokensQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
+  ragDocumentsQuota?: number | null;
   features: Record<string, boolean>;
   priceMonthly: number | null;
   priceYearly: number | null;
@@ -149,6 +150,17 @@ function PlanCard({
                   AI-анализ док.:{" "}
                   {plan.aiAnalysisDocumentsQuota != null
                     ? `${plan.aiAnalysisDocumentsQuota}/мес`
+                    : "безлимит"}
+                </span>
+              </div>
+            )}
+            {plan.features?.rag_memory && (
+              <div className="flex items-center gap-2 text-sm">
+                <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  RAG док.:{" "}
+                  {plan.ragDocumentsQuota != null
+                    ? `${plan.ragDocumentsQuota}/тариф`
                     : "безлимит"}
                 </span>
               </div>

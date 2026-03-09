@@ -19,6 +19,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
     chatTokensQuota, searchTokensQuota, transcriptionTokensQuota,
     aiAnalysisDocumentsQuota,
+    ragDocumentsQuota,
     transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
     features, priceMonthly, priceYearly, isPopular,
   } = body;
@@ -62,6 +63,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         ? null
         : Math.max(0, parseInt(String(aiAnalysisDocumentsQuota), 10) || 0) || null;
   }
+  if (ragDocumentsQuota !== undefined) {
+    data.ragDocumentsQuota =
+      ragDocumentsQuota === null || ragDocumentsQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(ragDocumentsQuota), 10) || 0) || null;
+  }
   if (transcriptionMinutesQuota !== undefined) {
     data.transcriptionMinutesQuota =
       transcriptionMinutesQuota === null || transcriptionMinutesQuota === ""
@@ -96,6 +103,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     searchTokensQuota: plan.searchTokensQuota,
     transcriptionTokensQuota: plan.transcriptionTokensQuota,
     aiAnalysisDocumentsQuota: plan.aiAnalysisDocumentsQuota,
+    ragDocumentsQuota: plan.ragDocumentsQuota,
   });
 }
 

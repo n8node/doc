@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { deleteEmbeddingsByFileId } from "@/lib/docling/vector-store";
+import {
+  checkRagMemoryAccess,
+  getRagDocumentsQuotaStatus,
+} from "@/lib/rag/access";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -13,6 +17,8 @@ export async function GET(request: NextRequest, ctx: Ctx) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const accessError = await checkRagMemoryAccess(userId);
+  if (accessError) return accessError;
 
   const { id } = await ctx.params;
 
@@ -67,6 +73,8 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const accessError = await checkRagMemoryAccess(userId);
+  if (accessError) return accessError;
 
   const { id } = await ctx.params;
   const body = await request.json();
@@ -111,13 +119,38 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
       select: { id: true },
     });
     const validFileIds = validFiles.map((f) => f.id);
+    const requestedFilesCount = validFileIds.length;
+    let allowedFileIds = validFileIds;
+
+    const ragQuota = await getRagDocumentsQuotaStatus(userId, {
+      excludeCollectionId: id,
+    });
+    if (ragQuota.quota != null) {
+      const available = ragQuota.available ?? 0;
+      if (requestedFilesCount > 0 && available <= 0) {
+        return NextResponse.json(
+          {
+            error:
+              `Лимит документов RAG по вашему тарифу исчерпан (${ragQuota.used}/${ragQuota.quota}). ` +
+              "Удалите часть коллекций или обновите тариф.",
+            code: "RAG_DOCUMENTS_QUOTA_EXCEEDED",
+            quota: ragQuota.quota,
+            used: ragQuota.used,
+          },
+          { status: 403 }
+        );
+      }
+      if (requestedFilesCount > available) {
+        allowedFileIds = validFileIds.slice(0, available);
+      }
+    }
 
     await prisma.vectorCollectionFile.deleteMany({
       where: { collectionId: id },
     });
-    if (validFileIds.length > 0) {
+    if (allowedFileIds.length > 0) {
       await prisma.vectorCollectionFile.createMany({
-        data: validFileIds.map((fileId) => ({ collectionId: id, fileId })),
+        data: allowedFileIds.map((fileId) => ({ collectionId: id, fileId })),
       });
     }
   }
@@ -170,6 +203,8 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const accessError = await checkRagMemoryAccess(userId);
+  if (accessError) return accessError;
 
   const { id } = await ctx.params;
 

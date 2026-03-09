@@ -18,6 +18,7 @@ export async function GET() {
       chatTokensQuota: true,
       searchTokensQuota: true,
       transcriptionTokensQuota: true,
+      ragDocumentsQuota: true,
       priceMonthly: true,
       priceYearly: true,
       isPopular: true,
