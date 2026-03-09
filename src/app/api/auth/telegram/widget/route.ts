@@ -37,6 +37,12 @@ export async function POST(req: NextRequest) {
     let isNewUser = false;
 
     if (!user) {
+      if (settings.inviteRegistrationEnabled) {
+        return NextResponse.json(
+          { error: "Регистрация через Telegram недоступна при включенных инвайтах" },
+          { status: 403 }
+        );
+      }
       isNewUser = true;
       const freePlan = await prisma.plan.findFirst({ where: { isFree: true } });
       const placeholderEmail = `tg_${telegramUserId}@qoqon.placeholder`;
