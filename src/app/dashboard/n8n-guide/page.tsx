@@ -4,6 +4,9 @@ import Link from "next/link";
 import { BrainCircuit, ChevronLeft } from "lucide-react";
 
 export default function N8nGuidePage() {
+  const codeClassName =
+    "rounded bg-primary px-1.5 py-0.5 text-primary-foreground";
+
   return (
     <div className="max-w-3xl space-y-6">
       <Link
@@ -36,25 +39,45 @@ export default function N8nGuidePage() {
 
         <section>
           <h2 className="text-lg font-semibold">2. API-ключ</h2>
-          <p>Раздел <Link href="/dashboard/api-docs" className="text-primary hover:underline">API настройки</Link> → создайте ключ. Формат: <code className="rounded bg-muted px-1">qk_...__...</code></p>
+          <p>
+            Раздел{" "}
+            <Link href="/dashboard/api-docs" className="text-primary hover:underline">
+              API настройки
+            </Link>{" "}
+            → создайте ключ. Формат:{" "}
+            <code className={codeClassName}>qk_...__...</code>
+          </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold">3. ID коллекции</h2>
-          <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-sm">
+          <pre className="overflow-x-auto rounded-lg bg-primary p-4 text-sm text-primary-foreground">
 {`GET https://qoqon.ru/api/v1/rag/collections
 Authorization: Bearer <ключ>`}
           </pre>
-          <p>Скопируйте <code className="rounded bg-muted px-1">id</code> нужной коллекции.</p>
+          <p>
+            Скопируйте <code className={codeClassName}>id</code> нужной коллекции.
+          </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold">4. n8n — HTTP Request</h2>
           <ul className="list-disc space-y-1 pl-6">
             <li><strong>Method:</strong> GET</li>
-            <li><strong>URL:</strong> <code className="rounded bg-muted px-1">https://qoqon.ru/api/v1/files/search</code></li>
-            <li><strong>Query:</strong> <code className="rounded bg-muted px-1">q</code>, <code className="rounded bg-muted px-1">collectionId</code>, <code className="rounded bg-muted px-1">limit</code>, <code className="rounded bg-muted px-1">threshold</code></li>
-            <li><strong>Auth:</strong> Header <code className="rounded bg-muted px-1">Authorization: Bearer &lt;ключ&gt;</code></li>
+            <li>
+              <strong>URL:</strong>{" "}
+              <code className={codeClassName}>https://qoqon.ru/api/v1/files/search</code>
+            </li>
+            <li>
+              <strong>Query:</strong> <code className={codeClassName}>q</code>,{" "}
+              <code className={codeClassName}>collectionId</code>,{" "}
+              <code className={codeClassName}>limit</code>,{" "}
+              <code className={codeClassName}>threshold</code>
+            </li>
+            <li>
+              <strong>Auth:</strong> Header{" "}
+              <code className={codeClassName}>Authorization: Bearer &lt;ключ&gt;</code>
+            </li>
           </ul>
         </section>
 
@@ -62,7 +85,7 @@ Authorization: Bearer <ключ>`}
           <h2 className="text-lg font-semibold">5. Схема в агенте</h2>
           <p>Trigger → HTTP Request (поиск) → Собрать чанки в контекст → LLM (промпт с контекстом) → Ответ</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            В ответе Search API: <code className="rounded bg-muted px-1">results[].chunkText</code> — используйте для промпта.
+            В ответе Search API: <code className={codeClassName}>results[].chunkText</code> — используйте для промпта.
           </p>
         </section>
       </div>
