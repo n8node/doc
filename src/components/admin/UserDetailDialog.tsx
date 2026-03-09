@@ -79,6 +79,21 @@ interface UserInviteItem {
   createdAt: string;
 }
 
+interface InviteRelationsData {
+  invitedBy: {
+    inviteId: string;
+    inviteCode: string;
+    user: { id: string; email: string; name: string | null } | null;
+  } | null;
+  invitedUsers: {
+    id: string;
+    email: string;
+    name: string | null;
+    inviteCode: string | null;
+    registeredAt: string;
+  }[];
+}
+
 export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialogProps) {
   const [user, setUser] = useState<UserDetail | null>(null);
   const [plans, setPlans] = useState<PlanOption[]>([]);
@@ -87,6 +102,7 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [tokenUsage, setTokenUsage] = useState<UserTokenUsage | null>(null);
   const [userInvites, setUserInvites] = useState<UserInviteItem[]>([]);
+  const [inviteRelations, setInviteRelations] = useState<InviteRelationsData | null>(null);
   const [inviteCount, setInviteCount] = useState<number>(3);
   const [addingInvites, setAddingInvites] = useState(false);
 
@@ -96,8 +112,9 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
       fetch("/api/v1/admin/plans").then((r) => r.json()),
       fetch(`/api/v1/admin/users/${userId}/token-usage`).then((r) => r.json()).catch(() => null),
       fetch(`/api/v1/admin/users/${userId}/invites`).then((r) => r.json()).catch(() => ({ invites: [] })),
+      fetch(`/api/v1/admin/users/${userId}/invite-relations`).then((r) => r.json()).catch(() => null),
     ])
-      .then(([userData, plansData, tokenData, invitesData]) => {
+      .then(([userData, plansData, tokenData, invitesData, relationsData]) => {
         if (userData.id) {
           setUser(userData);
           setSelectedPlanId(userData.plan?.id ?? "none");
@@ -112,6 +129,11 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
         }
         if (Array.isArray(invitesData?.invites)) {
           setUserInvites(invitesData.invites as UserInviteItem[]);
+        }
+        if (relationsData && !relationsData.error) {
+          setInviteRelations(relationsData as InviteRelationsData);
+        } else {
+          setInviteRelations(null);
         }
       })
       .catch(() => toast.error("Ошибка загрузки"))
@@ -418,6 +440,43 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="rounded-xl border border-border p-4">
+                <p className="text-sm font-medium">Связи по инвайтам</p>
+                <div className="mt-3 space-y-3 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Кто пригласил этого пользователя</p>
+                    {inviteRelations?.invitedBy ? (
+                      <p className="mt-1">
+                        {inviteRelations.invitedBy.user?.email ?? "Системный инвайт"}{" "}
+                        <span className="text-muted-foreground">({inviteRelations.invitedBy.inviteCode})</span>
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-muted-foreground">Нет данных</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Кого пригласил этот пользователь</p>
+                    {!inviteRelations?.invitedUsers?.length ? (
+                      <p className="mt-1 text-muted-foreground">Пока никого</p>
+                    ) : (
+                      <div className="mt-2 space-y-1">
+                        {inviteRelations.invitedUsers.slice(0, 8).map((item) => (
+                          <div key={item.id} className="flex items-center justify-between rounded-md bg-surface2/40 px-2 py-1">
+                            <span>{item.email}</span>
+                            <span className="text-muted-foreground">
+                              {item.inviteCode ?? "—"} · {formatDate(item.registeredAt)}
+                            </span>
+                          </div>
+                        ))}
+                        {inviteRelations.invitedUsers.length > 8 && (
+                          <p className="text-muted-foreground">и еще {inviteRelations.invitedUsers.length - 8}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </>

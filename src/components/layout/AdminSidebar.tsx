@@ -15,6 +15,7 @@ const navItems = [
   { href: "/admin/settings?tab=ai", label: "AI-провайдеры", icon: "🤖" },
   { href: "/admin/settings?tab=telegram", label: "Telegram", icon: "📱" },
   { href: "/admin/users", label: "Пользователи", icon: "👥" },
+  { href: "/admin/invites", label: "Инвайты", icon: "🧩" },
 ];
 
 export function AdminSidebar() {
@@ -24,6 +25,7 @@ export function AdminSidebar() {
 
   const isActive = (href: string) => {
     if (pathname === "/admin/users" && href === "/admin/users") return true;
+    if (pathname === "/admin/invites" && href === "/admin/invites") return true;
     if (pathname === "/admin/storage" && href === "/admin/storage") return true;
     if (pathname === "/admin/plans" && href === "/admin/plans") return true;
     if (pathname === "/admin/payments" && href === "/admin/payments") return true;
