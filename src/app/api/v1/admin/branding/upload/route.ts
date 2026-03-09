@@ -11,6 +11,12 @@ import { createS3Client } from "@/lib/s3";
 const MAX_SIZE_BYTES = 2 * 1024 * 1024;
 const LOGO_MIME = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]);
 const FAVICON_MIME = new Set(["image/png", "image/x-icon", "image/vnd.microsoft.icon", "image/svg+xml"]);
+type BrandingKind = "logo" | "favicon";
+
+function parseBrandingKind(value: unknown): BrandingKind | null {
+  if (value === "logo" || value === "favicon") return value;
+  return null;
+}
 
 function sanitizeName(name: string): string {
   return (
@@ -30,16 +36,15 @@ export async function POST(request: NextRequest) {
   }
 
   const formData = await request.formData();
-  const kindRaw = formData.get("kind");
+  const kind = parseBrandingKind(formData.get("kind"));
   const fileRaw = formData.get("file");
-  if (typeof kindRaw !== "string") {
-    return NextResponse.json({ error: "kind обязателен" }, { status: 400 });
+  if (!kind) {
+    return NextResponse.json({ error: "Некорректный kind" }, { status: 400 });
   }
-  const keys = getBrandingAssetConfigKeys(kindRaw);
+  const keys = getBrandingAssetConfigKeys(kind);
   if (!keys) {
     return NextResponse.json({ error: "Некорректный kind" }, { status: 400 });
   }
-  const kind: "logo" | "favicon" = kindRaw;
   if (!(fileRaw instanceof File)) {
     return NextResponse.json({ error: "Файл не передан" }, { status: 400 });
   }
