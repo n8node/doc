@@ -9,8 +9,11 @@ import { Loader2, Shield } from "lucide-react";
 export function AuthSettingsForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+  const [issueCount, setIssueCount] = useState(10);
   const [values, setValues] = useState({
     emailRegistrationEnabled: true,
+    inviteRegistrationEnabled: false,
     telegramWidgetEnabled: false,
     telegramQrEnabled: false,
     telegramDomain: "qoqon.ru",
@@ -24,6 +27,7 @@ export function AuthSettingsForm() {
         setValues((v) => ({
           ...v,
           emailRegistrationEnabled: data.emailRegistrationEnabled !== false,
+          inviteRegistrationEnabled: data.inviteRegistrationEnabled === true,
           telegramWidgetEnabled: data.telegramWidgetEnabled === true,
           telegramQrEnabled: data.telegramQrEnabled === true,
           telegramDomain: data.telegramDomain || "qoqon.ru",
@@ -52,6 +56,28 @@ export function AuthSettingsForm() {
       toast.error(e instanceof Error ? e.message : "Ошибка сохранения");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleIssueInvites = async () => {
+    if (!Number.isInteger(issueCount) || issueCount < 1) {
+      toast.error("Укажите корректное количество");
+      return;
+    }
+    setIssuing(true);
+    try {
+      const res = await fetch("/api/v1/admin/invites/issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: issueCount }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Ошибка выпуска");
+      toast.success(`Выпущено инвайтов: ${data.createdCount}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка выпуска");
+    } finally {
+      setIssuing(false);
     }
   };
 
@@ -87,6 +113,52 @@ export function AuthSettingsForm() {
             />
             <span className="text-sm">Включить классическую регистрацию (email + пароль)</span>
           </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Регистрация по инвайтам
+          </label>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={values.inviteRegistrationEnabled}
+              onChange={(e) => setValues((v) => ({ ...v, inviteRegistrationEnabled: e.target.checked }))}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm">Требовать инвайт-ключ перед регистрацией</span>
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            При включении пользователь сначала вводит ключ, затем видит форму регистрации.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Выпуск системных инвайтов
+          </label>
+          <div className="flex max-w-sm items-center gap-2">
+            <Input
+              type="number"
+              min={1}
+              max={200}
+              value={issueCount}
+              onChange={(e) => setIssueCount(Number(e.target.value || 0))}
+            />
+            <Button type="button" variant="outline" onClick={handleIssueInvites} disabled={issuing}>
+              {issuing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Выпуск...
+                </>
+              ) : (
+                "Выпустить"
+              )}
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Новые ключи автоматически попадут в конец публичного списка инвайтов.
+          </p>
         </div>
 
         <div>

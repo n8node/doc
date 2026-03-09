@@ -7,6 +7,7 @@ import {
   formatRegisterMessage,
 } from "@/lib/telegram";
 import { getAuthSettings } from "@/lib/telegram-auth";
+import { consumeActiveInvite, createInvites, isInviteCodeFormatValid, normalizeInviteCode } from "@/lib/invite";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     if (!authSettings.emailRegistrationEnabled) {
       return NextResponse.json({ error: "Регистрация по email отключена" }, { status: 403 });
     }
-    const { email, password, name } = await req.json();
+    const { email, password, name, inviteCode } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -47,18 +48,56 @@ export async function POST(req: NextRequest) {
     }
 
     const freePlan = await prisma.plan.findFirst({ where: { isFree: true } });
+    const normalizedInviteCode = normalizeInviteCode(String(inviteCode ?? ""));
+
+    if (authSettings.inviteRegistrationEnabled) {
+      if (!isInviteCodeFormatValid(normalizedInviteCode)) {
+        return NextResponse.json(
+          { error: "Для регистрации требуется валидный инвайт-ключ" },
+          { status: 400 }
+        );
+      }
+    }
 
     const passwordHash = await hash(password, 12);
-    await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        name: name?.trim() || null,
-        role: "USER",
-        planId: freePlan?.id ?? null,
-        storageQuota: freePlan?.storageQuota ?? BigInt(25 * 1024 * 1024 * 1024),
-        maxFileSize: freePlan?.maxFileSize ?? BigInt(512 * 1024 * 1024),
-      },
+    await prisma.$transaction(async (tx) => {
+      let consumedInviteId: string | null = null;
+
+      const user = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          name: name?.trim() || null,
+          role: "USER",
+          planId: freePlan?.id ?? null,
+          storageQuota: freePlan?.storageQuota ?? BigInt(25 * 1024 * 1024 * 1024),
+          maxFileSize: freePlan?.maxFileSize ?? BigInt(512 * 1024 * 1024),
+        },
+      });
+
+      if (authSettings.inviteRegistrationEnabled) {
+        const invite = await consumeActiveInvite({
+          tx,
+          code: normalizedInviteCode,
+          usedByUserId: user.id,
+        });
+        consumedInviteId = invite.id;
+
+        await createInvites({
+          tx,
+          scope: "USER",
+          count: 3,
+          ownerUserId: user.id,
+          createdByUserId: user.id,
+        });
+      }
+
+      if (consumedInviteId) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { registeredViaInviteId: consumedInviteId },
+        });
+      }
     });
 
     try {
@@ -75,7 +114,17 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && (
+      error.message === "INVITE_NOT_ACTIVE" ||
+      error.message === "INVITE_ALREADY_CONSUMED" ||
+      error.message === "INVALID_INVITE_CODE"
+    )) {
+      return NextResponse.json(
+        { error: "Инвайт-ключ недействителен или уже использован" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: "Ошибка регистрации" },
       { status: 500 }

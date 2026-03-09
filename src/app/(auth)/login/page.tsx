@@ -19,6 +19,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [authMethods, setAuthMethods] = useState<{
     emailRegistrationEnabled: boolean;
+    inviteRegistrationEnabled: boolean;
     telegramWidgetEnabled: boolean;
     telegramQrEnabled: boolean;
     telegramDomain: string;
@@ -31,6 +32,7 @@ function LoginForm() {
       .then(setAuthMethods)
       .catch(() => setAuthMethods({
         emailRegistrationEnabled: true,
+        inviteRegistrationEnabled: false,
         telegramWidgetEnabled: false,
         telegramQrEnabled: false,
         telegramDomain: "qoqon.ru",

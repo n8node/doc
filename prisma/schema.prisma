@@ -40,10 +40,37 @@ model User {
   preferences          Json?                 @map("preferences") // { theme?: string, notifications?: { storage, trash, payment, ... } }
   telegramUserId       BigInt?               @unique @map("telegram_user_id")
   telegramUsername     String?               @map("telegram_username")
+  registeredViaInviteId String?              @map("registered_via_invite_id")
+  registeredViaInvite  Invite?               @relation("UserRegisteredViaInvite", fields: [registeredViaInviteId], references: [id], onDelete: SetNull)
+  createdInvites       Invite[]              @relation("InviteCreatedByUser")
+  usedInvites          Invite[]              @relation("InviteUsedByUser")
+  ownedInvites         Invite[]              @relation("InviteOwnedByUser")
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
 
+  @@index([registeredViaInviteId])
   @@map("users")
+}
+
+model Invite {
+  id              String      @id @default(cuid()) @map("id")
+  code            String      @unique @map("code")
+  scope           InviteScope @map("scope")
+  status          InviteStatus @default(ACTIVE) @map("status")
+  ownerUserId     String?     @map("owner_user_id")
+  ownerUser       User?       @relation("InviteOwnedByUser", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  createdByUserId String?     @map("created_by_user_id")
+  createdByUser   User?       @relation("InviteCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  usedByUserId    String?     @map("used_by_user_id")
+  usedByUser      User?       @relation("InviteUsedByUser", fields: [usedByUserId], references: [id], onDelete: SetNull)
+  registeredUsers User[]      @relation("UserRegisteredViaInvite")
+  usedAt          DateTime?   @map("used_at")
+  expiresAt       DateTime?   @map("expires_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  @@index([scope, status, createdAt(sort: Asc)])
+  @@index([ownerUserId, status, createdAt(sort: Desc)])
+  @@map("invites")
 }
 
 model File {
@@ -434,6 +461,18 @@ enum TokenUsageCategory {
   SEARCH
   EMBEDDING
   TRANSCRIPTION
+}
+
+enum InviteScope {
+  SYSTEM
+  USER
+}
+
+enum InviteStatus {
+  ACTIVE
+  USED
+  REVOKED
+  EXPIRED
 }
 
 model Notification {

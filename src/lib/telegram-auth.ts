@@ -7,6 +7,7 @@ import { configStore } from "./config-store";
 
 export interface AuthSettings {
   emailRegistrationEnabled: boolean;
+  inviteRegistrationEnabled: boolean;
   telegramWidgetEnabled: boolean;
   telegramQrEnabled: boolean;
   telegramDomain: string;
@@ -14,8 +15,9 @@ export interface AuthSettings {
 }
 
 export async function getAuthSettings(): Promise<AuthSettings> {
-  const [emailReg, tgWidget, tgQr, tgDomain] = await Promise.all([
+  const [emailReg, inviteReg, tgWidget, tgQr, tgDomain] = await Promise.all([
     configStore.get("auth.email_registration_enabled"),
+    configStore.get("auth.invite_registration_enabled"),
     configStore.get("auth.telegram_widget_enabled"),
     configStore.get("auth.telegram_qr_enabled"),
     configStore.get("auth.telegram_domain"),
@@ -23,6 +25,7 @@ export async function getAuthSettings(): Promise<AuthSettings> {
 
   return {
     emailRegistrationEnabled: emailReg !== "false",
+    inviteRegistrationEnabled: inviteReg === "true",
     telegramWidgetEnabled: tgWidget === "true",
     telegramQrEnabled: tgQr === "true",
     telegramDomain: tgDomain || "qoqon.ru",

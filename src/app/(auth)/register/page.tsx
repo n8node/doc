@@ -30,8 +30,12 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [inviteCodeInput, setInviteCodeInput] = useState("");
+  const [inviteVerifiedCode, setInviteVerifiedCode] = useState("");
+  const [checkingInvite, setCheckingInvite] = useState(false);
   const [authMethods, setAuthMethods] = useState<{
     emailRegistrationEnabled: boolean;
+    inviteRegistrationEnabled: boolean;
     telegramWidgetEnabled: boolean;
     telegramQrEnabled: boolean;
     telegramDomain: string;
@@ -44,6 +48,7 @@ export default function RegisterPage() {
       .then(setAuthMethods)
       .catch(() => setAuthMethods({
         emailRegistrationEnabled: true,
+        inviteRegistrationEnabled: false,
         telegramWidgetEnabled: false,
         telegramQrEnabled: false,
         telegramDomain: "qoqon.ru",
@@ -56,6 +61,11 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (authMethods?.inviteRegistrationEnabled && !inviteVerifiedCode) {
+      setError("Сначала активируйте регистрацию по инвайт-ключу");
+      return;
+    }
 
     if (password.length < 8) {
       setError("Пароль должен быть не менее 8 символов");
@@ -71,7 +81,12 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name: name.trim() || undefined }),
+        body: JSON.stringify({
+          email,
+          password,
+          name: name.trim() || undefined,
+          inviteCode: authMethods?.inviteRegistrationEnabled ? inviteVerifiedCode : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -94,6 +109,29 @@ export default function RegisterPage() {
       setError("Ошибка соединения");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleVerifyInvite(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setCheckingInvite(true);
+    try {
+      const res = await fetch("/api/auth/invite/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteCode: inviteCodeInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Инвайт недействителен");
+        return;
+      }
+      setInviteVerifiedCode(data.inviteCode || inviteCodeInput.trim());
+    } catch {
+      setError("Ошибка проверки инвайт-ключа");
+    } finally {
+      setCheckingInvite(false);
     }
   }
 
@@ -123,7 +161,50 @@ export default function RegisterPage() {
               <TelegramLoginBlock methods={authMethods} callbackUrl="/dashboard" />
             </div>
           )}
-          {authMethods?.emailRegistrationEnabled !== false && (
+          {authMethods?.emailRegistrationEnabled !== false && authMethods?.inviteRegistrationEnabled && !inviteVerifiedCode && (
+          <form onSubmit={handleVerifyInvite}>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="mb-5 rounded-xl bg-error/10 px-4 py-3 text-sm font-medium text-error"
+              >
+                {error}
+              </motion.div>
+            )}
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                Инвайт-ключ
+              </label>
+              <input
+                type="text"
+                value={inviteCodeInput}
+                onChange={(e) => setInviteCodeInput(e.target.value)}
+                required
+                placeholder="QoQon_XXXXXXXXXXXX"
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={checkingInvite}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground shadow-soft transition-all hover:bg-primary/90 hover:shadow-medium disabled:opacity-60"
+            >
+              {checkingInvite ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Проверка...
+                </>
+              ) : (
+                "Продолжить"
+              )}
+            </button>
+          </form>
+          )}
+
+          {authMethods?.emailRegistrationEnabled !== false && (!authMethods?.inviteRegistrationEnabled || !!inviteVerifiedCode) && (
           <form onSubmit={handleSubmit}>
           {error && (
             <motion.div
@@ -133,6 +214,12 @@ export default function RegisterPage() {
             >
               {error}
             </motion.div>
+          )}
+
+          {authMethods?.inviteRegistrationEnabled && inviteVerifiedCode && (
+            <div className="mb-4 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-xs text-success">
+              Инвайт активирован: <span className="font-semibold">{inviteVerifiedCode}</span>
+            </div>
           )}
 
           <div className="space-y-4">

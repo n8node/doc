@@ -70,6 +70,15 @@ interface UserDetailDialogProps {
   onUpdated: () => void;
 }
 
+interface UserInviteItem {
+  id: string;
+  code: string;
+  status: string;
+  isActive: boolean;
+  usedAt: string | null;
+  createdAt: string;
+}
+
 export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialogProps) {
   const [user, setUser] = useState<UserDetail | null>(null);
   const [plans, setPlans] = useState<PlanOption[]>([]);
@@ -77,14 +86,18 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
   const [saving, setSaving] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [tokenUsage, setTokenUsage] = useState<UserTokenUsage | null>(null);
+  const [userInvites, setUserInvites] = useState<UserInviteItem[]>([]);
+  const [inviteCount, setInviteCount] = useState<number>(3);
+  const [addingInvites, setAddingInvites] = useState(false);
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/v1/admin/users/${userId}`).then((r) => r.json()),
       fetch("/api/v1/admin/plans").then((r) => r.json()),
       fetch(`/api/v1/admin/users/${userId}/token-usage`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/v1/admin/users/${userId}/invites`).then((r) => r.json()).catch(() => ({ invites: [] })),
     ])
-      .then(([userData, plansData, tokenData]) => {
+      .then(([userData, plansData, tokenData, invitesData]) => {
         if (userData.id) {
           setUser(userData);
           setSelectedPlanId(userData.plan?.id ?? "none");
@@ -96,6 +109,9 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
           setTokenUsage(tokenData as UserTokenUsage);
         } else {
           setTokenUsage(null);
+        }
+        if (Array.isArray(invitesData?.invites)) {
+          setUserInvites(invitesData.invites as UserInviteItem[]);
         }
       })
       .catch(() => toast.error("Ошибка загрузки"))
@@ -142,6 +158,32 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
     user && user.storageQuota > 0
       ? Math.min(Math.round((user.storageUsed / user.storageQuota) * 100), 100)
       : 0;
+
+  const handleAddInvites = async () => {
+    if (!Number.isInteger(inviteCount) || inviteCount < 1) {
+      toast.error("Укажите корректное количество");
+      return;
+    }
+    setAddingInvites(true);
+    try {
+      const res = await fetch(`/api/v1/admin/users/${userId}/invites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: inviteCount }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Ошибка добавления");
+      const refresh = await fetch(`/api/v1/admin/users/${userId}/invites`).then((r) => r.json());
+      if (Array.isArray(refresh?.invites)) {
+        setUserInvites(refresh.invites as UserInviteItem[]);
+      }
+      toast.success(`Добавлено инвайтов: ${data.createdCount}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Ошибка добавления");
+    } finally {
+      setAddingInvites(false);
+    }
+  };
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -344,6 +386,39 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
                   </div>
                 </div>
               )}
+
+              <div className="rounded-xl border border-border p-4">
+                <p className="text-sm font-medium">Инвайты пользователя</p>
+                <div className="mt-3 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={inviteCount}
+                    onChange={(e) => setInviteCount(Number(e.target.value || 0))}
+                    className="w-24 rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <Button size="sm" variant="outline" onClick={handleAddInvites} disabled={addingInvites}>
+                    {addingInvites ? <Loader2 className="h-4 w-4 animate-spin" /> : "Добавить"}
+                  </Button>
+                </div>
+                {userInvites.length === 0 ? (
+                  <p className="mt-3 text-xs text-muted-foreground">У пользователя пока нет инвайтов.</p>
+                ) : (
+                  <div className="mt-3 space-y-1.5">
+                    {userInvites.map((invite) => (
+                      <div key={invite.id} className="flex items-center justify-between rounded-md bg-surface2/40 px-2 py-1">
+                        <span className={`font-mono text-xs ${invite.isActive ? "" : "text-muted-foreground opacity-60"}`}>
+                          {invite.code}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {invite.isActive ? "ACTIVE" : invite.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
