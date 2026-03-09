@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -295,6 +296,7 @@ export function FileManager() {
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [copying, setCopying] = useState(false);
   const [scanPdfModalOpen, setScanPdfModalOpen] = useState(false);
+  const [analysisUpgradeOpen, setAnalysisUpgradeOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{
     type: "file" | "folder";
     id: string;
@@ -1134,8 +1136,38 @@ export function FileManager() {
   const analysisDocumentsQuotaExceeded =
     aiAnalysisDocumentsQuota != null && aiAnalysisDocumentsUsedThisMonth >= aiAnalysisDocumentsQuota;
 
-  const analysisAllowed =
-    documentAnalysisAllowed && !embeddingQuotaExceeded && !analysisDocumentsQuotaExceeded;
+  const canAnalyzeSelection =
+    selectedFiles.size > 0 &&
+    files.some(
+      (f) =>
+        selectedFiles.has(f.id) &&
+        PROCESSABLE_MIMES.has(f.mimeType) &&
+        !f.aiMetadata?.processedAt
+    );
+
+  const openAnalysisIfAllowed = (fileId: string) => {
+    if (!documentAnalysisAllowed) {
+      setAnalysisUpgradeOpen(true);
+      return;
+    }
+    if (embeddingQuotaExceeded || analysisDocumentsQuotaExceeded) {
+      toast.error("Лимит анализа документов по вашему тарифу исчерпан. Смените тариф.");
+      return;
+    }
+    handleProcessFile(fileId);
+  };
+
+  const openBulkAnalysisIfAllowed = () => {
+    if (!documentAnalysisAllowed) {
+      setAnalysisUpgradeOpen(true);
+      return;
+    }
+    if (embeddingQuotaExceeded || analysisDocumentsQuotaExceeded) {
+      toast.error("Лимит анализа документов по вашему тарифу исчерпан. Смените тариф.");
+      return;
+    }
+    handleBulkAnalyze();
+  };
 
   const transcriptionQuotaExceeded =
     transcriptionMinutesQuota != null &&
@@ -2182,11 +2214,10 @@ export function FileManager() {
         setShareLinksTarget({ type: "FILE", id: file.id, name: file.name })
       }
       onProcess={
-        analysisAllowed &&
         PROCESSABLE_MIMES.has(file.mimeType) &&
         !file.aiMetadata?.processedAt &&
         !analyzingFiles.has(file.id)
-          ? () => handleProcessFile(file.id)
+          ? () => openAnalysisIfAllowed(file.id)
           : undefined
       }
       onTranscribe={
@@ -3218,13 +3249,12 @@ export function FileManager() {
                                       <BrainCircuit className="h-4 w-4" />
                                     </span>
                                   )}
-                                  {analysisAllowed &&
-                                    PROCESSABLE_MIMES.has(file.mimeType) &&
+                                  {PROCESSABLE_MIMES.has(file.mimeType) &&
                                     !file.aiMetadata?.processedAt &&
                                     !analyzingFiles.has(file.id) && (
                                       <button
                                         type="button"
-                                        onClick={() => handleProcessFile(file.id)}
+                                        onClick={() => openAnalysisIfAllowed(file.id)}
                                         className="rounded-md p-1.5 text-emerald-500 transition-colors hover:bg-emerald-500/10"
                                         aria-label="Анализ документа"
                                       >
@@ -3358,10 +3388,8 @@ export function FileManager() {
           onDelete={handleBulkDelete}
           onClear={clearSelection}
           onAiAnalyze={
-            analysisAllowed &&
-            selectedFiles.size > 0 &&
-            files.some((f) => selectedFiles.has(f.id) && PROCESSABLE_MIMES.has(f.mimeType) && !f.aiMetadata?.processedAt)
-              ? handleBulkAnalyze
+            canAnalyzeSelection
+              ? openBulkAnalysisIfAllowed
               : undefined
           }
           aiAnalyzing={bulkAnalyzing}
@@ -3505,6 +3533,34 @@ export function FileManager() {
           <p className="text-muted-foreground">
             Этот PDF не содержит текстового слоя (это скан). Анализ сканированных документов пока недоступен.
           </p>
+        </DialogContent>
+      </Dialog>
+
+      {/* Analysis upgrade dialog */}
+      <Dialog open={analysisUpgradeOpen} onOpenChange={setAnalysisUpgradeOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5 text-primary" />
+              Функция недоступна
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">
+              AI-анализ документов недоступен на вашем текущем тарифе.
+              Смените тариф, чтобы включить анализ.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAnalysisUpgradeOpen(false)}>
+                Позже
+              </Button>
+              <Link href="/dashboard/plans">
+                <Button onClick={() => setAnalysisUpgradeOpen(false)}>
+                  Сменить тариф
+                </Button>
+              </Link>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
