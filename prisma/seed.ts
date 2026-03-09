@@ -31,6 +31,7 @@ async function main() {
         ai_search: false,
         document_chat: false,
         rag_memory: false,
+        n8n_connection: false,
       },
       priceMonthly: null,
       priceYearly: null,
@@ -47,6 +48,7 @@ async function main() {
         ai_search: false,
         document_chat: false,
         rag_memory: false,
+        n8n_connection: false,
       },
     },
   });

@@ -3,7 +3,7 @@ import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { isN8nDbEnabled, type N8nDbTarget } from "@/lib/n8n-db/client";
 import { revokeN8nConnection } from "@/lib/n8n-db/service";
-import { checkRagMemoryAccess } from "@/lib/rag/access";
+import { checkN8nConnectionAccess, checkRagMemoryAccess } from "@/lib/rag/access";
 
 type Ctx = { params: Promise<{ id: string; connId: string }> };
 
@@ -17,6 +17,8 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
   }
   const accessError = await checkRagMemoryAccess(userId);
   if (accessError) return accessError;
+  const n8nAccessError = await checkN8nConnectionAccess(userId);
+  if (n8nAccessError) return n8nAccessError;
 
   const { id: collectionId, connId } = await ctx.params;
 

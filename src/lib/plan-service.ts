@@ -14,6 +14,7 @@ const FREE_PLAN_DEFAULTS = {
     document_chat: false,
     document_analysis: false,
     rag_memory: false,
+    n8n_connection: false,
   } as Record<string, boolean>,
 };
 

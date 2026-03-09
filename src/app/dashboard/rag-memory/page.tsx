@@ -107,6 +107,8 @@ export default function RagMemoryPage() {
     name: string;
     filesWithEmbeddings: number;
   } | null>(null);
+  const [canUseN8nConnection, setCanUseN8nConnection] = useState(false);
+  const [n8nUpgradeOpen, setN8nUpgradeOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const shortenId = (id: string, maxLen = 24) => {
@@ -127,6 +129,7 @@ export default function RagMemoryPage() {
       const planRes = await fetch("/api/v1/plans/me", { credentials: "include" });
       const planData = await planRes.json();
       const canUseRag = !!planData.features?.rag_memory;
+      setCanUseN8nConnection(!!planData.features?.n8n_connection);
       setAllowed(canUseRag);
       if (!canUseRag) {
         setCollections([]);
@@ -628,13 +631,17 @@ export default function RagMemoryPage() {
                       size="sm"
                       variant="outline"
                       className="gap-1"
-                      onClick={() =>
+                      onClick={() => {
+                        if (!canUseN8nConnection) {
+                          setN8nUpgradeOpen(true);
+                          return;
+                        }
                         setN8nConnectionCollection({
                           id: c.id,
                           name: c.name,
                           filesWithEmbeddings: c.filesWithEmbeddings,
-                        })
-                      }
+                        });
+                      }}
                     >
                       <Database className="h-3 w-3" />
                       n8n
@@ -814,6 +821,33 @@ export default function RagMemoryPage() {
           onClose={() => setN8nConnectionCollection(null)}
         />
       )}
+
+      <Dialog open={n8nUpgradeOpen} onOpenChange={setN8nUpgradeOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-primary" />
+              Функция недоступна
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <p className="text-sm text-muted-foreground">
+              Подключение RAG-коллекций к n8n недоступно на вашем текущем тарифе.
+              Смените тариф, чтобы открыть доступ.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setN8nUpgradeOpen(false)}>
+                Позже
+              </Button>
+              <Link href="/dashboard/plans">
+                <Button onClick={() => setN8nUpgradeOpen(false)}>
+                  Сменить тариф
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

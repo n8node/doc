@@ -26,6 +26,27 @@ export async function checkRagMemoryAccess(userId: string): Promise<NextResponse
   return null;
 }
 
+export async function checkN8nConnectionAccess(
+  userId: string
+): Promise<NextResponse | null> {
+  const plan = await getUserPlan(userId);
+  if (!plan) return null;
+
+  const features = (plan.features ?? {}) as Record<string, unknown>;
+  if (features.n8n_connection !== true) {
+    return NextResponse.json(
+      {
+        error:
+          "Подключение к n8n недоступно на вашем тарифе. Обновите тариф для доступа.",
+        code: "N8N_CONNECTION_DISABLED",
+      },
+      { status: 403 }
+    );
+  }
+
+  return null;
+}
+
 export async function getRagDocumentsQuotaStatus(
   userId: string,
   options?: { excludeCollectionId?: string }

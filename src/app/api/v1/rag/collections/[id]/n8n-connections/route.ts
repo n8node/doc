@@ -11,7 +11,7 @@ import {
 } from "@/lib/n8n-db/client";
 import { createN8nConnection, hashN8nPassword } from "@/lib/n8n-db/service";
 import { nanoid } from "nanoid";
-import { checkRagMemoryAccess } from "@/lib/rag/access";
+import { checkN8nConnectionAccess, checkRagMemoryAccess } from "@/lib/rag/access";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -22,6 +22,8 @@ export async function GET(request: NextRequest, ctx: Ctx) {
   }
   const accessError = await checkRagMemoryAccess(userId);
   if (accessError) return accessError;
+  const n8nAccessError = await checkN8nConnectionAccess(userId);
+  if (n8nAccessError) return n8nAccessError;
 
   const { id: collectionId } = await ctx.params;
 
@@ -57,6 +59,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   }
   const accessError = await checkRagMemoryAccess(userId);
   if (accessError) return accessError;
+  const n8nAccessError = await checkN8nConnectionAccess(userId);
+  if (n8nAccessError) return n8nAccessError;
 
   const body = await request.json().catch(() => ({}));
   const targetValue = typeof body?.target === "string" ? body.target : "DEFAULT";

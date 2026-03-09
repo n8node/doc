@@ -51,6 +51,7 @@ const featureLabels: Record<string, string> = {
   share_links: "Публичные ссылки",
   folder_share: "Шаринг папок",
   rag_memory: "RAG-память",
+  n8n_connection: "Подключение к n8n",
   ai_search: "AI-поиск по документам",
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
