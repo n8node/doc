@@ -4,6 +4,12 @@ import { getUserPlan } from "@/lib/plan-service";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
 import { getTranscriptionMinutesUsedThisMonth } from "@/lib/ai/transcription-usage";
 import { getAnalysisDocumentsUsedThisMonth } from "@/lib/ai/analysis-documents-usage";
+import {
+  getPlanTokenQuotas,
+  getTokenUsageSummary,
+  getTotalQuota,
+  getUserBillingContext,
+} from "@/lib/ai/token-usage";
 
 export async function GET(req: NextRequest) {
   const userId = await getUserIdFromRequest(req);
@@ -29,6 +35,15 @@ export async function GET(req: NextRequest) {
       ? await getAnalysisDocumentsUsedThisMonth(userId)
       : undefined;
 
+  const billing = await getUserBillingContext(userId);
+  const cycleUsage = billing
+    ? await getTokenUsageSummary(userId, { since: billing.cycleStart })
+    : null;
+  const quotas = getPlanTokenQuotas(plan);
+  const totalQuota = getTotalQuota(quotas);
+  const totalUsed = cycleUsage?.totalTokens ?? 0;
+  const totalRemaining = totalQuota != null ? Math.max(0, totalQuota - totalUsed) : null;
+
   return NextResponse.json({
     ...plan,
     storageQuota: Number(plan.storageQuota),
@@ -36,5 +51,13 @@ export async function GET(req: NextRequest) {
     embeddingTokensUsedThisMonth,
     transcriptionMinutesUsedThisMonth,
     aiAnalysisDocumentsUsedThisMonth,
+    tokenQuotas: quotas,
+    tokenUsageCurrentCycle: cycleUsage?.byCategory,
+    tokenUsageTotalCurrentCycle: totalUsed,
+    tokenQuotaTotal: totalQuota,
+    tokenRemainingTotal: totalRemaining,
+    billingCycleStart: billing?.cycleStart ?? null,
+    billingCycleEnd: billing?.cycleEnd ?? null,
+    billingAnchorType: billing?.anchorType ?? null,
   });
 }

@@ -33,6 +33,9 @@ interface PlanItem {
   maxFileSize: number;
   trashRetentionDays: number;
   embeddingTokensQuota: number | null;
+  chatTokensQuota?: number | null;
+  searchTokensQuota?: number | null;
+  transcriptionTokensQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   features: Record<string, boolean>;
   priceMonthly: number | null;
@@ -120,10 +123,23 @@ function PlanCard({
             <div className="flex items-center gap-2 text-sm">
               <BrainCircuit className="h-4 w-4 text-muted-foreground" />
               <span>
-                Токенов на анализ:{" "}
+                Эмбеддинг:{" "}
                 {plan.embeddingTokensQuota != null
                   ? `${plan.embeddingTokensQuota.toLocaleString()}/мес`
                   : "без лимита"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+              <span>
+                Чат/Поиск/Транскр.:{" "}
+                {[
+                  plan.chatTokensQuota,
+                  plan.searchTokensQuota,
+                  plan.transcriptionTokensQuota,
+                ]
+                  .map((v) => (v != null ? `${v.toLocaleString()}` : "∞"))
+                  .join(" / ")}
               </span>
             </div>
             {plan.features?.document_analysis && (

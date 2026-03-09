@@ -3,6 +3,10 @@ import { configStore } from "@/lib/config-store";
 import { getProviderForUser } from "@/lib/ai/get-provider-for-user";
 import { findSimilarForFile, getChunksForFile } from "@/lib/docling/vector-store";
 import { hasEmbeddings } from "@/lib/docling/vector-store";
+import {
+  assertTokenQuotaAvailable,
+  recordTokenUsageEvent,
+} from "@/lib/ai/token-usage";
 
 const DEFAULT_SYSTEM_PROMPT =
   "Ты — полезный ассистент. Отвечай на вопросы пользователя на основе приведённого ниже контекста из документа. " +
@@ -55,7 +59,30 @@ export async function sendDocumentChatMessage(
     select: { role: true, content: true },
   });
 
+  if (!active.usedOwnKey) {
+    const estimate = Math.max(64, Math.ceil(input.content.length / 4));
+    await assertTokenQuotaAvailable({
+      userId: input.userId,
+      category: "CHAT_DOCUMENT",
+      estimatedTokens: estimate,
+    });
+  }
+
   const embResult = await active.provider.generateEmbedding(input.content);
+  if ((embResult.usage?.totalTokens ?? embResult.usage?.promptTokens ?? 0) > 0) {
+    await recordTokenUsageEvent({
+      userId: input.userId,
+      category: "CHAT_DOCUMENT",
+      sourceType: "document_chat",
+      sourceId: input.fileId,
+      tokensIn: embResult.usage?.promptTokens ?? embResult.usage?.totalTokens ?? 0,
+      tokensTotal: embResult.usage?.totalTokens ?? embResult.usage?.promptTokens ?? 0,
+      provider: active.providerName,
+      model: embResult.model ?? undefined,
+      isBillable: !active.usedOwnKey,
+      metadata: { phase: "context_embedding" },
+    });
+  }
   const similar = await findSimilarForFile(
     embResult.vector,
     input.fileId,
@@ -94,6 +121,20 @@ export async function sendDocumentChatMessage(
     ? (usage.totalTokens ?? usage.promptTokens + usage.completionTokens)
     : 0;
   if (totalTokens > 0) {
+    await recordTokenUsageEvent({
+      userId: input.userId,
+      category: "CHAT_DOCUMENT",
+      sourceType: "document_chat",
+      sourceId: input.fileId,
+      tokensIn: usage?.promptTokens ?? 0,
+      tokensOut: usage?.completionTokens ?? 0,
+      tokensTotal: totalTokens,
+      provider: active.providerName,
+      model: completion.model ?? active.providerName,
+      isBillable: !active.usedOwnKey,
+      metadata: { phase: "chat_completion" },
+    });
+
     await prisma.aiTask.create({
       data: {
         type: "CHAT",

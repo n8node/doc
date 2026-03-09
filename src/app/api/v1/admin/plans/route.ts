@@ -23,6 +23,9 @@ export async function GET() {
       storageQuota: Number(p.storageQuota),
       maxFileSize: Number(p.maxFileSize),
       embeddingTokensQuota: p.embeddingTokensQuota,
+      chatTokensQuota: p.chatTokensQuota,
+      searchTokensQuota: p.searchTokensQuota,
+      transcriptionTokensQuota: p.transcriptionTokensQuota,
       aiAnalysisDocumentsQuota: p.aiAnalysisDocumentsQuota,
       usersCount: p._count.users,
       _count: undefined,
@@ -41,6 +44,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
+    chatTokensQuota, searchTokensQuota, transcriptionTokensQuota,
     aiAnalysisDocumentsQuota,
     transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
     features, priceMonthly, priceYearly, isPopular,
@@ -93,6 +97,18 @@ export async function POST(req: NextRequest) {
       maxFileSize: fileSizeValue,
       trashRetentionDays: typeof trashRetentionDays === "number" ? trashRetentionDays : 0,
       embeddingTokensQuota: tokensQuota,
+      chatTokensQuota:
+        chatTokensQuota === undefined || chatTokensQuota === null || chatTokensQuota === ""
+          ? null
+          : Math.max(0, parseInt(String(chatTokensQuota), 10) || 0) || null,
+      searchTokensQuota:
+        searchTokensQuota === undefined || searchTokensQuota === null || searchTokensQuota === ""
+          ? null
+          : Math.max(0, parseInt(String(searchTokensQuota), 10) || 0) || null,
+      transcriptionTokensQuota:
+        transcriptionTokensQuota === undefined || transcriptionTokensQuota === null || transcriptionTokensQuota === ""
+          ? null
+          : Math.max(0, parseInt(String(transcriptionTokensQuota), 10) || 0) || null,
       aiAnalysisDocumentsQuota: analysisDocsQuota,
       transcriptionMinutesQuota: transQuota,
       maxTranscriptionVideoMinutes: maxVideoMin,

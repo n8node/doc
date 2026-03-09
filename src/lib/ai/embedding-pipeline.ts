@@ -2,6 +2,10 @@ import { getProviderForUser } from "./get-provider-for-user";
 import { chunkText, isNoiseChunk } from "./chunker";
 import { insertEmbedding, deleteEmbeddingsByFileId } from "@/lib/docling/vector-store";
 import { prisma } from "@/lib/prisma";
+import {
+  assertTokenQuotaAvailable,
+  recordTokenUsageEvent,
+} from "./token-usage";
 
 export interface EmbeddingPipelineResult {
   fileId: string;
@@ -62,6 +66,13 @@ export async function runEmbeddingPipeline(
 
     for (const chunk of chunks) {
       if (isNoiseChunk(chunk.text)) continue;
+      if (!usedOwnKey) {
+        await assertTokenQuotaAvailable({
+          userId,
+          category: "EMBEDDING",
+          estimatedTokens: Math.max(32, Math.ceil(chunk.text.length / 4)),
+        });
+      }
       const result = await provider.generateEmbedding(chunk.text);
       if (result.vector.length === 0) continue;
 
@@ -70,6 +81,21 @@ export async function runEmbeddingPipeline(
       if (result.usage) {
         totalPromptTokens += result.usage.promptTokens;
         totalTokens += result.usage.totalTokens;
+      }
+      const spent = result.usage?.totalTokens ?? result.usage?.promptTokens ?? 0;
+      if (spent > 0) {
+        await recordTokenUsageEvent({
+          userId,
+          category: "EMBEDDING",
+          sourceType: "embedding",
+          sourceId: fileId,
+          tokensIn: result.usage?.promptTokens ?? spent,
+          tokensTotal: spent,
+          provider: providerName,
+          model: result.model ?? undefined,
+          isBillable: !usedOwnKey,
+          metadata: { chunkIndex: chunk.index },
+        });
       }
 
       const id = `${fileId}_chunk_${chunk.index}`;

@@ -17,6 +17,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const body = await req.json();
   const {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
+    chatTokensQuota, searchTokensQuota, transcriptionTokensQuota,
     aiAnalysisDocumentsQuota,
     transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
     features, priceMonthly, priceYearly, isPopular,
@@ -36,6 +37,24 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       embeddingTokensQuota === null || embeddingTokensQuota === ""
         ? null
         : Math.max(0, parseInt(String(embeddingTokensQuota), 10) || 0) || null;
+  }
+  if (chatTokensQuota !== undefined) {
+    data.chatTokensQuota =
+      chatTokensQuota === null || chatTokensQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(chatTokensQuota), 10) || 0) || null;
+  }
+  if (searchTokensQuota !== undefined) {
+    data.searchTokensQuota =
+      searchTokensQuota === null || searchTokensQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(searchTokensQuota), 10) || 0) || null;
+  }
+  if (transcriptionTokensQuota !== undefined) {
+    data.transcriptionTokensQuota =
+      transcriptionTokensQuota === null || transcriptionTokensQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(transcriptionTokensQuota), 10) || 0) || null;
   }
   if (aiAnalysisDocumentsQuota !== undefined) {
     data.aiAnalysisDocumentsQuota =
@@ -73,6 +92,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     storageQuota: Number(plan.storageQuota),
     maxFileSize: Number(plan.maxFileSize),
     embeddingTokensQuota: plan.embeddingTokensQuota,
+    chatTokensQuota: plan.chatTokensQuota,
+    searchTokensQuota: plan.searchTokensQuota,
+    transcriptionTokensQuota: plan.transcriptionTokensQuota,
     aiAnalysisDocumentsQuota: plan.aiAnalysisDocumentsQuota,
   });
 }

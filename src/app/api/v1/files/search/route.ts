@@ -4,6 +4,11 @@ import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { getProviderForUser } from "@/lib/ai/get-provider-for-user";
 import { findSimilar, findSimilarByKeyword } from "@/lib/docling/vector-store";
 import { prisma } from "@/lib/prisma";
+import {
+  assertTokenQuotaAvailable,
+  recordTokenUsageEvent,
+  TokenQuotaExceededError,
+} from "@/lib/ai/token-usage";
 
 export async function GET(request: NextRequest) {
   const userId = await getUserIdFromRequest(request);
@@ -56,10 +61,33 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    if (!active.usedOwnKey) {
+      await assertTokenQuotaAvailable({
+        userId,
+        category: "SEARCH",
+        estimatedTokens: Math.max(32, Math.ceil(q.length / 4)),
+      });
+    }
+
     const [keywordResults, semanticResults] = await Promise.all([
       findSimilarByKeyword(userId, q, limit, collectionFileIds),
       (async () => {
         const embResult = await active.provider.generateEmbedding(q);
+        const spent = embResult.usage?.totalTokens ?? embResult.usage?.promptTokens ?? 0;
+        if (spent > 0) {
+          await recordTokenUsageEvent({
+            userId,
+            category: "SEARCH",
+            sourceType: "search",
+            sourceId: collectionId ?? undefined,
+            tokensIn: embResult.usage?.promptTokens ?? spent,
+            tokensTotal: spent,
+            provider: active.providerName,
+            model: embResult.model ?? undefined,
+            isBillable: !active.usedOwnKey,
+            metadata: { queryLength: q.length },
+          });
+        }
         if (embResult.vector.length === 0) return [];
         return findSimilar(embResult.vector, userId, limit, threshold, collectionFileIds);
       })(),
@@ -167,6 +195,18 @@ export async function GET(request: NextRequest) {
     if (collectionId) response.collectionId = collectionId;
     return NextResponse.json(response);
   } catch (error) {
+    if (error instanceof TokenQuotaExceededError) {
+      return NextResponse.json(
+        {
+          error: "Лимит токенов для поиска по тарифу исчерпан.",
+          code: "SEARCH_TOKENS_QUOTA_EXCEEDED",
+          quota: error.quota,
+          used: error.used,
+          requested: error.requested,
+        },
+        { status: 403 },
+      );
+    }
     console.error("[Search] Error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Ошибка поиска" },

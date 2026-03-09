@@ -21,6 +21,9 @@ interface PlanData {
   maxFileSize: number;
   trashRetentionDays: number;
   embeddingTokensQuota: number | null;
+  chatTokensQuota?: number | null;
+  searchTokensQuota?: number | null;
+  transcriptionTokensQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   transcriptionMinutesQuota?: number | null;
   maxTranscriptionVideoMinutes?: number;
@@ -77,6 +80,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
   const [trashDays, setTrashDays] = useState("0");
   const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState("");
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
+  const [chatTokensQuota, setChatTokensQuota] = useState("");
+  const [searchTokensQuota, setSearchTokensQuota] = useState("");
+  const [transcriptionTokensQuota, setTranscriptionTokensQuota] = useState("");
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState("");
   const [maxTranscriptionVideoMinutes, setMaxTranscriptionVideoMinutes] = useState("60");
   const [maxTranscriptionAudioMinutes, setMaxTranscriptionAudioMinutes] = useState("120");
@@ -112,6 +118,15 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setEmbeddingTokensQuota(
         plan.embeddingTokensQuota != null ? String(plan.embeddingTokensQuota) : "",
       );
+      setChatTokensQuota(
+        plan.chatTokensQuota != null ? String(plan.chatTokensQuota) : "",
+      );
+      setSearchTokensQuota(
+        plan.searchTokensQuota != null ? String(plan.searchTokensQuota) : "",
+      );
+      setTranscriptionTokensQuota(
+        plan.transcriptionTokensQuota != null ? String(plan.transcriptionTokensQuota) : "",
+      );
       setAiAnalysisDocumentsQuota(
         plan.aiAnalysisDocumentsQuota != null ? String(plan.aiAnalysisDocumentsQuota) : "",
       );
@@ -136,6 +151,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setMaxFileMb("512");
       setTrashDays("0");
       setEmbeddingTokensQuota("");
+      setChatTokensQuota("");
+      setSearchTokensQuota("");
+      setTranscriptionTokensQuota("");
       setAiAnalysisDocumentsQuota("");
       setTranscriptionMinutesQuota("");
       setMaxTranscriptionVideoMinutes("60");
@@ -173,6 +191,15 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       trashRetentionDays: parseInt(trashDays, 10) || 0,
       embeddingTokensQuota: embeddingTokensQuota.trim()
         ? Math.max(0, parseInt(embeddingTokensQuota, 10) || 0) || null
+        : null,
+      chatTokensQuota: chatTokensQuota.trim()
+        ? Math.max(0, parseInt(chatTokensQuota, 10) || 0) || null
+        : null,
+      searchTokensQuota: searchTokensQuota.trim()
+        ? Math.max(0, parseInt(searchTokensQuota, 10) || 0) || null
+        : null,
+      transcriptionTokensQuota: transcriptionTokensQuota.trim()
+        ? Math.max(0, parseInt(transcriptionTokensQuota, 10) || 0) || null
         : null,
       aiAnalysisDocumentsQuota: aiAnalysisDocumentsQuota.trim()
         ? Math.max(0, parseInt(aiAnalysisDocumentsQuota, 10) || 0) || null
@@ -294,21 +321,59 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
             </p>
           </div>
 
-          {/* Токены на анализ */}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              Токенов на анализ документов в месяц
-            </label>
-            <Input
-              type="number"
-              min={0}
-              value={embeddingTokensQuota}
-              onChange={(e) => setEmbeddingTokensQuota(e.target.value)}
-              placeholder="Без лимита"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Оставьте пустым для безлимита. Учитываются токены при эмбеддинге (AI-анализ).
-            </p>
+          {/* Токены по категориям */}
+          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
+            <h4 className="text-sm font-medium">Квоты токенов по категориям</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Чат по документам / мес
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={chatTokensQuota}
+                  onChange={(e) => setChatTokensQuota(e.target.value)}
+                  placeholder="Без лимита"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Поиск / мес
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={searchTokensQuota}
+                  onChange={(e) => setSearchTokensQuota(e.target.value)}
+                  placeholder="Без лимита"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Эмбеддинг / мес
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={embeddingTokensQuota}
+                  onChange={(e) => setEmbeddingTokensQuota(e.target.value)}
+                  placeholder="Без лимита"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Транскрибация / мес
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={transcriptionTokensQuota}
+                  onChange={(e) => setTranscriptionTokensQuota(e.target.value)}
+                  placeholder="Без лимита"
+                />
+              </div>
+            </div>
           </div>
 
           {/* AI-анализ документов */}

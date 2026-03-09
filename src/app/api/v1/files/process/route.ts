@@ -9,9 +9,9 @@ import {
 import { createNotificationIfEnabled, createQuota80WarningIfNeeded } from "@/lib/notification-service";
 import { estimateAnalysisTime } from "@/lib/docling/analysis-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
-import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
 import { userUsesOwnKey } from "@/lib/ai/get-provider-for-user";
 import { checkDocumentAnalysisAccess } from "@/lib/docling/process-access";
+import { getPlanTokenQuotas, getTokenUsageSummary, getUserBillingContext } from "@/lib/ai/token-usage";
 
 /**
  * POST /api/files/process — start document processing
@@ -60,14 +60,12 @@ export async function POST(request: NextRequest) {
 }
 
 async function checkEmbeddingQuota(userId: string): Promise<NextResponse | null> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { planId: true, plan: { select: { embeddingTokensQuota: true } } },
-  });
-  const quota = user?.plan?.embeddingTokensQuota ?? null;
+  const billing = await getUserBillingContext(userId);
+  const quota = getPlanTokenQuotas(billing?.plan ?? null).EMBEDDING;
   if (quota == null) return null;
 
-  const used = await getEmbeddingTokensUsedThisMonth(userId);
+  const usage = await getTokenUsageSummary(userId, { since: billing?.cycleStart });
+  const used = usage.byCategory.EMBEDDING;
   createQuota80WarningIfNeeded(userId, used, quota, "embedding").catch(() => {});
   if (used >= quota) {
     createNotificationIfEnabled({

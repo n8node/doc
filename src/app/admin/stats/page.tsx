@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { RefreshCw, Mic2, MessageCircle, Database } from "lucide-react";
+import { RefreshCw, Mic2, MessageCircle, Database, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -10,17 +10,28 @@ interface UsageStats {
   periodDays: number;
   since: string;
   transcription: {
-    totalMinutes: number;
-    byModel: Array<{ model: string; minutes: number; tasks: number }>;
+    totalTokens: number;
+    byModel: Array<{ model: string; tokens: number; tasks: number }>;
     byUser: Array<{
       userId: string;
       email: string;
       name: string | null;
-      minutes: number;
+      tokens: number;
       tasks: number;
     }>;
   };
-  chat: {
+  chatDocument: {
+    totalTokens: number;
+    byModel: Array<{ model: string; tokens: number; tasks: number }>;
+    byUser: Array<{
+      userId: string;
+      email: string;
+      name: string | null;
+      tokens: number;
+      tasks: number;
+    }>;
+  };
+  search: {
     totalTokens: number;
     byModel: Array<{ model: string; tokens: number; tasks: number }>;
     byUser: Array<{
@@ -56,7 +67,6 @@ function SectionCard({
   unit,
   byModel,
   byUser,
-  valueKey,
 }: {
   title: string;
   icon: React.ElementType;
@@ -64,10 +74,9 @@ function SectionCard({
   unit: string;
   byModel: Array<{ model: string; minutes?: number; tokens?: number; tasks: number }>;
   byUser: Array<{ userId: string; email: string; name: string | null; minutes?: number; tokens?: number; tasks: number }>;
-  valueKey: string;
 }) {
   const [view, setView] = useState<"model" | "user">("model");
-  const dataKey = valueKey === "minutes" ? "minutes" : "tokens";
+  const dataKey = "tokens";
 
   return (
     <Card className="overflow-hidden">
@@ -187,9 +196,7 @@ export default function AdminStatsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Статистика AI</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Расход токенов и минут по транскрибации, чату и эмбеддингу
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Расход токенов по всем AI-операциям</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -217,20 +224,26 @@ export default function AdminStatsPage() {
           <SectionCard
             title="Транскрибация"
             icon={Mic2}
-            total={stats.transcription.totalMinutes}
-            unit="мин"
+            total={stats.transcription.totalTokens}
+            unit="токенов"
             byModel={stats.transcription.byModel}
             byUser={stats.transcription.byUser}
-            valueKey="minutes"
           />
           <SectionCard
             title="Чат по документу"
             icon={MessageCircle}
-            total={stats.chat.totalTokens}
+            total={stats.chatDocument.totalTokens}
             unit="токенов"
-            byModel={stats.chat.byModel}
-            byUser={stats.chat.byUser}
-            valueKey="tokens"
+            byModel={stats.chatDocument.byModel}
+            byUser={stats.chatDocument.byUser}
+          />
+          <SectionCard
+            title="Поиск"
+            icon={Search}
+            total={stats.search.totalTokens}
+            unit="токенов"
+            byModel={stats.search.byModel}
+            byUser={stats.search.byUser}
           />
           <SectionCard
             title="Эмбеддинг"
@@ -239,7 +252,6 @@ export default function AdminStatsPage() {
             unit="токенов"
             byModel={stats.embedding.byModel}
             byUser={stats.embedding.byUser}
-            valueKey="tokens"
           />
         </div>
       ) : null}

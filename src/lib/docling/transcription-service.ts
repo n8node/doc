@@ -6,6 +6,7 @@ import { createNotificationIfEnabled } from "../notification-service";
 import { prisma } from "../prisma";
 import { getTranscriptionProviderForUser } from "../ai/get-transcription-provider";
 import { transcribeWithOpenAiWhisper } from "../ai/openai-whisper";
+import { recordTokenUsageEvent } from "../ai/token-usage";
 import type { ProcessingStatus } from "./types";
 
 // REMINDER: Video transcription disabled. API rejects video before reaching here. Restore when ready.
@@ -50,6 +51,12 @@ export interface TranscriptionResult {
   contentHash: string;
   format: string;
   processedAt: Date;
+}
+
+export function estimateTranscriptionTokens(durationMinutes: number, textLength = 0): number {
+  const byDuration = Math.max(0, Math.ceil(durationMinutes * 750));
+  const byText = Math.max(0, Math.ceil(textLength / 4));
+  return Math.max(byDuration, byText, 1);
 }
 
 export async function transcribeFile(
@@ -148,6 +155,23 @@ export async function transcribeFile(
       body: "Документ обработан",
       payload: { fileId, filename },
     }).catch(() => {});
+
+    const transcriptionTokens = estimateTranscriptionTokens(durationMinutes, result.text.length);
+    await recordTokenUsageEvent({
+      userId,
+      category: "TRANSCRIPTION",
+      sourceType: "transcription",
+      sourceId: fileId,
+      tokensIn: transcriptionTokens,
+      tokensTotal: transcriptionTokens,
+      provider: useOpenAi ? "openai_whisper" : "docling",
+      model: useOpenAi && provider?.modelName ? provider.modelName : (useOpenAi ? "OpenAI" : "QoQon"),
+      metadata: {
+        estimated: true,
+        durationMinutes,
+        textLength: result.text.length,
+      },
+    });
 
     return {
       fileId,

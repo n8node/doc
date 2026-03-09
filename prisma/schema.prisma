@@ -35,6 +35,7 @@ model User {
   userAiConfig         UserAiConfig?
   notifications        Notification[]
   vectorCollections    VectorCollection[]
+  tokenUsageEvents     TokenUsageEvent[]
   n8nPgConnections     N8nPgConnection[]
   preferences          Json?                 @map("preferences") // { theme?: string, notifications?: { storage, trash, payment, ... } }
   telegramUserId       BigInt?               @unique @map("telegram_user_id")
@@ -152,6 +153,9 @@ model Plan {
   maxFileSize                  BigInt      @default(536870912) @map("max_file_size") // 512MB
   trashRetentionDays           Int         @default(0) @map("trash_retention_days")
   embeddingTokensQuota         Int?        @map("embedding_tokens_quota") // токенов на эмбеддинг в месяц, null = без лимита
+  chatTokensQuota              Int?        @map("chat_tokens_quota") // токенов чата по документам в месяц, null = без лимита
+  searchTokensQuota            Int?        @map("search_tokens_quota") // токенов поиска в месяц, null = без лимита
+  transcriptionTokensQuota     Int?        @map("transcription_tokens_quota") // токенов транскрибации в месяц, null = без лимита
   aiAnalysisDocumentsQuota     Int?        @map("ai_analysis_documents_quota") // документов AI-анализа в месяц, null = без лимита
   features                     Json?       @map("features") // { "video_player": true, "transcription": true, "document_analysis": true, ... }
   transcriptionMinutesQuota    Int?        @map("transcription_minutes_quota") // минут транскрипции в месяц, null = без лимита
@@ -352,6 +356,28 @@ model AiTask {
   @@map("ai_tasks")
 }
 
+model TokenUsageEvent {
+  id         String             @id @default(cuid()) @map("id")
+  userId     String             @map("user_id")
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   TokenUsageCategory @map("category")
+  provider   String?            @map("provider")
+  model      String?            @map("model")
+  sourceType String             @map("source_type") // "document_chat" | "search" | "embedding" | "transcription"
+  sourceId   String?            @map("source_id")
+  tokensIn   Int                @default(0) @map("tokens_in")
+  tokensOut  Int                @default(0) @map("tokens_out")
+  tokensTotal Int               @map("tokens_total")
+  isBillable Boolean            @default(true) @map("is_billable") // false when user used own API key
+  metadata   Json?              @map("metadata")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, category, createdAt(sort: Desc)])
+  @@index([sourceType, sourceId])
+  @@map("token_usage_events")
+}
+
 enum Role {
   USER
   ADMIN
@@ -400,6 +426,13 @@ enum NotificationType {
   AI_TASK
   QUOTA
   SHARE_LINK
+}
+
+enum TokenUsageCategory {
+  CHAT_DOCUMENT
+  SEARCH
+  EMBEDDING
+  TRANSCRIPTION
 }
 
 model Notification {

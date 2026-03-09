@@ -5,6 +5,7 @@ import {
   transcribeFile,
   getTranscriptionStatus,
   isTranscribable,
+  estimateTranscriptionTokens,
 } from "@/lib/docling/transcription-service";
 import { createNotificationIfEnabled, createQuota80WarningIfNeeded } from "@/lib/notification-service";
 import { estimateTranscriptionTime } from "@/lib/docling/transcription-estimate";
@@ -12,6 +13,11 @@ import { getDoclingClient } from "@/lib/docling/client";
 import { getUserPlan } from "@/lib/plan-service";
 import { getTranscriptionMinutesUsedThisMonth } from "@/lib/ai/transcription-usage";
 import { getTranscriptionProviderForUser } from "@/lib/ai/get-transcription-provider";
+import {
+  getPlanTokenQuotas,
+  getTokenUsageSummary,
+  getUserBillingContext,
+} from "@/lib/ai/token-usage";
 
 function isVideoMime(mimeType: string): boolean {
   return mimeType.startsWith("video/");
@@ -116,6 +122,7 @@ export async function POST(request: NextRequest) {
   // const maxVideo = plan?.maxTranscriptionVideoMinutes ?? 60; // REMINDER: Video disabled
   const maxAudio = plan?.maxTranscriptionAudioMinutes ?? 120;
   const quota = plan?.transcriptionMinutesQuota ?? null;
+  const tokensQuota = getPlanTokenQuotas(plan).TRANSCRIPTION;
 
   // if (isVideoMime(file.mimeType) && durationMinutes > maxVideo) { ... } // REMINDER: Video disabled
   if (durationMinutes > maxAudio) {
@@ -148,6 +155,35 @@ export async function POST(request: NextRequest) {
           code: "TRANSCRIPTION_QUOTA_EXCEEDED",
           used,
           quota,
+        },
+        { status: 403 },
+      );
+    }
+  }
+
+  if (tokensQuota != null) {
+    const billing = await getUserBillingContext(userId);
+    const usage = await getTokenUsageSummary(userId, { since: billing?.cycleStart });
+    const usedTokens = usage.byCategory.TRANSCRIPTION;
+    const requestedTokens = estimateTranscriptionTokens(durationMinutes);
+    createQuota80WarningIfNeeded(userId, usedTokens, tokensQuota, "transcription").catch(() => {});
+    if (usedTokens + requestedTokens > tokensQuota) {
+      createNotificationIfEnabled({
+        userId,
+        type: "QUOTA",
+        category: "warning",
+        title: "Лимит токенов транскрибации исчерпан",
+        body: "Токенов транскрибации по тарифу недостаточно. Обновите тариф или дождитесь следующего платежного периода.",
+        payload: { used: usedTokens, quota: tokensQuota, requested: requestedTokens },
+      }).catch(() => {});
+      return NextResponse.json(
+        {
+          error:
+            "Лимит токенов транскрибации по вашему тарифу исчерпан. Обновите тариф или дождитесь следующего платежного периода.",
+          code: "TRANSCRIPTION_TOKENS_QUOTA_EXCEEDED",
+          used: usedTokens,
+          quota: tokensQuota,
+          requested: requestedTokens,
         },
         { status: 403 },
       );

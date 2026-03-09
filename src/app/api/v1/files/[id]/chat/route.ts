@@ -5,6 +5,7 @@ import {
   getDocumentChatHistory,
 } from "@/lib/document-chat-service";
 import { hasFeature } from "@/lib/plan-service";
+import { TokenQuotaExceededError } from "@/lib/ai/token-usage";
 
 /**
  * GET /api/files/[id]/chat — load chat history for document
@@ -83,6 +84,18 @@ export async function POST(
     });
     return NextResponse.json(result);
   } catch (e) {
+    if (e instanceof TokenQuotaExceededError) {
+      return NextResponse.json(
+        {
+          error: "Лимит токенов чата по вашему тарифу исчерпан.",
+          code: "CHAT_TOKENS_QUOTA_EXCEEDED",
+          quota: e.quota,
+          used: e.used,
+          requested: e.requested,
+        },
+        { status: 403 },
+      );
+    }
     const msg = e instanceof Error ? e.message : "Unknown error";
     if (msg === "File not found") {
       return NextResponse.json({ error: msg }, { status: 404 });

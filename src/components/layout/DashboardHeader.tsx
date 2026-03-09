@@ -2,8 +2,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationsDropdown } from "./NotificationsDropdown";
-import { Input } from "@/components/ui/input";
 import { UserMenu } from "./UserMenu";
+import { TokenUsageWidget } from "./TokenUsageWidget";
 
 export async function DashboardHeader({
   title,
@@ -25,12 +25,7 @@ export async function DashboardHeader({
         )}
       </div>
       <div className="flex items-center gap-4">
-        <div className="hidden md:block">
-          <Input
-            placeholder="Поиск..."
-            className="w-64"
-          />
-        </div>
+        <TokenUsageWidget />
         <NotificationsDropdown />
         <ThemeToggle />
         <UserMenu

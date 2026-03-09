@@ -29,6 +29,10 @@ interface PlanItem {
   maxFileSize: number;
   features: Record<string, boolean>;
   aiAnalysisDocumentsQuota?: number | null;
+  embeddingTokensQuota?: number | null;
+  chatTokensQuota?: number | null;
+  searchTokensQuota?: number | null;
+  transcriptionTokensQuota?: number | null;
   priceMonthly: number | null;
   priceYearly: number | null;
   trashRetentionDays: number;
@@ -282,6 +286,24 @@ export default function DashboardPlansPage() {
                               ({plan.aiAnalysisDocumentsQuota != null
                                 ? `${plan.aiAnalysisDocumentsQuota} док./мес`
                                 : "безлимит"})
+                            </span>
+                          )}
+                          {key === "document_chat" && enabled && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              ({plan.chatTokensQuota != null ? `${plan.chatTokensQuota.toLocaleString()} ток./мес` : "безлимит"})
+                            </span>
+                          )}
+                          {key === "ai_search" && enabled && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              ({plan.searchTokensQuota != null ? `${plan.searchTokensQuota.toLocaleString()} ток./мес` : "безлимит"})
+                            </span>
+                          )}
+                          {key === "transcription" && enabled && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              ({plan.transcriptionTokensQuota != null ? `${plan.transcriptionTokensQuota.toLocaleString()} ток./мес` : "безлимит"})
                             </span>
                           )}
                         </span>

@@ -51,6 +51,19 @@ interface PlanOption {
   name: string;
 }
 
+interface UserTokenUsage {
+  anchorType: "registration" | "last_payment";
+  cycleStart: string;
+  cycleEnd: string;
+  quotas: Record<"CHAT_DOCUMENT" | "SEARCH" | "EMBEDDING" | "TRANSCRIPTION", number | null>;
+  currentCycle: {
+    totalTokens: number;
+    totalQuota: number | null;
+    totalRemaining: number | null;
+    byCategory: Record<"CHAT_DOCUMENT" | "SEARCH" | "EMBEDDING" | "TRANSCRIPTION", number>;
+  };
+}
+
 interface UserDetailDialogProps {
   userId: string;
   onClose: () => void;
@@ -63,19 +76,26 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+  const [tokenUsage, setTokenUsage] = useState<UserTokenUsage | null>(null);
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/v1/admin/users/${userId}`).then((r) => r.json()),
       fetch("/api/v1/admin/plans").then((r) => r.json()),
+      fetch(`/api/v1/admin/users/${userId}/token-usage`).then((r) => r.json()).catch(() => null),
     ])
-      .then(([userData, plansData]) => {
+      .then(([userData, plansData, tokenData]) => {
         if (userData.id) {
           setUser(userData);
           setSelectedPlanId(userData.plan?.id ?? "none");
         }
         if (plansData.plans) {
           setPlans(plansData.plans.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
+        }
+        if (tokenData?.currentCycle) {
+          setTokenUsage(tokenData as UserTokenUsage);
+        } else {
+          setTokenUsage(null);
         }
       })
       .catch(() => toast.error("Ошибка загрузки"))
@@ -262,6 +282,65 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
                         <span className="ml-3 shrink-0 text-muted-foreground">{formatBytes(f.size)}</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Token usage */}
+              {tokenUsage && (
+                <div className="rounded-xl border border-border p-4">
+                  <p className="text-sm font-medium">Токены (текущий период)</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {new Date(tokenUsage.cycleStart).toLocaleDateString("ru-RU")} -
+                    {" "}
+                    {new Date(tokenUsage.cycleEnd).toLocaleDateString("ru-RU")}
+                    {" · "}
+                    {tokenUsage.anchorType === "registration" ? "с даты регистрации" : "с последней оплаты"}
+                  </p>
+                  <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                    <div className="rounded-lg border border-border p-2">
+                      <p className="text-[10px] text-muted-foreground">Лимит</p>
+                      <p className="text-sm font-semibold">
+                        {tokenUsage.currentCycle.totalQuota != null
+                          ? tokenUsage.currentCycle.totalQuota.toLocaleString("ru-RU")
+                          : "∞"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border p-2">
+                      <p className="text-[10px] text-muted-foreground">Потрачено</p>
+                      <p className="text-sm font-semibold">
+                        {tokenUsage.currentCycle.totalTokens.toLocaleString("ru-RU")}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border p-2">
+                      <p className="text-[10px] text-muted-foreground">Осталось</p>
+                      <p className="text-sm font-semibold">
+                        {tokenUsage.currentCycle.totalRemaining != null
+                          ? tokenUsage.currentCycle.totalRemaining.toLocaleString("ru-RU")
+                          : "∞"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1.5 text-xs">
+                    {[
+                      ["CHAT_DOCUMENT", "Чат по документам"],
+                      ["SEARCH", "Поиск"],
+                      ["EMBEDDING", "Эмбеддинг"],
+                      ["TRANSCRIPTION", "Транскрибация"],
+                    ].map(([key, label]) => {
+                      const k = key as keyof UserTokenUsage["currentCycle"]["byCategory"];
+                      const used = tokenUsage.currentCycle.byCategory[k] ?? 0;
+                      const quota = tokenUsage.quotas[k];
+                      const remaining = quota != null ? Math.max(0, quota - used) : null;
+                      return (
+                        <div key={key} className="flex items-center justify-between rounded-md bg-surface2/40 px-2 py-1">
+                          <span>{label}</span>
+                          <span className="text-muted-foreground">
+                            {used.toLocaleString("ru-RU")} / {quota != null ? quota.toLocaleString("ru-RU") : "∞"} (ост: {remaining != null ? remaining.toLocaleString("ru-RU") : "∞"})
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
