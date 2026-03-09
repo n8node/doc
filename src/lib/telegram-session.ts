@@ -1,6 +1,6 @@
 import { createHmac } from "crypto";
 
-const TTL_SEC = 120;
+const TTL_SEC = 300;
 
 export function createTelegramSessionToken(userId: string): string {
   const secret = process.env.NEXTAUTH_SECRET || "fallback-change-me";

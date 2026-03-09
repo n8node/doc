@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { markEmailVerificationTokenUsed, resolveEmailVerificationToken } from "@/lib/email-verification";
+import { createTelegramSessionToken } from "@/lib/telegram-session";
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,7 +34,11 @@ export async function POST(req: NextRequest) {
           data: { usedAt: new Date() },
         }),
       ]);
-      return NextResponse.json({ ok: true, mode: "register" });
+      return NextResponse.json({
+        ok: true,
+        mode: "register",
+        sessionToken: createTelegramSessionToken(row.userId),
+      });
     }
 
     if (row.purpose === "LINK_EMAIL") {
@@ -61,7 +66,11 @@ export async function POST(req: NextRequest) {
           data: { usedAt: new Date() },
         }),
       ]);
-      return NextResponse.json({ ok: true, mode: "link_email" });
+      return NextResponse.json({
+        ok: true,
+        mode: "link_email",
+        sessionToken: createTelegramSessionToken(row.userId),
+      });
     }
 
     await markEmailVerificationTokenUsed(row.id);

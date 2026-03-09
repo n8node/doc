@@ -2,12 +2,14 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 
 type VerifyState = "idle" | "loading" | "success" | "error";
 
 function VerifyEmailContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
   const email = searchParams.get("email") || "";
@@ -31,8 +33,22 @@ function VerifyEmailContent() {
           setMessage(data.error || "Не удалось подтвердить email");
           return;
         }
+
+        if (typeof data.sessionToken === "string" && data.sessionToken) {
+          const signInRes = await signIn("credentials", {
+            email: "__telegram__",
+            password: data.sessionToken,
+            redirect: false,
+          });
+          if (!signInRes?.error) {
+            router.replace("/dashboard");
+            router.refresh();
+            return;
+          }
+        }
+
         setState("success");
-        setMessage("Email успешно подтверждён. Теперь можно войти в аккаунт.");
+        setMessage("Email успешно подтверждён. Переходим в ваш аккаунт...");
       })
       .catch(() => {
         if (!cancelled) {
@@ -43,7 +59,7 @@ function VerifyEmailContent() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [router, token]);
 
   const description = useMemo(() => {
     if (token) return null;
