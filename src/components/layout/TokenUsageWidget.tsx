@@ -108,11 +108,11 @@ export function TokenUsageWidget() {
 
   const pillToneClass =
     tone === "danger"
-      ? "border-red-400/60 bg-gradient-to-r from-red-600/25 to-rose-500/20 text-red-100 shadow-[0_0_0_1px_rgba(248,113,113,0.25),0_8px_24px_rgba(220,38,38,0.25)]"
+      ? "border-red-400/80 bg-gradient-to-r from-red-500/20 to-rose-500/15 text-slate-900 dark:text-red-50 shadow-[0_0_0_1px_rgba(248,113,113,0.35),0_8px_24px_rgba(220,38,38,0.2)]"
       : tone === "warn"
-        ? "border-amber-300/70 bg-gradient-to-r from-amber-500/25 to-orange-500/20 text-amber-50 shadow-[0_0_0_1px_rgba(251,191,36,0.3),0_8px_20px_rgba(245,158,11,0.2)]"
+        ? "border-amber-400/80 bg-gradient-to-r from-amber-400/20 to-orange-400/15 text-slate-900 dark:text-amber-50 shadow-[0_0_0_1px_rgba(251,191,36,0.35),0_8px_20px_rgba(245,158,11,0.18)]"
         : tone === "ok"
-          ? "border-emerald-300/70 bg-gradient-to-r from-emerald-500/25 to-cyan-500/20 text-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.3),0_8px_20px_rgba(16,185,129,0.2)]"
+          ? "border-emerald-400/80 bg-gradient-to-r from-emerald-400/20 to-cyan-400/15 text-slate-900 dark:text-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.35),0_8px_20px_rgba(16,185,129,0.18)]"
           : "border-border bg-gradient-to-r from-surface2 to-surface text-foreground";
 
   const usagePercent = useMemo(() => {
@@ -127,26 +127,26 @@ export function TokenUsageWidget() {
         onClick={() => setOpen(true)}
         className={`hidden md:flex items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-xs transition-all hover:scale-[1.01] hover:brightness-110 ${pillToneClass}`}
       >
-        <div className="rounded-lg bg-white/15 p-1.5">
+        <div className="rounded-lg bg-white/35 dark:bg-white/15 p-1.5">
           <Zap className="h-4 w-4" />
         </div>
         <div className="text-left leading-tight">
-          <div className="text-[10px] opacity-90">По тарифу</div>
+          <div className="text-[10px] opacity-100">По тарифу</div>
           <div className="font-semibold tracking-wide">{loading ? "..." : shortNumber(data?.total.quota)}</div>
         </div>
-        <div className="h-7 w-px bg-white/30" />
+        <div className="h-7 w-px bg-slate-500/30 dark:bg-white/30" />
         <div className="text-left leading-tight">
-          <div className="text-[10px] opacity-90">Осталось</div>
+          <div className="text-[10px] opacity-100">Осталось</div>
           <div className="font-semibold tracking-wide">{loading ? "..." : shortNumber(data?.total.remaining)}</div>
         </div>
         <div className="w-20">
-          <div className="mb-1 h-1.5 overflow-hidden rounded-full bg-black/20">
+          <div className="mb-1 h-1.5 overflow-hidden rounded-full bg-slate-500/30 dark:bg-black/30">
             <div
-              className="h-full rounded-full bg-white/80 transition-all"
+              className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 dark:from-cyan-300 dark:to-emerald-300 transition-all"
               style={{ width: `${Math.max(4, 100 - usagePercent)}%` }}
             />
           </div>
-          <p className="text-[10px] opacity-80 text-right">{usagePercent}% использ.</p>
+          <p className="text-[10px] opacity-100 text-right">{usagePercent}% использ.</p>
         </div>
       </button>
 
