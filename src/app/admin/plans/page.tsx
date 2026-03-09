@@ -38,6 +38,7 @@ interface PlanItem {
   transcriptionTokensQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   ragDocumentsQuota?: number | null;
+  freePlanDurationDays?: number | null;
   features: Record<string, boolean>;
   priceMonthly: number | null;
   priceYearly: number | null;
@@ -169,6 +170,12 @@ function PlanCard({
               <Users className="h-4 w-4 text-muted-foreground" />
               <span>Пользователей: {plan.usersCount}</span>
             </div>
+            {plan.isFree && plan.freePlanDurationDays != null && (
+              <div className="flex items-center gap-2 text-sm">
+                <Crown className="h-4 w-4 text-muted-foreground" />
+                <span>Бесплатный срок: {plan.freePlanDurationDays} дн.</span>
+              </div>
+            )}
           </div>
 
           {plan.features && Object.keys(plan.features).length > 0 && (

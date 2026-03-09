@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { compare } from "bcryptjs";
 import { randomBytes } from "crypto";
 import { nanoid } from "nanoid";
+import { calculateFreePlanTimer } from "@/lib/plan-service";
 
 const KEY_PREFIX = "qk_";
 const SECRET_LENGTH = 32;
@@ -30,8 +31,40 @@ function parseApiKey(token: string): { keyToken: string; fullKey: string } | nul
  * Returns userId or null.
  */
 export async function getUserIdFromRequest(
-  request: NextRequest
+  request: NextRequest,
+  options?: { allowExpiredFreePlan?: boolean }
 ): Promise<string | null> {
+  const allowExpiredFreePlan = options?.allowExpiredFreePlan === true;
+
+  const checkFreePlanExpiry = async (userId: string) => {
+    if (allowExpiredFreePlan) return userId;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        role: true,
+        createdAt: true,
+        plan: {
+          select: {
+            isFree: true,
+            freePlanDurationDays: true,
+          },
+        },
+      },
+    });
+    if (!user) return null;
+    if (user.role === "ADMIN") return userId;
+
+    const durationDays = user.plan?.freePlanDurationDays;
+    if (user.plan?.isFree !== true || durationDays == null) return userId;
+
+    const timer = calculateFreePlanTimer({
+      startedAt: user.createdAt,
+      durationDays,
+    });
+    return timer.isExpired ? null : userId;
+  };
+
   const auth = request.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) {
     const token = auth.slice(7).trim();
@@ -52,11 +85,12 @@ export async function getUserIdFromRequest(
       data: { lastUsedAt: new Date() },
     });
 
-    return row.userId;
+    return checkFreePlanExpiry(row.userId);
   }
 
   const session = await getServerSession(authOptions);
-  return session?.user?.id ?? null;
+  if (!session?.user?.id) return null;
+  return checkFreePlanExpiry(session.user.id);
 }
 
 /**

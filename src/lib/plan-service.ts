@@ -28,6 +28,7 @@ export async function getUserPlan(userId: string) {
     return {
       id: user.plan.id,
       name: user.plan.name,
+      isFree: user.plan.isFree,
       storageQuota: user.plan.storageQuota,
       maxFileSize: user.plan.maxFileSize,
       chatTokensQuota: user.plan.chatTokensQuota,
@@ -36,6 +37,7 @@ export async function getUserPlan(userId: string) {
       transcriptionTokensQuota: user.plan.transcriptionTokensQuota,
       aiAnalysisDocumentsQuota: user.plan.aiAnalysisDocumentsQuota,
       ragDocumentsQuota: user.plan.ragDocumentsQuota,
+      freePlanDurationDays: user.plan.freePlanDurationDays,
       transcriptionMinutesQuota: user.plan.transcriptionMinutesQuota,
       maxTranscriptionVideoMinutes: user.plan.maxTranscriptionVideoMinutes,
       maxTranscriptionAudioMinutes: user.plan.maxTranscriptionAudioMinutes,
@@ -45,6 +47,7 @@ export async function getUserPlan(userId: string) {
   return {
     id: "free",
     name: "Бесплатный",
+    isFree: true,
     storageQuota: user.storageQuota,
     maxFileSize: user.maxFileSize,
     chatTokensQuota: null,
@@ -53,6 +56,7 @@ export async function getUserPlan(userId: string) {
     transcriptionTokensQuota: null,
     aiAnalysisDocumentsQuota: null,
     ragDocumentsQuota: null,
+    freePlanDurationDays: null,
     transcriptionMinutesQuota: null,
     maxTranscriptionVideoMinutes: 60,
     maxTranscriptionAudioMinutes: 120,
@@ -91,4 +95,23 @@ export async function checkStorageQuota(
   if (!user) return false;
   const quota = user.plan ? user.plan.storageQuota : user.storageQuota;
   return user.storageUsed + BigInt(additionalBytes) <= quota;
+}
+
+export function calculateFreePlanTimer(params: {
+  startedAt: Date;
+  durationDays: number;
+  now?: Date;
+}) {
+  const now = params.now ?? new Date();
+  const durationMs = params.durationDays * 24 * 60 * 60 * 1000;
+  const expiresAt = new Date(params.startedAt.getTime() + durationMs);
+  const remainingMs = expiresAt.getTime() - now.getTime();
+  const isExpired = remainingMs <= 0;
+  const remainingDays = isExpired ? 0 : remainingMs / (24 * 60 * 60 * 1000);
+  return {
+    expiresAt,
+    remainingMs: Math.max(0, remainingMs),
+    remainingDays,
+    isExpired,
+  };
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
-import { getUserPlan } from "@/lib/plan-service";
+import { calculateFreePlanTimer, getUserPlan } from "@/lib/plan-service";
+import { prisma } from "@/lib/prisma";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
 import { getTranscriptionMinutesUsedThisMonth } from "@/lib/ai/transcription-usage";
 import { getAnalysisDocumentsUsedThisMonth } from "@/lib/ai/analysis-documents-usage";
@@ -12,7 +13,7 @@ import {
 } from "@/lib/ai/token-usage";
 
 export async function GET(req: NextRequest) {
-  const userId = await getUserIdFromRequest(req);
+  const userId = await getUserIdFromRequest(req, { allowExpiredFreePlan: true });
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -44,6 +45,36 @@ export async function GET(req: NextRequest) {
   const totalUsed = cycleUsage?.totalTokens ?? 0;
   const totalRemaining = totalQuota != null ? Math.max(0, totalQuota - totalUsed) : null;
 
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { createdAt: true },
+  });
+  const freePlanDurationDays =
+    typeof plan.freePlanDurationDays === "number" ? plan.freePlanDurationDays : null;
+  const isFreePlan = plan.isFree === true;
+
+  let freePlanTimer: {
+    durationDays: number;
+    expiresAt: string;
+    remainingDays: number;
+    remainingMs: number;
+    isExpired: boolean;
+  } | null = null;
+
+  if (isFreePlan && freePlanDurationDays != null && user?.createdAt) {
+    const timer = calculateFreePlanTimer({
+      startedAt: user.createdAt,
+      durationDays: freePlanDurationDays,
+    });
+    freePlanTimer = {
+      durationDays: freePlanDurationDays,
+      expiresAt: timer.expiresAt.toISOString(),
+      remainingDays: timer.remainingDays,
+      remainingMs: timer.remainingMs,
+      isExpired: timer.isExpired,
+    };
+  }
+
   return NextResponse.json({
     ...plan,
     storageQuota: Number(plan.storageQuota),
@@ -59,5 +90,6 @@ export async function GET(req: NextRequest) {
     billingCycleStart: billing?.cycleStart ?? null,
     billingCycleEnd: billing?.cycleEnd ?? null,
     billingAnchorType: billing?.anchorType ?? null,
+    freePlanTimer,
   });
 }

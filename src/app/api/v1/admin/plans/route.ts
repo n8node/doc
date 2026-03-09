@@ -28,6 +28,7 @@ export async function GET() {
       transcriptionTokensQuota: p.transcriptionTokensQuota,
       aiAnalysisDocumentsQuota: p.aiAnalysisDocumentsQuota,
       ragDocumentsQuota: p.ragDocumentsQuota,
+      freePlanDurationDays: p.freePlanDurationDays,
       usersCount: p._count.users,
       _count: undefined,
     })),
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
     chatTokensQuota, searchTokensQuota, transcriptionTokensQuota,
     aiAnalysisDocumentsQuota,
     ragDocumentsQuota,
+    freePlanDurationDays,
     transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
     features, priceMonthly, priceYearly, isPopular,
   } = body;
@@ -116,6 +118,10 @@ export async function POST(req: NextRequest) {
         ragDocumentsQuota === undefined || ragDocumentsQuota === null || ragDocumentsQuota === ""
           ? null
           : Math.max(0, parseInt(String(ragDocumentsQuota), 10) || 0) || null,
+      freePlanDurationDays:
+        freePlanDurationDays === undefined || freePlanDurationDays === null || freePlanDurationDays === ""
+          ? null
+          : Math.max(1, parseInt(String(freePlanDurationDays), 10) || 1),
       transcriptionMinutesQuota: transQuota,
       maxTranscriptionVideoMinutes: maxVideoMin,
       maxTranscriptionAudioMinutes: maxAudioMin,

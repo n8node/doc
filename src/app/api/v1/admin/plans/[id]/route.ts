@@ -20,6 +20,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     chatTokensQuota, searchTokensQuota, transcriptionTokensQuota,
     aiAnalysisDocumentsQuota,
     ragDocumentsQuota,
+    freePlanDurationDays,
     transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
     features, priceMonthly, priceYearly, isPopular,
   } = body;
@@ -69,6 +70,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         ? null
         : Math.max(0, parseInt(String(ragDocumentsQuota), 10) || 0) || null;
   }
+  if (freePlanDurationDays !== undefined) {
+    data.freePlanDurationDays =
+      freePlanDurationDays === null || freePlanDurationDays === ""
+        ? null
+        : Math.max(1, parseInt(String(freePlanDurationDays), 10) || 1);
+  }
   if (transcriptionMinutesQuota !== undefined) {
     data.transcriptionMinutesQuota =
       transcriptionMinutesQuota === null || transcriptionMinutesQuota === ""
@@ -104,6 +111,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     transcriptionTokensQuota: plan.transcriptionTokensQuota,
     aiAnalysisDocumentsQuota: plan.aiAnalysisDocumentsQuota,
     ragDocumentsQuota: plan.ragDocumentsQuota,
+    freePlanDurationDays: plan.freePlanDurationDays,
   });
 }
 

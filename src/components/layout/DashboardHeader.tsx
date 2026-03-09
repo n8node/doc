@@ -4,6 +4,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { UserMenu } from "./UserMenu";
 import { TokenUsageWidget } from "./TokenUsageWidget";
+import { FreePlanTimerWidget } from "./FreePlanTimerWidget";
 
 export async function DashboardHeader({
   title,
@@ -26,6 +27,7 @@ export async function DashboardHeader({
       </div>
       <div className="flex items-center gap-4">
         <TokenUsageWidget />
+        <FreePlanTimerWidget />
         <NotificationsDropdown />
         <ThemeToggle />
         <UserMenu

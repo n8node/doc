@@ -19,6 +19,7 @@ export async function GET() {
       searchTokensQuota: true,
       transcriptionTokensQuota: true,
       ragDocumentsQuota: true,
+      freePlanDurationDays: true,
       priceMonthly: true,
       priceYearly: true,
       isPopular: true,

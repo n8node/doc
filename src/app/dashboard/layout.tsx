@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { SidebarV2 } from "@/components/layout/SidebarV2";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { NotificationBanner } from "@/components/dashboard/NotificationBanner";
+import { FreePlanAccessGuard } from "@/components/layout/FreePlanAccessGuard";
 import { sidebarV2Enabled } from "@/lib/feature-flags";
 
 export default async function DashboardLayout({
@@ -19,6 +20,7 @@ export default async function DashboardLayout({
     <div className="min-h-screen bg-background">
       {sidebarV2Enabled ? <SidebarV2 /> : <Sidebar />}
       <div className="pl-72">
+        <FreePlanAccessGuard />
         <DashboardHeader
           title="Личный кабинет"
           subtitle="Управление файлами и настройками"

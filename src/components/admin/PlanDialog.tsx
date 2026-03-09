@@ -26,6 +26,7 @@ interface PlanData {
   transcriptionTokensQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   ragDocumentsQuota?: number | null;
+  freePlanDurationDays?: number | null;
   transcriptionMinutesQuota?: number | null;
   maxTranscriptionVideoMinutes?: number;
   maxTranscriptionAudioMinutes?: number;
@@ -85,6 +86,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
   const [trashDays, setTrashDays] = useState("0");
   const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState("");
   const [ragDocumentsQuota, setRagDocumentsQuota] = useState("");
+  const [freePlanDurationDays, setFreePlanDurationDays] = useState("");
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
   const [chatTokensQuota, setChatTokensQuota] = useState("");
   const [searchTokensQuota, setSearchTokensQuota] = useState("");
@@ -139,6 +141,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setRagDocumentsQuota(
         plan.ragDocumentsQuota != null ? String(plan.ragDocumentsQuota) : "",
       );
+      setFreePlanDurationDays(
+        plan.freePlanDurationDays != null ? String(plan.freePlanDurationDays) : "",
+      );
       setTranscriptionMinutesQuota(
         plan.transcriptionMinutesQuota != null ? String(plan.transcriptionMinutesQuota) : "",
       );
@@ -165,6 +170,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setTranscriptionTokensQuota("");
       setAiAnalysisDocumentsQuota("");
       setRagDocumentsQuota("");
+      setFreePlanDurationDays("");
       setTranscriptionMinutesQuota("");
       setMaxTranscriptionVideoMinutes("60");
       setMaxTranscriptionAudioMinutes("120");
@@ -218,6 +224,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         : null,
       ragDocumentsQuota: ragDocumentsQuota.trim()
         ? Math.max(0, parseInt(ragDocumentsQuota, 10) || 0) || null
+        : null,
+      freePlanDurationDays: freePlanDurationDays.trim()
+        ? Math.max(1, parseInt(freePlanDurationDays, 10) || 1)
         : null,
       transcriptionMinutesQuota: transcriptionMinutesQuota.trim()
         ? Math.max(0, parseInt(transcriptionMinutesQuota, 10) || 0) || null
@@ -333,6 +342,24 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
             />
             <p className="mt-1 text-xs text-muted-foreground">
               0 = без корзины (удаление сразу). Платные тарифы обычно 30 дней.
+            </p>
+          </div>
+
+          {/* Срок бесплатного тарифа */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">
+              Срок бесплатного тарифа (дней)
+            </label>
+            <Input
+              type="number"
+              min={1}
+              value={freePlanDurationDays}
+              onChange={(e) => setFreePlanDurationDays(e.target.value)}
+              placeholder="Без ограничения"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Учитывается только для бесплатных тарифов. 1 день = 24 часа.
+              Пусто — без ограничения.
             </p>
           </div>
 
