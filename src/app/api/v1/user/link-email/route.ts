@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
+import { issueEmailVerificationToken, sendVerificationEmail } from "@/lib/email-verification";
 
 /**
  * POST /api/v1/user/link-email
  * Link email to Telegram-only account. Requires session.
  * Body: { email, password } - password for the new email login (user creates it).
- *
- * REMINDER: Add email verification flow! User must confirm email before it becomes active.
- * Send verification link to email, require click before updating user.email.
- * For now we save email and set password without verification.
+ * Flow: issue verification token and apply email/password only after confirmation.
  */
 export async function POST(req: NextRequest) {
   const userId = await getUserIdFromRequest(req);
@@ -64,17 +62,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const passwordHash = await hash(password, 12);
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        email: emailTrimmed,
-        passwordHash,
+    const activeForAnotherUser = await prisma.emailVerificationToken.findFirst({
+      where: {
+        newEmail: emailTrimmed,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+        userId: { not: userId },
       },
+      select: { id: true },
+    });
+    if (activeForAnotherUser) {
+      return NextResponse.json(
+        { error: "Этот email уже ожидает подтверждения в другом аккаунте" },
+        { status: 409 }
+      );
+    }
+
+    const passwordHash = await hash(password, 12);
+    const issued = await issueEmailVerificationToken({
+      userId,
+      purpose: "LINK_EMAIL",
+      newEmail: emailTrimmed,
+      newPasswordHash: passwordHash,
+    });
+    const sent = await sendVerificationEmail({
+      email: emailTrimmed,
+      templateKey: "verify_email_link",
+      token: issued.token,
+      ttlMinutes: issued.ttlMinutes,
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      pendingVerification: true,
+      verificationEmailSent: sent.ok,
+    });
   } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }

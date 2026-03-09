@@ -31,6 +31,20 @@ export async function GET(req: NextRequest) {
   const hasTelegram = user.telegramUserId != null;
   const canLinkTelegram = !isPlaceholderEmail && !hasTelegram;
   const canLinkEmail = isPlaceholderEmail && hasTelegram;
+  const pendingEmailVerification = await prisma.emailVerificationToken.findFirst({
+    where: {
+      userId: user.id,
+      purpose: "LINK_EMAIL",
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+      newEmail: { not: null },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      newEmail: true,
+      expiresAt: true,
+    },
+  });
 
   return NextResponse.json({
     id: user.id,
@@ -46,6 +60,12 @@ export async function GET(req: NextRequest) {
       canLinkEmail,
       hasTelegram,
       isPlaceholderEmail,
+      pendingEmailVerification: pendingEmailVerification
+        ? {
+            email: pendingEmailVerification.newEmail,
+            expiresAt: pendingEmailVerification.expiresAt.toISOString(),
+          }
+        : null,
     },
   });
 }

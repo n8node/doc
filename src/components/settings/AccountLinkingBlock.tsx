@@ -12,6 +12,10 @@ interface AccountLinking {
   canLinkEmail: boolean;
   hasTelegram: boolean;
   isPlaceholderEmail: boolean;
+  pendingEmailVerification?: {
+    email: string | null;
+    expiresAt: string;
+  } | null;
 }
 
 interface AuthMethods {
@@ -140,7 +144,7 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Ошибка");
-      toast.success("Email привязан");
+      toast.success("Письмо отправлено. Подтвердите email для завершения привязки.");
       setLinkEmail("");
       setLinkPassword("");
       onLinked();
@@ -246,8 +250,37 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
               Привязать email
             </p>
             <p className="text-xs text-muted-foreground">
-              Вход по паролю. Пароль будет использоваться для входа после привязки.
+              Вход по паролю. Сначала подтвердите email из письма, после этого вход по паролю станет доступен.
             </p>
+            {accountLinking.pendingEmailVerification && (
+              <div className="rounded-lg bg-primary/10 px-4 py-2 text-xs text-primary space-y-2">
+                <p>
+                  Ожидает подтверждения: {accountLinking.pendingEmailVerification.email || "email не указан"} до{" "}
+                  {new Date(accountLinking.pendingEmailVerification.expiresAt).toLocaleString("ru-RU", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/v1/user/link-email/resend", { method: "POST" });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) throw new Error(data.error || "Ошибка отправки");
+                      toast.success("Письмо отправлено повторно");
+                      onLinked();
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Ошибка отправки");
+                    }
+                  }}
+                >
+                  Отправить письмо повторно
+                </Button>
+              </div>
+            )}
             <form onSubmit={handleLinkEmail} className="flex flex-col gap-3 max-w-sm">
               <Input
                 type="email"
