@@ -12,8 +12,9 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [emailReg, inviteReg, tgWidget, tgQr, tgDomain, tgBotUsername] = await Promise.all([
+  const [emailReg, emailVerify, inviteReg, tgWidget, tgQr, tgDomain, tgBotUsername] = await Promise.all([
     configStore.get("auth.email_registration_enabled"),
+    configStore.get("auth.email_verification_required"),
     configStore.get("auth.invite_registration_enabled"),
     configStore.get("auth.telegram_widget_enabled"),
     configStore.get("auth.telegram_qr_enabled"),
@@ -23,6 +24,7 @@ export async function GET() {
 
   return NextResponse.json({
     emailRegistrationEnabled: emailReg !== "false",
+    emailVerificationRequired: emailVerify !== "false",
     inviteRegistrationEnabled: inviteReg === "true",
     telegramWidgetEnabled: tgWidget === "true",
     telegramQrEnabled: tgQr === "true",
@@ -42,6 +44,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const {
     emailRegistrationEnabled,
+    emailVerificationRequired,
     inviteRegistrationEnabled,
     telegramWidgetEnabled,
     telegramQrEnabled,
@@ -56,6 +59,14 @@ export async function POST(request: NextRequest) {
       configStore.set("auth.email_registration_enabled", emailRegistrationEnabled ? "true" : "false", {
         category: "auth",
         description: "Регистрация по email",
+      })
+    );
+  }
+  if (typeof emailVerificationRequired === "boolean") {
+    updates.push(
+      configStore.set("auth.email_verification_required", emailVerificationRequired ? "true" : "false", {
+        category: "auth",
+        description: "Подтверждение email при регистрации",
       })
     );
   }
@@ -102,7 +113,7 @@ export async function POST(request: NextRequest) {
 
   await Promise.all(updates);
 
-  ["auth.email_registration_enabled", "auth.invite_registration_enabled", "auth.telegram_widget_enabled", "auth.telegram_qr_enabled", "auth.telegram_domain", "auth.telegram_bot_username"].forEach((k) =>
+  ["auth.email_registration_enabled", "auth.email_verification_required", "auth.invite_registration_enabled", "auth.telegram_widget_enabled", "auth.telegram_qr_enabled", "auth.telegram_domain", "auth.telegram_bot_username"].forEach((k) =>
     configStore.invalidate(k)
   );
 

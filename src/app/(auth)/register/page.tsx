@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -94,17 +93,11 @@ export default function RegisterPage() {
         return;
       }
 
-      const signInRes = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-      if (signInRes?.ok) {
-        router.push("/dashboard");
-        router.refresh();
-      } else {
-        router.push("/login");
+      if (data.requiresEmailVerification) {
+        router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+        return;
       }
+      router.push("/login");
     } catch {
       setError("Ошибка соединения");
     } finally {

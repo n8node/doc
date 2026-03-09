@@ -40,6 +40,7 @@ export const authOptions: NextAuthOptions = {
         });
         if (!user || !user.passwordHash) return null;
         if (user.isBlocked) return null;
+        if (!user.isEmailVerified) return null;
         const valid = await compare(credentials.password, user.passwordHash);
         if (!valid) return null;
 

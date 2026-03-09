@@ -7,6 +7,7 @@ import { configStore } from "./config-store";
 
 export interface AuthSettings {
   emailRegistrationEnabled: boolean;
+  emailVerificationRequired: boolean;
   inviteRegistrationEnabled: boolean;
   telegramWidgetEnabled: boolean;
   telegramQrEnabled: boolean;
@@ -15,8 +16,9 @@ export interface AuthSettings {
 }
 
 export async function getAuthSettings(): Promise<AuthSettings> {
-  const [emailReg, inviteReg, tgWidget, tgQr, tgDomain] = await Promise.all([
+  const [emailReg, emailVerify, inviteReg, tgWidget, tgQr, tgDomain] = await Promise.all([
     configStore.get("auth.email_registration_enabled"),
+    configStore.get("auth.email_verification_required"),
     configStore.get("auth.invite_registration_enabled"),
     configStore.get("auth.telegram_widget_enabled"),
     configStore.get("auth.telegram_qr_enabled"),
@@ -25,6 +27,7 @@ export async function getAuthSettings(): Promise<AuthSettings> {
 
   return {
     emailRegistrationEnabled: emailReg !== "false",
+    emailVerificationRequired: emailVerify !== "false",
     inviteRegistrationEnabled: inviteReg === "true",
     telegramWidgetEnabled: tgWidget === "true",
     telegramQrEnabled: tgQr === "true",

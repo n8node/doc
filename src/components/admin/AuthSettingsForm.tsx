@@ -13,6 +13,7 @@ export function AuthSettingsForm() {
   const [issueCount, setIssueCount] = useState(10);
   const [values, setValues] = useState({
     emailRegistrationEnabled: true,
+    emailVerificationRequired: true,
     inviteRegistrationEnabled: false,
     telegramWidgetEnabled: false,
     telegramQrEnabled: false,
@@ -27,6 +28,7 @@ export function AuthSettingsForm() {
         setValues((v) => ({
           ...v,
           emailRegistrationEnabled: data.emailRegistrationEnabled !== false,
+          emailVerificationRequired: data.emailVerificationRequired !== false,
           inviteRegistrationEnabled: data.inviteRegistrationEnabled === true,
           telegramWidgetEnabled: data.telegramWidgetEnabled === true,
           telegramQrEnabled: data.telegramQrEnabled === true,
@@ -45,9 +47,9 @@ export function AuthSettingsForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-        ...values,
-        telegramBotUsername: values.telegramBotUsername || undefined,
-      }),
+          ...values,
+          telegramBotUsername: values.telegramBotUsername || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Ошибка сохранения");
@@ -112,6 +114,21 @@ export function AuthSettingsForm() {
               className="h-4 w-4 rounded border-border accent-primary"
             />
             <span className="text-sm">Включить классическую регистрацию (email + пароль)</span>
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Подтверждение email при регистрации
+          </label>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={values.emailVerificationRequired}
+              onChange={(e) => setValues((v) => ({ ...v, emailVerificationRequired: e.target.checked }))}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm">Отправлять письмо подтверждения и разрешать вход только после верификации</span>
           </label>
         </div>
 

@@ -8,6 +8,7 @@ import {
 } from "@/lib/telegram";
 import { getAuthSettings } from "@/lib/telegram-auth";
 import { consumeActiveInvite, createInvites, isInviteCodeFormatValid, normalizeInviteCode } from "@/lib/invite";
+import { issueEmailVerificationToken, sendVerificationEmail } from "@/lib/email-verification";
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await hash(password, 12);
+    let createdUserId = "";
     await prisma.$transaction(async (tx) => {
       let consumedInviteId: string | null = null;
 
@@ -68,12 +70,15 @@ export async function POST(req: NextRequest) {
           email,
           passwordHash,
           name: name?.trim() || null,
+          isEmailVerified: authSettings.emailVerificationRequired ? false : true,
+          emailVerifiedAt: authSettings.emailVerificationRequired ? null : new Date(),
           role: "USER",
           planId: freePlan?.id ?? null,
           storageQuota: freePlan?.storageQuota ?? BigInt(25 * 1024 * 1024 * 1024),
           maxFileSize: freePlan?.maxFileSize ?? BigInt(512 * 1024 * 1024),
         },
       });
+      createdUserId = user.id;
 
       if (authSettings.inviteRegistrationEnabled) {
         const invite = await consumeActiveInvite({
@@ -113,7 +118,26 @@ export async function POST(req: NextRequest) {
       // ignore telegram errors, do not affect registration
     }
 
-    return NextResponse.json({ ok: true });
+    let verificationEmailSent = false;
+    if (authSettings.emailVerificationRequired && createdUserId) {
+      const issued = await issueEmailVerificationToken({
+        userId: createdUserId,
+        purpose: "REGISTER",
+      });
+      const sent = await sendVerificationEmail({
+        email,
+        templateKey: "verify_email_registration",
+        token: issued.token,
+        ttlMinutes: issued.ttlMinutes,
+      });
+      verificationEmailSent = sent.ok;
+    }
+
+    return NextResponse.json({
+      ok: true,
+      requiresEmailVerification: authSettings.emailVerificationRequired,
+      verificationEmailSent,
+    });
   } catch (error) {
     if (error instanceof Error && (
       error.message === "INVITE_NOT_ACTIVE" ||

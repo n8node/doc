@@ -12,6 +12,7 @@ export async function GET() {
   ]);
   return NextResponse.json({
     emailRegistrationEnabled: settings.emailRegistrationEnabled,
+    emailVerificationRequired: settings.emailVerificationRequired,
     inviteRegistrationEnabled: settings.inviteRegistrationEnabled,
     telegramWidgetEnabled: settings.telegramWidgetEnabled,
     telegramQrEnabled: settings.telegramQrEnabled,
