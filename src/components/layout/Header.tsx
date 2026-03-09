@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 export async function Header() {
   const session = await getServerSession(authOptions);
@@ -33,11 +34,11 @@ export async function Header() {
           )}
           <ThemeToggle />
           {session ? (
-            <Link href="/api/auth/signout">
+            <LogoutButton>
               <Button variant="ghost" size="sm">
                 Выйти
               </Button>
-            </Link>
+            </LogoutButton>
           ) : (
             <Link href="/login">
               <Button size="sm">Вход</Button>

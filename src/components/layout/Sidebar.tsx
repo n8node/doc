@@ -18,6 +18,7 @@ import {
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
 import { SidebarFolderTree } from "./SidebarFolderTree";
 import { buildDashboardFilesUrl, DEFAULT_FILES_SECTION } from "@/lib/files-navigation";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 const navItems = [
   { href: buildDashboardFilesUrl({ section: DEFAULT_FILES_SECTION }), icon: FolderOpen, label: "Файлы" },
@@ -93,7 +94,7 @@ export function Sidebar() {
               <span>Настройки</span>
             </motion.div>
           </Link>
-          <Link href="/api/auth/signout">
+          <LogoutButton className="w-full text-left">
             <motion.div
               whileHover={{ x: 4 }}
               className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-surface hover:text-foreground"
@@ -101,7 +102,7 @@ export function Sidebar() {
               <LogOut className="h-5 w-5" />
               <span>Выйти</span>
             </motion.div>
-          </Link>
+          </LogoutButton>
         </div>
       </div>
     </motion.aside>

@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 interface UserMenuProps {
   initial: string;
@@ -58,10 +59,10 @@ export function UserMenu({ initial, email, isAdmin }: UserMenuProps) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/api/auth/signout" className="flex items-center gap-2 text-muted-foreground">
+          <LogoutButton className="flex w-full items-center gap-2 text-muted-foreground">
             <LogOut className="h-4 w-4" />
             Выйти
-          </Link>
+          </LogoutButton>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

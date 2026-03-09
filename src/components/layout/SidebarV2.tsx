@@ -30,6 +30,7 @@ import {
   parseFilesSection,
   type FilesSection,
 } from "@/lib/files-navigation";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 type SectionItem = {
   section: FilesSection;
@@ -177,7 +178,7 @@ export function SidebarV2() {
               <span>Настройки</span>
             </motion.div>
           </Link>
-          <Link href="/api/auth/signout">
+          <LogoutButton className="w-full text-left">
             <motion.div
               whileHover={{ x: 4 }}
               className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-surface2/75 hover:text-foreground"
@@ -185,7 +186,7 @@ export function SidebarV2() {
               <LogOut className="h-5 w-5" />
               <span>Выйти</span>
             </motion.div>
-          </Link>
+          </LogoutButton>
         </div>
       </div>
     </motion.aside>
