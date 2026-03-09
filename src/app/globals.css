@@ -157,9 +157,24 @@ body {
 }
 
 /* Selection */
+::-moz-selection {
+  background: hsl(var(--primary) / 0.78);
+  color: hsl(0 0% 100%);
+}
+
 ::selection {
-  background: hsl(var(--primary) / 0.2);
-  color: hsl(var(--foreground));
+  background: hsl(var(--primary) / 0.78);
+  color: hsl(0 0% 100%);
+}
+
+.dark ::-moz-selection {
+  background: hsl(var(--primary) / 0.58);
+  color: hsl(0 0% 100%);
+}
+
+.dark ::selection {
+  background: hsl(var(--primary) / 0.58);
+  color: hsl(0 0% 100%);
 }
 
 @layer utilities {
