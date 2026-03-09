@@ -61,29 +61,57 @@ export default function EmbeddingsPage() {
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [files, setFiles] = useState<EmbeddingFileItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [planFeatures, setPlanFeatures] = useState<Record<string, boolean>>({});
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
   const [exportCollection, setExportCollection] = useState<CollectionSummary | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [collRes, filesRes] = await Promise.all([
-        fetch("/api/v1/rag/collections", { credentials: "include" }),
+      const [planRes, filesRes] = await Promise.all([
+        fetch("/api/v1/plans/me", { credentials: "include" }),
         fetch("/api/v1/files/embeddings", { credentials: "include" }),
       ]);
 
-      const collData = await collRes.json();
-      const collectionsList = Array.isArray(collData.collections) ? collData.collections : [];
+      const planData = await planRes.json();
+      const features =
+        (planData?.features as Record<string, boolean> | undefined) ?? {};
+      setPlanFeatures(features);
+
+      let collectionsList: Array<
+        CollectionSummary & {
+          folderId?: string;
+          folder?: { id: string; name: string } | null;
+          processableCount?: number;
+          files?: Array<{ id: string }>;
+        }
+      > = [];
+      if (features.rag_memory === true) {
+        const collRes = await fetch("/api/v1/rag/collections", {
+          credentials: "include",
+        });
+        const collData = await collRes.json();
+        collectionsList = Array.isArray(collData.collections)
+          ? collData.collections
+          : [];
+      }
+
       setCollections(
-        collectionsList.map((c: CollectionSummary & { folderId?: string; folder?: { id: string; name: string } | null; processableCount?: number }) => ({
-          id: c.id,
-          name: c.name,
-          folderId: c.folderId ?? null,
-          folder: c.folder ?? null,
-          filesCount: c.filesCount ?? 0,
-          processableCount: c.processableCount ?? c.filesCount ?? 0,
-          filesWithEmbeddings: c.filesWithEmbeddings ?? 0,
-        }))
+        collectionsList.map(
+          (c: CollectionSummary & {
+            folderId?: string;
+            folder?: { id: string; name: string } | null;
+            processableCount?: number;
+          }) => ({
+            id: c.id,
+            name: c.name,
+            folderId: c.folderId ?? null,
+            folder: c.folder ?? null,
+            filesCount: c.filesCount ?? 0,
+            processableCount: c.processableCount ?? c.filesCount ?? 0,
+            filesWithEmbeddings: c.filesWithEmbeddings ?? 0,
+          })
+        )
       );
 
       const filesData = await filesRes.json();
@@ -128,6 +156,8 @@ export default function EmbeddingsPage() {
   const activeCollection = collectionId
     ? collections.find((c) => c.id === collectionId)
     : null;
+  const canUseRagMemory = planFeatures.rag_memory === true;
+  const canProcessDocuments = planFeatures.document_analysis === true;
 
   return (
     <div className="space-y-6">
@@ -302,24 +332,44 @@ export default function EmbeddingsPage() {
                 <CardContent className="py-16 text-center">
                   <Database className="mx-auto h-12 w-12 text-muted-foreground/50" />
                   <p className="mt-4 text-lg font-medium text-foreground">
-                    Нет обработанных документов
+                    {canUseRagMemory || canProcessDocuments
+                      ? "Нет обработанных документов"
+                      : "Функция недоступна на вашем тарифе"}
                   </p>
                   <p className="mt-2 max-w-md mx-auto text-sm text-muted-foreground">
-                    Создайте RAG-память в разделе «RAG-память» или обработайте документ в «Мои файлы».
+                    {canUseRagMemory && canProcessDocuments
+                      ? "Создайте RAG-память в разделе «RAG-память» или обработайте документ в «Мои файлы»."
+                      : !canUseRagMemory && canProcessDocuments
+                      ? "RAG-память недоступна на вашем тарифе. Вы можете обработать документ в «Мои файлы» или сменить тариф."
+                      : canUseRagMemory && !canProcessDocuments
+                      ? "На вашем тарифе недоступна обработка документов, поэтому эмбеддинги не создаются. Смените тариф, чтобы запустить обработку."
+                      : "На вашем тарифе недоступны RAG-память и обработка документов. Смените тариф для работы с эмбеддингами."}
                   </p>
                   <div className="mt-6 flex justify-center gap-3">
-                    <Link
-                      href="/dashboard/rag-memory"
-                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                    >
-                      RAG-память
-                    </Link>
-                    <Link
-                      href="/dashboard/files"
-                      className="inline-flex items-center gap-2 rounded-xl border border-input px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
-                    >
-                      Файлы
-                    </Link>
+                    {canUseRagMemory && (
+                      <Link
+                        href="/dashboard/rag-memory"
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                      >
+                        RAG-память
+                      </Link>
+                    )}
+                    {canProcessDocuments && (
+                      <Link
+                        href="/dashboard/files"
+                        className="inline-flex items-center gap-2 rounded-xl border border-input px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                      >
+                        Файлы
+                      </Link>
+                    )}
+                    {(!canUseRagMemory || !canProcessDocuments) && (
+                      <Link
+                        href="/dashboard/plans"
+                        className="inline-flex items-center gap-2 rounded-xl border border-input px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                      >
+                        Сменить тариф
+                      </Link>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -409,17 +459,31 @@ export default function EmbeddingsPage() {
               <CardContent className="py-16 text-center">
                 <BrainCircuit className="mx-auto h-12 w-12 text-muted-foreground/50" />
                 <p className="mt-4 text-lg font-medium text-foreground">
-                  В этой коллекции нет файлов с эмбеддингами
+                  {canProcessDocuments
+                    ? "В этой коллекции нет файлов с эмбеддингами"
+                    : "Обработка документов недоступна на вашем тарифе"}
                 </p>
                 <p className="mt-2 max-w-md mx-auto text-sm text-muted-foreground">
-                  Запустите векторизацию в разделе «RAG-память».
+                  {canProcessDocuments
+                    ? "Запустите векторизацию в разделе «RAG-память»."
+                    : "Смените тариф, чтобы запустить обработку и векторизацию документов."}
                 </p>
-                <Link
-                  href="/dashboard/rag-memory"
-                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  RAG-память
-                </Link>
+                <div className="mt-6 flex justify-center gap-3">
+                  <Link
+                    href="/dashboard/rag-memory"
+                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    RAG-память
+                  </Link>
+                  {!canProcessDocuments && (
+                    <Link
+                      href="/dashboard/plans"
+                      className="inline-flex items-center gap-2 rounded-xl border border-input px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                    >
+                      Сменить тариф
+                    </Link>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ) : (
