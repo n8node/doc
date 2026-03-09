@@ -165,7 +165,8 @@ export async function POST(request: NextRequest) {
     const billing = await getUserBillingContext(userId);
     const usage = await getTokenUsageSummary(userId, { since: billing?.cycleStart });
     const usedTokens = usage.byCategory.TRANSCRIPTION;
-    const requestedTokens = estimateTranscriptionTokens(durationMinutes);
+    const baseRequestedTokens = estimateTranscriptionTokens(durationMinutes);
+    const requestedTokens = Math.ceil(baseRequestedTokens * 1.2 + 200);
     createQuota80WarningIfNeeded(userId, usedTokens, tokensQuota, "transcription").catch(() => {});
     if (usedTokens + requestedTokens > tokensQuota) {
       createNotificationIfEnabled({

@@ -3,6 +3,18 @@ import { prisma } from "@/lib/prisma";
 
 type Quotas = Record<TokenUsageCategory, number | null>;
 
+export function estimateTokensFromText(
+  textOrLength: string | number,
+  options?: { charsPerToken?: number; min?: number; extra?: number },
+): number {
+  const length =
+    typeof textOrLength === "number" ? textOrLength : textOrLength.length;
+  const charsPerToken = options?.charsPerToken ?? 4;
+  const min = options?.min ?? 1;
+  const extra = options?.extra ?? 0;
+  return Math.max(min, Math.ceil(length / charsPerToken) + extra);
+}
+
 export class TokenQuotaExceededError extends Error {
   category: TokenUsageCategory;
   quota: number;
@@ -200,6 +212,46 @@ export async function assertTokenQuotaAvailable(params: {
       requested: estimated,
     });
   }
+}
+
+export async function getCategoryQuotaState(params: {
+  userId: string;
+  category: TokenUsageCategory;
+}) {
+  const billing = await getUserBillingContext(params.userId);
+  if (!billing) {
+    return {
+      hasQuota: false,
+      quota: null as number | null,
+      used: 0,
+      cycleStart: null as Date | null,
+      cycleEnd: null as Date | null,
+    };
+  }
+
+  const quota = getPlanTokenQuotas(billing.plan)[params.category];
+  if (quota == null) {
+    return {
+      hasQuota: false,
+      quota: null as number | null,
+      used: 0,
+      cycleStart: billing.cycleStart,
+      cycleEnd: billing.cycleEnd,
+    };
+  }
+
+  const usage = await getTokenUsageSummary(params.userId, {
+    since: billing.cycleStart,
+    includeNonBillable: false,
+  });
+
+  return {
+    hasQuota: true,
+    quota,
+    used: usage.byCategory[params.category] ?? 0,
+    cycleStart: billing.cycleStart,
+    cycleEnd: billing.cycleEnd,
+  };
 }
 
 export async function recordTokenUsageEvent(params: {

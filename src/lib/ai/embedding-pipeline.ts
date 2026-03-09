@@ -3,7 +3,9 @@ import { chunkText, isNoiseChunk } from "./chunker";
 import { insertEmbedding, deleteEmbeddingsByFileId } from "@/lib/docling/vector-store";
 import { prisma } from "@/lib/prisma";
 import {
-  assertTokenQuotaAvailable,
+  TokenQuotaExceededError,
+  estimateTokensFromText,
+  getCategoryQuotaState,
   recordTokenUsageEvent,
 } from "./token-usage";
 
@@ -63,15 +65,28 @@ export async function runEmbeddingPipeline(
     let totalPromptTokens = 0;
     let totalTokens = 0;
     let modelName: string | undefined;
+    const quotaState = !usedOwnKey
+      ? await getCategoryQuotaState({ userId, category: "EMBEDDING" })
+      : null;
+    let projectedTokens = quotaState?.used ?? 0;
 
     for (const chunk of chunks) {
       if (isNoiseChunk(chunk.text)) continue;
-      if (!usedOwnKey) {
-        await assertTokenQuotaAvailable({
-          userId,
-          category: "EMBEDDING",
-          estimatedTokens: Math.max(32, Math.ceil(chunk.text.length / 4)),
+      if (quotaState?.hasQuota && quotaState.quota != null) {
+        const estimated = estimateTokensFromText(chunk.text, {
+          charsPerToken: 3.2,
+          min: 40,
+          extra: 12,
         });
+        projectedTokens += estimated;
+        if (projectedTokens > quotaState.quota) {
+          throw new TokenQuotaExceededError({
+            category: "EMBEDDING",
+            quota: quotaState.quota,
+            used: quotaState.used,
+            requested: estimated,
+          });
+        }
       }
       const result = await provider.generateEmbedding(chunk.text);
       if (result.vector.length === 0) continue;

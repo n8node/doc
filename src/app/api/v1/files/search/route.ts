@@ -6,6 +6,7 @@ import { findSimilar, findSimilarByKeyword } from "@/lib/docling/vector-store";
 import { prisma } from "@/lib/prisma";
 import {
   assertTokenQuotaAvailable,
+  estimateTokensFromText,
   recordTokenUsageEvent,
   TokenQuotaExceededError,
 } from "@/lib/ai/token-usage";
@@ -62,10 +63,15 @@ export async function GET(request: NextRequest) {
 
   try {
     if (!active.usedOwnKey) {
+      const estimate = estimateTokensFromText(q, {
+        charsPerToken: 3.1,
+        min: 48,
+        extra: Math.min(220, limit * 4),
+      });
       await assertTokenQuotaAvailable({
         userId,
         category: "SEARCH",
-        estimatedTokens: Math.max(32, Math.ceil(q.length / 4)),
+        estimatedTokens: estimate,
       });
     }
 

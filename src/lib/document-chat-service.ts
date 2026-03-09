@@ -4,7 +4,9 @@ import { getProviderForUser } from "@/lib/ai/get-provider-for-user";
 import { findSimilarForFile, getChunksForFile } from "@/lib/docling/vector-store";
 import { hasEmbeddings } from "@/lib/docling/vector-store";
 import {
-  assertTokenQuotaAvailable,
+  TokenQuotaExceededError,
+  estimateTokensFromText,
+  getCategoryQuotaState,
   recordTokenUsageEvent,
 } from "@/lib/ai/token-usage";
 
@@ -59,13 +61,29 @@ export async function sendDocumentChatMessage(
     select: { role: true, content: true },
   });
 
-  if (!active.usedOwnKey) {
-    const estimate = Math.max(64, Math.ceil(input.content.length / 4));
-    await assertTokenQuotaAvailable({
+  const chatQuotaState = !active.usedOwnKey
+    ? await getCategoryQuotaState({
       userId: input.userId,
       category: "CHAT_DOCUMENT",
-      estimatedTokens: estimate,
+    })
+    : null;
+
+  let projectedTokens = chatQuotaState?.used ?? 0;
+  if (chatQuotaState?.hasQuota && chatQuotaState.quota != null) {
+    const embeddingEstimate = estimateTokensFromText(input.content, {
+      charsPerToken: 3.2,
+      min: 64,
+      extra: 24,
     });
+    projectedTokens += embeddingEstimate;
+    if (projectedTokens > chatQuotaState.quota) {
+      throw new TokenQuotaExceededError({
+        category: "CHAT_DOCUMENT",
+        quota: chatQuotaState.quota,
+        used: chatQuotaState.used,
+        requested: embeddingEstimate,
+      });
+    }
   }
 
   const embResult = await active.provider.generateEmbedding(input.content);
@@ -111,6 +129,28 @@ export async function sendDocumentChatMessage(
     })),
     { role: "user" as const, content: input.content },
   ];
+
+  if (chatQuotaState?.hasQuota && chatQuotaState.quota != null) {
+    const historyText = history.map((h) => h.content).join("\n");
+    const promptEstimate = estimateTokensFromText(
+      `${enhancedSystem}\n${historyText}\n${input.content}`,
+      { charsPerToken: 3.4, min: 220 },
+    );
+    const completionReserve = Math.min(
+      2200,
+      Math.max(600, Math.ceil(promptEstimate * 0.45)),
+    );
+    const requestEstimate = promptEstimate + completionReserve;
+    projectedTokens += requestEstimate;
+    if (projectedTokens > chatQuotaState.quota) {
+      throw new TokenQuotaExceededError({
+        category: "CHAT_DOCUMENT",
+        quota: chatQuotaState.quota,
+        used: chatQuotaState.used,
+        requested: requestEstimate,
+      });
+    }
+  }
 
   const completion = await active.provider.generateChatCompletion(messages, {
     systemPrompt: enhancedSystem,
