@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
   if (!keys) {
     return NextResponse.json({ error: "Некорректный kind" }, { status: 400 });
   }
+  const kind: "logo" | "favicon" = kindRaw;
   if (!(fileRaw instanceof File)) {
     return NextResponse.json({ error: "Файл не передан" }, { status: 400 });
   }
@@ -47,15 +48,15 @@ export async function POST(request: NextRequest) {
   }
 
   const mime = fileRaw.type || "application/octet-stream";
-  const allowSet = kindRaw === "logo" ? LOGO_MIME : FAVICON_MIME;
+  const allowSet = kind === "logo" ? LOGO_MIME : FAVICON_MIME;
   if (!allowSet.has(mime)) {
     return NextResponse.json({ error: "Неподдерживаемый формат файла" }, { status: 400 });
   }
 
   const s3 = await getS3Config();
   const client = createS3Client({ ...s3, forcePathStyle: true });
-  const cleanName = sanitizeName(fileRaw.name || `${kindRaw}.bin`);
-  const s3Key = `branding/${kindRaw}/${Date.now()}-${cleanName}`;
+  const cleanName = sanitizeName(fileRaw.name || `${kind}.bin`);
+  const s3Key = `branding/${kind}/${Date.now()}-${cleanName}`;
   const body = Buffer.from(await fileRaw.arrayBuffer());
 
   await client.send(
@@ -71,11 +72,11 @@ export async function POST(request: NextRequest) {
   await Promise.all([
     configStore.set(keys.keyKey, s3Key, {
       category: "branding",
-      description: `S3 key для ${kindRaw}`,
+      description: `S3 key для ${kind}`,
     }),
     configStore.set(keys.mimeKey, mime, {
       category: "branding",
-      description: `MIME для ${kindRaw}`,
+      description: `MIME для ${kind}`,
     }),
   ]);
 
@@ -84,6 +85,6 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    url: `${getBrandingAssetUrl(kindRaw)}?v=${Date.now()}`,
+    url: `${getBrandingAssetUrl(kind)}?v=${Date.now()}`,
   });
 }
