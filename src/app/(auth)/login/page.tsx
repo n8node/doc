@@ -50,16 +50,18 @@ function LoginForm() {
     setLoading(true);
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const res = await signIn("credentials", {
-        email,
+        email: normalizedEmail,
         password,
         redirect: false,
+        callbackUrl,
       });
-      if (res?.error) {
-        setError("Неверный email или пароль");
+      if (!res?.ok) {
+        setError(res?.error ? "Неверный email или пароль" : "Не удалось выполнить вход");
         return;
       }
-      router.push(callbackUrl);
+      router.push(res.url ?? callbackUrl);
       router.refresh();
     } catch {
       setError("Ошибка соединения");
