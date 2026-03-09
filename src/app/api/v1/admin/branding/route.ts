@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { configStore } from "@/lib/config-store";
-import { getBrandingConfig } from "@/lib/branding";
+import { DEFAULT_SIDEBAR_SUBTITLE, getBrandingConfig } from "@/lib/branding";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -34,6 +34,16 @@ export async function POST(request: NextRequest) {
       configStore.set("branding.site_name", value, {
         category: "branding",
         description: "Название сайта",
+      })
+    );
+  }
+
+  if (typeof body.sidebarSubtitle === "string") {
+    const value = body.sidebarSubtitle.trim() || DEFAULT_SIDEBAR_SUBTITLE;
+    updates.push(
+      configStore.set("branding.sidebar_subtitle", value, {
+        category: "branding",
+        description: "Подзаголовок в боковом меню",
       })
     );
   }
@@ -76,6 +86,7 @@ export async function POST(request: NextRequest) {
     "branding.logo_mime",
     "branding.favicon_key",
     "branding.favicon_mime",
+    "branding.sidebar_subtitle",
   ].forEach((k) => configStore.invalidate(k));
 
   return NextResponse.json({ ok: true });

@@ -10,6 +10,7 @@ type BrandingResponse = {
   siteName: string;
   logoUrl: string | null;
   faviconUrl: string | null;
+  sidebarSubtitle: string;
 };
 
 export function BrandingSettingsForm() {
@@ -17,6 +18,7 @@ export function BrandingSettingsForm() {
   const [saving, setSaving] = useState(false);
   const [uploadingKind, setUploadingKind] = useState<"logo" | "favicon" | null>(null);
   const [siteName, setSiteName] = useState("qoqon.ru");
+  const [sidebarSubtitle, setSidebarSubtitle] = useState("Новая навигация (beta)");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -31,6 +33,7 @@ export function BrandingSettingsForm() {
         throw new Error((data as { error?: string }).error || "Не удалось загрузить брендинг");
       }
       setSiteName(data.siteName || "qoqon.ru");
+      setSidebarSubtitle(data.sidebarSubtitle || "Новая навигация (beta)");
       setLogoUrl(data.logoUrl || null);
       setFaviconUrl(data.faviconUrl || null);
     } catch (e) {
@@ -50,7 +53,7 @@ export function BrandingSettingsForm() {
       const res = await fetch("/api/v1/admin/branding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteName }),
+        body: JSON.stringify({ siteName, sidebarSubtitle }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Ошибка сохранения");
@@ -127,6 +130,15 @@ export function BrandingSettingsForm() {
       <div className="rounded-xl border border-border p-4 space-y-4">
         <h3 className="text-sm font-semibold text-foreground">Название сайта</h3>
         <Input value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="qoqon.ru" className="max-w-md" />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">Подпись под названием</label>
+          <Input
+            value={sidebarSubtitle}
+            onChange={(e) => setSidebarSubtitle(e.target.value)}
+            placeholder="Новая навигация (beta)"
+            className="max-w-md"
+          />
+        </div>
       </div>
 
       <div className="rounded-xl border border-border p-4 space-y-4">

@@ -60,9 +60,10 @@ export function SidebarV2() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [branding, setBranding] = useState<{ siteName: string; logoUrl: string | null }>({
+  const [branding, setBranding] = useState<{ siteName: string; logoUrl: string | null; sidebarSubtitle: string }>({
     siteName: "qoqon.ru",
     logoUrl: null,
+    sidebarSubtitle: "Новая навигация (beta)",
   });
   const activeSection = parseFilesSection(searchParams.get("section"));
   const isFilesPage = pathname === "/dashboard/files" || pathname.startsWith("/dashboard/files");
@@ -74,6 +75,10 @@ export function SidebarV2() {
         setBranding({
           siteName: typeof data.siteName === "string" && data.siteName.trim() ? data.siteName.trim() : "qoqon.ru",
           logoUrl: typeof data.logoUrl === "string" && data.logoUrl ? data.logoUrl : null,
+          sidebarSubtitle:
+            typeof data.sidebarSubtitle === "string" && data.sidebarSubtitle.trim()
+              ? data.sidebarSubtitle.trim()
+              : "Новая навигация (beta)",
         });
       })
       .catch(() => {});
@@ -105,7 +110,7 @@ export function SidebarV2() {
           )}
           <div className="min-w-0">
             <p className="truncate text-lg font-bold text-foreground">{branding.siteName}</p>
-            <p className="text-xs text-muted-foreground">Новая навигация (beta)</p>
+            <p className="text-xs text-muted-foreground">{branding.sidebarSubtitle}</p>
           </div>
         </div>
 
