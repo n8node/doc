@@ -48,11 +48,34 @@ model User {
   createdInvites       Invite[]              @relation("InviteCreatedByUser")
   usedInvites          Invite[]              @relation("InviteUsedByUser")
   ownedInvites         Invite[]              @relation("InviteOwnedByUser")
+  spamAlerts           SpamAlertEvent[]
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
 
   @@index([registeredViaInviteId])
   @@map("users")
+}
+
+model SpamAlertEvent {
+  id                 String            @id @default(cuid()) @map("id")
+  rootUserId         String?           @map("root_user_id")
+  rootUser           User?             @relation(fields: [rootUserId], references: [id], onDelete: SetNull)
+  severity           SpamAlertSeverity @map("severity")
+  score              Int               @map("score")
+  registrationsCount Int               @map("registrations_count")
+  verificationRate   Float             @map("verification_rate")
+  activityRate       Float             @map("activity_rate")
+  uniqueDomains      Int               @map("unique_domains")
+  windowStart        DateTime          @map("window_start")
+  windowEnd          DateTime          @map("window_end")
+  cooldownKey        String            @unique @map("cooldown_key")
+  sentToTelegram     Boolean           @default(false) @map("sent_to_telegram")
+  details            Json?             @map("details")
+  createdAt          DateTime          @default(now()) @map("created_at")
+
+  @@index([rootUserId, createdAt(sort: Desc)])
+  @@index([severity, createdAt(sort: Desc)])
+  @@map("spam_alert_events")
 }
 
 model EmailVerificationToken {
@@ -500,6 +523,11 @@ enum InviteStatus {
 enum EmailVerificationPurpose {
   REGISTER
   LINK_EMAIL
+}
+
+enum SpamAlertSeverity {
+  WARNING
+  CRITICAL
 }
 
 model Notification {

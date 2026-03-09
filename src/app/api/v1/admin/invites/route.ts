@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 import type { InviteStatus, InviteScope, Prisma } from "@prisma/client";
+import { banInviteChainByRootUser, getInviteChainUserIds } from "@/lib/invite-abuse";
 
 type RegistrationChannel = "EMAIL" | "TELEGRAM" | "BOTH" | null;
 
@@ -228,5 +229,52 @@ export async function GET(req: NextRequest) {
     page,
     limit,
     totalPages: Math.ceil(total / limit),
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  try {
+    requireAdmin(session);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const action = typeof body?.action === "string" ? body.action : "";
+
+  if (action !== "ban_chain") {
+    return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
+  }
+
+  const rootUserId =
+    typeof body?.rootUserId === "string" ? body.rootUserId.trim() : "";
+  if (!rootUserId) {
+    return NextResponse.json(
+      { error: "rootUserId обязателен для ban_chain" },
+      { status: 400 }
+    );
+  }
+
+  const rootUser = await prisma.user.findUnique({
+    where: { id: rootUserId },
+    select: { id: true, email: true },
+  });
+  if (!rootUser) {
+    return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+  }
+
+  const chainUserIds = await getInviteChainUserIds(rootUserId, { maxDepth: 8 });
+  const result = await banInviteChainByRootUser({ rootUserId });
+
+  return NextResponse.json({
+    ok: true,
+    rootUser: {
+      id: rootUser.id,
+      email: rootUser.email,
+    },
+    chainSize: chainUserIds.length,
+    usersBlocked: result.usersBlocked,
+    invitesRevoked: result.invitesRevoked,
   });
 }

@@ -7,6 +7,7 @@ import {
   getTelegramConfig,
   DEFAULT_REGISTER_MESSAGE,
   DEFAULT_PAYMENT_MESSAGE,
+  DEFAULT_SPAM_REGISTRATION_MESSAGE,
 } from "@/lib/telegram";
 
 export async function GET() {
@@ -23,10 +24,13 @@ export async function GET() {
     botTokenSet: !!cfg.botToken,
     notifyRegisterEnabled: cfg.notifyRegisterEnabled,
     notifyPaymentEnabled: cfg.notifyPaymentEnabled,
+    notifySpamRegistrationEnabled: cfg.notifySpamRegistrationEnabled,
     registerMessage: cfg.registerMessage,
     paymentMessage: cfg.paymentMessage,
+    spamRegistrationMessage: cfg.spamRegistrationMessage,
     defaultRegisterMessage: DEFAULT_REGISTER_MESSAGE,
     defaultPaymentMessage: DEFAULT_PAYMENT_MESSAGE,
+    defaultSpamRegistrationMessage: DEFAULT_SPAM_REGISTRATION_MESSAGE,
   });
 }
 
@@ -44,8 +48,10 @@ export async function POST(request: NextRequest) {
     chatId,
     notifyRegisterEnabled,
     notifyPaymentEnabled,
+    notifySpamRegistrationEnabled,
     registerMessage,
     paymentMessage,
+    spamRegistrationMessage,
   } = body;
 
   const updates: Promise<void>[] = [];
@@ -92,6 +98,20 @@ export async function POST(request: NextRequest) {
     )
   );
 
+  updates.push(
+    configStore.set(
+      "telegram.notify_spam_registration_enabled",
+      notifySpamRegistrationEnabled === true ||
+        notifySpamRegistrationEnabled === "true"
+        ? "true"
+        : "false",
+      {
+        category: "notifications",
+        description: "Notify on suspicious invite-based registration bursts",
+      }
+    )
+  );
+
   if (registerMessage != null && typeof registerMessage === "string") {
     updates.push(
       configStore.set("telegram.register_message", registerMessage.trim(), {
@@ -110,14 +130,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (spamRegistrationMessage != null && typeof spamRegistrationMessage === "string") {
+    updates.push(
+      configStore.set(
+        "telegram.spam_registration_message",
+        spamRegistrationMessage.trim(),
+        {
+          category: "notifications",
+          description: "Message template for suspicious registration alerts",
+        }
+      )
+    );
+  }
+
   await Promise.all(updates);
 
   configStore.invalidate("telegram.bot_token");
   configStore.invalidate("telegram.chat_id");
   configStore.invalidate("telegram.notify_register_enabled");
   configStore.invalidate("telegram.notify_payment_enabled");
+  configStore.invalidate("telegram.notify_spam_registration_enabled");
   configStore.invalidate("telegram.register_message");
   configStore.invalidate("telegram.payment_message");
+  configStore.invalidate("telegram.spam_registration_message");
 
   return NextResponse.json({ ok: true });
 }

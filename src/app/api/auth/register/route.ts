@@ -9,6 +9,7 @@ import {
 import { getAuthSettings } from "@/lib/telegram-auth";
 import { consumeActiveInvite, createInvites, isInviteCodeFormatValid, normalizeInviteCode } from "@/lib/invite";
 import { issueEmailVerificationToken, sendVerificationEmail } from "@/lib/email-verification";
+import { evaluateRegistrationSpamAndNotify } from "@/lib/invite-abuse";
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await hash(password, 12);
     let createdUserId = "";
+    let spamRootUserId: string | null = null;
     await prisma.$transaction(async (tx) => {
       let consumedInviteId: string | null = null;
 
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
           usedByUserId: user.id,
         });
         consumedInviteId = invite.id;
+        spamRootUserId = invite.ownerUserId ?? null;
 
         await createInvites({
           tx,
@@ -131,6 +134,12 @@ export async function POST(req: NextRequest) {
         ttlMinutes: issued.ttlMinutes,
       });
       verificationEmailSent = sent.ok;
+    }
+
+    if (spamRootUserId) {
+      await evaluateRegistrationSpamAndNotify({ rootUserId: spamRootUserId }).catch(
+        () => {}
+      );
     }
 
     return NextResponse.json({

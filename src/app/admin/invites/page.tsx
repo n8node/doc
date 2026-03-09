@@ -53,6 +53,7 @@ export default function AdminInvitesPage() {
   const [limit] = useState(30);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [banLoadingUserId, setBanLoadingUserId] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -114,6 +115,40 @@ export default function AdminInvitesPage() {
     if (row.status === "USED") return <Badge variant="secondary">USED</Badge>;
     if (row.status === "EXPIRED") return <Badge variant="warning">EXPIRED</Badge>;
     return <Badge variant="error">REVOKED</Badge>;
+  };
+
+  const handleBanChain = async (inviter: RelationRow["inviter"]) => {
+    if (!inviter?.id) return;
+    const ok = window.confirm(
+      `Забанить инвайт-связку для ${inviter.email}?\n` +
+        "Будут заблокированы участники цепочки и отозваны активные инвайты."
+    );
+    if (!ok) return;
+
+    setBanLoadingUserId(inviter.id);
+    try {
+      const res = await fetch("/api/v1/admin/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "ban_chain",
+          rootUserId: inviter.id,
+          reason: "SPAM_REGISTRATION_CHAIN",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка блокировки связки");
+      toast.success(
+        `Связка заблокирована: пользователей ${data.usersBlocked}, инвайтов отозвано ${data.invitesRevoked}`
+      );
+      loadData();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Ошибка блокировки связки"
+      );
+    } finally {
+      setBanLoadingUserId(null);
+    }
   };
 
   return (
@@ -293,12 +328,13 @@ export default function AdminInvitesPage() {
                     <th className="px-3 py-2 text-left font-medium text-muted-foreground">Код</th>
                     <th className="px-3 py-2 text-left font-medium text-muted-foreground">Канал</th>
                     <th className="px-3 py-2 text-left font-medium text-muted-foreground">Дата регистрации</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Действие</th>
                   </tr>
                 </thead>
                 <tbody>
                   {relations.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                      <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                         Пока нет связей
                       </td>
                     </tr>
@@ -310,6 +346,23 @@ export default function AdminInvitesPage() {
                         <td className="px-3 py-2 font-mono text-xs">{row.inviteCode}</td>
                         <td className="px-3 py-2">{row.registrationChannel ? CHANNEL_LABEL[row.registrationChannel] : "—"}</td>
                         <td className="px-3 py-2">{formatDate(row.registeredAt)}</td>
+                        <td className="px-3 py-2">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={!row.inviter?.id || banLoadingUserId === row.inviter?.id}
+                            onClick={() => handleBanChain(row.inviter)}
+                          >
+                            {banLoadingUserId === row.inviter?.id ? (
+                              <>
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                Блок...
+                              </>
+                            ) : (
+                              "Бан связки"
+                            )}
+                          </Button>
+                        </td>
                       </tr>
                     ))
                   )}

@@ -21,8 +21,10 @@ export function TelegramSettingsForm() {
     chatId: "",
     notifyRegisterEnabled: true,
     notifyPaymentEnabled: true,
+    notifySpamRegistrationEnabled: true,
     registerMessage: "",
     paymentMessage: "",
+    spamRegistrationMessage: "",
   });
 
   const fetchBotStatus = () => {
@@ -50,8 +52,13 @@ export function TelegramSettingsForm() {
           botToken: data.botTokenSet ? "••••••••" : "",
           notifyRegisterEnabled: data.notifyRegisterEnabled !== false,
           notifyPaymentEnabled: data.notifyPaymentEnabled !== false,
+          notifySpamRegistrationEnabled: data.notifySpamRegistrationEnabled !== false,
           registerMessage: data.registerMessage ?? data.defaultRegisterMessage ?? "",
           paymentMessage: data.paymentMessage ?? data.defaultPaymentMessage ?? "",
+          spamRegistrationMessage:
+            data.spamRegistrationMessage ??
+            data.defaultSpamRegistrationMessage ??
+            "",
         }));
       })
       .catch(() => toast.error("Не удалось загрузить настройки"))
@@ -109,8 +116,10 @@ export function TelegramSettingsForm() {
         chatId: values.chatId.trim(),
         notifyRegisterEnabled: values.notifyRegisterEnabled,
         notifyPaymentEnabled: values.notifyPaymentEnabled,
+        notifySpamRegistrationEnabled: values.notifySpamRegistrationEnabled,
         registerMessage: values.registerMessage || undefined,
         paymentMessage: values.paymentMessage || undefined,
+        spamRegistrationMessage: values.spamRegistrationMessage || undefined,
       };
       if (values.botToken && values.botToken !== "••••••••") {
         body.botToken = values.botToken;
@@ -254,6 +263,45 @@ export function TelegramSettingsForm() {
               onChange={(e) => setValues((v) => ({ ...v, paymentMessage: e.target.value }))}
               placeholder="💰 Оплата тарифа\nПользователь: {userEmail}\nТариф: {planName}\nСумма: {amount} {currency}"
               rows={4}
+              className="mt-1 w-full max-w-2xl rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Уведомлять о подозрении на спам-регистрации
+          </label>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={values.notifySpamRegistrationEnabled}
+              onChange={(e) =>
+                setValues((v) => ({
+                  ...v,
+                  notifySpamRegistrationEnabled: e.target.checked,
+                }))
+              }
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm">
+              Отправлять алерт, если детектор находит подозрительный всплеск
+            </span>
+          </label>
+          <div className="mt-2">
+            <label className="block text-xs text-muted-foreground mb-1">
+              Шаблон: {"{rootUserEmail} {severity} {score} {registrationsCount} {verificationRate} {activityRate} {uniqueDomains} {reasons} {windowStart} {windowEnd}"}
+            </label>
+            <textarea
+              value={values.spamRegistrationMessage}
+              onChange={(e) =>
+                setValues((v) => ({
+                  ...v,
+                  spamRegistrationMessage: e.target.value,
+                }))
+              }
+              placeholder="🚨 Подозрение на спам-регистрации..."
+              rows={6}
               className="mt-1 w-full max-w-2xl rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
