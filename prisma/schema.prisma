@@ -13,6 +13,8 @@ datasource db {
 model User {
   id                   String                @id @default(cuid()) @map("id")
   email                String                @unique @map("email")
+  isEmailVerified      Boolean               @default(true) @map("is_email_verified")
+  emailVerifiedAt      DateTime?             @map("email_verified_at")
   passwordHash         String                @map("password_hash")
   name                 String?               @map("name")
   role                 Role                  @default(USER) @map("role")
@@ -42,6 +44,7 @@ model User {
   telegramUsername     String?               @map("telegram_username")
   registeredViaInviteId String?              @map("registered_via_invite_id")
   registeredViaInvite  Invite?               @relation("UserRegisteredViaInvite", fields: [registeredViaInviteId], references: [id], onDelete: SetNull)
+  emailVerificationTokens EmailVerificationToken[]
   createdInvites       Invite[]              @relation("InviteCreatedByUser")
   usedInvites          Invite[]              @relation("InviteUsedByUser")
   ownedInvites         Invite[]              @relation("InviteOwnedByUser")
@@ -50,6 +53,24 @@ model User {
 
   @@index([registeredViaInviteId])
   @@map("users")
+}
+
+model EmailVerificationToken {
+  id              String                   @id @default(cuid()) @map("id")
+  userId          String                   @map("user_id")
+  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose         EmailVerificationPurpose @map("purpose")
+  tokenHash       String                   @unique @map("token_hash")
+  newEmail        String?                  @map("new_email")
+  newPasswordHash String?                  @map("new_password_hash")
+  expiresAt       DateTime                 @map("expires_at")
+  usedAt          DateTime?                @map("used_at")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+
+  @@index([userId, purpose, createdAt(sort: Desc)])
+  @@index([purpose, expiresAt])
+  @@index([newEmail])
+  @@map("email_verification_tokens")
 }
 
 model Invite {
@@ -473,6 +494,11 @@ enum InviteStatus {
   USED
   REVOKED
   EXPIRED
+}
+
+enum EmailVerificationPurpose {
+  REGISTER
+  LINK_EMAIL
 }
 
 model Notification {
