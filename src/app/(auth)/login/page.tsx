@@ -2,14 +2,13 @@
 
 import { signIn } from "next-auth/react";
 import { useState, Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, HardDrive, LogIn } from "lucide-react";
 import { TelegramLoginBlock } from "@/components/auth/TelegramLoginBlock";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
   const [email, setEmail] = useState("");
@@ -61,8 +60,7 @@ function LoginForm() {
         setError(res?.error ? "Неверный email или пароль" : "Не удалось выполнить вход");
         return;
       }
-      router.push(res.url ?? callbackUrl);
-      router.refresh();
+      window.location.assign(res.url ?? callbackUrl);
     } catch {
       setError("Ошибка соединения");
     } finally {
