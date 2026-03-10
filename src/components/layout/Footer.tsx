@@ -11,6 +11,9 @@ export async function Footer() {
           © {new Date().getFullYear()} {siteName} — Облачное хранилище с AI
         </p>
         <nav className="flex gap-6 text-sm text-muted-foreground">
+          <Link href="/docs" className="transition-colors hover:text-foreground">
+            Документация
+          </Link>
           <Link
             href="/dashboard"
             className="transition-colors hover:text-foreground"

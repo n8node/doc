@@ -24,6 +24,12 @@ export async function Header() {
         </Link>
         <nav className="flex items-center gap-4">
           <Link
+            href="/docs"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Документация
+          </Link>
+          <Link
             href="/dashboard"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >

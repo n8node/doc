@@ -327,6 +327,19 @@ model AdminConfig {
   @@map("admin_config")
 }
 
+model DocPage {
+  id        String   @id @default(cuid()) @map("id")
+  slug      String   @unique @map("slug")
+  title     String   @map("title")
+  content   String   @db.Text @map("content")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([sortOrder])
+  @@map("doc_pages")
+}
+
 model TelegramLoginToken {
   id                String   @id @default(cuid()) @map("id")
   token             String   @unique @map("token")
