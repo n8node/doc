@@ -15,6 +15,7 @@ import {
   Crown,
   Database,
   BrainCircuit,
+  LayoutDashboard,
 } from "lucide-react";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
 import { SidebarFolderTree } from "./SidebarFolderTree";
@@ -22,6 +23,7 @@ import { buildDashboardFilesUrl, DEFAULT_FILES_SECTION } from "@/lib/files-navig
 import { LogoutButton } from "@/components/auth/LogoutButton";
 
 const navItems = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Дашборд" },
   { href: buildDashboardFilesUrl({ section: DEFAULT_FILES_SECTION }), icon: FolderOpen, label: "Файлы" },
   { href: "/dashboard/search", icon: Search, label: "Поиск" },
   { href: "/dashboard/rag-memory", icon: BrainCircuit, label: "RAG-память" },

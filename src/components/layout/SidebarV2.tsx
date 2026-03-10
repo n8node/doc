@@ -21,6 +21,7 @@ import {
   Key,
   Database,
   BrainCircuit,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
@@ -127,6 +128,26 @@ export function SidebarV2() {
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
+          <div className="space-y-1.5">
+            <Link href="/dashboard">
+              <motion.div
+                whileHover={{ x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={cn(
+                  "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                  pathname === "/dashboard"
+                    ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                    : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground"
+                )}
+              >
+                <LayoutDashboard className={cn("h-5 w-5", pathname === "/dashboard" && "text-primary")} />
+                <span className="flex-1">Дашборд</span>
+                {pathname === "/dashboard" && (
+                  <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.16)]" />
+                )}
+              </motion.div>
+            </Link>
+          </div>
           <div className="space-y-1.5">
             <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Файлы
