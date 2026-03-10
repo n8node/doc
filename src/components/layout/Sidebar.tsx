@@ -16,6 +16,7 @@ import {
   Database,
   BrainCircuit,
   LayoutDashboard,
+  Store,
 } from "lucide-react";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
 import { SidebarFolderTree } from "./SidebarFolderTree";
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/dashboard/embeddings", icon: Database, label: "Векторная база" },
   { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
   { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },
+  { href: "/dashboard/marketplace", icon: Store, label: "API маркетплейс" },
 ];
 
 export function Sidebar() {

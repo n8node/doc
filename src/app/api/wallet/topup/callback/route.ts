@@ -19,12 +19,37 @@ export async function POST(req: NextRequest) {
     const paymentId = paymentObj?.id as string | undefined;
 
     if (event === "payment.succeeded" && paymentId) {
-      const existing = await prisma.payment.findUnique({
-        where: { yookassaPaymentId: paymentId },
-        select: { id: true, userId: true, planId: true, status: true },
-      });
+      const metadata = paymentObj?.metadata as Record<string, string> | undefined;
+      const llmTopupId = metadata?.llmTopupId;
 
-      if (existing && existing.status === "pending") {
+      // LLM-маркетплейс: пополнение баланса
+      if (llmTopupId) {
+        const topup = await prisma.llmWalletTopup.findUnique({
+          where: { id: llmTopupId },
+          select: { id: true, userId: true, amountCents: true, status: true },
+        });
+        if (topup && topup.status === "pending") {
+          await prisma.$transaction([
+            prisma.llmWalletTopup.update({
+              where: { id: topup.id },
+              data: { status: "succeeded", succeededAt: new Date() },
+            }),
+            prisma.user.update({
+              where: { id: topup.userId },
+              data: {
+                llmWalletBalanceCents: { increment: topup.amountCents },
+              },
+            }),
+          ]);
+        }
+      } else {
+        // Обычная оплата тарифа
+        const existing = await prisma.payment.findUnique({
+          where: { yookassaPaymentId: paymentId },
+          select: { id: true, userId: true, planId: true, status: true },
+        });
+
+        if (existing && existing.status === "pending") {
         const plan = await prisma.plan.findUnique({ where: { id: existing.planId } });
         await prisma.$transaction([
           prisma.payment.update({
@@ -69,14 +94,24 @@ export async function POST(req: NextRequest) {
         } catch {
           // ignore telegram errors
         }
+        }
       }
     }
 
     if (event === "payment.canceled" && paymentId) {
-      await prisma.payment.updateMany({
-        where: { yookassaPaymentId: paymentId },
-        data: { status: "canceled" },
-      });
+      const metadata = paymentObj?.metadata as Record<string, string> | undefined;
+      const llmTopupId = metadata?.llmTopupId;
+      if (llmTopupId) {
+        await prisma.llmWalletTopup.updateMany({
+          where: { id: llmTopupId },
+          data: { status: "canceled" },
+        });
+      } else {
+        await prisma.payment.updateMany({
+          where: { yookassaPaymentId: paymentId },
+          data: { status: "canceled" },
+        });
+      }
     }
 
     return new NextResponse(null, { status: 200 });

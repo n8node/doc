@@ -22,6 +22,7 @@ import {
   Database,
   BrainCircuit,
   LayoutDashboard,
+  Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
@@ -55,6 +56,7 @@ const extraNavItems = [
   { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
   { href: "/dashboard/api-docs", icon: Key, label: "API настройки" },
   { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },
+  { href: "/dashboard/marketplace", icon: Store, label: "API маркетплейс" },
 ];
 
 export function SidebarV2() {
