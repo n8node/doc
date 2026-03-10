@@ -16,7 +16,6 @@ interface EmbeddingConfigInput {
 }
 
 export function EmbeddingConfigBlockForSystemKeys() {
-  const [canUseOwnKeys, setCanUseOwnKeys] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
@@ -28,13 +27,8 @@ export function EmbeddingConfigBlockForSystemKeys() {
 
   const load = useCallback(async () => {
     try {
-      const [aiRes, prefsRes] = await Promise.all([
-        fetch("/api/v1/user/ai-config"),
-        fetch("/api/v1/user/preferences"),
-      ]);
-      const aiData = await aiRes.json();
+      const prefsRes = await fetch("/api/v1/user/preferences");
       const prefsData = await prefsRes.json();
-      setCanUseOwnKeys(!!aiData.canUseOwnKeys);
       const ec = prefsData.embeddingConfig as EmbeddingConfigInput | undefined;
       setChunkSize(ec?.chunkSize != null ? String(ec.chunkSize) : "");
       setChunkOverlap(ec?.chunkOverlap != null ? String(ec.chunkOverlap) : "");
@@ -42,7 +36,7 @@ export function EmbeddingConfigBlockForSystemKeys() {
       setSimilarityThreshold(ec?.similarityThreshold != null ? String(ec.similarityThreshold) : "");
       setTopK(ec?.topK != null ? String(ec.topK) : "");
     } catch {
-      setCanUseOwnKeys(null);
+      /* ignore */
     } finally {
       setLoading(false);
     }
@@ -87,7 +81,7 @@ export function EmbeddingConfigBlockForSystemKeys() {
     }
   };
 
-  if (loading || canUseOwnKeys === true) return null;
+  if (loading) return null;
 
   return (
     <div className="rounded-2xl modal-glass overflow-hidden">
