@@ -704,7 +704,7 @@ export default function RagMemoryPage() {
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BrainCircuit className="h-5 w-5" />
@@ -785,7 +785,7 @@ export default function RagMemoryPage() {
                     {createFileIds.size === files.length ? "Снять выбор" : "Выбрать все"}
                   </Button>
                 </div>
-                <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-input p-2 space-y-1">
+                <div className="mt-2 max-h-48 overflow-y-auto overflow-x-hidden min-w-0 rounded-lg border border-input p-2 space-y-1">
                   {loadingFiles ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">Загрузка...</p>
                   ) : files.length === 0 ? (
@@ -801,7 +801,7 @@ export default function RagMemoryPage() {
                           checked={createFileIds.has(f.id)}
                           onChange={() => toggleFile(f.id)}
                         />
-                        <span className="truncate text-sm">{f.name}</span>
+                        <span className="min-w-0 break-words text-sm">{f.name}</span>
                       </label>
                     ))
                   )}
