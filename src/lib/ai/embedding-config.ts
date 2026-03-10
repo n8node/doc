@@ -104,3 +104,4 @@ export function toEmbeddingOptions(config: ResolvedEmbeddingConfig): { dimension
   }
   return undefined;
 }
+

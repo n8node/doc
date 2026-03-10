@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
 
   const { id } = await ctx.params;
 
-  const [collection, userConfig] = await Promise.all([
+  const [collection, userAiConfig, user] = await Promise.all([
     prisma.vectorCollection.findFirst({
       where: { id, userId },
       include: {
@@ -50,16 +50,19 @@ export async function POST(request: NextRequest, ctx: Ctx) {
       where: { userId, isActive: true },
       select: { embeddingConfig: true },
     }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferences: true },
+    }),
   ]);
 
   if (!collection) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }
 
-  const embeddingConfig = resolveEmbeddingConfig(
-    collection.embeddingConfig,
-    userConfig?.embeddingConfig ?? null
-  );
+  const userConfigRaw =
+    userAiConfig?.embeddingConfig ?? (user?.preferences as Record<string, unknown> | null)?.embeddingConfig ?? null;
+  const embeddingConfig = resolveEmbeddingConfig(collection.embeddingConfig, userConfigRaw);
 
   const docling = getDoclingClient();
   const available = await docling.isAvailable();

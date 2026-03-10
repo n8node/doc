@@ -87,11 +87,22 @@ export async function sendDocumentChatMessage(
     }
   }
 
-  const userEmbedConfig = await prisma.userAiConfig.findUnique({
+  let userEmbedConfigRaw: unknown = null;
+  const userAiConfig = await prisma.userAiConfig.findUnique({
     where: { userId: input.userId, isActive: true },
     select: { embeddingConfig: true },
   });
-  const embedConfig = resolveEmbeddingConfigFromUser(userEmbedConfig?.embeddingConfig ?? null);
+  if (userAiConfig?.embeddingConfig != null) {
+    userEmbedConfigRaw = userAiConfig.embeddingConfig;
+  } else {
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { preferences: true },
+    });
+    const prefs = user?.preferences as Record<string, unknown> | null;
+    userEmbedConfigRaw = prefs?.embeddingConfig ?? null;
+  }
+  const embedConfig = resolveEmbeddingConfigFromUser(userEmbedConfigRaw);
 
   const embResult = await active.provider.generateEmbedding(input.content);
   const contextTokens = embResult.usage?.totalTokens ?? embResult.usage?.promptTokens ?? 0;

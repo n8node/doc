@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   let collectionFileIds: string[] | undefined;
   let searchConfig: { topK: number; similarityThreshold: number };
   if (collectionId) {
-    const [collection, userConfig] = await Promise.all([
+    const [collection, userAiConfig, user] = await Promise.all([
       prisma.vectorCollection.findFirst({
         where: { id: collectionId, userId },
         include: { files: { select: { fileId: true } } },
@@ -41,14 +41,17 @@ export async function GET(request: NextRequest) {
         where: { userId, isActive: true },
         select: { embeddingConfig: true },
       }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { preferences: true },
+      }),
     ]);
     if (!collection) {
       return NextResponse.json({ error: "Collection not found" }, { status: 404 });
     }
-    const resolved = resolveEmbeddingConfig(
-      collection.embeddingConfig,
-      userConfig?.embeddingConfig ?? null,
-    );
+    const userConfigRaw =
+      userAiConfig?.embeddingConfig ?? (user?.preferences as Record<string, unknown> | null)?.embeddingConfig ?? null;
+    const resolved = resolveEmbeddingConfig(collection.embeddingConfig, userConfigRaw);
     searchConfig = { topK: resolved.topK, similarityThreshold: resolved.similarityThreshold };
     collectionFileIds = collection.files.map((f) => f.fileId);
     if (collectionFileIds.length === 0) {
@@ -61,11 +64,19 @@ export async function GET(request: NextRequest) {
       });
     }
   } else {
-    const userConfig = await prisma.userAiConfig.findUnique({
-      where: { userId, isActive: true },
-      select: { embeddingConfig: true },
-    });
-    const resolved = resolveEmbeddingConfigFromUser(userConfig?.embeddingConfig ?? null);
+    const [userAiConfig, user] = await Promise.all([
+      prisma.userAiConfig.findUnique({
+        where: { userId, isActive: true },
+        select: { embeddingConfig: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { preferences: true },
+      }),
+    ]);
+    const userConfigRaw =
+      userAiConfig?.embeddingConfig ?? (user?.preferences as Record<string, unknown> | null)?.embeddingConfig ?? null;
+    const resolved = resolveEmbeddingConfigFromUser(userConfigRaw);
     searchConfig = { topK: resolved.topK, similarityThreshold: resolved.similarityThreshold };
   }
 

@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
       : "system",
     emailNotifications: typeof prefs.emailNotifications === "boolean" ? prefs.emailNotifications : true,
     notifications: parseNotificationPrefs(prefs.notifications),
+    embeddingConfig: prefs.embeddingConfig && typeof prefs.embeddingConfig === "object" ? prefs.embeddingConfig : null,
   });
 }
 
@@ -83,6 +84,27 @@ export async function PATCH(req: NextRequest) {
     updates.notifications = prevN;
   }
 
+  if (body.embeddingConfig !== undefined) {
+    const ec = body.embeddingConfig as Record<string, unknown> | null;
+    if (ec === null) {
+      updates.embeddingConfig = null;
+    } else if (typeof ec === "object" && ec !== null) {
+      const valid: Record<string, unknown> = {};
+      if (typeof ec.chunkSize === "number") valid.chunkSize = Math.min(2000, Math.max(100, ec.chunkSize));
+      if (typeof ec.chunkOverlap === "number") valid.chunkOverlap = Math.min(200, Math.max(0, ec.chunkOverlap));
+      if (ec.chunkStrategy === "paragraphs" || ec.chunkStrategy === "sentences" || ec.chunkStrategy === "fixed") {
+        valid.chunkStrategy = ec.chunkStrategy;
+      }
+      if (ec.dimensions === null) valid.dimensions = null;
+      else if (typeof ec.dimensions === "number") valid.dimensions = Math.min(3072, Math.max(256, ec.dimensions));
+      if (typeof ec.similarityThreshold === "number") {
+        valid.similarityThreshold = Math.min(0.95, Math.max(0.3, ec.similarityThreshold));
+      }
+      if (typeof ec.topK === "number") valid.topK = Math.min(50, Math.max(1, ec.topK));
+      updates.embeddingConfig = Object.keys(valid).length > 0 ? valid : null;
+    }
+  }
+
   if (Object.keys(updates).length === 0) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -93,6 +115,7 @@ export async function PATCH(req: NextRequest) {
       theme: prefs.theme ?? "system",
       emailNotifications: prefs.emailNotifications !== false,
       notifications: parseNotificationPrefs(prefs.notifications),
+      embeddingConfig: prefs.embeddingConfig && typeof prefs.embeddingConfig === "object" ? prefs.embeddingConfig : null,
     });
   }
 
@@ -113,5 +136,7 @@ export async function PATCH(req: NextRequest) {
     theme: nextPrefs.theme ?? "system",
     emailNotifications: nextPrefs.emailNotifications !== false,
     notifications: parseNotificationPrefs(nextPrefs.notifications),
+    embeddingConfig:
+      nextPrefs.embeddingConfig && typeof nextPrefs.embeddingConfig === "object" ? nextPrefs.embeddingConfig : null,
   });
 }

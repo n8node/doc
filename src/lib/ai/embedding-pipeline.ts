@@ -41,11 +41,22 @@ export async function runEmbeddingPipeline(
   if (embeddingConfig) {
     config = embeddingConfig;
   } else {
-    const userConfig = await prisma.userAiConfig.findUnique({
+    let userConfigRaw: unknown = null;
+    const userAiConfig = await prisma.userAiConfig.findUnique({
       where: { userId, isActive: true },
       select: { embeddingConfig: true },
     });
-    config = resolveEmbeddingConfigFromUser(userConfig?.embeddingConfig ?? null);
+    if (userAiConfig?.embeddingConfig != null) {
+      userConfigRaw = userAiConfig.embeddingConfig;
+    } else {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { preferences: true },
+      });
+      const prefs = user?.preferences as Record<string, unknown> | null;
+      userConfigRaw = prefs?.embeddingConfig ?? null;
+    }
+    config = resolveEmbeddingConfigFromUser(userConfigRaw);
   }
 
   const embeddingOptions = toEmbeddingOptions(config);

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell, TriangleAlert } from "lucide-react";
 import { AccountLinkingBlock } from "@/components/settings/AccountLinkingBlock";
 import { UserAiConfigBlock } from "@/components/settings/UserAiConfigBlock";
+import { EmbeddingConfigBlockForSystemKeys } from "@/components/settings/EmbeddingConfigBlockForSystemKeys";
 import { UserInvitesBlock } from "@/components/settings/UserInvitesBlock";
 import { useTheme } from "next-themes";
 import { cn, formatBytes } from "@/lib/utils";
@@ -372,6 +373,9 @@ export default function DashboardSettingsPage() {
 
       {/* Свой API-ключ для AI */}
       <UserAiConfigBlock />
+
+      {/* Параметры векторизации для системного ключа */}
+      <EmbeddingConfigBlockForSystemKeys />
 
       {/* Инвайты пользователя */}
       <UserInvitesBlock />

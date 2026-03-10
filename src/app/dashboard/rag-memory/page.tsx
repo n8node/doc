@@ -16,6 +16,7 @@ import {
   Check,
   Database,
   Crown,
+  Settings2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ExportDialog } from "@/components/rag/ExportDialog";
 import { N8nConnectionDialog } from "@/components/rag/N8nConnectionDialog";
+import { CollectionEmbeddingConfigDialog } from "@/components/rag/CollectionEmbeddingConfigDialog";
 
 interface CollectionFile {
   id: string;
@@ -51,11 +53,20 @@ interface CollectionFile {
   hasEmbedding: boolean;
 }
 
+interface EmbeddingConfigInput {
+  chunkSize?: number;
+  chunkOverlap?: number;
+  dimensions?: number | null;
+  similarityThreshold?: number;
+  topK?: number;
+}
+
 interface Collection {
   id: string;
   name: string;
   folderId: string | null;
   folder: { id: string; name: string } | null;
+  embeddingConfig?: EmbeddingConfigInput | null;
   filesCount: number;
   processableCount?: number;
   filesWithEmbeddings: number;
@@ -110,6 +121,7 @@ export default function RagMemoryPage() {
   const [canUseN8nConnection, setCanUseN8nConnection] = useState(false);
   const [n8nUpgradeOpen, setN8nUpgradeOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [embeddingConfigCollection, setEmbeddingConfigCollection] = useState<Collection | null>(null);
 
   const shortenId = (id: string, maxLen = 24) => {
     if (id.length <= maxLen) return id;
@@ -663,6 +675,15 @@ export default function RagMemoryPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setEmbeddingConfigCollection(c);
+                          }}
+                        >
+                          <Settings2 className="h-4 w-4" />
+                          Настроить векторизацию
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={(e) => {
                             e.preventDefault();
@@ -819,6 +840,17 @@ export default function RagMemoryPage() {
           collectionName={n8nConnectionCollection.name}
           hasEmbeddings={n8nConnectionCollection.filesWithEmbeddings > 0}
           onClose={() => setN8nConnectionCollection(null)}
+        />
+      )}
+
+      {embeddingConfigCollection && (
+        <CollectionEmbeddingConfigDialog
+          open={!!embeddingConfigCollection}
+          onOpenChange={(open) => !open && setEmbeddingConfigCollection(null)}
+          collectionId={embeddingConfigCollection.id}
+          collectionName={embeddingConfigCollection.name}
+          embeddingConfig={embeddingConfigCollection.embeddingConfig ?? null}
+          onSaved={loadCollections}
         />
       )}
 
