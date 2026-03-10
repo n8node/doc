@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import {
-  resolveEmailVerificationToken,
-  markEmailVerificationTokenUsed,
-} from "@/lib/email-verification";
+import { resolveEmailVerificationToken } from "@/lib/email-verification";
 
 export async function POST(req: NextRequest) {
   try {
