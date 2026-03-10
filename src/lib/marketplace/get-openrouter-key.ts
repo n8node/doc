@@ -1,15 +1,12 @@
-import { prisma } from "@/lib/prisma";
-import { decryptApiKey } from "@/lib/ai/encrypt";
+import { configStore } from "@/lib/config-store";
+
+const CONFIG_KEY = "marketplace.openrouter_api_key";
 
 /**
  * Get OpenRouter API key for marketplace proxy.
- * Uses admin-configured OpenRouter provider.
+ * Uses dedicated admin setting (Настройки → Маркетплейс), separate from document-processing providers.
  */
 export async function getOpenRouterApiKey(): Promise<string | null> {
-  const provider = await prisma.aiProvider.findFirst({
-    where: { name: "openrouter", apiKey: { not: null } },
-    select: { apiKey: true },
-  });
-  if (!provider?.apiKey) return null;
-  return decryptApiKey(provider.apiKey);
+  const key = await configStore.get(CONFIG_KEY);
+  return key && key.length > 0 ? key : null;
 }

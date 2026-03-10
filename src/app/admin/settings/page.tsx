@@ -10,8 +10,9 @@ import { TelegramSettingsForm } from "@/components/admin/TelegramSettingsForm";
 import { AuthSettingsForm } from "@/components/admin/AuthSettingsForm";
 import { EmailSettingsForm } from "@/components/admin/EmailSettingsForm";
 import { BrandingSettingsForm } from "@/components/admin/BrandingSettingsForm";
+import { MarketplaceOpenRouterForm } from "@/components/admin/MarketplaceOpenRouterForm";
 
-type Tab = "s3" | "yookassa" | "ai" | "telegram" | "auth" | "email" | "branding";
+type Tab = "s3" | "yookassa" | "ai" | "marketplace" | "telegram" | "auth" | "email" | "branding";
 
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
@@ -21,7 +22,7 @@ function AdminSettingsContent() {
   return (
     <div className="space-y-6">
       <div className="flex gap-2 border-b border-border pb-2">
-        {(["branding", "auth", "email", "s3", "yookassa", "ai", "telegram"] as const).map((t) => (
+        {(["branding", "auth", "email", "s3", "yookassa", "ai", "marketplace", "telegram"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -31,7 +32,7 @@ function AdminSettingsContent() {
                 : "text-muted-foreground hover:bg-surface2"
             }`}
           >
-            {t === "branding" ? "Брендинг" : t === "auth" ? "Авторизация" : t === "email" ? "Email / SMTP" : t === "s3" ? "S3 хранилище" : t === "yookassa" ? "ЮKassa" : t === "ai" ? "AI-провайдеры" : "Telegram"}
+            {t === "branding" ? "Брендинг" : t === "auth" ? "Авторизация" : t === "email" ? "Email / SMTP" : t === "s3" ? "S3 хранилище" : t === "yookassa" ? "ЮKassa" : t === "ai" ? "AI-провайдеры" : t === "marketplace" ? "Маркетплейс" : "Telegram"}
           </button>
         ))}
       </div>
@@ -41,6 +42,7 @@ function AdminSettingsContent() {
         {tab === "s3" && <S3SettingsForm />}
         {tab === "yookassa" && <YookassaSettingsForm />}
         {tab === "ai" && <AiProvidersForm />}
+        {tab === "marketplace" && <MarketplaceOpenRouterForm />}
         {tab === "telegram" && <TelegramSettingsForm />}
         {tab === "auth" && <AuthSettingsForm />}
         {tab === "email" && <EmailSettingsForm />}
