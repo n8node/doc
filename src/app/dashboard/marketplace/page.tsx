@@ -369,7 +369,7 @@ export default function MarketplacePage() {
             </CardHeader>
             <CardContent>
               <pre className="overflow-x-auto rounded-lg bg-surface2 p-4 text-sm">
-{`curl -X POST "https://ваш-домен/api/v1/marketplace/chat/completions" \\
+{`curl -X POST "https://qoqon.ru/api/v1/marketplace/chat/completions" \\
   -H "Authorization: Bearer QoQon_LLM_xxx__yyy" \\
   -H "Content-Type: application/json" \\
   -d '{"model":"openai/gpt-4o-mini","messages":[{"role":"user","content":"Привет"}]}'`}
