@@ -12,6 +12,7 @@ import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
 import { userUsesOwnKey } from "@/lib/ai/get-provider-for-user";
 import { getUserPlan } from "@/lib/plan-service";
 import { checkRagMemoryAccess } from "@/lib/rag/access";
+import { resolveEmbeddingConfig } from "@/lib/ai/embedding-config";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -34,20 +35,31 @@ export async function POST(request: NextRequest, ctx: Ctx) {
 
   const { id } = await ctx.params;
 
-  const collection = await prisma.vectorCollection.findFirst({
-    where: { id, userId },
-    include: {
-      files: {
-        include: {
-          file: true,
+  const [collection, userConfig] = await Promise.all([
+    prisma.vectorCollection.findFirst({
+      where: { id, userId },
+      include: {
+        files: {
+          include: {
+            file: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.userAiConfig.findUnique({
+      where: { userId, isActive: true },
+      select: { embeddingConfig: true },
+    }),
+  ]);
 
   if (!collection) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }
+
+  const embeddingConfig = resolveEmbeddingConfig(
+    collection.embeddingConfig,
+    userConfig?.embeddingConfig ?? null
+  );
 
   const docling = getDoclingClient();
   const available = await docling.isAvailable();
@@ -150,7 +162,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
             file.s3Key,
             file.name,
             file.mimeType,
-            userId
+            userId,
+            { embeddingConfig }
           );
           results.push({
             fileId: file.id,

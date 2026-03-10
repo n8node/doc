@@ -6,6 +6,7 @@ import { runEmbeddingPipeline } from "../ai/embedding-pipeline";
 import { createNotificationIfEnabled } from "../notification-service";
 import { prisma } from "../prisma";
 import type { DocumentProcessingResult, ProcessingStatus } from "./types";
+import type { ResolvedEmbeddingConfig } from "../ai/embedding-config";
 
 const PROCESSABLE_MIMES = new Set([
   "application/pdf",
@@ -39,12 +40,17 @@ async function downloadFileFromS3(s3Key: string): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+export interface ProcessDocumentOptions {
+  embeddingConfig?: ResolvedEmbeddingConfig | null;
+}
+
 export async function processDocument(
   fileId: string,
   s3Key: string,
   filename: string,
   mimeType: string,
   userId: string,
+  options?: ProcessDocumentOptions,
 ): Promise<DocumentProcessingResult> {
   const task = await prisma.aiTask.create({
     data: {
@@ -89,7 +95,13 @@ export async function processDocument(
     });
 
     try {
-      await runEmbeddingPipeline(fileId, result.text, result.content_hash, userId);
+      await runEmbeddingPipeline(
+        fileId,
+        result.text,
+        result.content_hash,
+        userId,
+        options?.embeddingConfig,
+      );
     } catch (embErr) {
       console.error(`[Docling] Embedding pipeline failed for ${fileId}:`, embErr);
     }

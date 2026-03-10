@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     name: c.name,
     folderId: c.folderId,
     folder: c.folder,
+    embeddingConfig: c.embeddingConfig,
     filesCount: c.files.length,
     processableCount: c.files.filter((f) => isProcessable(f.file.mimeType)).length,
     filesWithEmbeddings: c.files.filter((f) => f.file.hasEmbedding).length,

@@ -1,5 +1,5 @@
-const DEFAULT_CHUNK_SIZE = 500;
-const DEFAULT_OVERLAP = 50;
+import type { ChunkStrategy } from "./embedding-config";
+import { DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP } from "./embedding-config";
 
 /** Email pattern (simple). */
 const EMAIL_RE = /\b[\w.-]+@[\w.-]+\.\w{2,}\b/g;
@@ -30,10 +30,42 @@ export interface TextChunk {
   endChar: number;
 }
 
+export interface ChunkerOptions {
+  chunkSize?: number;
+  overlap?: number;
+  strategy?: ChunkStrategy;
+}
+
+function findBreakPoint(
+  text: string,
+  start: number,
+  end: number,
+  strategy: ChunkStrategy
+): number {
+  if (end >= text.length) return end;
+  const window = text.slice(Math.max(end - 80, start), end);
+
+  if (strategy === "paragraphs") {
+    const lastParagraph = window.lastIndexOf("\n\n");
+    if (lastParagraph > 0) return Math.max(end - 80, start) + lastParagraph + 2;
+  }
+
+  if (strategy === "paragraphs" || strategy === "sentences") {
+    const lastSentence = window.search(/[.!?]\s+[A-ZА-ЯЁ]/);
+    if (lastSentence > 0) return Math.max(end - 80, start) + lastSentence + 1;
+  }
+
+  const lastSpace = window.lastIndexOf(" ");
+  if (lastSpace > 0) return Math.max(end - 80, start) + lastSpace + 1;
+
+  return end;
+}
+
 export function chunkText(
   text: string,
   chunkSize = DEFAULT_CHUNK_SIZE,
-  overlap = DEFAULT_OVERLAP,
+  overlap = DEFAULT_CHUNK_OVERLAP,
+  strategy: ChunkStrategy = "paragraphs"
 ): TextChunk[] {
   if (!text || text.trim().length === 0) return [];
 
@@ -50,18 +82,7 @@ export function chunkText(
     let end = Math.min(start + chunkSize, cleaned.length);
 
     if (end < cleaned.length) {
-      const window = cleaned.slice(Math.max(end - 80, start), end);
-      const lastParagraph = window.lastIndexOf("\n\n");
-      const lastSentence = window.search(/[.!?]\s+[A-ZА-ЯЁ]/);
-      const lastSpace = window.lastIndexOf(" ");
-
-      if (lastParagraph > 0) {
-        end = Math.max(end - 80, start) + lastParagraph + 2;
-      } else if (lastSentence > 0) {
-        end = Math.max(end - 80, start) + lastSentence + 1;
-      } else if (lastSpace > 0) {
-        end = Math.max(end - 80, start) + lastSpace + 1;
-      }
+      end = findBreakPoint(cleaned, start, end, strategy);
     }
 
     const chunk = cleaned.slice(start, end).trim();

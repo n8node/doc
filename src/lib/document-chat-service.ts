@@ -9,6 +9,7 @@ import {
   getCategoryQuotaState,
   recordTokenUsageEvent,
 } from "@/lib/ai/token-usage";
+import { resolveEmbeddingConfigFromUser } from "@/lib/ai/embedding-config";
 
 const DEFAULT_SYSTEM_PROMPT =
   "Ты — полезный ассистент. Отвечай на вопросы пользователя на основе приведённого ниже контекста из документа. " +
@@ -86,21 +87,27 @@ export async function sendDocumentChatMessage(
     }
   }
 
+  const userEmbedConfig = await prisma.userAiConfig.findUnique({
+    where: { userId: input.userId, isActive: true },
+    select: { embeddingConfig: true },
+  });
+  const embedConfig = resolveEmbeddingConfigFromUser(userEmbedConfig?.embeddingConfig ?? null);
+
   const embResult = await active.provider.generateEmbedding(input.content);
   const contextTokens = embResult.usage?.totalTokens ?? embResult.usage?.promptTokens ?? 0;
   const similar = await findSimilarForFile(
     embResult.vector,
     input.fileId,
     input.userId,
-    10,
-    0.5,
+    embedConfig.topK,
+    embedConfig.similarityThreshold,
   );
 
   let context: string;
   if (similar.length > 0) {
     context = similar.map((s) => s.chunkText).join("\n\n");
   } else {
-    const fallbackChunks = await getChunksForFile(input.fileId, input.userId, 15);
+    const fallbackChunks = await getChunksForFile(input.fileId, input.userId, Math.max(15, embedConfig.topK));
     context =
       fallbackChunks.length > 0
         ? fallbackChunks.map((c) => c.chunkText).join("\n\n")

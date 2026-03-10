@@ -1,5 +1,12 @@
 import type { AiProvider } from "../provider.interface";
-import type { AiEmbeddingResult, AiAnalysisResult, AiProviderConfig, ChatMessage, ChatCompletionResult } from "../types";
+import type {
+  AiEmbeddingResult,
+  AiEmbeddingOptions,
+  AiAnalysisResult,
+  AiProviderConfig,
+  ChatMessage,
+  ChatCompletionResult,
+} from "../types";
 
 export class OpenAiProvider implements AiProvider {
   private baseUrl: string;
@@ -14,17 +21,18 @@ export class OpenAiProvider implements AiProvider {
     this.chatModel = config.chatModelName || "gpt-4o-mini";
   }
 
-  async generateEmbedding(text: string): Promise<AiEmbeddingResult> {
+  async generateEmbedding(text: string, options?: AiEmbeddingOptions): Promise<AiEmbeddingResult> {
+    const body: Record<string, unknown> = { input: text, model: this.model };
+    if (options?.dimensions != null && options.dimensions > 0) {
+      body.dimensions = options.dimensions;
+    }
     const res = await fetch(`${this.baseUrl}/embeddings`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        input: text,
-        model: this.model,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {

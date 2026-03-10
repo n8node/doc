@@ -25,6 +25,10 @@ export interface AiEmbeddingUsage {
   totalTokens: number;
 }
 
+export interface AiEmbeddingOptions {
+  dimensions?: number | null;
+}
+
 export interface AiEmbeddingResult {
   vector: number[];
   dimensions: number;

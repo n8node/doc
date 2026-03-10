@@ -1,5 +1,12 @@
 import type { AiProvider } from "../provider.interface";
-import type { AiEmbeddingResult, AiAnalysisResult, AiProviderConfig, ChatMessage, ChatCompletionResult } from "../types";
+import type {
+  AiEmbeddingResult,
+  AiEmbeddingOptions,
+  AiAnalysisResult,
+  AiProviderConfig,
+  ChatMessage,
+  ChatCompletionResult,
+} from "../types";
 
 export class OpenRouterProvider implements AiProvider {
   private baseUrl: string;
@@ -14,7 +21,15 @@ export class OpenRouterProvider implements AiProvider {
     this.chatModel = config.chatModelName || "openai/gpt-4o-mini";
   }
 
-  async generateEmbedding(text: string): Promise<AiEmbeddingResult> {
+  async generateEmbedding(text: string, options?: AiEmbeddingOptions): Promise<AiEmbeddingResult> {
+    const body: Record<string, unknown> = {
+      input: text,
+      model: this.model,
+      encoding_format: "float",
+    };
+    if (options?.dimensions != null && options.dimensions > 0) {
+      body.dimensions = options.dimensions;
+    }
     const res = await fetch(`${this.baseUrl}/embeddings`, {
       method: "POST",
       headers: {
@@ -23,11 +38,7 @@ export class OpenRouterProvider implements AiProvider {
         "HTTP-Referer": "https://qoqon.ru",
         "X-Title": "qoqon.ru",
       },
-      body: JSON.stringify({
-        input: text,
-        model: this.model,
-        encoding_format: "float",
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {

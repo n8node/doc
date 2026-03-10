@@ -1,5 +1,12 @@
 import type { AiProvider } from "../provider.interface";
-import type { AiEmbeddingResult, AiAnalysisResult, AiProviderConfig, ChatMessage, ChatCompletionResult } from "../types";
+import type {
+  AiEmbeddingResult,
+  AiEmbeddingOptions,
+  AiAnalysisResult,
+  AiProviderConfig,
+  ChatMessage,
+  ChatCompletionResult,
+} from "../types";
 
 export class GigaChatProvider implements AiProvider {
   private baseUrl: string;
@@ -42,7 +49,7 @@ export class GigaChatProvider implements AiProvider {
     return this.accessToken!;
   }
 
-  async generateEmbedding(text: string): Promise<AiEmbeddingResult> {
+  async generateEmbedding(text: string, _options?: AiEmbeddingOptions): Promise<AiEmbeddingResult> {
     const token = await this.ensureToken();
 
     const res = await fetch(`${this.baseUrl}/embeddings`, {

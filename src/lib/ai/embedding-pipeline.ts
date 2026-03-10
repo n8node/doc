@@ -8,6 +8,11 @@ import {
   getCategoryQuotaState,
   recordTokenUsageEvent,
 } from "./token-usage";
+import {
+  resolveEmbeddingConfigFromUser,
+  toEmbeddingOptions,
+  type ResolvedEmbeddingConfig,
+} from "./embedding-config";
 
 export interface EmbeddingPipelineResult {
   fileId: string;
@@ -23,6 +28,7 @@ export async function runEmbeddingPipeline(
   text: string,
   contentHash: string,
   userId: string,
+  embeddingConfig?: ResolvedEmbeddingConfig | null,
 ): Promise<EmbeddingPipelineResult> {
   const active = await getProviderForUser(userId);
   if (!active) {
@@ -30,6 +36,19 @@ export async function runEmbeddingPipeline(
   }
 
   const { provider, providerId, providerName, usedOwnKey } = active;
+
+  let config: ResolvedEmbeddingConfig;
+  if (embeddingConfig) {
+    config = embeddingConfig;
+  } else {
+    const userConfig = await prisma.userAiConfig.findUnique({
+      where: { userId, isActive: true },
+      select: { embeddingConfig: true },
+    });
+    config = resolveEmbeddingConfigFromUser(userConfig?.embeddingConfig ?? null);
+  }
+
+  const embeddingOptions = toEmbeddingOptions(config);
 
   const task = await prisma.aiTask.create({
     data: {
@@ -46,7 +65,7 @@ export async function runEmbeddingPipeline(
   try {
     await deleteEmbeddingsByFileId(fileId);
 
-    const chunks = chunkText(text);
+    const chunks = chunkText(text, config.chunkSize, config.chunkOverlap, config.chunkStrategy);
     if (chunks.length === 0) {
       await prisma.aiTask.update({
         where: { id: task.id },
@@ -88,7 +107,7 @@ export async function runEmbeddingPipeline(
           });
         }
       }
-      const result = await provider.generateEmbedding(chunk.text);
+      const result = await provider.generateEmbedding(chunk.text, embeddingOptions);
       if (result.vector.length === 0) continue;
 
       dimensions = result.dimensions;

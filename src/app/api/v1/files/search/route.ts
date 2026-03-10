@@ -10,6 +10,10 @@ import {
   recordTokenUsageEvent,
   TokenQuotaExceededError,
 } from "@/lib/ai/token-usage";
+import {
+  resolveEmbeddingConfig,
+  resolveEmbeddingConfigFromUser,
+} from "@/lib/ai/embedding-config";
 
 export async function GET(request: NextRequest) {
   const userId = await getUserIdFromRequest(request);
@@ -22,25 +26,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Запрос слишком короткий" }, { status: 400 });
   }
 
-  const limit = Math.min(
-    parseInt(request.nextUrl.searchParams.get("limit") ?? "20", 10),
-    50,
-  );
-  const threshold = parseFloat(
-    request.nextUrl.searchParams.get("threshold") ?? "0.55",
-  );
   const searchByName = request.nextUrl.searchParams.get("searchByName") !== "false";
   const collectionId = request.nextUrl.searchParams.get("collectionId")?.trim() || null;
 
   let collectionFileIds: string[] | undefined;
+  let searchConfig: { topK: number; similarityThreshold: number };
   if (collectionId) {
-    const collection = await prisma.vectorCollection.findFirst({
-      where: { id: collectionId, userId },
-      include: { files: { select: { fileId: true } } },
-    });
+    const [collection, userConfig] = await Promise.all([
+      prisma.vectorCollection.findFirst({
+        where: { id: collectionId, userId },
+        include: { files: { select: { fileId: true } } },
+      }),
+      prisma.userAiConfig.findUnique({
+        where: { userId, isActive: true },
+        select: { embeddingConfig: true },
+      }),
+    ]);
     if (!collection) {
       return NextResponse.json({ error: "Collection not found" }, { status: 404 });
     }
+    const resolved = resolveEmbeddingConfig(
+      collection.embeddingConfig,
+      userConfig?.embeddingConfig ?? null,
+    );
+    searchConfig = { topK: resolved.topK, similarityThreshold: resolved.similarityThreshold };
     collectionFileIds = collection.files.map((f) => f.fileId);
     if (collectionFileIds.length === 0) {
       return NextResponse.json({
@@ -51,7 +60,25 @@ export async function GET(request: NextRequest) {
         collectionId,
       });
     }
+  } else {
+    const userConfig = await prisma.userAiConfig.findUnique({
+      where: { userId, isActive: true },
+      select: { embeddingConfig: true },
+    });
+    const resolved = resolveEmbeddingConfigFromUser(userConfig?.embeddingConfig ?? null);
+    searchConfig = { topK: resolved.topK, similarityThreshold: resolved.similarityThreshold };
   }
+
+  const limitParam = request.nextUrl.searchParams.get("limit");
+  const thresholdParam = request.nextUrl.searchParams.get("threshold");
+  const limit = Math.min(
+    limitParam != null ? parseInt(limitParam, 10) : searchConfig.topK,
+    50,
+  );
+  const threshold =
+    thresholdParam != null
+      ? parseFloat(thresholdParam)
+      : searchConfig.similarityThreshold;
 
   const active = await getProviderForUser(userId);
   if (!active) {

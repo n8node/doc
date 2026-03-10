@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { deleteEmbeddingsByFileId } from "@/lib/docling/vector-store";
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest, ctx: Ctx) {
     name: collection.name,
     folderId: collection.folderId,
     folder: collection.folder,
+    embeddingConfig: collection.embeddingConfig,
     filesCount: collection.files.length,
     files: collection.files.map((f) => ({
       id: f.file.id,
@@ -87,10 +89,8 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }
 
-  const updates: {
-    name?: string;
-    folderId?: string | null;
-  } = {};
+  type UpdateData = Parameters<typeof prisma.vectorCollection.update>[0]["data"];
+  const updates: UpdateData = {};
 
   if (body.name !== undefined && typeof body.name === "string") {
     updates.name = body.name.trim().slice(0, 255) || collection.name;
@@ -108,6 +108,35 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
       }
     }
     updates.folderId = folderId;
+  }
+
+  if (body.embeddingConfig !== undefined) {
+    const ec = body.embeddingConfig;
+    if (ec === null) {
+      updates.embeddingConfig = Prisma.DbNull;
+    } else if (typeof ec === "object" && ec !== null) {
+      const valid: Record<string, unknown> = {};
+      if (typeof (ec as Record<string, unknown>).chunkSize === "number") {
+        valid.chunkSize = Math.min(2000, Math.max(100, (ec as Record<string, unknown>).chunkSize as number));
+      }
+      if (typeof (ec as Record<string, unknown>).chunkOverlap === "number") {
+        valid.chunkOverlap = Math.min(200, Math.max(0, (ec as Record<string, unknown>).chunkOverlap as number));
+      }
+      const strat = (ec as Record<string, unknown>).chunkStrategy;
+      if (strat === "paragraphs" || strat === "sentences" || strat === "fixed") valid.chunkStrategy = strat;
+      if ((ec as Record<string, unknown>).dimensions === null) valid.dimensions = null;
+      else if (typeof (ec as Record<string, unknown>).dimensions === "number") {
+        valid.dimensions = Math.min(3072, Math.max(256, (ec as Record<string, unknown>).dimensions as number));
+      }
+      if (typeof (ec as Record<string, unknown>).similarityThreshold === "number") {
+        valid.similarityThreshold = Math.min(0.95, Math.max(0.3, (ec as Record<string, unknown>).similarityThreshold as number));
+      }
+      if (typeof (ec as Record<string, unknown>).topK === "number") {
+        valid.topK = Math.min(50, Math.max(1, (ec as Record<string, unknown>).topK as number));
+      }
+      updates.embeddingConfig =
+        Object.keys(valid).length > 0 ? (valid as Prisma.InputJsonValue) : Prisma.DbNull;
+    }
   }
 
   if (body.fileIds !== undefined && Array.isArray(body.fileIds)) {
@@ -181,6 +210,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     name: updated.name,
     folderId: updated.folderId,
     folder: updated.folder,
+    embeddingConfig: updated.embeddingConfig,
     filesCount: updated.files.length,
     files: updated.files.map((f) => ({
       id: f.file.id,

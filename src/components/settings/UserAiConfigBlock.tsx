@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Key, Eye, EyeOff, Zap } from "lucide-react";
+import { Loader2, Key, Eye, EyeOff, Zap, ChevronDown, ChevronUp } from "lucide-react";
 
 const PROVIDER_OPTIONS: Record<
   string,
@@ -33,12 +33,21 @@ const PROVIDER_OPTIONS: Record<
   },
 };
 
+interface EmbeddingConfigInput {
+  chunkSize?: number;
+  chunkOverlap?: number;
+  dimensions?: number | null;
+  similarityThreshold?: number;
+  topK?: number;
+}
+
 interface AiConfig {
   id: string;
   providerName: string;
   baseUrl: string | null;
   embeddingModel: string;
   chatModel: string;
+  embeddingConfig?: EmbeddingConfigInput | null;
   isActive: boolean;
   hasApiKey: boolean;
   apiKeyMasked: string | null;
@@ -66,6 +75,12 @@ export function UserAiConfigBlock() {
   const [embeddingModel, setEmbeddingModel] = useState("");
   const [chatModel, setChatModel] = useState("");
   const [isActive, setIsActive] = useState(false);
+  const [embedConfigOpen, setEmbedConfigOpen] = useState(false);
+  const [embedChunkSize, setEmbedChunkSize] = useState("");
+  const [embedChunkOverlap, setEmbedChunkOverlap] = useState("");
+  const [embedDimensions, setEmbedDimensions] = useState("");
+  const [embedThreshold, setEmbedThreshold] = useState("");
+  const [embedTopK, setEmbedTopK] = useState("");
 
   const [testResult, setTestResult] = useState<{
     ok: boolean;
@@ -88,6 +103,12 @@ export function UserAiConfigBlock() {
         setEmbeddingModel(data.config.embeddingModel);
         setChatModel(data.config.chatModel);
         setIsActive(data.config.isActive);
+        const ec = data.config.embeddingConfig as EmbeddingConfigInput | undefined;
+        setEmbedChunkSize(ec?.chunkSize != null ? String(ec.chunkSize) : "");
+        setEmbedChunkOverlap(ec?.chunkOverlap != null ? String(ec.chunkOverlap) : "");
+        setEmbedDimensions(ec?.dimensions != null ? String(ec.dimensions) : "");
+        setEmbedThreshold(ec?.similarityThreshold != null ? String(ec.similarityThreshold) : "");
+        setEmbedTopK(ec?.topK != null ? String(ec.topK) : "");
       } else if (data.canUseOwnKeys) {
         setProviderName("openai");
         setBaseUrl(PROVIDER_OPTIONS.openai.baseUrl);
@@ -153,9 +174,29 @@ export function UserAiConfigBlock() {
     }
   };
 
+  const buildEmbeddingConfig = (): EmbeddingConfigInput | null => {
+    const chunkSize = embedChunkSize.trim() ? parseInt(embedChunkSize, 10) : undefined;
+    const chunkOverlap = embedChunkOverlap.trim() ? parseInt(embedChunkOverlap, 10) : undefined;
+    const dimensions = embedDimensions.trim() === "" ? undefined : embedDimensions.trim() === "0" ? null : parseInt(embedDimensions, 10);
+    const similarityThreshold = embedThreshold.trim() ? parseFloat(embedThreshold) : undefined;
+    const topK = embedTopK.trim() ? parseInt(embedTopK, 10) : undefined;
+    if (chunkSize == null && chunkOverlap == null && dimensions === undefined && similarityThreshold == null && topK == null) {
+      return null;
+    }
+    const cfg: EmbeddingConfigInput = {};
+    if (chunkSize != null && !Number.isNaN(chunkSize)) cfg.chunkSize = Math.min(2000, Math.max(100, chunkSize));
+    if (chunkOverlap != null && !Number.isNaN(chunkOverlap)) cfg.chunkOverlap = Math.min(200, Math.max(0, chunkOverlap));
+    if (dimensions === null) cfg.dimensions = null;
+    else if (dimensions != null && !Number.isNaN(dimensions)) cfg.dimensions = Math.min(3072, Math.max(256, dimensions));
+    if (similarityThreshold != null && !Number.isNaN(similarityThreshold)) cfg.similarityThreshold = Math.min(0.95, Math.max(0.3, similarityThreshold));
+    if (topK != null && !Number.isNaN(topK)) cfg.topK = Math.min(50, Math.max(1, topK));
+    return Object.keys(cfg).length > 0 ? cfg : null;
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      const embeddingConfig = buildEmbeddingConfig();
       const res = await fetch("/api/v1/user/ai-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -166,6 +207,7 @@ export function UserAiConfigBlock() {
           folderId: folderId.trim() || undefined,
           embeddingModel: embeddingModel || "text-embedding-3-small",
           chatModel: chatModel || "gpt-4o-mini",
+          embeddingConfig,
           isActive,
         }),
       });
@@ -379,6 +421,77 @@ export function UserAiConfigBlock() {
                 </div>
           </div>
         )}
+
+        <div className="border-t border-border pt-4">
+          <button
+            type="button"
+            onClick={() => setEmbedConfigOpen((v) => !v)}
+            className="flex w-full items-center justify-between text-sm font-medium text-foreground hover:text-primary"
+          >
+            Параметры векторизации (чанкинг, dimensions, поиск)
+            {embedConfigOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+          {embedConfigOpen && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Размер чанка (символов)</label>
+                <Input
+                  type="number"
+                  min={100}
+                  max={2000}
+                  value={embedChunkSize}
+                  onChange={(e) => setEmbedChunkSize(e.target.value)}
+                  placeholder="500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Перекрытие чанков</label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={200}
+                  value={embedChunkOverlap}
+                  onChange={(e) => setEmbedChunkOverlap(e.target.value)}
+                  placeholder="50"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Dimensions (OpenAI, 256–3072, пусто = по умолчанию)</label>
+                <Input
+                  type="number"
+                  min={256}
+                  max={3072}
+                  value={embedDimensions}
+                  onChange={(e) => setEmbedDimensions(e.target.value)}
+                  placeholder="по умолчанию"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Порог схожести (0.3–0.95)</label>
+                <Input
+                  type="number"
+                  min={0.3}
+                  max={0.95}
+                  step={0.05}
+                  value={embedThreshold}
+                  onChange={(e) => setEmbedThreshold(e.target.value)}
+                  placeholder="0.5"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Число чанков в контексте (topK)</label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={embedTopK}
+                  onChange={(e) => setEmbedTopK(e.target.value)}
+                  placeholder="10"
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border pt-4">
           <label className="flex cursor-pointer items-center gap-2 text-sm">
