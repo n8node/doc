@@ -86,3 +86,40 @@ export async function sendVerificationEmail(params: {
     text: renderTemplate(template.text, vars),
   });
 }
+
+/** Создаёт токен восстановления пароля и отправляет письмо на email пользователя */
+export async function issuePasswordResetAndSendEmail(params: {
+  email: string;
+  ttlMinutes?: number;
+}): Promise<{ ok: boolean; error?: string }> {
+  const user = await prisma.user.findUnique({
+    where: { email: params.email.trim().toLowerCase() },
+  });
+  if (!user || !user.passwordHash) {
+    return { ok: true };
+  }
+  if (user.isBlocked) {
+    return { ok: true };
+  }
+
+  const ttlMinutes = params.ttlMinutes ?? DEFAULT_TTL_MINUTES;
+  const { token, ttlMinutes: ttl } = await issueEmailVerificationToken({
+    userId: user.id,
+    purpose: EmailVerificationPurpose.PASSWORD_RESET,
+    ttlMinutes,
+  });
+
+  const resetLink = `${getPublicBaseUrl()}/auth/reset-password?token=${encodeURIComponent(token)}`;
+  const template = await getEmailTemplate("password_reset");
+  const vars = {
+    resetLink,
+    expiresMinutes: String(ttl),
+  };
+
+  return sendEmail({
+    to: user.email,
+    subject: renderTemplate(template.subject, vars),
+    html: renderTemplate(template.html, vars),
+    text: renderTemplate(template.text, vars),
+  });
+}
