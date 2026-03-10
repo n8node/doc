@@ -57,31 +57,39 @@ export default function MarketplacePage() {
   const [modelsLoading, setModelsLoading] = useState(false);
 
   const loadData = useCallback(async () => {
-    try {
-      const [keysRes, walletRes] = await Promise.all([
-        fetch("/api/v1/user/llm-api-keys"),
-        fetch("/api/v1/user/llm-wallet"),
-      ]);
-      const keysData = await keysRes.json();
-      const walletData = await walletRes.json();
-      if (Array.isArray(keysData.keys)) setLlmKeys(keysData.keys);
-      if (walletData.balanceCents !== undefined) {
-        setWallet({
-          balanceCents: walletData.balanceCents,
-          topups: walletData.topups ?? [],
-          usage: walletData.usage ?? [],
-        });
-      }
-    } catch {
-      toast.error("Не удалось загрузить данные");
-    } finally {
-      setLoading(false);
+    const [keysSettled, walletSettled] = await Promise.allSettled([
+      fetch("/api/v1/user/llm-api-keys").then((r) => r.json().catch(() => ({}))),
+      fetch("/api/v1/user/llm-wallet").then((r) => r.json().catch(() => ({}))),
+    ]);
+    let anyOk = false;
+    if (keysSettled.status === "fulfilled" && keysSettled.value?.keys && Array.isArray(keysSettled.value.keys)) {
+      setLlmKeys(keysSettled.value.keys);
+      anyOk = true;
     }
+    if (walletSettled.status === "fulfilled" && walletSettled.value?.balanceCents !== undefined) {
+      const w = walletSettled.value;
+      setWallet({
+        balanceCents: w.balanceCents,
+        topups: w.topups ?? [],
+        usage: w.usage ?? [],
+      });
+      anyOk = true;
+    }
+    if (!anyOk && (keysSettled.status === "rejected" || walletSettled.status === "rejected")) {
+      toast.error("Не удалось загрузить данные");
+    }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!loading && llmKeys.length > 0 && !showModels && models.length === 0) {
+      loadModels();
+    }
+  }, [loading, llmKeys.length, showModels, models.length]);
 
   useEffect(() => {
     if (searchParams.get("topup") === "success") {
