@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 const navItems = [
   { href: "/admin/settings", label: "Настройки", icon: "⚙️" },
   { href: "/admin/settings?tab=branding", label: "Брендинг", icon: "🎨" },
+  { href: "/admin/dashboard-content", label: "Контент дашборда", icon: "📋" },
   { href: "/admin/settings?tab=auth", label: "Авторизация", icon: "🔐" },
   { href: "/admin/plans", label: "Тарифы", icon: "👑" },
   { href: "/admin/payments", label: "Платежи", icon: "📋" },
@@ -29,6 +30,7 @@ export function AdminSidebar() {
     if (pathname === "/admin/users" && href === "/admin/users") return true;
     if (pathname === "/admin/invites" && href === "/admin/invites") return true;
     if (pathname === "/admin/spam-alerts" && href === "/admin/spam-alerts") return true;
+    if (pathname === "/admin/dashboard-content" && href === "/admin/dashboard-content") return true;
     if (pathname === "/admin/storage" && href === "/admin/storage") return true;
     if (pathname === "/admin/plans" && href === "/admin/plans") return true;
     if (pathname === "/admin/payments" && href === "/admin/payments") return true;
