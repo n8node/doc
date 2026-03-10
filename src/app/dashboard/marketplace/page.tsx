@@ -171,7 +171,13 @@ export default function MarketplacePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amountCents: rub * 100 }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: { error?: string; confirmationUrl?: string } = {};
+      try {
+        if (text) data = JSON.parse(text);
+      } catch {
+        data = { error: "Некорректный ответ сервера" };
+      }
       if (!res.ok) throw new Error(data.error ?? "Ошибка");
       if (data.confirmationUrl) {
         window.location.href = data.confirmationUrl;
