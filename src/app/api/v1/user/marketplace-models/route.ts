@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
+const OPENROUTER_EMBEDDINGS_URL = "https://openrouter.ai/api/v1/models/embeddings";
 
 export type MarketplaceCategory = "chat" | "embeddings" | "image" | "audio" | "video";
 
@@ -34,9 +35,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get("category") as MarketplaceCategory | null;
 
-  let res: Response;
+  let modelsRes: Response;
+  let embRes: Response | null = null;
   try {
-    res = await fetch(OPENROUTER_MODELS_URL);
+    [modelsRes, embRes] = await Promise.all([
+      fetch(OPENROUTER_MODELS_URL),
+      fetch(OPENROUTER_EMBEDDINGS_URL).catch(() => null),
+    ]);
   } catch (e) {
     console.error("[marketplace-models]", e);
     return NextResponse.json(
@@ -45,12 +50,33 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const data = (await res.json()) as { data?: Record<string, unknown>[] };
+  if (!modelsRes.ok) {
+    return NextResponse.json(
+      { error: "Не удалось загрузить каталог моделей" },
+      { status: 502 }
+    );
+  }
+
+  const data = (await modelsRes.json()) as { data?: Record<string, unknown>[] };
   const raw = data.data ?? [];
 
+  let embeddingModels: { id: string; name?: string }[] = [];
+  if (embRes?.ok) {
+    const embData = (await embRes.json()) as { data?: Array<{ id: string; name?: string }> };
+    embeddingModels = embData.data ?? [];
+  }
+  if (embeddingModels.length === 0) {
+    embeddingModels = [
+      { id: "openai/text-embedding-3-small" },
+      { id: "openai/text-embedding-3-large" },
+    ];
+  }
+
+  const seenIds = new Set<string>();
   const models = raw
     .filter((m) => m.id && typeof m.id === "string")
     .map((m) => {
+      seenIds.add(m.id as string);
       const cat = inferCategory(m as { architecture?: { output_modalities?: string[]; input_modalities?: string[] }; id?: string });
       return {
         id: m.id,
@@ -60,6 +86,19 @@ export async function GET(request: NextRequest) {
         pricing: (m as { pricing?: Record<string, string> }).pricing ?? null,
       };
     });
+
+  for (const m of embeddingModels) {
+    if (m.id && !seenIds.has(m.id)) {
+      seenIds.add(m.id);
+      models.push({
+        id: m.id,
+        name: m.name ?? m.id,
+        category: "embeddings" as const,
+        contextLength: null,
+        pricing: null,
+      });
+    }
+  }
 
   const filtered = category && ["chat", "embeddings", "image", "audio", "video"].includes(category)
     ? models.filter((m) => m.category === category)
