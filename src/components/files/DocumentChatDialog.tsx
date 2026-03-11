@@ -101,7 +101,7 @@ export function DocumentChatDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-xl">
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-xl" aria-describedby={undefined}>
         <DialogHeader className="border-b border-border px-4 py-3">
           <DialogTitle className="text-base font-medium">
             Чат по документу: {fileName}

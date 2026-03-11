@@ -39,6 +39,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -3510,7 +3511,7 @@ export function FileManager() {
 
       {/* Create folder dialog */}
       <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Создать папку</DialogTitle>
           </DialogHeader>
@@ -3541,22 +3542,22 @@ export function FileManager() {
 
       {/* Ошибка анализа (OCR и т.п.) — текст на русском в модалке */}
       <Dialog open={analysisErrorModalOpen} onOpenChange={setAnalysisErrorModalOpen}>
-        <DialogContent className="max-w-md" aria-describedby="analysis-error-desc">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileWarning className="h-5 w-5 text-amber-500" />
               Ошибка анализа
             </DialogTitle>
           </DialogHeader>
-          <p id="analysis-error-desc" className="text-muted-foreground">
+          <DialogDescription className="text-muted-foreground">
             {analysisErrorModalMessage}
-          </p>
+          </DialogDescription>
         </DialogContent>
       </Dialog>
 
       {/* Analysis upgrade dialog */}
       <Dialog open={analysisUpgradeOpen} onOpenChange={setAnalysisUpgradeOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BrainCircuit className="h-5 w-5 text-primary" />
@@ -3584,7 +3585,7 @@ export function FileManager() {
 
       {/* Date filter picker dialog */}
       <Dialog open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-primary" />
@@ -3709,7 +3710,7 @@ export function FileManager() {
       {/* Media modal */}
       {mediaModal && (
         <Dialog open onOpenChange={() => setMediaModal(null)}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>{mediaModal.name}</DialogTitle>
             </DialogHeader>
