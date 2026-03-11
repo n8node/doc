@@ -152,8 +152,9 @@ async def extract_document(
 
     content_hash = hashlib.sha256(content).hexdigest()
 
-    # Сохраняем с оригинальным именем — Docling определяет формат по имени файла
-    safe_name = Path(file.filename).name or f"document{ext}"
+    # Всегда используем document.<ext> — Docling определяет формат по расширению.
+    # Клиент может присылать temp-имена (tmpxzp255ra.txt), что ломает определение формата.
+    safe_name = f"document{ext}"
     tmp_dir = tempfile.mkdtemp()
     tmp_path = str(Path(tmp_dir) / safe_name)
     Path(tmp_path).write_bytes(content)
