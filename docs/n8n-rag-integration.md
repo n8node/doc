@@ -42,8 +42,8 @@ Authorization: Bearer <ваш_ключ>
   - `collectionId` = ID коллекции из шага 3 (например `cmmlts1ez006tpe0171dmoxqk`)
 - **Query Parameters (опционально):**
   - `limit` = `10` (макс. результатов, по умолчанию 20)
-  - `threshold` = `0.55` (порог схожести)
-  - `searchByName` = `false` (если не нужен поиск по имени файла)
+  - `threshold` = `0.5` (порог схожести, ниже — больше результатов)
+  - `searchByName` — при `collectionId` по умолчанию `false` (только чанки, не имена файлов)
 - **Authentication:** Generic Credential Type
   - **Header Name:** `Authorization`
   - **Header Value:** `Bearer <ваш_ключ>`

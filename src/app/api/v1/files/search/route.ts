@@ -26,8 +26,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Запрос слишком короткий" }, { status: 400 });
   }
 
-  const searchByName = request.nextUrl.searchParams.get("searchByName") !== "false";
   const collectionId = request.nextUrl.searchParams.get("collectionId")?.trim() || null;
+  // Для RAG (collectionId): по умолчанию searchByName=false — нужен контент чанков, не имена файлов
+  const searchByNameParam = request.nextUrl.searchParams.get("searchByName");
+  const searchByName =
+    searchByNameParam != null
+      ? searchByNameParam !== "false"
+      : !collectionId;
 
   let collectionFileIds: string[] | undefined;
   let searchConfig: { topK: number; similarityThreshold: number };

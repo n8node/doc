@@ -80,8 +80,7 @@ Authorization: Bearer <ключ>`}
             </li>
             <li>
               <strong>Query (опционально):</strong> <code className={codeClassName}>limit</code>,{" "}
-              <code className={codeClassName}>threshold</code>,{" "}
-              <code className={codeClassName}>searchByName</code>
+              <code className={codeClassName}>threshold</code>. При <code className={codeClassName}>collectionId</code> поиск по именам файлов отключён — только семантический поиск по содержимому.
             </li>
             <li>
               <strong>Auth:</strong> Header{" "}
