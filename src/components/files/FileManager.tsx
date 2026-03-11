@@ -34,6 +34,7 @@ import {
   BrainCircuit,
   CheckSquare,
   Mic2,
+  FileWarning,
 } from "lucide-react";
 import {
   Dialog,
@@ -193,8 +194,18 @@ function parseViewMode(value: string | null | undefined, fallback: "list" | "gri
   return fallback;
 }
 
-// Ранее: любые ошибки EasyOCR считались «сканом» — это давало ложные срабатывания для PDF с текстовым слоем.
-// Теперь показываем реальную ошибку пользователю.
+/** Ошибки OCR/EasyOCR — показываем понятное сообщение в модалке, а не сырой текст с сервера */
+function getAnalysisErrorDisplay(err: string): { isOcrError: boolean; message: string } {
+  if (!err) return { isOcrError: false, message: "Ошибка обработки" };
+  if (/EasyOCR|OCR engine|pip install easyocr/i.test(err)) {
+    return {
+      isOcrError: true,
+      message:
+        "Ваш документ не имеет текстового слоя, пока такие документы не поддерживаются.",
+    };
+  }
+  return { isOcrError: false, message: err };
+}
 
 export function FileManager() {
   const router = useRouter();
@@ -293,6 +304,8 @@ export function FileManager() {
   const [moving, setMoving] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [analysisErrorModalOpen, setAnalysisErrorModalOpen] = useState(false);
+  const [analysisErrorModalMessage, setAnalysisErrorModalMessage] = useState("");
   const [analysisUpgradeOpen, setAnalysisUpgradeOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{
     type: "file" | "folder";
@@ -1286,8 +1299,13 @@ export function FileManager() {
         if (data.status === "failed" || data.error) {
           window.dispatchEvent(new CustomEvent("notifications:refresh"));
           const errMsg = data.error || "Ошибка обработки";
-          toast.error(errMsg, { id: toastId });
-          setAnalyzeError((m) => new Map(m).set(fileId, errMsg));
+          const { isOcrError, message } = getAnalysisErrorDisplay(errMsg);
+          if (isOcrError) {
+            setAnalysisErrorModalMessage(message);
+            setAnalysisErrorModalOpen(true);
+          }
+          toast.error(message, { id: toastId });
+          setAnalyzeError((m) => new Map(m).set(fileId, message));
           return "err";
         }
       } catch {
@@ -1557,7 +1575,12 @@ export function FileManager() {
             pending.delete(id);
             failed++;
             const errMsg = data.error || "Ошибка";
-            setAnalyzeError((m) => new Map(m).set(id, errMsg));
+            const { isOcrError, message } = getAnalysisErrorDisplay(errMsg);
+            if (isOcrError) {
+              setAnalysisErrorModalMessage(message);
+              setAnalysisErrorModalOpen(true);
+            }
+            setAnalyzeError((m) => new Map(m).set(id, message));
             setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
           }
         } catch {
@@ -3513,6 +3536,21 @@ export function FileManager() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ошибка анализа (OCR и т.п.) — текст на русском в модалке */}
+      <Dialog open={analysisErrorModalOpen} onOpenChange={setAnalysisErrorModalOpen}>
+        <DialogContent className="max-w-md" aria-describedby="analysis-error-desc">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileWarning className="h-5 w-5 text-amber-500" />
+              Ошибка анализа
+            </DialogTitle>
+          </DialogHeader>
+          <p id="analysis-error-desc" className="text-muted-foreground">
+            {analysisErrorModalMessage}
+          </p>
         </DialogContent>
       </Dialog>
 
