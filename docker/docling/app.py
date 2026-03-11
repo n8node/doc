@@ -164,8 +164,22 @@ async def extract_document(
 
     content_hash = hashlib.sha256(content).hexdigest()
 
+    # Docling не поддерживает .txt — обрабатываем вручную (plain text уже «извлечён»)
+    if ext == ".txt":
+        try:
+            text = content.decode("utf-8", errors="replace")
+        except Exception:
+            text = content.decode("latin-1", errors="replace")
+        return JSONResponse({
+            "filename": file.filename,
+            "content_hash": content_hash,
+            "text": text,
+            "tables": [],
+            "num_pages": None,
+            "format": ".txt",
+        })
+
     # DocumentStream — без записи на диск, явное имя document.<ext>.
-    # Обходит проблему temp-имён (tmpxzp255ra.txt) при определении формата Docling.
     converted_path: Optional[str] = None
     tmp_dir: Optional[str] = None
     tmp_path: Optional[str] = None
