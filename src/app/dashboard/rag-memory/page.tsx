@@ -704,7 +704,7 @@ export default function RagMemoryPage() {
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BrainCircuit className="h-5 w-5" />
@@ -855,7 +855,7 @@ export default function RagMemoryPage() {
       )}
 
       <Dialog open={n8nUpgradeOpen} onOpenChange={setN8nUpgradeOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-primary" />

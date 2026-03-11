@@ -266,7 +266,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Редактировать тариф" : "Новый тариф"}</DialogTitle>
         </DialogHeader>

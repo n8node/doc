@@ -84,7 +84,7 @@ export function ExportDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md min-w-0 overflow-hidden p-0">
+      <DialogContent className="max-w-md min-w-0 overflow-hidden p-0" aria-describedby={undefined}>
         {/* Header */}
         <div className="border-b border-border bg-surface2/50 px-6 py-4">
           <DialogHeader>

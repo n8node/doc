@@ -151,7 +151,7 @@ export function TokenUsageWidget() {
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Статистика токенов</DialogTitle>
           </DialogHeader>
