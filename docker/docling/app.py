@@ -18,7 +18,7 @@ from starlette.concurrency import run_in_threadpool
 from docling.document_converter import DocumentConverter
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel import asr_model_specs
-from docling.datamodel.pipeline_options import PdfPipelineOptions, EasyOcrOptions, AsrPipelineOptions
+from docling.datamodel.pipeline_options import PdfPipelineOptions, AsrPipelineOptions
 from docling.document_converter import PdfFormatOption, AudioFormatOption
 from docling.pipeline.asr_pipeline import AsrPipeline
 
@@ -103,15 +103,13 @@ def _convert_legacy_office_to_ooxml(src_path: str, ext: str) -> str:
 
 
 def get_converter() -> DocumentConverter:
-    """Lazy-init converter with OCR support for Russian + English."""
+    """Lazy-init converter. OCR disabled: text extracted from PDF layer only (no EasyOCR)."""
     global _converter
     if _converter is None:
-        ocr_options = EasyOcrOptions(lang=["ru", "en"])
         pipeline_options = PdfPipelineOptions()
-        pipeline_options.do_ocr = True
+        pipeline_options.do_ocr = False
         pipeline_options.do_table_structure = True
         pipeline_options.table_structure_options.do_cell_matching = True
-        pipeline_options.ocr_options = ocr_options
 
         _converter = DocumentConverter(
             format_options={

@@ -53,13 +53,13 @@ const DialogContent = React.forwardRef<
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
-      aria-describedby={ariaDescribedBy ?? undefined}
       className={cn(
         "relative z-50 grid w-full max-h-[calc(100vh-1.5rem)] max-w-lg gap-4 overflow-y-auto rounded-2xl modal-glass p-6",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
         className
       )}
       {...props}
+      aria-describedby={ariaDescribedBy}
     >
       {children}
     </DialogPrimitive.Content>
