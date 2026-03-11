@@ -5,6 +5,12 @@ import { getStreamFromS3 } from "@/lib/s3-download";
 
 export const dynamic = "force-dynamic";
 
+/** 1x1 прозрачный GIF — fallback, если изображение не настроено (избегаем 404 в консоли) */
+const TRANSPARENT_GIF = Buffer.from(
+  "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+  "base64"
+);
+
 export async function GET(
   _request: Request,
   ctx: { params: Promise<{ imageId: string }> }
@@ -12,7 +18,9 @@ export async function GET(
   const { imageId } = await ctx.params;
   const keys = getDashboardImageConfigKeys(imageId);
   if (!keys) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return new NextResponse(TRANSPARENT_GIF, {
+      headers: { "Content-Type": "image/gif", "Cache-Control": "public, max-age=3600" },
+    });
   }
 
   const [s3Key, mimeType] = await Promise.all([
@@ -21,7 +29,9 @@ export async function GET(
   ]);
 
   if (!s3Key) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return new NextResponse(TRANSPARENT_GIF, {
+      headers: { "Content-Type": "image/gif", "Cache-Control": "public, max-age=3600" },
+    });
   }
 
   try {
@@ -35,6 +45,8 @@ export async function GET(
     }
     return new NextResponse(body as BodyInit, { headers });
   } catch {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return new NextResponse(TRANSPARENT_GIF, {
+      headers: { "Content-Type": "image/gif", "Cache-Control": "public, max-age=60" },
+    });
   }
 }
