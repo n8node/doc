@@ -473,7 +473,8 @@ export default function RagMemoryPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">RAG-память</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Векторные «мозги» для AI-агентов. Создайте коллекцию, добавьте файлы и векторизуйте для использования в n8n, чат-ботах и др.
+            Векторные «мозги» для AI-агентов. Создайте коллекцию, добавьте файлы и векторизуйте. Для n8n:{" "}
+            <Link href="/dashboard/n8n-guide" className="text-primary hover:underline">GET /api/v1/files/search</Link> — семантический поиск.
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
@@ -492,7 +493,8 @@ export default function RagMemoryPage() {
             <BrainCircuit className="mx-auto h-12 w-12 text-muted-foreground/50" />
             <p className="mt-4 text-lg font-medium text-foreground">Нет RAG-коллекций</p>
             <p className="mt-2 max-w-md mx-auto text-sm text-muted-foreground">
-              Создайте коллекцию, выберите папку или файлы, затем запустите векторизацию. Результаты можно использовать в n8n через API поиска.
+              Создайте коллекцию, выберите папку или файлы, затем запустите векторизацию. Для n8n:{" "}
+              <Link href="/dashboard/n8n-guide" className="text-primary hover:underline">files/search</Link> — семантический поиск.
             </p>
             <Button
               onClick={() => setCreateOpen(true)}
@@ -574,6 +576,7 @@ export default function RagMemoryPage() {
                           </TooltipTrigger>
                           <TooltipContent side="bottom" className="max-w-xs">
                             <p>ID для API (collectionId)</p>
+                            <p className="mt-0.5 text-muted-foreground">Используйте в GET /api/v1/files/search?q=...&amp;collectionId=... — семантический поиск</p>
                             <p className="mt-0.5 text-muted-foreground">Клик — скопировать</p>
                           </TooltipContent>
                         </Tooltip>

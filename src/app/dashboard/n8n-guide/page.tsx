@@ -58,10 +58,16 @@ Authorization: Bearer <ключ>`}
           <p>
             Скопируйте <code className={codeClassName}>id</code> нужной коллекции.
           </p>
+          <p className="mt-2 text-sm text-amber-600 dark:text-amber-500">
+            Эндпоинт <code className={codeClassName}>rag/collections</code> возвращает список коллекций и файлов (метаданные). Для семантического поиска по содержимому используйте <code className={codeClassName}>files/search</code> (шаг 4).
+          </p>
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold">4. n8n — HTTP Request</h2>
+          <h2 className="text-lg font-semibold">4. n8n — HTTP Request для поиска</h2>
+          <p className="text-sm text-muted-foreground mb-2">
+            Используйте эндпоинт <code className={codeClassName}>files/search</code> — он возвращает <code className={codeClassName}>results[].chunkText</code> (релевантные фрагменты документов).
+          </p>
           <ul className="list-disc space-y-1 pl-6">
             <li><strong>Method:</strong> GET</li>
             <li>
@@ -69,23 +75,29 @@ Authorization: Bearer <ключ>`}
               <code className={codeClassName}>https://qoqon.ru/api/v1/files/search</code>
             </li>
             <li>
-              <strong>Query:</strong> <code className={codeClassName}>q</code>,{" "}
-              <code className={codeClassName}>collectionId</code>,{" "}
-              <code className={codeClassName}>limit</code>,{" "}
-              <code className={codeClassName}>threshold</code>
+              <strong>Query (обязательно):</strong> <code className={codeClassName}>q</code> — запрос,{" "}
+              <code className={codeClassName}>collectionId</code> — ID коллекции
+            </li>
+            <li>
+              <strong>Query (опционально):</strong> <code className={codeClassName}>limit</code>,{" "}
+              <code className={codeClassName}>threshold</code>,{" "}
+              <code className={codeClassName}>searchByName</code>
             </li>
             <li>
               <strong>Auth:</strong> Header{" "}
               <code className={codeClassName}>Authorization: Bearer &lt;ключ&gt;</code>
             </li>
           </ul>
+          <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-4 text-xs">
+{`https://qoqon.ru/api/v1/files/search?q=ваш+запрос&collectionId=<id_коллекции>&limit=10`}
+          </pre>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold">5. Схема в агенте</h2>
-          <p>Trigger → HTTP Request (поиск) → Собрать чанки в контекст → LLM (промпт с контекстом) → Ответ</p>
+          <p>Trigger → HTTP Request (files/search) → Собрать чанки в контекст → LLM (промпт с контекстом) → Ответ</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            В ответе Search API: <code className={codeClassName}>results[].chunkText</code> — используйте для промпта.
+            В ответе Search API: <code className={codeClassName}>results[].chunkText</code> (результаты с type: &quot;chunk&quot;) — передайте в системный промпт.
           </p>
         </section>
       </div>

@@ -325,12 +325,13 @@ export default function ApiDocsPage() {
             <Section
               method="GET"
               path="/api/v1/files/search"
-              desc="Семантический поиск по документам. Для RAG в n8n: ?q=запрос&collectionId=id"
+              desc="Семантический поиск по документам. RAG: возвращает results[].chunkText. Для n8n: ?q=запрос&collectionId=id"
               params={[
-                { name: "q", type: "string", desc: "Поисковый запрос" },
+                { name: "q", type: "string", desc: "Поисковый запрос (обязательно)" },
+                { name: "collectionId", type: "string", desc: "ID RAG-коллекции — поиск только по ней" },
                 { name: "limit", type: "number", desc: "Макс. результатов (по умолчанию 20)" },
                 { name: "threshold", type: "number", desc: "Порог схожести (по умолчанию 0.55)" },
-                { name: "collectionId", type: "string", desc: "ID RAG-коллекции — поиск только по ней" },
+                { name: "searchByName", type: "boolean", desc: "Включить поиск по имени файла (по умолчанию true)" },
               ]}
             />
             <Section
@@ -385,14 +386,13 @@ export default function ApiDocsPage() {
               <AccordionContent>
                 <div className="space-y-4 pt-2">
                   <p className="text-xs text-muted-foreground">
-                    Для n8n: HTTP Request → <code className="rounded bg-surface2 px-1">GET /api/v1/files/search?q=...&collectionId=...</code>
-                    {" "}
+                    <strong>RAG-поиск:</strong> используйте <code className="rounded bg-surface2 px-1">GET /api/v1/files/search?q=...&collectionId=...</code> — возвращает <code className="rounded bg-surface2 px-1">results[].chunkText</code>. Эндпоинт <code className="rounded bg-surface2 px-1">rag/collections</code> — только список коллекций, не семантический поиск.{" "}
                     <a href="/dashboard/n8n-guide" className="text-primary hover:underline">Гайд по интеграции</a>
                   </p>
                   <Section
                     method="GET"
                     path="/api/v1/rag/collections"
-                    desc="Список RAG-коллекций"
+                    desc="Список RAG-коллекций (метаданные, ID). Для поиска — files/search"
                   />
                   <Section
                     method="POST"

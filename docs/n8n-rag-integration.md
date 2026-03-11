@@ -27,20 +27,29 @@ Authorization: Bearer <ваш_ключ>
 
 В ответе найдите нужную коллекцию и скопируйте `id`.
 
+> **Важно:** Эндпоинт `rag/collections` возвращает только список коллекций и файлов (метаданные). Он **не** выполняет семантический поиск. Для RAG-запросов используйте `files/search` (см. шаг 4).
+
 ## Шаг 4: n8n — HTTP Request для RAG-поиска
+
+Для семантического поиска по содержимому документов используйте **только** эндпоинт `files/search`. Он возвращает `results[].chunkText` — релевантные фрагменты для контекста LLM.
 
 Добавьте ноду **HTTP Request**:
 
 - **Method:** GET
 - **URL:** `https://qoqon.ru/api/v1/files/search`
-- **Query Parameters:**
-  - `q` = `{{ $json.query }}` (или ваш ввод)
-  - `collectionId` = `xxxxxxxx` (ID вашей RAG-коллекции)
-  - `limit` = `10` (опционально)
-  - `threshold` = `0.55` (опционально)
+- **Query Parameters (обязательные):**
+  - `q` = `{{ $json.query }}` (поисковый запрос пользователя)
+  - `collectionId` = ID коллекции из шага 3 (например `cmmlts1ez006tpe0171dmoxqk`)
+- **Query Parameters (опционально):**
+  - `limit` = `10` (макс. результатов, по умолчанию 20)
+  - `threshold` = `0.55` (порог схожести)
+  - `searchByName` = `false` (если не нужен поиск по имени файла)
 - **Authentication:** Generic Credential Type
   - **Header Name:** `Authorization`
   - **Header Value:** `Bearer <ваш_ключ>`
+
+**Пример полного URL:**  
+`https://qoqon.ru/api/v1/files/search?q=какие+инверторы+у+тебя+есть&collectionId=cmmlts1ez006tpe0171dmoxqk&limit=10`
 
 ## Шаг 5: Использование в агенте
 
@@ -66,10 +75,10 @@ Authorization: Bearer <ваш_ключ>
 }
 ```
 
-Соберите `chunkText` и передайте в системный промпт:
+Соберите `chunkText` (результаты с `type: "chunk"`) и передайте в системный промпт:
 ```
 Контекст из базы знаний:
-{{ $json.results.map(r => r.chunkText).join('\n\n') }}
+{{ $json.results.filter(r => r.type === 'chunk').map(r => r.chunkText).join('\n\n') }}
 
 Вопрос пользователя: {{ $json.query }}
 ```
@@ -100,4 +109,4 @@ pm2 restart qoqon
 | DELETE | `/api/v1/rag/collections/{id}` | Удалить |
 | POST | `/api/v1/rag/collections/{id}/validate` | Проверка файлов |
 | POST | `/api/v1/rag/collections/{id}/vectorize` | Векторизация |
-| GET | `/api/v1/files/search?q=...&collectionId=...` | Поиск (RAG) |
+| GET | `/api/v1/files/search?q=...&collectionId=...` | Семантический поиск (RAG) — возвращает `results[].chunkText` |
