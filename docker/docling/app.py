@@ -6,6 +6,7 @@ Legacy Office formats (.doc, .xls, .ppt) are converted via LibreOffice before pr
 """
 
 import os
+import shutil
 import subprocess
 import tempfile
 import hashlib
@@ -151,9 +152,11 @@ async def extract_document(
 
     content_hash = hashlib.sha256(content).hexdigest()
 
-    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-        tmp.write(content)
-        tmp_path = tmp.name
+    # Сохраняем с оригинальным именем — Docling определяет формат по имени файла
+    safe_name = Path(file.filename).name or f"document{ext}"
+    tmp_dir = tempfile.mkdtemp()
+    tmp_path = str(Path(tmp_dir) / safe_name)
+    Path(tmp_path).write_bytes(content)
 
     converted_path: Optional[str] = None
     try:
@@ -203,6 +206,7 @@ async def extract_document(
         Path(tmp_path).unlink(missing_ok=True)
         if converted_path and Path(converted_path).exists():
             Path(converted_path).unlink(missing_ok=True)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @app.post("/transcribe")
