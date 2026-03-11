@@ -32,7 +32,6 @@ import {
   Pencil,
   ScanSearch,
   BrainCircuit,
-  FileWarning,
   CheckSquare,
   Mic2,
 } from "lucide-react";
@@ -194,9 +193,8 @@ function parseViewMode(value: string | null | undefined, fallback: "list" | "gri
   return fallback;
 }
 
-function isScanPdfError(err: string): boolean {
-  return /EasyOCR|OCR engine|pip install easyocr/i.test(err ?? "");
-}
+// Ранее: любые ошибки EasyOCR считались «сканом» — это давало ложные срабатывания для PDF с текстовым слоем.
+// Теперь показываем реальную ошибку пользователю.
 
 export function FileManager() {
   const router = useRouter();
@@ -295,7 +293,6 @@ export function FileManager() {
   const [moving, setMoving] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [copying, setCopying] = useState(false);
-  const [scanPdfModalOpen, setScanPdfModalOpen] = useState(false);
   const [analysisUpgradeOpen, setAnalysisUpgradeOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{
     type: "file" | "folder";
@@ -1289,8 +1286,7 @@ export function FileManager() {
         if (data.status === "failed" || data.error) {
           window.dispatchEvent(new CustomEvent("notifications:refresh"));
           const errMsg = data.error || "Ошибка обработки";
-          if (isScanPdfError(errMsg)) setScanPdfModalOpen(true);
-          toast.error(isScanPdfError(errMsg) ? "Документ — скан, анализ недоступен" : errMsg, { id: toastId });
+          toast.error(errMsg, { id: toastId });
           setAnalyzeError((m) => new Map(m).set(fileId, errMsg));
           return "err";
         }
@@ -1561,7 +1557,6 @@ export function FileManager() {
             pending.delete(id);
             failed++;
             const errMsg = data.error || "Ошибка";
-            if (isScanPdfError(errMsg)) setScanPdfModalOpen(true);
             setAnalyzeError((m) => new Map(m).set(id, errMsg));
             setAnalyzingFiles((s) => { const n = new Set(s); n.delete(id); return n; });
           }
@@ -3518,21 +3513,6 @@ export function FileManager() {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Scan PDF error dialog */}
-      <Dialog open={scanPdfModalOpen} onOpenChange={setScanPdfModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileWarning className="h-5 w-5 text-amber-500" />
-              Анализ недоступен
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground">
-            Этот PDF не содержит текстового слоя (это скан). Анализ сканированных документов пока недоступен.
-          </p>
         </DialogContent>
       </Dialog>
 
