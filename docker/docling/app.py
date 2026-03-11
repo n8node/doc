@@ -151,11 +151,14 @@ async def extract_document(
     if not file.filename:
         raise HTTPException(400, "Filename is required")
 
-    ext = Path(file.filename).suffix.lower()
+    # Расширение: учитываем имя файла и content-type (клиент может прислать некорректное имя)
+    ext = (Path(file.filename or "").suffix or "").strip().lower()
+    if not ext and file.content_type and "text/plain" in file.content_type:
+        ext = ".txt"
     if ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             415,
-            f"Unsupported format: {ext}. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
+            f"Unsupported format: {ext or '(no ext)'}. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
         )
 
     content = await file.read()
@@ -238,7 +241,22 @@ async def extract_document(
     except subprocess.TimeoutExpired:
         raise HTTPException(504, "Conversion timeout (LibreOffice)")
     except Exception as e:
-        raise HTTPException(500, f"Processing failed: {str(e)}")
+        err_msg = str(e)
+        # Fallback: Docling не поддерживает .txt — при "format not allowed" для txt пробуем plain text
+        if "format not allowed" in err_msg.lower() and ".txt" in err_msg.lower():
+            try:
+                text = content.decode("utf-8", errors="replace")
+            except Exception:
+                text = content.decode("latin-1", errors="replace")
+            return JSONResponse({
+                "filename": file.filename,
+                "content_hash": content_hash,
+                "text": text,
+                "tables": [],
+                "num_pages": None,
+                "format": ".txt",
+            })
+        raise HTTPException(500, f"Processing failed: {err_msg}")
     finally:
         if tmp_path:
             Path(tmp_path).unlink(missing_ok=True)
