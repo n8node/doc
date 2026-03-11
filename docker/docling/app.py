@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 import hashlib
+from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,17 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from docling.document_converter import DocumentConverter
 from docling.datamodel.base_models import InputFormat
+
+try:
+    from docling_core.types.io import DocumentStream
+    _USE_DOCUMENT_STREAM = True
+except ImportError:
+    try:
+        from docling.datamodel.base_models import DocumentStream
+        _USE_DOCUMENT_STREAM = True
+    except ImportError:
+        DocumentStream = None  # type: ignore
+        _USE_DOCUMENT_STREAM = False
 from docling.datamodel import asr_model_specs
 from docling.datamodel.pipeline_options import PdfPipelineOptions, EasyOcrOptions, AsrPipelineOptions
 from docling.document_converter import PdfFormatOption, AudioFormatOption
@@ -152,20 +164,30 @@ async def extract_document(
 
     content_hash = hashlib.sha256(content).hexdigest()
 
-    # Всегда используем document.<ext> — Docling определяет формат по расширению.
-    # Клиент может присылать temp-имена (tmpxzp255ra.txt), что ломает определение формата.
-    safe_name = f"document{ext}"
-    tmp_dir = tempfile.mkdtemp()
-    tmp_path = str(Path(tmp_dir) / safe_name)
-    Path(tmp_path).write_bytes(content)
-
+    # DocumentStream — без записи на диск, явное имя document.<ext>.
+    # Обходит проблему temp-имён (tmpxzp255ra.txt) при определении формата Docling.
     converted_path: Optional[str] = None
+    tmp_dir: Optional[str] = None
+    tmp_path: Optional[str] = None
     try:
         if ext in LEGACY_OFFICE:
+            safe_name = f"document{ext}"
+            tmp_dir = tempfile.mkdtemp()
+            tmp_path = str(Path(tmp_dir) / safe_name)
+            Path(tmp_path).write_bytes(content)
             converted_path = _convert_legacy_office_to_ooxml(tmp_path, ext)
             path_to_convert = converted_path
             ext_for_result = "." + LEGACY_OFFICE[ext]
+        elif _USE_DOCUMENT_STREAM and DocumentStream:
+            buf = BytesIO(content)
+            buf.seek(0)
+            path_to_convert = DocumentStream(name=f"document{ext}", stream=buf)
+            ext_for_result = ext
         else:
+            safe_name = f"document{ext}"
+            tmp_dir = tempfile.mkdtemp()
+            tmp_path = str(Path(tmp_dir) / safe_name)
+            Path(tmp_path).write_bytes(content)
             path_to_convert = tmp_path
             ext_for_result = ext
 
@@ -204,10 +226,12 @@ async def extract_document(
     except Exception as e:
         raise HTTPException(500, f"Processing failed: {str(e)}")
     finally:
-        Path(tmp_path).unlink(missing_ok=True)
+        if tmp_path:
+            Path(tmp_path).unlink(missing_ok=True)
         if converted_path and Path(converted_path).exists():
             Path(converted_path).unlink(missing_ok=True)
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        if tmp_dir:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @app.post("/transcribe")
