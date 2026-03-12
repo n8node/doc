@@ -9,7 +9,8 @@ export async function GET(_request: Request, ctx: Ctx) {
   const { path: pathSegments } = await ctx.params;
   const s3Key = pathSegments.map((p) => decodeURIComponent(p)).join("/");
 
-  if (!s3Key.startsWith("docs/") || s3Key.includes("..")) {
+  const allowedPrefixes = ["docs/", "pages/"];
+  if (!allowedPrefixes.some((p) => s3Key.startsWith(p)) || s3Key.includes("..")) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

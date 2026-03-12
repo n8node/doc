@@ -228,12 +228,15 @@ type TipTapEditorProps = {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  /** URL для загрузки изображений. По умолчанию /api/v1/admin/docs/upload */
+  uploadUrl?: string;
 };
 
 export function TipTapEditor({
   content,
   onChange,
   placeholder = "Начните писать...",
+  uploadUrl = "/api/v1/admin/docs/upload",
 }: TipTapEditorProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -296,7 +299,7 @@ export function TipTapEditor({
       const fd = new FormData();
       fd.set("file", file);
       try {
-        const res = await fetch("/api/v1/admin/docs/upload", {
+        const res = await fetch(uploadUrl, {
           method: "POST",
           body: fd,
         });
@@ -307,7 +310,7 @@ export function TipTapEditor({
         toast.error(err instanceof Error ? err.message : "Ошибка загрузки изображения");
       }
     },
-    [editor]
+    [editor, uploadUrl]
   );
 
   return (
