@@ -314,6 +314,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     headers: {
       "Content-Type": "application/x-ndjson",
       "Cache-Control": "no-cache",
+      "X-Accel-Buffering": "no",
     },
   });
 }

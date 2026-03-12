@@ -120,6 +120,8 @@ export default function RagMemoryPage() {
     lastFileName: string;
     processed: number;
     total: number;
+    processableProcessed: number;
+    processableCount: number;
   } | null>(null);
   const [autoSkipErrors, setAutoSkipErrors] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -271,40 +273,55 @@ export default function RagMemoryPage() {
     const filesCount = coll?.filesCount ?? 0;
     const processableCount = coll?.processableCount ?? coll?.filesCount ?? 0;
 
+    const prevModal = vectorizeErrorModal;
     setVectorizingId(collectionId);
     setVectorizeErrorModal(null);
-    setVectorizeState({
-      stage: "fetching_files",
-      message: "Получаем файлы…",
-      progressPercent: 0,
-    });
 
     const stageTimeouts: ReturnType<typeof setTimeout>[] = [];
-    stageTimeouts.push(
-      setTimeout(() => {
-        setVectorizeState((s) =>
-          s ? { ...s, message: `Получаем файлы (${filesCount})`, progressPercent: 15 } : null
-        );
-      }, 400)
-    );
-    stageTimeouts.push(
-      setTimeout(() => {
-        setVectorizeState((s) =>
-          s ? { ...s, message: "Анализируем форматы файлов", progressPercent: 30 } : null
-        );
-      }, 800)
-    );
-    stageTimeouts.push(
-      setTimeout(() => {
-        setVectorizeState((s) =>
-          s
-            ? { ...s, message: `Получено ${processableCount} файлов пригодных к векторизации`, progressPercent: 40 }
-            : null
-        );
-      }, 1200)
-    );
 
-    let lastVecState = { currentFileName: "", processed: 0, total: 0, processableCount: 0 };
+    if (skipFirst > 0) {
+      const resumePct = filesCount > 0 ? 40 + Math.round((60 * skipFirst) / filesCount) : 50;
+      setVectorizeState({
+        stage: "vectorizing",
+        message: "Продолжаем векторизацию…",
+        progressPercent: resumePct,
+        processed: skipFirst,
+        total: filesCount,
+        processableProcessed: prevModal?.processableProcessed ?? undefined,
+        processableCount: prevModal?.processableCount ?? processableCount,
+      });
+    } else {
+      setVectorizeState({
+        stage: "fetching_files",
+        message: "Получаем файлы…",
+        progressPercent: 0,
+      });
+      stageTimeouts.push(
+        setTimeout(() => {
+          setVectorizeState((s) =>
+            s ? { ...s, message: `Получаем файлы (${filesCount})`, progressPercent: 15 } : null
+          );
+        }, 400)
+      );
+      stageTimeouts.push(
+        setTimeout(() => {
+          setVectorizeState((s) =>
+            s ? { ...s, message: "Анализируем форматы файлов", progressPercent: 30 } : null
+          );
+        }, 800)
+      );
+      stageTimeouts.push(
+        setTimeout(() => {
+          setVectorizeState((s) =>
+            s
+              ? { ...s, message: `Получено ${processableCount} файлов пригодных к векторизации`, progressPercent: 40 }
+              : null
+          );
+        }, 1200)
+      );
+    }
+
+    let lastVecState = { currentFileName: "", processed: 0, total: 0, processableCount: 0, processableProcessed: 0 };
     let hadResumableError = false;
     try {
       const res = await fetch(`/api/v1/rag/collections/${collectionId}/vectorize`, {
@@ -358,14 +375,14 @@ export default function RagMemoryPage() {
             const pp = ev.processableProcessed;
             if (ev.type === "processing_file" && ev.fileName != null) {
               if (ev.processed != null && ev.total != null)
-                lastVecState = { currentFileName: ev.fileName, processed: ev.processed, total: ev.total, processableCount: pc };
+                lastVecState = { currentFileName: ev.fileName, processed: ev.processed, total: ev.total, processableCount: pc, processableProcessed: pp ?? lastVecState.processableProcessed };
               setVectorizeState((s) =>
                 s && ev.processed != null && ev.total != null
                   ? {
                       ...s,
                       stage: "vectorizing",
                       message: `Векторизация`,
-                      progressPercent: ev.total > 0 ? 40 + Math.round((60 * ev.processed) / ev.total) : 100,
+                      progressPercent: ev.total > 0 ? 40 + Math.round((60 * (ev.processed + 0.5)) / ev.total) : 100,
                       processed: ev.processed,
                       total: ev.total,
                       processableProcessed: pp ?? s.processableProcessed,
@@ -379,7 +396,7 @@ export default function RagMemoryPage() {
               const fileName = ev.fileName;
               if (fileName != null) {
                 if (ev.processed != null && ev.total != null)
-                  lastVecState = { currentFileName: fileName, processed: ev.processed, total: ev.total, processableCount: pc };
+                  lastVecState = { currentFileName: fileName, processed: ev.processed, total: ev.total, processableCount: pc, processableProcessed: pp ?? lastVecState.processableProcessed };
                 setVectorizeState((s) =>
                   s
                     ? {
@@ -394,7 +411,7 @@ export default function RagMemoryPage() {
                 );
               }
             } else if (ev.type === "progress" && ev.processed != null && ev.total != null) {
-              lastVecState = { currentFileName: ev.currentFileName ?? lastVecState.currentFileName, processed: ev.processed, total: ev.total, processableCount: pc };
+              lastVecState = { currentFileName: ev.currentFileName ?? lastVecState.currentFileName, processed: ev.processed, total: ev.total, processableCount: pc, processableProcessed: pp ?? lastVecState.processableProcessed };
               const pct = ev.total > 0 ? 40 + (60 * ev.processed) / ev.total : 100;
               setVectorizeState({
                 stage: "vectorizing",
@@ -441,6 +458,8 @@ export default function RagMemoryPage() {
             lastFileName: lastVecState.currentFileName || "",
             processed: lastVecState.processed,
             total: lastVecState.total,
+            processableProcessed: lastVecState.processableProcessed,
+            processableCount: lastVecState.processableCount,
           });
         }
       } else {
