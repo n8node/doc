@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { configStore } from "@/lib/config-store";
 import { getDashboardContent } from "@/lib/dashboard-content";
 import {
-  DASHBOARD_IMAGE_IDS,
+  isValidDashboardImageId,
   getDashboardImageConfigKeys,
   type DashboardStep,
   type DashboardCard,
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
   if (Array.isArray(body.removeImageIds)) {
     for (const imageId of body.removeImageIds) {
-      if (typeof imageId === "string" && DASHBOARD_IMAGE_IDS.includes(imageId as (typeof DASHBOARD_IMAGE_IDS)[number])) {
+      if (typeof imageId === "string" && isValidDashboardImageId(imageId)) {
         const keys = getDashboardImageConfigKeys(imageId);
         if (keys) {
           updates.push(configStore.set(keys.keyKey, "", { category: CATEGORY }));

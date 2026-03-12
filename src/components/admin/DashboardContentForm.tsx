@@ -146,13 +146,14 @@ export function DashboardContentForm() {
 
   const addCard = () => {
     if (!content) return;
+    const id = `custom_${Date.now()}`;
     const newCard: DashboardCard = {
-      id: `custom_${Date.now()}`,
+      id,
       title: "Новый инструмент",
       description: "",
       href: "/dashboard/files",
       cta: "Открыть",
-      imageKey: null,
+      imageKey: `card_${id}`,
     };
     setContent({ ...content, cards: [...content.cards, newCard] });
   };
@@ -380,9 +381,9 @@ export function DashboardContentForm() {
                 onChange={(e) => updateCard(i, "cta", e.target.value)}
                 placeholder="Текст кнопки"
               />
-              {card.imageKey && IMAGE_LABELS[card.imageKey] && (
+              {card.imageKey && (
                 <div>
-                  <label className="text-xs text-muted-foreground">{IMAGE_LABELS[card.imageKey]}</label>
+                  <label className="text-xs text-muted-foreground">{IMAGE_LABELS[card.imageKey] ?? "Иконка карточки"}</label>
                   <div className="mt-1 flex items-center gap-2">
                     <img
                       src={getImageUrl(card.imageKey)}

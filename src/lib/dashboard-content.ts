@@ -99,8 +99,13 @@ export function getDashboardAssetUrl(imageId: string): string {
   return `/api/public/dashboard-asset/${imageId}`;
 }
 
+/** Проверяет, валиден ли imageId для загрузки/отображения (hero или card_*) */
+export function isValidDashboardImageId(imageId: string): boolean {
+  return imageId === "hero" || (typeof imageId === "string" && imageId.startsWith("card_") && imageId.length > 5);
+}
+
 export function getDashboardImageConfigKeys(imageId: string): { keyKey: string; mimeKey: string } | null {
-  if (!DASHBOARD_IMAGE_IDS.includes(imageId as DashboardImageId)) return null;
+  if (!isValidDashboardImageId(imageId)) return null;
   return {
     keyKey: `${PREFIX}image_${imageId}${IMAGE_KEY_SUFFIX}`,
     mimeKey: `${PREFIX}image_${imageId}${IMAGE_MIME_SUFFIX}`,

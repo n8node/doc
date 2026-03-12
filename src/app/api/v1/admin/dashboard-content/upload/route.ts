@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { configStore } from "@/lib/config-store";
 import {
-  DASHBOARD_IMAGE_IDS,
+  isValidDashboardImageId,
   getDashboardImageConfigKeys,
   getDashboardAssetUrl,
 } from "@/lib/dashboard-content";
@@ -22,9 +22,7 @@ const ALLOWED_MIME = new Set([
 
 function parseImageId(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  if (DASHBOARD_IMAGE_IDS.includes(value as (typeof DASHBOARD_IMAGE_IDS)[number])) {
-    return value;
-  }
+  if (isValidDashboardImageId(value)) return value;
   return null;
 }
 
@@ -49,7 +47,7 @@ export async function POST(request: NextRequest) {
 
   if (!imageId) {
     return NextResponse.json(
-      { error: "Некорректный imageId. Допустимы: " + DASHBOARD_IMAGE_IDS.join(", ") },
+      { error: "Некорректный imageId. Допустимы: hero или card_*" },
       { status: 400 }
     );
   }
