@@ -44,7 +44,8 @@ export async function GET(
       headers["Content-Length"] = String(contentLength);
     }
     return new NextResponse(body as BodyInit, { headers });
-  } catch {
+  } catch (err) {
+    console.error("[dashboard-asset] S3 getStream error:", { imageId, s3Key, err });
     return new NextResponse(TRANSPARENT_GIF, {
       headers: { "Content-Type": "image/gif", "Cache-Control": "public, max-age=60" },
     });
