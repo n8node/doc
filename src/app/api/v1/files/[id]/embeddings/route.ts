@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
-import { prisma } from "@/lib/prisma";
 import { listEmbeddings, deleteEmbeddingsByIds, hasEmbeddings, clearFileEmbeddingMarks } from "@/lib/docling/vector-store";
 
 /**

@@ -245,6 +245,7 @@ export async function clearFileEmbeddingMarks(fileId: string): Promise<void> {
     select: { aiMetadata: true },
   });
   const meta = (file?.aiMetadata ?? {}) as Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { processedAt: _, ...rest } = meta;
   await prisma.file.update({
     where: { id: fileId },
