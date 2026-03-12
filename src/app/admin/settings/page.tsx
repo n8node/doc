@@ -12,17 +12,19 @@ import { EmailSettingsForm } from "@/components/admin/EmailSettingsForm";
 import { BrandingSettingsForm } from "@/components/admin/BrandingSettingsForm";
 import { MarketplaceOpenRouterForm } from "@/components/admin/MarketplaceOpenRouterForm";
 import { SeoSettingsForm } from "@/components/admin/SeoSettingsForm";
+import { FooterSettingsForm } from "@/components/admin/FooterSettingsForm";
 
-type Tab = "s3" | "yookassa" | "ai" | "marketplace" | "telegram" | "auth" | "email" | "branding" | "seo";
+type Tab = "s3" | "yookassa" | "ai" | "marketplace" | "telegram" | "auth" | "email" | "branding" | "seo" | "footer";
 
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as Tab | null;
-  const [tab, setTab] = useState<Tab>(tabParam ?? "s3");
+  const [tab, setTab] = useState<Tab>(tabParam ?? "branding");
 
   const tabLabels: Record<Tab, string> = {
     branding: "Брендинг",
     seo: "SEO",
+    footer: "Футер",
     auth: "Авторизация",
     email: "Email / SMTP",
     s3: "S3 хранилище",
@@ -35,7 +37,7 @@ function AdminSettingsContent() {
   return (
     <div className="space-y-6">
       <div className="flex gap-2 border-b border-border pb-2">
-        {(["branding", "seo", "auth", "email", "s3", "yookassa", "ai", "marketplace", "telegram"] as const).map((t) => (
+        {(["branding", "seo", "footer", "auth", "email", "s3", "yookassa", "ai", "marketplace", "telegram"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -53,6 +55,7 @@ function AdminSettingsContent() {
       <Card className="p-6">
         {tab === "branding" && <BrandingSettingsForm />}
         {tab === "seo" && <SeoSettingsForm />}
+        {tab === "footer" && <FooterSettingsForm />}
         {tab === "s3" && <S3SettingsForm />}
         {tab === "yookassa" && <YookassaSettingsForm />}
         {tab === "ai" && <AiProvidersForm />}

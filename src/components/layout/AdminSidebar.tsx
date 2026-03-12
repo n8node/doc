@@ -9,6 +9,7 @@ const navItems = [
   { href: "/admin/dashboard-content", label: "Контент дашборда", icon: "📋" },
   { href: "/admin/docs", label: "Документация", icon: "📚" },
   { href: "/admin/pages", label: "Публичные страницы", icon: "📄" },
+  { href: "/admin/settings?tab=footer", label: "Футер", icon: "🔗" },
   { href: "/admin/settings?tab=auth", label: "Авторизация", icon: "🔐" },
   { href: "/admin/plans", label: "Тарифы", icon: "👑" },
   { href: "/admin/payments", label: "Платежи", icon: "📋" },
