@@ -591,8 +591,13 @@ export default function RagMemoryPage() {
                           style={{ width: `${vecState.progressPercent}%` }}
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {vecState.message}
+                      <p className="text-xs text-muted-foreground flex items-center justify-between gap-2">
+                        <span>{vecState.message}</span>
+                        <span className="shrink-0 tabular-nums font-medium text-foreground">
+                          {vecState.processed != null && vecState.total != null
+                            ? `${vecState.processed}/${vecState.total} (${vecState.progressPercent}%)`
+                            : `${vecState.progressPercent}%`}
+                        </span>
                       </p>
                     </div>
                   )}
