@@ -74,8 +74,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
   const { id } = await ctx.params;
 
+  const body = await req.json().catch(() => ({}));
+
   if (id === session?.user?.id) {
-    const body = await req.json();
     if (body.role || body.isBlocked !== undefined) {
       return NextResponse.json(
         { error: "Нельзя менять роль или блокировать самого себя" },
@@ -84,7 +85,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
   }
 
-  const body = await req.json();
   const data: Record<string, unknown> = {};
 
   if (body.role === "USER" || body.role === "ADMIN") data.role = body.role;
