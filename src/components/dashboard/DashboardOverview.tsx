@@ -57,7 +57,7 @@ function CardWithImage({
         <div className="flex flex-1 flex-col p-6">
           <div className="mb-4 flex items-start justify-between">
             {showImg ? (
-              <div className="h-14 w-14 overflow-hidden rounded-xl border border-border bg-background">
+              <div className="h-14 w-14 overflow-hidden rounded-xl">
                 <img
                   src={getAssetUrl(card.imageKey!)}
                   alt=""
