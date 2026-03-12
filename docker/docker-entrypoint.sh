@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
 echo "Running Prisma migrations..."
-npx prisma migrate deploy || { echo "WARNING: Migration failed, continuing..."; }
+npx -y prisma@6 migrate deploy || { echo "WARNING: Migration failed, continuing..."; }
 echo "Starting app..."
 exec node server.js
