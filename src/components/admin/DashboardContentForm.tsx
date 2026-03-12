@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Upload, Trash2, Save, Plus, GripVertical } from "lucide-react";
+import { Loader2, Upload, Trash2, Save, Plus, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import type { DashboardContent, DashboardCard } from "@/lib/dashboard-content";
 
 const IMAGE_LABELS: Record<string, string> = {
@@ -144,6 +144,39 @@ export function DashboardContentForm() {
     setContent({ ...content, steps });
   };
 
+  const addCard = () => {
+    if (!content) return;
+    const newCard: DashboardCard = {
+      id: `custom_${Date.now()}`,
+      title: "Новый инструмент",
+      description: "",
+      href: "/dashboard/files",
+      cta: "Открыть",
+      imageKey: null,
+    };
+    setContent({ ...content, cards: [...content.cards, newCard] });
+  };
+
+  const removeCard = (index: number) => {
+    if (!content) return;
+    const cards = content.cards.filter((_, i) => i !== index);
+    setContent({ ...content, cards });
+  };
+
+  const moveCardUp = (index: number) => {
+    if (!content || index <= 0) return;
+    const cards = [...content.cards];
+    [cards[index - 1], cards[index]] = [cards[index], cards[index - 1]];
+    setContent({ ...content, cards });
+  };
+
+  const moveCardDown = (index: number) => {
+    if (!content || index >= content.cards.length - 1) return;
+    const cards = [...content.cards];
+    [cards[index], cards[index + 1]] = [cards[index + 1], cards[index]];
+    setContent({ ...content, cards });
+  };
+
   if (loading || !content) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -276,13 +309,55 @@ export function DashboardContentForm() {
 
       {/* Cards */}
       <div className="space-y-4 rounded-xl border border-border p-4">
-        <h3 className="text-sm font-semibold text-foreground">Карточки инструментов</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Карточки инструментов</h3>
+          <Button type="button" variant="outline" size="sm" onClick={addCard}>
+            <Plus className="mr-2 h-4 w-4" />
+            Добавить инструмент
+          </Button>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {content.cards.map((card, i) => (
             <div key={card.id} className="space-y-2 rounded-lg border border-border/70 bg-surface2/30 p-4">
-              <div className="flex items-center gap-2">
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">ID: {card.id}</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">ID: {card.id}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => moveCardUp(i)}
+                    disabled={i === 0}
+                    title="Поднять"
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => moveCardDown(i)}
+                    disabled={i === content.cards.length - 1}
+                    title="Опустить"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => removeCard(i)}
+                    title="Удалить"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <Input
                 value={card.title}
