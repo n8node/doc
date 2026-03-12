@@ -48,6 +48,10 @@ export async function GET(request: NextRequest) {
         },
         select: { id: true },
       },
+      files: {
+        where: { deletedAt: null },
+        select: { id: true },
+      },
     },
   });
 
@@ -59,6 +63,7 @@ export async function GET(request: NextRequest) {
       createdAt: f.createdAt,
       hasShareLink: f.shareLinks.length > 0,
       shareLinksCount: f.shareLinks.length,
+      filesCount: f.files.length,
     })),
   });
 }

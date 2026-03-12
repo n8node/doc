@@ -89,6 +89,7 @@ interface FolderCardProps {
   createdAt: string;
   hasShareLink?: boolean;
   shareLinksCount?: number;
+  filesCount?: number;
   selected: boolean;
   onSelect: (id: string, selected: boolean) => void;
   onClick: () => void;
@@ -669,6 +670,7 @@ export function FolderCard({
   createdAt,
   hasShareLink = false,
   shareLinksCount = 0,
+  filesCount,
   selected,
   onSelect,
   onClick,
@@ -724,6 +726,12 @@ export function FolderCard({
           <p className="truncate text-sm font-medium text-foreground">{name}</p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>Папка</span>
+            {filesCount !== undefined && (
+              <>
+                <span>•</span>
+                <span>Файлов: {filesCount}</span>
+              </>
+            )}
             <span>•</span>
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />

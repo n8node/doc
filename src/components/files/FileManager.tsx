@@ -110,6 +110,7 @@ interface FolderItem {
   createdAt: string;
   hasShareLink?: boolean;
   shareLinksCount?: number;
+  filesCount?: number;
   deletedAt?: string | null;
 }
 
@@ -3054,6 +3055,7 @@ export function FileManager() {
                         createdAt={folder.createdAt}
                         hasShareLink={folder.hasShareLink}
                         shareLinksCount={folder.shareLinksCount}
+                        filesCount={folder.filesCount}
                         selected={selectedFolders.has(folder.id)}
                         onSelect={handleFolderSelect}
                         onClick={() => navigateToFolder(folder.id)}
