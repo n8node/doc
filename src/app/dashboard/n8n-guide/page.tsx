@@ -5,7 +5,7 @@ import { BrainCircuit, ChevronLeft } from "lucide-react";
 
 export default function N8nGuidePage() {
   const codeClassName =
-    "rounded bg-primary px-1.5 py-0.5 text-primary-foreground";
+    "rounded bg-primary/15 px-1.5 py-0.5 text-primary font-medium";
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -51,7 +51,7 @@ export default function N8nGuidePage() {
 
         <section>
           <h2 className="text-lg font-semibold">3. ID коллекции</h2>
-          <pre className="overflow-x-auto rounded-lg bg-primary p-4 text-sm text-primary-foreground">
+          <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-sm text-foreground">
 {`GET https://qoqon.ru/api/v1/rag/collections
 Authorization: Bearer <ключ>`}
           </pre>
