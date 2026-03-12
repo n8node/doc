@@ -186,6 +186,27 @@ export default function RegisterPage() {
                 placeholder="QoQon_XXXXXXXXXXXX"
                 className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Нет инвайт-ключа? Посмотрите активные ключи на{" "}
+                <a
+                  href="https://qoqon.ru/invites"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  qoqon.ru/invites
+                </a>
+                . Если там нет активных — попросите в сообществе{" "}
+                <a
+                  href="https://t.me/n8node"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Telegram
+                </a>
+                .
+              </p>
             </div>
 
             <button
