@@ -251,7 +251,7 @@ export async function clearFileEmbeddingMarks(fileId: string): Promise<void> {
     where: { id: fileId },
     data: {
       hasEmbedding: false,
-      aiMetadata: Object.keys(rest).length > 0 ? rest : undefined,
+      aiMetadata: Object.keys(rest).length > 0 ? (rest as Prisma.InputJsonValue) : Prisma.DbNull,
     },
   });
 }
