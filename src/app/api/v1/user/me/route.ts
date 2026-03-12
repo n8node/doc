@@ -60,6 +60,8 @@ export async function GET(req: NextRequest) {
       canLinkEmail,
       hasTelegram,
       isPlaceholderEmail,
+      telegramUserId: user.telegramUserId?.toString() ?? null,
+      telegramUsername: user.telegramUsername ?? null,
       pendingEmailVerification: pendingEmailVerification
         ? {
             email: pendingEmailVerification.newEmail,

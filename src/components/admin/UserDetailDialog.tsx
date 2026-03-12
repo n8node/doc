@@ -23,6 +23,8 @@ import {
   Calendar,
   Clock,
   File,
+  MessageCircle,
+  Unlink,
 } from "lucide-react";
 
 interface UserDetail {
@@ -43,6 +45,8 @@ interface UserDetail {
   foldersCount: number;
   shareLinksCount: number;
   paymentsCount: number;
+  telegramUserId: string | null;
+  telegramUsername: string | null;
   topFiles: { id: string; name: string; size: number; mimeType: string; createdAt: string }[];
 }
 
@@ -105,6 +109,7 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
   const [inviteRelations, setInviteRelations] = useState<InviteRelationsData | null>(null);
   const [inviteCount, setInviteCount] = useState<number>(3);
   const [addingInvites, setAddingInvites] = useState(false);
+  const [unlinkingTelegram, setUnlinkingTelegram] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -180,6 +185,36 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
     user && user.storageQuota > 0
       ? Math.min(Math.round((user.storageUsed / user.storageQuota) * 100), 100)
       : 0;
+
+  const handleUnlinkTelegram = async () => {
+    if (!user) return;
+    const isPlaceholder = user.email.endsWith("@qoqon.placeholder");
+    if (isPlaceholder && !confirm(
+      "У пользователя нет привязанного email. После отвязки Telegram он не сможет войти в аккаунт, пока не привяжет email. Продолжить?"
+    )) return;
+    if (!isPlaceholder && !confirm("Отвязать Telegram от аккаунта?")) return;
+    setUnlinkingTelegram(true);
+    try {
+      const res = await fetch(`/api/v1/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unlinkTelegram: true }),
+      });
+      if (res.ok) {
+        toast.success("Telegram отвязан");
+        const updated = await fetch(`/api/v1/admin/users/${user.id}`).then((r) => r.json());
+        if (updated.id) setUser(updated);
+        onUpdated();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Ошибка");
+      }
+    } catch {
+      toast.error("Ошибка соединения");
+    } finally {
+      setUnlinkingTelegram(false);
+    }
+  };
 
   const handleAddInvites = async () => {
     if (!Number.isInteger(inviteCount) || inviteCount < 1) {
@@ -259,6 +294,49 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
                     <p className="font-medium">{formatDate(user.lastLoginAt)}</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Telegram */}
+              <div className="rounded-xl border border-border p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm">
+                    <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">Telegram</span>
+                  </div>
+                  {user.telegramUsername || user.telegramUserId ? (
+                    <div className="flex items-center gap-2">
+                      {user.telegramUsername ? (
+                        <a
+                          href={`https://t.me/${user.telegramUsername.replace(/^@/, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm"
+                        >
+                          @{user.telegramUsername.replace(/^@/, "")}
+                        </a>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">ID: {user.telegramUserId}</span>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={handleUnlinkTelegram}
+                        disabled={unlinkingTelegram}
+                      >
+                        {unlinkingTelegram ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
+                        Отвязать
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Не привязан</span>
+                  )}
+                </div>
+                {user.email.endsWith("@qoqon.placeholder") && (user.telegramUsername || user.telegramUserId) && (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                    У пользователя placeholder-email. После отвязки он не сможет войти, пока не привяжет email.
+                  </p>
+                )}
               </div>
 
               {/* Storage */}

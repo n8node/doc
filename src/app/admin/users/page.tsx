@@ -41,6 +41,8 @@ interface UserItem {
   filesCount: number;
   foldersCount: number;
   createdAt: string;
+  telegramUserId: string | null;
+  telegramUsername: string | null;
 }
 
 interface Stats {
@@ -356,6 +358,7 @@ export default function AdminUsersPage() {
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Роль</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Тариф</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Telegram</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                     <button onClick={() => handleSort("storageUsed")} className="flex items-center gap-1 hover:text-foreground">
                       Хранилище
@@ -426,6 +429,24 @@ export default function AdminUsersPage() {
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+
+                      {/* Telegram */}
+                      <td className="px-4 py-3">
+                        {user.telegramUsername ? (
+                          <a
+                            href={`https://t.me/${user.telegramUsername.replace(/^@/, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline text-xs"
+                          >
+                            @{user.telegramUsername.replace(/^@/, "")}
+                          </a>
+                        ) : user.telegramUserId ? (
+                          <span className="text-xs text-muted-foreground">ID: {user.telegramUserId}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </td>
 

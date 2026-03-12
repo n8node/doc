@@ -32,6 +32,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       plan: { select: { id: true, name: true, isFree: true } },
       createdAt: true,
       updatedAt: true,
+      telegramUserId: true,
+      telegramUsername: true,
       _count: { select: { files: true, folders: true, shareLinks: true, payments: true } },
     },
   });
@@ -47,17 +49,19 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     select: { id: true, name: true, size: true, mimeType: true, createdAt: true },
   });
 
+  const { _count, ...userData } = user;
   return NextResponse.json({
-    ...user,
+    ...userData,
     storageUsed: Number(user.storageUsed),
     storageQuota: Number(user.storageQuota),
     maxFileSize: Number(user.maxFileSize),
-    filesCount: user._count.files,
-    foldersCount: user._count.folders,
-    shareLinksCount: user._count.shareLinks,
-    paymentsCount: user._count.payments,
+    telegramUserId: user.telegramUserId != null ? String(user.telegramUserId) : null,
+    telegramUsername: user.telegramUsername,
+    filesCount: _count.files,
+    foldersCount: _count.folders,
+    shareLinksCount: _count.shareLinks,
+    paymentsCount: _count.payments,
     topFiles: topFiles.map((f) => ({ ...f, size: Number(f.size) })),
-    _count: undefined,
   });
 }
 
@@ -91,6 +95,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   } else if (body.isBlocked === false) {
     data.isBlocked = false;
     data.blockedAt = null;
+  }
+
+  if (body.unlinkTelegram === true) {
+    data.telegramUserId = null;
+    data.telegramUsername = null;
   }
 
   if (body.planId !== undefined) {

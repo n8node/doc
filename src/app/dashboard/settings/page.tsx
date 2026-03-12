@@ -28,6 +28,8 @@ interface ProfileData {
     canLinkEmail: boolean;
     hasTelegram: boolean;
     isPlaceholderEmail: boolean;
+    telegramUserId?: string | null;
+    telegramUsername?: string | null;
     pendingEmailVerification?: {
       email: string | null;
       expiresAt: string;

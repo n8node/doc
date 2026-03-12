@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Link2, Mail, MessageCircle } from "lucide-react";
+import { Loader2, Link2, Mail, MessageCircle, Unlink } from "lucide-react";
 import { toast } from "sonner";
 
 interface AccountLinking {
@@ -12,6 +12,8 @@ interface AccountLinking {
   canLinkEmail: boolean;
   hasTelegram: boolean;
   isPlaceholderEmail: boolean;
+  telegramUserId?: string | null;
+  telegramUsername?: string | null;
   pendingEmailVerification?: {
     email: string | null;
     expiresAt: string;
@@ -36,6 +38,7 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
   const [saving, setSaving] = useState(false);
   const [qrToken, setQrToken] = useState<string | null>(null);
   const [qrStatus, setQrStatus] = useState<"idle" | "pending" | "linked" | "expired">("idle");
+  const [unlinkingTelegram, setUnlinkingTelegram] = useState(false);
   const qrTokenRef = useRef<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
@@ -155,6 +158,25 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
     }
   };
 
+  const handleUnlinkTelegram = async () => {
+    if (!confirm("Отвязать Telegram? После этого вы сможете привязать другой аккаунт.")) return;
+    setUnlinkingTelegram(true);
+    try {
+      const res = await fetch("/api/v1/user/unlink-telegram", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Telegram отвязан");
+        onLinked();
+      } else {
+        toast.error(data.error || "Ошибка отвязки");
+      }
+    } catch {
+      toast.error("Ошибка соединения");
+    } finally {
+      setUnlinkingTelegram(false);
+    }
+  };
+
   const nothingToShow = !accountLinking.canLinkTelegram && !accountLinking.canLinkEmail;
   const bothLinked = accountLinking.hasTelegram && !accountLinking.isPlaceholderEmail;
 
@@ -184,6 +206,49 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
         {bothLinked && (
           <p className="rounded-lg bg-emerald-500/10 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-400">
             ✓ Email и Telegram привязаны. Вход доступен обоими способами.
+          </p>
+        )}
+
+        {accountLinking.hasTelegram && !accountLinking.isPlaceholderEmail && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              Привязанный Telegram
+            </p>
+            <div className="flex items-center gap-3">
+              {accountLinking.telegramUsername ? (
+                <a
+                  href={`https://t.me/${accountLinking.telegramUsername.replace(/^@/, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  @{accountLinking.telegramUsername.replace(/^@/, "")}
+                </a>
+              ) : accountLinking.telegramUserId ? (
+                <span className="text-muted-foreground">ID: {accountLinking.telegramUserId}</span>
+              ) : (
+                <span className="text-muted-foreground">Привязан</span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUnlinkTelegram}
+                disabled={unlinkingTelegram}
+              >
+                {unlinkingTelegram ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
+                Отвязать
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              После отвязки вы сможете привязать другой Telegram-аккаунт.
+            </p>
+          </div>
+        )}
+
+        {accountLinking.hasTelegram && accountLinking.isPlaceholderEmail && (
+          <p className="rounded-lg bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-400">
+            Сначала привяжите email ниже, чтобы потом иметь возможность отвязать Telegram и привязать другой.
           </p>
         )}
 
