@@ -676,8 +676,8 @@ export default function RagMemoryPage() {
                               <span className="min-w-0 truncate">{shortenId(c.id)}</span>
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent side="bottom" className="max-w-xs">
-                            <p>ID для API (collectionId)</p>
+                          <TooltipContent side="bottom" className="max-w-xs bg-surface border border-border text-foreground">
+                            <p className="font-medium">ID для API (collectionId)</p>
                             <p className="mt-0.5 text-muted-foreground">Используйте в GET /api/v1/files/search?q=...&amp;collectionId=... — семантический поиск</p>
                             <p className="mt-0.5 text-muted-foreground">Клик — скопировать</p>
                           </TooltipContent>
