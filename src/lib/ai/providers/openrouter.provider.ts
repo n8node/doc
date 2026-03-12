@@ -32,6 +32,7 @@ export class OpenRouterProvider implements AiProvider {
     }
     const res = await fetch(`${this.baseUrl}/embeddings`, {
       method: "POST",
+      signal: AbortSignal.timeout(120_000),
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",

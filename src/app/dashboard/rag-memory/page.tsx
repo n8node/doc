@@ -109,6 +109,8 @@ export default function RagMemoryPage() {
     progressPercent: number;
     processed?: number;
     total?: number;
+    currentFileName?: string;
+    lastError?: { fileName: string; error: string };
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
@@ -291,6 +293,7 @@ export default function RagMemoryPage() {
       }, 1200)
     );
 
+    let lastVecState = { currentFileName: "", processed: 0, total: 0 };
     try {
       const res = await fetch(`/api/v1/rag/collections/${collectionId}/vectorize`, {
         method: "POST",
@@ -331,8 +334,40 @@ export default function RagMemoryPage() {
               remaining?: number;
               succeeded?: number;
               failed?: number;
+              currentFileName?: string;
+              fileName?: string;
+              error?: string;
             };
-            if (ev.type === "progress" && ev.processed != null && ev.total != null) {
+            if (ev.type === "processing_file" && ev.fileName != null) {
+              if (ev.processed != null && ev.total != null) lastVecState = { currentFileName: ev.fileName, processed: ev.processed, total: ev.total };
+              setVectorizeState((s) =>
+                s && ev.processed != null && ev.total != null
+                  ? {
+                      ...s,
+                      stage: "vectorizing",
+                      message: `Векторизация: ${ev.processed} из ${ev.total}`,
+                      progressPercent: ev.total > 0 ? 40 + Math.round((60 * ev.processed) / ev.total) : 100,
+                      processed: ev.processed,
+                      total: ev.total,
+                      currentFileName: ev.fileName,
+                      lastError: undefined,
+                    }
+                  : s
+              );
+            } else if (ev.type === "file_error" && ev.fileName != null) {
+              if (ev.processed != null && ev.total != null) lastVecState = { currentFileName: ev.fileName, processed: ev.processed, total: ev.total };
+              setVectorizeState((s) =>
+                s
+                  ? {
+                      ...s,
+                      lastError: { fileName: ev.fileName, error: ev.error ?? "Ошибка" },
+                      processed: ev.processed ?? s.processed,
+                      total: ev.total ?? s.total,
+                    }
+                  : s
+              );
+            } else if (ev.type === "progress" && ev.processed != null && ev.total != null) {
+              lastVecState = { currentFileName: ev.currentFileName ?? lastVecState.currentFileName, processed: ev.processed, total: ev.total };
               const pct = ev.total > 0 ? 40 + (60 * ev.processed) / ev.total : 100;
               setVectorizeState({
                 stage: "vectorizing",
@@ -340,6 +375,7 @@ export default function RagMemoryPage() {
                 progressPercent: Math.min(100, Math.round(pct)),
                 processed: ev.processed,
                 total: ev.total,
+                currentFileName: ev.currentFileName,
               });
             } else if (ev.type === "done") {
               finalData = { succeeded: ev.succeeded, total: ev.total, failed: ev.failed };
@@ -365,7 +401,11 @@ export default function RagMemoryPage() {
       );
       loadCollections();
     } catch {
-      toast.error("Ошибка векторизации");
+      const msg =
+        lastVecState.currentFileName || lastVecState.total > 0
+          ? `Обрыв соединения. Последний файл: ${lastVecState.currentFileName || "?"}. Обработано ${lastVecState.processed}/${lastVecState.total}`
+          : "Ошибка векторизации";
+      toast.error(msg);
     } finally {
       stageTimeouts.forEach(clearTimeout);
       setVectorizingId(null);
@@ -592,7 +632,19 @@ export default function RagMemoryPage() {
                         />
                       </div>
                       <p className="text-xs text-muted-foreground flex items-center justify-between gap-2">
-                        <span>{vecState.message}</span>
+                        <span>
+                          {vecState.currentFileName && (
+                            <span className="block text-foreground truncate max-w-[200px]" title={vecState.currentFileName}>
+                              Файл: {vecState.currentFileName}
+                            </span>
+                          )}
+                          <span>{vecState.message}</span>
+                          {vecState.lastError && (
+                            <span className="block text-destructive text-xs truncate" title={vecState.lastError.error}>
+                              Ошибка: {vecState.lastError.fileName} — {vecState.lastError.error}
+                            </span>
+                          )}
+                        </span>
                         <span className="shrink-0 tabular-nums font-medium text-foreground">
                           {vecState.processed != null && vecState.total != null
                             ? `${vecState.processed}/${vecState.total} (${vecState.progressPercent}%)`

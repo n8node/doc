@@ -159,6 +159,16 @@ export async function POST(request: NextRequest, ctx: Ctx) {
           continue;
         }
 
+        controller.enqueue(
+          encoder.encode(
+            streamLine({
+              type: "processing_file",
+              fileName: file.name,
+              processed,
+              total,
+            })
+          )
+        );
         try {
           const result = await processDocument(
             file.id,
@@ -177,6 +187,18 @@ export async function POST(request: NextRequest, ctx: Ctx) {
           });
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
+          console.error("[vectorize] Ошибка на файле:", file.name, msg);
+          controller.enqueue(
+            encoder.encode(
+              streamLine({
+                type: "file_error",
+                fileName: file.name,
+                error: msg,
+                processed: processed + 1,
+                total,
+              })
+            )
+          );
           results.push({
             fileId: file.id,
             fileName: file.name,
