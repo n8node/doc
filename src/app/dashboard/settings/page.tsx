@@ -8,13 +8,19 @@ import { toast } from "sonner";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell, TriangleAlert } from "lucide-react";
+import { Loader2, Crown, HardDrive, ChevronRight, Sun, Moon, Monitor, Share2, Trash2, Bell, TriangleAlert, LayoutGrid } from "lucide-react";
 import { AccountLinkingBlock } from "@/components/settings/AccountLinkingBlock";
 import { UserAiConfigBlock } from "@/components/settings/UserAiConfigBlock";
 import { EmbeddingConfigBlockForSystemKeys } from "@/components/settings/EmbeddingConfigBlockForSystemKeys";
 import { UserInvitesBlock } from "@/components/settings/UserInvitesBlock";
 import { useTheme } from "next-themes";
 import { cn, formatBytes } from "@/lib/utils";
+import {
+  MODULE_LABELS,
+  MODULE_DESCRIPTIONS,
+  resolveModulePrefs,
+  type ModuleId,
+} from "@/lib/modules";
 
 interface ProfileData {
   id: string;
@@ -97,6 +103,13 @@ export default function DashboardSettingsPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [modulePrefs, setModulePrefs] = useState<Record<ModuleId, boolean>>({
+    storage: true,
+    ai_tools: true,
+    generation: true,
+    integrations: true,
+  });
+  const [savingModule, setSavingModule] = useState<string | null>(null);
   const { setTheme } = useTheme();
   const searchParams = useSearchParams();
 
@@ -160,6 +173,9 @@ export default function DashboardSettingsPage() {
             ...(typeof n.quota === "boolean" && { quota: n.quota }),
             ...(typeof n.shareLink === "boolean" && { shareLink: n.shareLink }),
           }));
+        }
+        if (d.modules) {
+          setModulePrefs(resolveModulePrefs(d.modules));
         }
       })
       .catch(() => {});
@@ -721,6 +737,67 @@ export default function DashboardSettingsPage() {
                 </label>
               ))}
             </div>
+          </div>
+        </CardContent>
+      </div>
+
+      {/* Модули сайдбара */}
+      <div className="rounded-2xl modal-glass overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LayoutGrid className="h-5 w-5" />
+            Модули сайдбара
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Скрывайте ненужные разделы. Скрытые модули всегда можно вернуть.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(Object.keys(MODULE_LABELS) as ModuleId[]).map((key) => {
+              const isStorage = key === "storage";
+              return (
+                <label
+                  key={key}
+                  className={cn(
+                    "flex items-start gap-3 rounded-xl border border-border p-3 transition-colors",
+                    isStorage
+                      ? "opacity-60 cursor-not-allowed"
+                      : "cursor-pointer hover:bg-surface2/50",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={modulePrefs[key]}
+                    disabled={isStorage || savingModule === key}
+                    onChange={async (e) => {
+                      const v = e.target.checked;
+                      setModulePrefs((p) => ({ ...p, [key]: v }));
+                      setSavingModule(key);
+                      try {
+                        const res = await fetch("/api/v1/user/preferences", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ modules: { [key]: v } }),
+                        });
+                        if (!res.ok) throw new Error("Ошибка");
+                        toast.success(v ? "Модуль включён" : "Модуль скрыт");
+                      } catch {
+                        setModulePrefs((p) => ({ ...p, [key]: !v }));
+                        toast.error("Не удалось сохранить");
+                      } finally {
+                        setSavingModule(null);
+                      }
+                    }}
+                    className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                  />
+                  <div>
+                    <span className="text-sm font-medium">{MODULE_LABELS[key]}</span>
+                    <p className="text-xs text-muted-foreground">{MODULE_DESCRIPTIONS[key]}</p>
+                  </div>
+                </label>
+              );
+            })}
           </div>
         </CardContent>
       </div>

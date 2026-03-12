@@ -14,6 +14,31 @@ const NOTIFICATION_KEYS = [
   "shareLink",
 ] as const;
 
+const MODULE_KEYS = [
+  "storage",
+  "ai_tools",
+  "generation",
+  "integrations",
+] as const;
+
+type ModulePrefs = Record<(typeof MODULE_KEYS)[number], boolean>;
+
+function parseModulePrefs(obj: unknown): ModulePrefs {
+  const def: ModulePrefs = {
+    storage: true,
+    ai_tools: true,
+    generation: true,
+    integrations: true,
+  };
+  if (!obj || typeof obj !== "object") return def;
+  const o = obj as Record<string, unknown>;
+  for (const k of MODULE_KEYS) {
+    if (typeof o[k] === "boolean") def[k] = o[k] as boolean;
+  }
+  def.storage = true;
+  return def;
+}
+
 type NotificationPrefs = Record<(typeof NOTIFICATION_KEYS)[number], boolean>;
 
 function parseNotificationPrefs(obj: unknown): NotificationPrefs {
@@ -52,6 +77,7 @@ export async function GET(req: NextRequest) {
     emailNotifications: typeof prefs.emailNotifications === "boolean" ? prefs.emailNotifications : true,
     notifications: parseNotificationPrefs(prefs.notifications),
     embeddingConfig: prefs.embeddingConfig && typeof prefs.embeddingConfig === "object" ? prefs.embeddingConfig : null,
+    modules: parseModulePrefs(prefs.modules),
   });
 }
 
@@ -82,6 +108,20 @@ export async function PATCH(req: NextRequest) {
       if (typeof n[k] === "boolean") prevN[k] = n[k] as boolean;
     }
     updates.notifications = prevN;
+  }
+
+  if (body.modules !== undefined && typeof body.modules === "object") {
+    const m = body.modules as Record<string, unknown>;
+    const prev = (await prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferences: true },
+    }))?.preferences as Record<string, unknown> | null;
+    const prevM = parseModulePrefs(prev?.modules);
+    for (const k of MODULE_KEYS) {
+      if (typeof m[k] === "boolean") prevM[k] = m[k] as boolean;
+    }
+    prevM.storage = true;
+    updates.modules = prevM;
   }
 
   if (body.embeddingConfig !== undefined) {
@@ -116,6 +156,7 @@ export async function PATCH(req: NextRequest) {
       emailNotifications: prefs.emailNotifications !== false,
       notifications: parseNotificationPrefs(prefs.notifications),
       embeddingConfig: prefs.embeddingConfig && typeof prefs.embeddingConfig === "object" ? prefs.embeddingConfig : null,
+      modules: parseModulePrefs(prefs.modules),
     });
   }
 
@@ -138,5 +179,6 @@ export async function PATCH(req: NextRequest) {
     notifications: parseNotificationPrefs(nextPrefs.notifications),
     embeddingConfig:
       nextPrefs.embeddingConfig && typeof nextPrefs.embeddingConfig === "object" ? nextPrefs.embeddingConfig : null,
+    modules: parseModulePrefs(nextPrefs.modules),
   });
 }

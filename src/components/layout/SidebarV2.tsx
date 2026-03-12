@@ -3,26 +3,14 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState } from "react";
 import {
-  FolderOpen,
   Upload,
-  ImageIcon,
-  Share2,
-  History,
-  Clock3,
-  Search,
-  MessageCircle,
-  Crown,
   Settings,
   LogOut,
   HardDrive,
-  Trash2,
-  Key,
-  Database,
-  BrainCircuit,
   LayoutDashboard,
-  Store,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
@@ -30,61 +18,78 @@ import { SidebarDropZone } from "@/components/files/SidebarDropZone";
 import {
   buildDashboardFilesUrl,
   parseFilesSection,
-  type FilesSection,
 } from "@/lib/files-navigation";
 import { LogoutButton } from "@/components/auth/LogoutButton";
-
-type SectionItem = {
-  section: FilesSection;
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-};
-
-const sectionItems: SectionItem[] = [
-  { section: "my-files", icon: FolderOpen, label: "Мои файлы" },
-  { section: "recent", icon: Clock3, label: "Недавние" },
-  { section: "photos", icon: ImageIcon, label: "Фото" },
-  { section: "shared", icon: Share2, label: "Общий доступ" },
-  { section: "history", icon: History, label: "История" },
-  { section: "trash", icon: Trash2, label: "Корзина" },
-];
-
-const extraNavItems = [
-  { href: "/dashboard/search", icon: Search, label: "Поиск" },
-  { href: "/dashboard/rag-memory", icon: BrainCircuit, label: "RAG-память" },
-  { href: "/dashboard/embeddings", icon: Database, label: "Векторная база" },
-  { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
-  { href: "/dashboard/api-docs", icon: Key, label: "API настройки" },
-  { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },
-  { href: "/dashboard/marketplace", icon: Store, label: "API маркетплейс" },
-];
+import {
+  navGroups,
+  resolveModulePrefs,
+  isGroupVisible,
+  type ModuleId,
+} from "@/lib/modules";
 
 export function SidebarV2() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [branding, setBranding] = useState<{ siteName: string; logoUrl: string | null; sidebarSubtitle: string }>({
+  const [branding, setBranding] = useState<{
+    siteName: string;
+    logoUrl: string | null;
+    sidebarSubtitle: string;
+  }>({
     siteName: "qoqon.ru",
     logoUrl: null,
-    sidebarSubtitle: "Новая навигация (beta)",
+    sidebarSubtitle: "Облачное хранилище",
   });
+
+  const [modulePrefs, setModulePrefs] = useState<Record<ModuleId, boolean>>({
+    storage: true,
+    ai_tools: true,
+    generation: true,
+    integrations: true,
+  });
+  const [planFeatures, setPlanFeatures] = useState<Record<string, boolean>>({});
+
   const activeSection = parseFilesSection(searchParams.get("section"));
-  const isFilesPage = pathname === "/dashboard/files" || pathname.startsWith("/dashboard/files");
+  const isFilesPage =
+    pathname === "/dashboard/files" || pathname.startsWith("/dashboard/files");
 
   useEffect(() => {
     fetch("/api/public/branding")
       .then((r) => r.json())
       .then((data) => {
         setBranding({
-          siteName: typeof data.siteName === "string" && data.siteName.trim() ? data.siteName.trim() : "qoqon.ru",
-          logoUrl: typeof data.logoUrl === "string" && data.logoUrl ? data.logoUrl : null,
+          siteName:
+            typeof data.siteName === "string" && data.siteName.trim()
+              ? data.siteName.trim()
+              : "qoqon.ru",
+          logoUrl:
+            typeof data.logoUrl === "string" && data.logoUrl
+              ? data.logoUrl
+              : null,
           sidebarSubtitle:
-            typeof data.sidebarSubtitle === "string" && data.sidebarSubtitle.trim()
+            typeof data.sidebarSubtitle === "string" &&
+            data.sidebarSubtitle.trim()
               ? data.sidebarSubtitle.trim()
-              : "Новая навигация (beta)",
+              : "Облачное хранилище",
         });
       })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/v1/user/preferences", { credentials: "include" })
+        .then((r) => r.json())
+        .catch(() => ({})),
+      fetch("/api/v1/plans/me", { credentials: "include" })
+        .then((r) => r.json())
+        .catch(() => ({})),
+    ]).then(([prefs, plan]) => {
+      setModulePrefs(resolveModulePrefs(prefs.modules));
+      if (plan.features && typeof plan.features === "object") {
+        setPlanFeatures(plan.features as Record<string, boolean>);
+      }
+    });
   }, []);
 
   const handleUploadClick = () => {
@@ -92,8 +97,14 @@ export function SidebarV2() {
       window.dispatchEvent(new CustomEvent("files:open-upload-dialog"));
       return;
     }
-    router.push(buildDashboardFilesUrl({ section: "my-files", intent: "upload" }));
+    router.push(
+      buildDashboardFilesUrl({ section: "my-files", intent: "upload" }),
+    );
   };
+
+  const visibleGroups = navGroups.filter((g) =>
+    isGroupVisible(g, modulePrefs, planFeatures),
+  );
 
   return (
     <motion.aside
@@ -103,20 +114,30 @@ export function SidebarV2() {
       className="fixed left-0 top-0 z-40 h-screen w-72 p-3"
     >
       <div className="modal-glass flex h-full flex-col overflow-hidden rounded-3xl border border-border/70">
+        {/* Logo */}
         <div className="flex h-20 items-center gap-3 border-b border-border/70 px-6">
           {branding.logoUrl ? (
-            <img src={branding.logoUrl} alt="logo" className="h-11 w-11 rounded-2xl border border-border/70 bg-background object-contain p-1" />
+            <img
+              src={branding.logoUrl}
+              alt="logo"
+              className="h-11 w-11 rounded-2xl border border-border/70 bg-background object-contain p-1"
+            />
           ) : (
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary shadow-glow">
               <HardDrive className="h-5 w-5 text-white drop-shadow" />
             </div>
           )}
           <div className="min-w-0">
-            <p className="truncate text-lg font-bold text-foreground">{branding.siteName}</p>
-            <p className="text-xs text-muted-foreground">{branding.sidebarSubtitle}</p>
+            <p className="truncate text-lg font-bold text-foreground">
+              {branding.siteName}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {branding.sidebarSubtitle}
+            </p>
           </div>
         </div>
 
+        {/* Upload */}
         <div className="space-y-3 px-3 pt-4">
           <button
             type="button"
@@ -129,7 +150,9 @@ export function SidebarV2() {
           <SidebarDropZone />
         </div>
 
+        {/* Navigation */}
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
+          {/* Dashboard */}
           <div className="space-y-1.5">
             <Link href="/dashboard">
               <motion.div
@@ -139,10 +162,15 @@ export function SidebarV2() {
                   "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                   pathname === "/dashboard"
                     ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
-                    : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground"
+                    : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
                 )}
               >
-                <LayoutDashboard className={cn("h-5 w-5", pathname === "/dashboard" && "text-primary")} />
+                <LayoutDashboard
+                  className={cn(
+                    "h-5 w-5",
+                    pathname === "/dashboard" && "text-primary",
+                  )}
+                />
                 <span className="flex-1">Дашборд</span>
                 {pathname === "/dashboard" && (
                   <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.16)]" />
@@ -150,67 +178,78 @@ export function SidebarV2() {
               </motion.div>
             </Link>
           </div>
-          <div className="space-y-1.5">
-            <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Файлы
-            </p>
-            {sectionItems.map((item) => {
-              const isActive = isFilesPage && activeSection === item.section;
-              const href = buildDashboardFilesUrl({ section: item.section });
-              return (
-                <Link key={item.section} href={href}>
-                  <motion.div
-                    whileHover={{ x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={cn(
-                      "relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
-                      isActive
-                        ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
-                        : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className={cn("h-5 w-5", isActive && "text-primary")} />
-                    <span className="flex-1">{item.label}</span>
-                    {isActive && (
-                      <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.16)]" />
-                    )}
-                  </motion.div>
-                </Link>
-              );
-            })}
-          </div>
 
+          {/* Module groups */}
+          {visibleGroups.map((group) => (
+            <div key={group.id} className="space-y-1.5">
+              <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.label}
+              </p>
+              {group.items.map((item) => {
+                const isFileSection =
+                  item.section && isFilesPage && activeSection === item.section;
+                const isRouteActive =
+                  !item.section &&
+                  (pathname === item.href ||
+                    pathname.startsWith(item.href + "/"));
+                const isActive = isFileSection || isRouteActive;
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <motion.div
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={cn(
+                        "relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                        isActive
+                          ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                          : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
+                      )}
+                    >
+                      <item.icon
+                        className={cn("h-5 w-5", isActive && "text-primary")}
+                      />
+                      <span className="flex-1">{item.label}</span>
+                      {isActive && (
+                        <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.16)]" />
+                      )}
+                    </motion.div>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+
+          {/* Plans — always visible */}
           <div className="space-y-1.5">
-            <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Инструменты
-            </p>
-            {extraNavItems.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-              return (
-                <Link key={item.href} href={item.href}>
-                  <motion.div
-                    whileHover={{ x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={cn(
-                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
-                      isActive
-                        ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
-                        : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className={cn("h-5 w-5", isActive && "text-primary")} />
-                    <span className="flex-1">{item.label}</span>
-                  </motion.div>
-                </Link>
-              );
-            })}
+            <Link href="/dashboard/plans">
+              <motion.div
+                whileHover={{ x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={cn(
+                  "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                  pathname === "/dashboard/plans"
+                    ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                    : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
+                )}
+              >
+                <Crown
+                  className={cn(
+                    "h-5 w-5",
+                    pathname === "/dashboard/plans" && "text-primary",
+                  )}
+                />
+                <span className="flex-1">Тарифы</span>
+              </motion.div>
+            </Link>
           </div>
         </nav>
 
+        {/* Storage widget */}
         <div className="px-4 pb-4">
           <StorageWidget />
         </div>
 
+        {/* Footer */}
         <div className="space-y-1 border-t border-border/70 px-3 py-4">
           <Link href="/dashboard/settings">
             <motion.div
@@ -219,7 +258,7 @@ export function SidebarV2() {
                 "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                 pathname === "/dashboard/settings"
                   ? "bg-primary/15 text-primary ring-1 ring-primary/35"
-                  : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground"
+                  : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
               )}
             >
               <Settings className="h-5 w-5" />

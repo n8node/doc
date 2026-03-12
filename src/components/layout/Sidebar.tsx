@@ -6,52 +6,77 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-  FolderOpen,
-  Search,
-  MessageCircle,
   Settings,
   LogOut,
   HardDrive,
-  Crown,
-  Database,
-  BrainCircuit,
   LayoutDashboard,
-  Store,
+  Crown,
 } from "lucide-react";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
 import { SidebarFolderTree } from "./SidebarFolderTree";
-import { buildDashboardFilesUrl, DEFAULT_FILES_SECTION } from "@/lib/files-navigation";
 import { LogoutButton } from "@/components/auth/LogoutButton";
-
-const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Дашборд" },
-  { href: buildDashboardFilesUrl({ section: DEFAULT_FILES_SECTION }), icon: FolderOpen, label: "Файлы" },
-  { href: "/dashboard/search", icon: Search, label: "Поиск" },
-  { href: "/dashboard/rag-memory", icon: BrainCircuit, label: "RAG-память" },
-  { href: "/dashboard/embeddings", icon: Database, label: "Векторная база" },
-  { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
-  { href: "/dashboard/plans", icon: Crown, label: "Тарифы" },
-  { href: "/dashboard/marketplace", icon: Store, label: "API маркетплейс" },
-];
+import {
+  navGroups,
+  resolveModulePrefs,
+  isGroupVisible,
+  type ModuleId,
+} from "@/lib/modules";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [branding, setBranding] = useState<{ siteName: string; logoUrl: string | null }>({
+  const [branding, setBranding] = useState<{
+    siteName: string;
+    logoUrl: string | null;
+  }>({
     siteName: "qoqon.ru",
     logoUrl: null,
   });
+
+  const [modulePrefs, setModulePrefs] = useState<Record<ModuleId, boolean>>({
+    storage: true,
+    ai_tools: true,
+    generation: true,
+    integrations: true,
+  });
+  const [planFeatures, setPlanFeatures] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetch("/api/public/branding")
       .then((r) => r.json())
       .then((data) => {
         setBranding({
-          siteName: typeof data.siteName === "string" && data.siteName.trim() ? data.siteName.trim() : "qoqon.ru",
-          logoUrl: typeof data.logoUrl === "string" && data.logoUrl ? data.logoUrl : null,
+          siteName:
+            typeof data.siteName === "string" && data.siteName.trim()
+              ? data.siteName.trim()
+              : "qoqon.ru",
+          logoUrl:
+            typeof data.logoUrl === "string" && data.logoUrl
+              ? data.logoUrl
+              : null,
         });
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/v1/user/preferences", { credentials: "include" })
+        .then((r) => r.json())
+        .catch(() => ({})),
+      fetch("/api/v1/plans/me", { credentials: "include" })
+        .then((r) => r.json())
+        .catch(() => ({})),
+    ]).then(([prefs, plan]) => {
+      setModulePrefs(resolveModulePrefs(prefs.modules));
+      if (plan.features && typeof plan.features === "object") {
+        setPlanFeatures(plan.features as Record<string, boolean>);
+      }
+    });
+  }, []);
+
+  const visibleGroups = navGroups.filter((g) =>
+    isGroupVisible(g, modulePrefs, planFeatures),
+  );
 
   return (
     <motion.aside
@@ -63,7 +88,11 @@ export function Sidebar() {
       <div className="flex h-full flex-col">
         <div className="flex h-18 items-center gap-3 border-b border-border px-6">
           {branding.logoUrl ? (
-            <img src={branding.logoUrl} alt="logo" className="h-10 w-10 rounded-xl border border-border bg-background object-contain p-1" />
+            <img
+              src={branding.logoUrl}
+              alt="logo"
+              className="h-10 w-10 rounded-xl border border-border bg-background object-contain p-1"
+            />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-glow">
               <HardDrive className="h-5 w-5 text-white" />
@@ -74,29 +103,84 @@ export function Sidebar() {
           </span>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-6">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link key={item.href} href={item.href}>
-                <motion.div
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
-                    isActive
-                      ? "bg-primary/10 text-primary shadow-soft"
-                      : "text-muted-foreground hover:bg-surface hover:text-foreground"
-                  )}
-                >
-                  <item.icon
-                    className={cn("h-5 w-5", isActive && "text-primary")}
-                  />
-                  <span className="flex-1">{item.label}</span>
-                </motion.div>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-6">
+          {/* Dashboard */}
+          <Link href="/dashboard">
+            <motion.div
+              whileHover={{ x: 4 }}
+              whileTap={{ scale: 0.98 }}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                pathname === "/dashboard"
+                  ? "bg-primary/10 text-primary shadow-soft"
+                  : "text-muted-foreground hover:bg-surface hover:text-foreground",
+              )}
+            >
+              <LayoutDashboard
+                className={cn(
+                  "h-5 w-5",
+                  pathname === "/dashboard" && "text-primary",
+                )}
+              />
+              <span className="flex-1">Дашборд</span>
+            </motion.div>
+          </Link>
+
+          {/* Module groups */}
+          {visibleGroups.map((group) => (
+            <div key={group.id} className="space-y-1">
+              <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.label}
+              </p>
+              {group.items.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <motion.div
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                        isActive
+                          ? "bg-primary/10 text-primary shadow-soft"
+                          : "text-muted-foreground hover:bg-surface hover:text-foreground",
+                      )}
+                    >
+                      <item.icon
+                        className={cn("h-5 w-5", isActive && "text-primary")}
+                      />
+                      <span className="flex-1">{item.label}</span>
+                    </motion.div>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+
+          {/* Plans */}
+          <Link href="/dashboard/plans">
+            <motion.div
+              whileHover={{ x: 4 }}
+              whileTap={{ scale: 0.98 }}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                pathname === "/dashboard/plans"
+                  ? "bg-primary/10 text-primary shadow-soft"
+                  : "text-muted-foreground hover:bg-surface hover:text-foreground",
+              )}
+            >
+              <Crown
+                className={cn(
+                  "h-5 w-5",
+                  pathname === "/dashboard/plans" && "text-primary",
+                )}
+              />
+              <span className="flex-1">Тарифы</span>
+            </motion.div>
+          </Link>
+
           <SidebarFolderTree />
         </nav>
 
@@ -112,7 +196,7 @@ export function Sidebar() {
                 "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
                 pathname === "/dashboard/settings"
                   ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-surface hover:text-foreground"
+                  : "text-muted-foreground hover:bg-surface hover:text-foreground",
               )}
             >
               <Settings className="h-5 w-5" />
