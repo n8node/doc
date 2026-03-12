@@ -235,6 +235,26 @@ export async function deleteEmbeddingsByFileId(fileId: string): Promise<void> {
   `;
 }
 
+/**
+ * Clear hasEmbedding flag and processedAt from aiMetadata for a file.
+ * Preserves other aiMetadata fields (extractedText, tablesCount, etc.).
+ */
+export async function clearFileEmbeddingMarks(fileId: string): Promise<void> {
+  const file = await prisma.file.findUnique({
+    where: { id: fileId },
+    select: { aiMetadata: true },
+  });
+  const meta = (file?.aiMetadata ?? {}) as Record<string, unknown>;
+  const { processedAt: _, ...rest } = meta;
+  await prisma.file.update({
+    where: { id: fileId },
+    data: {
+      hasEmbedding: false,
+      aiMetadata: Object.keys(rest).length > 0 ? rest : undefined,
+    },
+  });
+}
+
 export interface EmbeddingListItem {
   id: string;
   chunkIndex: number;

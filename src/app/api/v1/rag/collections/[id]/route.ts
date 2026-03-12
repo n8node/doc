@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
-import { deleteEmbeddingsByFileId } from "@/lib/docling/vector-store";
+import { deleteEmbeddingsByFileId, clearFileEmbeddingMarks } from "@/lib/docling/vector-store";
 import {
   checkRagMemoryAccess,
   getRagDocumentsQuotaStatus,
@@ -250,10 +250,7 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
   const fileIds = collection.files.map((f) => f.fileId);
   for (const fileId of fileIds) {
     await deleteEmbeddingsByFileId(fileId);
-    await prisma.file.update({
-      where: { id: fileId },
-      data: { hasEmbedding: false },
-    });
+    await clearFileEmbeddingMarks(fileId);
   }
 
   await prisma.vectorCollection.delete({

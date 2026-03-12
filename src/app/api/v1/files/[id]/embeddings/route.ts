@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
-import { listEmbeddings, deleteEmbeddingsByIds, hasEmbeddings } from "@/lib/docling/vector-store";
+import { listEmbeddings, deleteEmbeddingsByIds, hasEmbeddings, clearFileEmbeddingMarks } from "@/lib/docling/vector-store";
 
 /**
  * GET /api/v1/files/[id]/embeddings — list embeddings (chunks) for a file.
@@ -69,10 +69,7 @@ export async function DELETE(
   const deleted = await deleteEmbeddingsByIds(fileId, userId, ids);
   const remaining = await hasEmbeddings(fileId);
   if (!remaining) {
-    await prisma.file.update({
-      where: { id: fileId },
-      data: { hasEmbedding: false },
-    });
+    await clearFileEmbeddingMarks(fileId);
   }
   return NextResponse.json({ ok: true, deleted });
 }
