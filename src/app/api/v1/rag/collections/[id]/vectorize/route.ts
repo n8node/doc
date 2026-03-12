@@ -104,6 +104,20 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   }
 
   const total = collection.files.length;
+  let skipFirst = 0;
+  try {
+    const body = await request.json().catch(() => ({}));
+    const v = typeof body?.skipFirst === "number" && body.skipFirst >= 0 ? Math.floor(body.skipFirst) : 0;
+    skipFirst = Math.min(v, total);
+  } catch {
+    /* ignore */
+  }
+
+  const skippedProcessable = collection.files
+    .slice(0, skipFirst)
+    .filter((f) => isProcessable(f.file.mimeType)).length;
+  let processableProcessed = skippedProcessable;
+
   const results: Array<{
     fileId: string;
     fileName: string;
@@ -129,8 +143,14 @@ export async function POST(request: NextRequest, ctx: Ctx) {
         )
       );
 
-      let processed = 0;
+      let processed = skipFirst;
+      let idx = 0;
       for (const { file } of collection.files) {
+        if (idx < skipFirst) {
+          idx++;
+          continue;
+        }
+        idx++;
         if (!isProcessable(file.mimeType)) {
           results.push({
             fileId: file.id,
@@ -151,6 +171,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
                 processed,
                 total,
                 processableCount,
+                processableProcessed,
                 remaining: total - processed,
                 currentFileName: file.name,
               })
@@ -166,6 +187,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
               fileName: file.name,
               processed,
               total,
+              processableCount,
+              processableProcessed,
             })
           )
         );
@@ -178,6 +201,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
             userId,
             { embeddingConfig }
           );
+          processableProcessed++;
           results.push({
             fileId: file.id,
             fileName: file.name,
@@ -188,6 +212,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
           console.error("[vectorize] Ошибка на файле:", file.name, msg);
+          processableProcessed++;
           controller.enqueue(
             encoder.encode(
               streamLine({
@@ -196,6 +221,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
                 error: msg,
                 processed: processed + 1,
                 total,
+                processableCount,
+                processableProcessed,
               })
             )
           );
@@ -219,6 +246,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
               processed,
               total,
               processableCount,
+              processableProcessed,
               remaining: total - processed,
               currentFileName: file.name,
             })

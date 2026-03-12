@@ -109,8 +109,17 @@ export default function RagMemoryPage() {
     progressPercent: number;
     processed?: number;
     total?: number;
+    processableProcessed?: number;
+    processableCount?: number;
     currentFileName?: string;
     lastError?: { fileName: string; error: string };
+  } | null>(null);
+  const [vectorizeErrorModal, setVectorizeErrorModal] = useState<{
+    collectionId: string;
+    message: string;
+    lastFileName: string;
+    processed: number;
+    total: number;
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
@@ -256,12 +265,13 @@ export default function RagMemoryPage() {
     }
   };
 
-  const handleVectorize = async (collectionId: string) => {
+  const handleVectorize = async (collectionId: string, skipFirst = 0) => {
     const coll = collections.find((x) => x.id === collectionId);
     const filesCount = coll?.filesCount ?? 0;
     const processableCount = coll?.processableCount ?? coll?.filesCount ?? 0;
 
     setVectorizingId(collectionId);
+    setVectorizeErrorModal(null);
     setVectorizeState({
       stage: "fetching_files",
       message: "Получаем файлы…",
@@ -293,11 +303,15 @@ export default function RagMemoryPage() {
       }, 1200)
     );
 
-    let lastVecState = { currentFileName: "", processed: 0, total: 0 };
+    let lastVecState = { currentFileName: "", processed: 0, total: 0, processableCount: 0 };
+    let hadResumableError = false;
     try {
       const res = await fetch(`/api/v1/rag/collections/${collectionId}/vectorize`, {
         method: "POST",
         credentials: "include",
+        ...(skipFirst > 0
+          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ skipFirst }) }
+          : {}),
       });
 
       if (!res.ok) {
@@ -329,6 +343,7 @@ export default function RagMemoryPage() {
               stage?: string;
               filesCount?: number;
               processableCount?: number;
+              processableProcessed?: number;
               total?: number;
               processed?: number;
               remaining?: number;
@@ -338,17 +353,22 @@ export default function RagMemoryPage() {
               fileName?: string;
               error?: string;
             };
+            const pc = ev.processableCount ?? processableCount;
+            const pp = ev.processableProcessed;
             if (ev.type === "processing_file" && ev.fileName != null) {
-              if (ev.processed != null && ev.total != null) lastVecState = { currentFileName: ev.fileName, processed: ev.processed, total: ev.total };
+              if (ev.processed != null && ev.total != null)
+                lastVecState = { currentFileName: ev.fileName, processed: ev.processed, total: ev.total, processableCount: pc };
               setVectorizeState((s) =>
                 s && ev.processed != null && ev.total != null
                   ? {
                       ...s,
                       stage: "vectorizing",
-                      message: `Векторизация: ${ev.processed} из ${ev.total}`,
+                      message: `Векторизация`,
                       progressPercent: ev.total > 0 ? 40 + Math.round((60 * ev.processed) / ev.total) : 100,
                       processed: ev.processed,
                       total: ev.total,
+                      processableProcessed: pp ?? s.processableProcessed,
+                      processableCount: pc,
                       currentFileName: ev.fileName,
                       lastError: undefined,
                     }
@@ -358,7 +378,7 @@ export default function RagMemoryPage() {
               const fileName = ev.fileName;
               if (fileName != null) {
                 if (ev.processed != null && ev.total != null)
-                  lastVecState = { currentFileName: fileName, processed: ev.processed, total: ev.total };
+                  lastVecState = { currentFileName: fileName, processed: ev.processed, total: ev.total, processableCount: pc };
                 setVectorizeState((s) =>
                   s
                     ? {
@@ -366,19 +386,23 @@ export default function RagMemoryPage() {
                         lastError: { fileName, error: ev.error ?? "Ошибка" },
                         processed: ev.processed ?? s.processed,
                         total: ev.total ?? s.total,
+                        processableProcessed: pp ?? s.processableProcessed,
+                        processableCount: pc,
                       }
                     : s
                 );
               }
             } else if (ev.type === "progress" && ev.processed != null && ev.total != null) {
-              lastVecState = { currentFileName: ev.currentFileName ?? lastVecState.currentFileName, processed: ev.processed, total: ev.total };
+              lastVecState = { currentFileName: ev.currentFileName ?? lastVecState.currentFileName, processed: ev.processed, total: ev.total, processableCount: pc };
               const pct = ev.total > 0 ? 40 + (60 * ev.processed) / ev.total : 100;
               setVectorizeState({
                 stage: "vectorizing",
-                message: `Векторизация: ${ev.processed} из ${ev.total}${ev.remaining != null ? ` (осталось ${ev.remaining})` : ""}`,
+                message: "Векторизация",
                 progressPercent: Math.min(100, Math.round(pct)),
                 processed: ev.processed,
                 total: ev.total,
+                processableProcessed: pp,
+                processableCount: pc,
                 currentFileName: ev.currentFileName,
               });
             } else if (ev.type === "done") {
@@ -405,15 +429,24 @@ export default function RagMemoryPage() {
       );
       loadCollections();
     } catch {
-      const msg =
-        lastVecState.currentFileName || lastVecState.total > 0
-          ? `Обрыв соединения. Последний файл: ${lastVecState.currentFileName || "?"}. Обработано ${lastVecState.processed}/${lastVecState.total}`
-          : "Ошибка векторизации";
-      toast.error(msg);
+      if (lastVecState.total > 0) {
+        hadResumableError = true;
+        setVectorizeErrorModal({
+          collectionId,
+          message: `Обрыв соединения. Последний файл: ${lastVecState.currentFileName || "?"}. Обработано ${lastVecState.processed}/${lastVecState.total}`,
+          lastFileName: lastVecState.currentFileName || "",
+          processed: lastVecState.processed,
+          total: lastVecState.total,
+        });
+      } else {
+        toast.error("Ошибка векторизации");
+      }
     } finally {
       stageTimeouts.forEach(clearTimeout);
-      setVectorizingId(null);
-      setVectorizeState(null);
+      if (!hadResumableError) {
+        setVectorizingId(null);
+        setVectorizeState(null);
+      }
     }
   };
 
@@ -650,9 +683,11 @@ export default function RagMemoryPage() {
                           )}
                         </span>
                         <span className="shrink-0 tabular-nums font-medium text-foreground">
-                          {vecState.processed != null && vecState.total != null
-                            ? `${vecState.processed}/${vecState.total} (${vecState.progressPercent}%)`
-                            : `${vecState.progressPercent}%`}
+                          {vecState.processableProcessed != null && vecState.processableCount != null
+                            ? `${String(vecState.processableProcessed).padStart(2, "0")}/${vecState.processableCount} (${vecState.progressPercent}%)`
+                            : vecState.processed != null && vecState.total != null
+                              ? `${vecState.processed}/${vecState.total} (${vecState.progressPercent}%)`
+                              : `${vecState.progressPercent}%`}
                         </span>
                       </p>
                     </div>
@@ -917,6 +952,33 @@ export default function RagMemoryPage() {
           onSaved={loadCollections}
         />
       )}
+
+      <Dialog open={!!vectorizeErrorModal} onOpenChange={(open) => !open && setVectorizeErrorModal(null)}>
+        <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Ошибка векторизации</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <p className="text-sm text-muted-foreground">{vectorizeErrorModal?.message}</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setVectorizeErrorModal(null)}>
+                Закрыть
+              </Button>
+              <Button
+                onClick={() => {
+                  const m = vectorizeErrorModal;
+                  if (m) {
+                    setVectorizeErrorModal(null);
+                    handleVectorize(m.collectionId, m.processed);
+                  }
+                }}
+              >
+                Продолжить векторизацию
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={n8nUpgradeOpen} onOpenChange={setN8nUpgradeOpen}>
         <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
