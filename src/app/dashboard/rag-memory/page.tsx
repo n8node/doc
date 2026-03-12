@@ -121,6 +121,7 @@ export default function RagMemoryPage() {
     processed: number;
     total: number;
   } | null>(null);
+  const [autoSkipErrors, setAutoSkipErrors] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
   const [exportCollectionId, setExportCollectionId] = useState<string | null>(null);
@@ -431,13 +432,17 @@ export default function RagMemoryPage() {
     } catch {
       if (lastVecState.total > 0) {
         hadResumableError = true;
-        setVectorizeErrorModal({
-          collectionId,
-          message: `Обрыв соединения. Последний файл: ${lastVecState.currentFileName || "?"}. Обработано ${lastVecState.processed}/${lastVecState.total}`,
-          lastFileName: lastVecState.currentFileName || "",
-          processed: lastVecState.processed,
-          total: lastVecState.total,
-        });
+        if (autoSkipErrors) {
+          handleVectorize(collectionId, lastVecState.processed + 1);
+        } else {
+          setVectorizeErrorModal({
+            collectionId,
+            message: `Обрыв соединения. Файл: ${lastVecState.currentFileName || "?"}. Обработано ${lastVecState.processed}/${lastVecState.total}`,
+            lastFileName: lastVecState.currentFileName || "",
+            processed: lastVecState.processed,
+            total: lastVecState.total,
+          });
+        }
       } else {
         toast.error("Ошибка векторизации");
       }
@@ -446,6 +451,7 @@ export default function RagMemoryPage() {
       if (!hadResumableError) {
         setVectorizingId(null);
         setVectorizeState(null);
+        setAutoSkipErrors(false);
       }
     }
   };
@@ -953,27 +959,33 @@ export default function RagMemoryPage() {
         />
       )}
 
-      <Dialog open={!!vectorizeErrorModal} onOpenChange={(open) => !open && setVectorizeErrorModal(null)}>
-        <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
+      <Dialog open={!!vectorizeErrorModal} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-lg [&>button]:hidden" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Ошибка векторизации</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <p className="text-sm text-muted-foreground">{vectorizeErrorModal?.message}</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setVectorizeErrorModal(null)}>
-                Закрыть
-              </Button>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={autoSkipErrors}
+                  onChange={(e) => setAutoSkipErrors(e.target.checked)}
+                  className="rounded"
+                />
+                Для всех ошибок
+              </label>
               <Button
                 onClick={() => {
                   const m = vectorizeErrorModal;
                   if (m) {
                     setVectorizeErrorModal(null);
-                    handleVectorize(m.collectionId, m.processed);
+                    handleVectorize(m.collectionId, m.processed + 1);
                   }
                 }}
               >
-                Продолжить векторизацию
+                Пропустить
               </Button>
             </div>
           </div>
