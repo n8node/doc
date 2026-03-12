@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/api/public/branding/favicon" }];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.yandex*.ru", pathname: "/**" },

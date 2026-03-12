@@ -5,6 +5,8 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "sonner";
 import { getBrandingConfig } from "@/lib/branding";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getBrandingConfig();
   const favicon = branding.faviconUrl || "/favicon.ico";
