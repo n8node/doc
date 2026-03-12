@@ -354,18 +354,22 @@ export default function RagMemoryPage() {
                     }
                   : s
               );
-            } else if (ev.type === "file_error" && ev.fileName != null) {
-              if (ev.processed != null && ev.total != null) lastVecState = { currentFileName: ev.fileName, processed: ev.processed, total: ev.total };
-              setVectorizeState((s) =>
-                s
-                  ? {
-                      ...s,
-                      lastError: { fileName: ev.fileName, error: ev.error ?? "Ошибка" },
-                      processed: ev.processed ?? s.processed,
-                      total: ev.total ?? s.total,
-                    }
-                  : s
-              );
+            } else if (ev.type === "file_error") {
+              const fileName = ev.fileName;
+              if (fileName != null) {
+                if (ev.processed != null && ev.total != null)
+                  lastVecState = { currentFileName: fileName, processed: ev.processed, total: ev.total };
+                setVectorizeState((s) =>
+                  s
+                    ? {
+                        ...s,
+                        lastError: { fileName, error: ev.error ?? "Ошибка" },
+                        processed: ev.processed ?? s.processed,
+                        total: ev.total ?? s.total,
+                      }
+                    : s
+                );
+              }
             } else if (ev.type === "progress" && ev.processed != null && ev.total != null) {
               lastVecState = { currentFileName: ev.currentFileName ?? lastVecState.currentFileName, processed: ev.processed, total: ev.total };
               const pct = ev.total > 0 ? 40 + (60 * ev.processed) / ev.total : 100;
