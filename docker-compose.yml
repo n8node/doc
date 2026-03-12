@@ -71,7 +71,7 @@ services:
       N8N_DB_URL: ${N8N_DB_URL:-postgresql://n8n_admin:n8n_change_me@n8n-db:5432/n8n_db}
     deploy:
       resources:
-        limits: { memory: 1G }
+        limits: { memory: 2G }
     restart: unless-stopped
 
   nginx:
