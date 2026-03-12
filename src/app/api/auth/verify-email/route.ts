@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { markEmailVerificationTokenUsed, resolveEmailVerificationToken } from "@/lib/email-verification";
 import { createTelegramSessionToken } from "@/lib/telegram-session";
+import {
+  getTelegramConfig,
+  sendTelegramMessage,
+  formatRegisterEmailVerifiedMessage,
+} from "@/lib/telegram";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,6 +39,26 @@ export async function POST(req: NextRequest) {
           data: { usedAt: new Date() },
         }),
       ]);
+
+      try {
+        const tg = await getTelegramConfig();
+        if (tg.notifyRegisterEnabled && tg.botToken && tg.chatId) {
+          const user = await prisma.user.findUnique({
+            where: { id: row.userId },
+            select: { email: true, name: true },
+          });
+          if (user) {
+            const text = formatRegisterEmailVerifiedMessage(tg.registerEmailVerifiedMessage, {
+              email: user.email,
+              name: user.name,
+            });
+            await sendTelegramMessage(tg.botToken, tg.chatId, text);
+          }
+        }
+      } catch {
+        // ignore telegram errors
+      }
+
       return NextResponse.json({
         ok: true,
         mode: "register",

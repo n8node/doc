@@ -6,6 +6,7 @@ import { configStore } from "@/lib/config-store";
 import {
   getTelegramConfig,
   DEFAULT_REGISTER_MESSAGE,
+  DEFAULT_REGISTER_EMAIL_VERIFIED_MESSAGE,
   DEFAULT_PAYMENT_MESSAGE,
   DEFAULT_SPAM_REGISTRATION_MESSAGE,
 } from "@/lib/telegram";
@@ -26,9 +27,11 @@ export async function GET() {
     notifyPaymentEnabled: cfg.notifyPaymentEnabled,
     notifySpamRegistrationEnabled: cfg.notifySpamRegistrationEnabled,
     registerMessage: cfg.registerMessage,
+    registerEmailVerifiedMessage: cfg.registerEmailVerifiedMessage,
     paymentMessage: cfg.paymentMessage,
     spamRegistrationMessage: cfg.spamRegistrationMessage,
     defaultRegisterMessage: DEFAULT_REGISTER_MESSAGE,
+    defaultRegisterEmailVerifiedMessage: DEFAULT_REGISTER_EMAIL_VERIFIED_MESSAGE,
     defaultPaymentMessage: DEFAULT_PAYMENT_MESSAGE,
     defaultSpamRegistrationMessage: DEFAULT_SPAM_REGISTRATION_MESSAGE,
   });
@@ -50,6 +53,7 @@ export async function POST(request: NextRequest) {
     notifyPaymentEnabled,
     notifySpamRegistrationEnabled,
     registerMessage,
+    registerEmailVerifiedMessage,
     paymentMessage,
     spamRegistrationMessage,
   } = body;
@@ -121,6 +125,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (registerEmailVerifiedMessage != null && typeof registerEmailVerifiedMessage === "string") {
+    updates.push(
+      configStore.set("telegram.register_email_verified_message", registerEmailVerifiedMessage.trim(), {
+        category: "notifications",
+        description: "Message template when email is verified",
+      })
+    );
+  }
+
   if (paymentMessage != null && typeof paymentMessage === "string") {
     updates.push(
       configStore.set("telegram.payment_message", paymentMessage.trim(), {
@@ -151,6 +164,7 @@ export async function POST(request: NextRequest) {
   configStore.invalidate("telegram.notify_payment_enabled");
   configStore.invalidate("telegram.notify_spam_registration_enabled");
   configStore.invalidate("telegram.register_message");
+  configStore.invalidate("telegram.register_email_verified_message");
   configStore.invalidate("telegram.payment_message");
   configStore.invalidate("telegram.spam_registration_message");
 

@@ -23,6 +23,7 @@ export function TelegramSettingsForm() {
     notifyPaymentEnabled: true,
     notifySpamRegistrationEnabled: true,
     registerMessage: "",
+    registerEmailVerifiedMessage: "",
     paymentMessage: "",
     spamRegistrationMessage: "",
   });
@@ -54,6 +55,8 @@ export function TelegramSettingsForm() {
           notifyPaymentEnabled: data.notifyPaymentEnabled !== false,
           notifySpamRegistrationEnabled: data.notifySpamRegistrationEnabled !== false,
           registerMessage: data.registerMessage ?? data.defaultRegisterMessage ?? "",
+          registerEmailVerifiedMessage:
+            data.registerEmailVerifiedMessage ?? data.defaultRegisterEmailVerifiedMessage ?? "",
           paymentMessage: data.paymentMessage ?? data.defaultPaymentMessage ?? "",
           spamRegistrationMessage:
             data.spamRegistrationMessage ??
@@ -118,6 +121,7 @@ export function TelegramSettingsForm() {
         notifyPaymentEnabled: values.notifyPaymentEnabled,
         notifySpamRegistrationEnabled: values.notifySpamRegistrationEnabled,
         registerMessage: values.registerMessage || undefined,
+        registerEmailVerifiedMessage: values.registerEmailVerifiedMessage || undefined,
         paymentMessage: values.paymentMessage || undefined,
         spamRegistrationMessage: values.spamRegistrationMessage || undefined,
       };
@@ -232,12 +236,24 @@ export function TelegramSettingsForm() {
             <span className="text-sm">Отправлять сообщение при каждой регистрации</span>
           </label>
           <div className="mt-2">
-            <label className="block text-xs text-muted-foreground mb-1">Шаблон: {`{email} {name}`}</label>
+            <label className="block text-xs text-muted-foreground mb-1">
+              Шаблон: {`{email} {name}`} при инвайте: {`{inviteCode} {inviteScope} {inviteOwner}`}
+            </label>
             <textarea
               value={values.registerMessage}
               onChange={(e) => setValues((v) => ({ ...v, registerMessage: e.target.value }))}
-              placeholder="🆕 Новый пользователь\nEmail: {email}\nИмя: {name}"
-              rows={4}
+              placeholder="🆕 Новый пользователь\nEmail: {email}\nИмя: {name}\nИнвайт: {inviteCode} ({inviteScope})\nВладелец: {inviteOwner}"
+              rows={5}
+              className="mt-1 w-full max-w-2xl rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <div className="mt-3">
+            <label className="block text-xs text-muted-foreground mb-1">Шаблон при подтверждении email: {`{email} {name}`}</label>
+            <textarea
+              value={values.registerEmailVerifiedMessage}
+              onChange={(e) => setValues((v) => ({ ...v, registerEmailVerifiedMessage: e.target.value }))}
+              placeholder="✅ Email подтверждён\nEmail: {email}\nИмя: {name}"
+              rows={3}
               className="mt-1 w-full max-w-2xl rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>

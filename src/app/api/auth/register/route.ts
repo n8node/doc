@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
     const passwordHash = await hash(password, 12);
     let createdUserId = "";
     let spamRootUserId: string | null = null;
+    let consumedInviteId: string | null = null;
     await prisma.$transaction(async (tx) => {
-      let consumedInviteId: string | null = null;
 
       const user = await tx.user.create({
         data: {
@@ -111,9 +111,28 @@ export async function POST(req: NextRequest) {
     try {
       const tg = await getTelegramConfig();
       if (tg.notifyRegisterEnabled && tg.botToken && tg.chatId) {
+        let inviteCode: string | null = null;
+        let inviteScope: "SYSTEM" | "USER" | null = null;
+        let inviteOwner: string | null = null;
+        if (consumedInviteId) {
+          const inviteWithOwner = await prisma.invite.findUnique({
+            where: { id: consumedInviteId },
+            include: { ownerUser: { select: { email: true, name: true } } },
+          });
+          if (inviteWithOwner) {
+            inviteCode = inviteWithOwner.code;
+            inviteScope = inviteWithOwner.scope;
+            inviteOwner = inviteWithOwner.ownerUser
+              ? `${inviteWithOwner.ownerUser.email}${inviteWithOwner.ownerUser.name ? ` (${inviteWithOwner.ownerUser.name})` : ""}`
+              : null;
+          }
+        }
         const text = formatRegisterMessage(tg.registerMessage, {
           email,
           name: name?.trim() || null,
+          inviteCode,
+          inviteScope,
+          inviteOwner,
         });
         await sendTelegramMessage(tg.botToken, tg.chatId, text);
       }

@@ -14,11 +14,18 @@ export interface TelegramConfig {
   notifyPaymentEnabled: boolean;
   notifySpamRegistrationEnabled: boolean;
   registerMessage: string;
+  registerEmailVerifiedMessage: string;
   paymentMessage: string;
   spamRegistrationMessage: string;
 }
 
 export const DEFAULT_REGISTER_MESSAGE = `🆕 Новый пользователь
+Email: {email}
+Имя: {name}
+Инвайт: {inviteCode} ({inviteScope})
+Владелец инвайта: {inviteOwner}`;
+
+export const DEFAULT_REGISTER_EMAIL_VERIFIED_MESSAGE = `✅ Email подтверждён
 Email: {email}
 Имя: {name}`;
 
@@ -46,6 +53,7 @@ export async function getTelegramConfig(): Promise<TelegramConfig> {
     notifyPayment,
     notifySpamRegistration,
     registerMsg,
+    registerEmailVerifiedMsg,
     paymentMsg,
     spamRegistrationMsg,
   ] =
@@ -56,6 +64,7 @@ export async function getTelegramConfig(): Promise<TelegramConfig> {
       configStore.get("telegram.notify_payment_enabled"),
       configStore.get("telegram.notify_spam_registration_enabled"),
       configStore.get("telegram.register_message"),
+      configStore.get("telegram.register_email_verified_message"),
       configStore.get("telegram.payment_message"),
       configStore.get("telegram.spam_registration_message"),
     ]);
@@ -67,6 +76,7 @@ export async function getTelegramConfig(): Promise<TelegramConfig> {
     notifyPaymentEnabled: notifyPayment === "true",
     notifySpamRegistrationEnabled: notifySpamRegistration !== "false",
     registerMessage: registerMsg || DEFAULT_REGISTER_MESSAGE,
+    registerEmailVerifiedMessage: registerEmailVerifiedMsg || DEFAULT_REGISTER_EMAIL_VERIFIED_MESSAGE,
     paymentMessage: paymentMsg || DEFAULT_PAYMENT_MESSAGE,
     spamRegistrationMessage:
       spamRegistrationMsg || DEFAULT_SPAM_REGISTRATION_MESSAGE,
@@ -97,7 +107,32 @@ export async function sendTelegramMessage(
   }
 }
 
-export function formatRegisterMessage(
+export type RegisterMessageVars = {
+  email: string;
+  name?: string | null;
+  inviteCode?: string | null;
+  inviteScope?: "SYSTEM" | "USER" | null;
+  inviteOwner?: string | null;
+};
+
+export function formatRegisterMessage(template: string, vars: RegisterMessageVars): string {
+  const inviteScopeLabel =
+    vars.inviteScope === "SYSTEM"
+      ? "системный"
+      : vars.inviteScope === "USER"
+        ? "пользовательский"
+        : vars.inviteCode
+          ? "—"
+          : "—";
+  return template
+    .replace(/\{email\}/g, vars.email || "")
+    .replace(/\{name\}/g, vars.name ?? "")
+    .replace(/\{inviteCode\}/g, vars.inviteCode ?? "—")
+    .replace(/\{inviteScope\}/g, inviteScopeLabel)
+    .replace(/\{inviteOwner\}/g, vars.inviteOwner ?? "—");
+}
+
+export function formatRegisterEmailVerifiedMessage(
   template: string,
   vars: { email: string; name?: string | null }
 ): string {
