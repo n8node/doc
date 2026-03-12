@@ -11,18 +11,31 @@ import { AuthSettingsForm } from "@/components/admin/AuthSettingsForm";
 import { EmailSettingsForm } from "@/components/admin/EmailSettingsForm";
 import { BrandingSettingsForm } from "@/components/admin/BrandingSettingsForm";
 import { MarketplaceOpenRouterForm } from "@/components/admin/MarketplaceOpenRouterForm";
+import { SeoSettingsForm } from "@/components/admin/SeoSettingsForm";
 
-type Tab = "s3" | "yookassa" | "ai" | "marketplace" | "telegram" | "auth" | "email" | "branding";
+type Tab = "s3" | "yookassa" | "ai" | "marketplace" | "telegram" | "auth" | "email" | "branding" | "seo";
 
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as Tab | null;
   const [tab, setTab] = useState<Tab>(tabParam ?? "s3");
 
+  const tabLabels: Record<Tab, string> = {
+    branding: "Брендинг",
+    seo: "SEO",
+    auth: "Авторизация",
+    email: "Email / SMTP",
+    s3: "S3 хранилище",
+    yookassa: "ЮKassa",
+    ai: "AI-провайдеры",
+    marketplace: "Маркетплейс",
+    telegram: "Telegram",
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex gap-2 border-b border-border pb-2">
-        {(["branding", "auth", "email", "s3", "yookassa", "ai", "marketplace", "telegram"] as const).map((t) => (
+        {(["branding", "seo", "auth", "email", "s3", "yookassa", "ai", "marketplace", "telegram"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -32,13 +45,14 @@ function AdminSettingsContent() {
                 : "text-muted-foreground hover:bg-surface2"
             }`}
           >
-            {t === "branding" ? "Брендинг" : t === "auth" ? "Авторизация" : t === "email" ? "Email / SMTP" : t === "s3" ? "S3 хранилище" : t === "yookassa" ? "ЮKassa" : t === "ai" ? "AI-провайдеры" : t === "marketplace" ? "Маркетплейс" : "Telegram"}
+            {tabLabels[t]}
           </button>
         ))}
       </div>
 
       <Card className="p-6">
         {tab === "branding" && <BrandingSettingsForm />}
+        {tab === "seo" && <SeoSettingsForm />}
         {tab === "s3" && <S3SettingsForm />}
         {tab === "yookassa" && <YookassaSettingsForm />}
         {tab === "ai" && <AiProvidersForm />}
