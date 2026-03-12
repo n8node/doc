@@ -556,6 +556,7 @@ enum AiTaskType {
   CLASSIFY
   TRANSCRIPTION
   CHAT
+  VECTORIZE
 }
 
 enum AiProviderPurpose {

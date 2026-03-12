@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   BrainCircuit,
@@ -114,16 +114,8 @@ export default function RagMemoryPage() {
     currentFileName?: string;
     lastError?: { fileName: string; error: string };
   } | null>(null);
-  const [vectorizeErrorModal, setVectorizeErrorModal] = useState<{
-    collectionId: string;
-    message: string;
-    lastFileName: string;
-    processed: number;
-    total: number;
-    processableProcessed: number;
-    processableCount: number;
-  } | null>(null);
-  const [autoSkipErrors, setAutoSkipErrors] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const checkedActiveRef = useRef(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
   const [exportCollectionId, setExportCollectionId] = useState<string | null>(null);
@@ -268,228 +260,158 @@ export default function RagMemoryPage() {
     }
   };
 
-  const handleVectorize = async (collectionId: string, skipFirst = 0) => {
-    const coll = collections.find((x) => x.id === collectionId);
-    const filesCount = coll?.filesCount ?? 0;
-    const processableCount = coll?.processableCount ?? coll?.filesCount ?? 0;
-
-    const prevModal = vectorizeErrorModal;
-    setVectorizingId(collectionId);
-    setVectorizeErrorModal(null);
-
-    const stageTimeouts: ReturnType<typeof setTimeout>[] = [];
-
-    if (skipFirst > 0) {
-      const resumePct = filesCount > 0 ? 40 + Math.round((60 * skipFirst) / filesCount) : 50;
-      setVectorizeState({
-        stage: "vectorizing",
-        message: "Продолжаем векторизацию…",
-        progressPercent: resumePct,
-        processed: skipFirst,
-        total: filesCount,
-        processableProcessed: prevModal?.processableProcessed ?? undefined,
-        processableCount: prevModal?.processableCount ?? processableCount,
-      });
-    } else {
-      setVectorizeState({
-        stage: "fetching_files",
-        message: "Получаем файлы…",
-        progressPercent: 0,
-      });
-      stageTimeouts.push(
-        setTimeout(() => {
-          setVectorizeState((s) =>
-            s ? { ...s, message: `Получаем файлы (${filesCount})`, progressPercent: 15 } : null
-          );
-        }, 400)
-      );
-      stageTimeouts.push(
-        setTimeout(() => {
-          setVectorizeState((s) =>
-            s ? { ...s, message: "Анализируем форматы файлов", progressPercent: 30 } : null
-          );
-        }, 800)
-      );
-      stageTimeouts.push(
-        setTimeout(() => {
-          setVectorizeState((s) =>
-            s
-              ? { ...s, message: `Получено ${processableCount} файлов пригодных к векторизации`, progressPercent: 40 }
-              : null
-          );
-        }, 1200)
-      );
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
     }
+  }, []);
 
-    let lastVecState = { currentFileName: "", processed: 0, total: 0, processableCount: 0, processableProcessed: 0 };
-    let hadResumableError = false;
-    try {
-      const res = await fetch(`/api/v1/rag/collections/${collectionId}/vectorize`, {
-        method: "POST",
-        credentials: "include",
-        ...(skipFirst > 0
-          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ skipFirst }) }
-          : {}),
-      });
+  const startPolling = useCallback(
+    (collectionId: string, taskId: string) => {
+      stopPolling();
+      setVectorizingId(collectionId);
 
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "Ошибка векторизации");
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) {
-        toast.error("Ошибка чтения ответа");
-        return;
-      }
-
-      let buffer = "";
-      let finalData: { succeeded?: number; total?: number; failed?: number; processableCount?: number; processableProcessed?: number; skipFirst?: number } = {};
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const ev = JSON.parse(line) as {
-              type: string;
-              stage?: string;
-              filesCount?: number;
-              processableCount?: number;
-              processableProcessed?: number;
-              total?: number;
-              processed?: number;
-              remaining?: number;
-              succeeded?: number;
-              failed?: number;
-              currentFileName?: string;
-              fileName?: string;
-              error?: string;
-              skipFirst?: number;
-            };
-            const pc = ev.processableCount ?? processableCount;
-            const pp = ev.processableProcessed;
-            if (ev.type === "processing_file" && ev.fileName != null) {
-              if (ev.processed != null && ev.total != null)
-                lastVecState = { currentFileName: ev.fileName, processed: ev.processed, total: ev.total, processableCount: pc, processableProcessed: pp ?? lastVecState.processableProcessed };
-              setVectorizeState((s) =>
-                s && ev.processed != null && ev.total != null
-                  ? {
-                      ...s,
-                      stage: "vectorizing",
-                      message: `Векторизация`,
-                      progressPercent: ev.total > 0 ? 40 + Math.round((60 * (ev.processed + 0.5)) / ev.total) : 100,
-                      processed: ev.processed,
-                      total: ev.total,
-                      processableProcessed: pp ?? s.processableProcessed,
-                      processableCount: pc,
-                      currentFileName: ev.fileName,
-                      lastError: undefined,
-                    }
-                  : s
-              );
-            } else if (ev.type === "file_error") {
-              const fileName = ev.fileName;
-              if (fileName != null) {
-                if (ev.processed != null && ev.total != null)
-                  lastVecState = { currentFileName: fileName, processed: ev.processed, total: ev.total, processableCount: pc, processableProcessed: pp ?? lastVecState.processableProcessed };
-                setVectorizeState((s) =>
-                  s
-                    ? {
-                        ...s,
-                        lastError: { fileName, error: ev.error ?? "Ошибка" },
-                        processed: ev.processed ?? s.processed,
-                        total: ev.total ?? s.total,
-                        processableProcessed: pp ?? s.processableProcessed,
-                        processableCount: pc,
-                      }
-                    : s
-                );
-              }
-            } else if (ev.type === "progress" && ev.processed != null && ev.total != null) {
-              lastVecState = { currentFileName: ev.currentFileName ?? lastVecState.currentFileName, processed: ev.processed, total: ev.total, processableCount: pc, processableProcessed: pp ?? lastVecState.processableProcessed };
-              const pct = ev.total > 0 ? 40 + (60 * ev.processed) / ev.total : 100;
-              setVectorizeState({
-                stage: "vectorizing",
-                message: "Векторизация",
-                progressPercent: Math.min(100, Math.round(pct)),
-                processed: ev.processed,
-                total: ev.total,
-                processableProcessed: pp,
-                processableCount: pc,
-                currentFileName: ev.currentFileName,
-              });
-            } else if (ev.type === "done") {
-              finalData = {
-                succeeded: ev.succeeded,
-                total: ev.total,
-                failed: ev.failed,
-                processableCount: ev.processableCount,
-                processableProcessed: ev.processableProcessed,
-                skipFirst: ev.skipFirst,
-              };
-            }
-          } catch {
-            /* skip invalid lines */
-          }
-        }
-      }
-      if (buffer.trim()) {
+      const poll = async () => {
         try {
-          const ev = JSON.parse(buffer) as Record<string, unknown>;
-          if (ev.type === "done") {
-            finalData = {
-              succeeded: ev.succeeded as number | undefined,
-              total: ev.total as number | undefined,
-              failed: ev.failed as number | undefined,
-              processableCount: ev.processableCount as number | undefined,
-              processableProcessed: ev.processableProcessed as number | undefined,
-              skipFirst: ev.skipFirst as number | undefined,
-            };
+          const res = await fetch(
+            `/api/v1/rag/collections/${collectionId}/vectorize/status?taskId=${taskId}`,
+            { credentials: "include" },
+          );
+          const data = await res.json();
+
+          if (data.status === "idle") {
+            stopPolling();
+            setVectorizingId(null);
+            setVectorizeState(null);
+            return;
+          }
+
+          if (data.status === "pending") {
+            setVectorizeState({
+              stage: "fetching_files",
+              message: "Запуск обработки…",
+              progressPercent: 10,
+            });
+            return;
+          }
+
+          if (data.status === "processing" && data.progress) {
+            const p = data.progress;
+            const pct = p.total > 0 ? Math.round((100 * p.processed) / p.total) : 0;
+            setVectorizeState({
+              stage: "vectorizing",
+              message: "Векторизация",
+              progressPercent: Math.min(99, pct),
+              processed: p.processed,
+              total: p.total,
+              processableProcessed: p.processableProcessed,
+              processableCount: p.processableCount,
+              currentFileName: p.currentFileName,
+              lastError:
+                p.errors && p.errors.length > 0
+                  ? p.errors[p.errors.length - 1]
+                  : undefined,
+            });
+            return;
+          }
+
+          if (data.status === "completed") {
+            stopPolling();
+            const p = data.progress;
+            if (p) {
+              const doneFailed = p.processableCount - p.succeeded;
+              toast.success(
+                `Векторизовано: ${p.succeeded} из ${p.processableCount}${doneFailed > 0 ? ` (${doneFailed} пропущено)` : ""}`,
+              );
+            } else {
+              toast.success("Векторизация завершена");
+            }
+            setVectorizingId(null);
+            setVectorizeState(null);
+            loadCollections();
+            return;
+          }
+
+          if (data.status === "failed") {
+            stopPolling();
+            toast.error(`Ошибка векторизации: ${data.error || "Неизвестная ошибка"}`);
+            setVectorizingId(null);
+            setVectorizeState(null);
+            return;
+          }
+        } catch {
+          /* network error — keep polling */
+        }
+      };
+
+      poll();
+      pollingRef.current = setInterval(poll, 2000);
+    },
+    [stopPolling, loadCollections],
+  );
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  // On mount: check for active vectorize tasks across loaded collections
+  useEffect(() => {
+    if (collections.length === 0 || checkedActiveRef.current) return;
+    checkedActiveRef.current = true;
+    (async () => {
+      for (const c of collections) {
+        try {
+          const res = await fetch(
+            `/api/v1/rag/collections/${c.id}/vectorize/status`,
+            { credentials: "include" },
+          );
+          const data = await res.json();
+          if (
+            data.taskId &&
+            (data.status === "pending" || data.status === "processing")
+          ) {
+            startPolling(c.id, data.taskId);
+            break;
           }
         } catch {
           /* ignore */
         }
       }
+    })();
+  }, [collections, startPolling]);
 
-      const doneSucceeded = finalData.succeeded ?? 0;
-      const doneTotal = finalData.processableCount ?? finalData.total ?? 0;
-      const doneFailed = doneTotal - doneSucceeded - (finalData.skipFirst ?? 0);
-      toast.success(
-        `Векторизовано: ${doneSucceeded} из ${doneTotal}${doneFailed > 0 ? ` (${doneFailed} пропущено)` : ""}`
+  const handleVectorize = async (collectionId: string) => {
+    setVectorizingId(collectionId);
+    setVectorizeState({
+      stage: "fetching_files",
+      message: "Запуск обработки…",
+      progressPercent: 5,
+    });
+
+    try {
+      const res = await fetch(
+        `/api/v1/rag/collections/${collectionId}/vectorize`,
+        { method: "POST", credentials: "include" },
       );
-      loadCollections();
-    } catch {
-      if (lastVecState.total > 0) {
-        hadResumableError = true;
-        if (autoSkipErrors) {
-          handleVectorize(collectionId, lastVecState.processed + 1);
-        } else {
-          setVectorizeErrorModal({
-            collectionId,
-            message: `Обрыв соединения. Файл: ${lastVecState.currentFileName || "?"}. Обработано ${lastVecState.processed}/${lastVecState.total}`,
-            lastFileName: lastVecState.currentFileName || "",
-            processed: lastVecState.processed,
-            total: lastVecState.total,
-            processableProcessed: lastVecState.processableProcessed,
-            processableCount: lastVecState.processableCount,
-          });
-        }
-      } else {
-        toast.error("Ошибка векторизации");
-      }
-    } finally {
-      stageTimeouts.forEach(clearTimeout);
-      if (!hadResumableError) {
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Ошибка векторизации");
         setVectorizingId(null);
         setVectorizeState(null);
-        setAutoSkipErrors(false);
+        return;
       }
+
+      const taskId: string = data.taskId;
+      if (data.alreadyRunning) {
+        toast.info("Векторизация уже выполняется");
+      }
+      startPolling(collectionId, taskId);
+    } catch {
+      toast.error("Ошибка векторизации");
+      setVectorizingId(null);
+      setVectorizeState(null);
     }
   };
 
@@ -749,7 +671,7 @@ export default function RagMemoryPage() {
                       size="sm"
                       variant="outline"
                       className={`gap-1 ${isFullyVectorized ? "opacity-50 cursor-not-allowed" : ""}`}
-                      onClick={() => !isFullyVectorized && handleVectorize(c.id)}
+                      onClick={() => { if (!isFullyVectorized) handleVectorize(c.id); }}
                       disabled={vectorizingId !== null || c.filesCount === 0 || isFullyVectorized}
                     >
                       {isVectorizing ? (
@@ -1004,39 +926,6 @@ export default function RagMemoryPage() {
           onSaved={loadCollections}
         />
       )}
-
-      <Dialog open={!!vectorizeErrorModal} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-lg [&>button]:hidden" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle>Ошибка векторизации</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-1">
-            <p className="text-sm text-muted-foreground">{vectorizeErrorModal?.message}</p>
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={autoSkipErrors}
-                  onChange={(e) => setAutoSkipErrors(e.target.checked)}
-                  className="rounded"
-                />
-                Для всех ошибок
-              </label>
-              <Button
-                onClick={() => {
-                  const m = vectorizeErrorModal;
-                  if (m) {
-                    setVectorizeErrorModal(null);
-                    handleVectorize(m.collectionId, m.processed + 1);
-                  }
-                }}
-              >
-                Пропустить
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={n8nUpgradeOpen} onOpenChange={setN8nUpgradeOpen}>
         <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
