@@ -1,9 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Upload,
   Settings,
@@ -11,6 +11,7 @@ import {
   HardDrive,
   LayoutDashboard,
   Crown,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
@@ -48,6 +49,23 @@ export function SidebarV2() {
     integrations: true,
   });
   const [planFeatures, setPlanFeatures] = useState<Record<string, boolean>>({});
+
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(localStorage.getItem("sidebar-collapsed") ?? "{}");
+    } catch {
+      return {};
+    }
+  });
+
+  const toggleCollapse = useCallback((id: string) => {
+    setCollapsed((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      localStorage.setItem("sidebar-collapsed", JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const activeSection = parseFilesSection(searchParams.get("section"));
   const isFilesPage =
@@ -182,40 +200,69 @@ export function SidebarV2() {
           {/* Module groups */}
           {visibleGroups.map((group) => (
             <div key={group.id} className="space-y-1.5">
-              <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {group.label}
-              </p>
-              {group.items.map((item) => {
-                const isFileSection =
-                  item.section && isFilesPage && activeSection === item.section;
-                const isRouteActive =
-                  !item.section &&
-                  (pathname === item.href ||
-                    pathname.startsWith(item.href + "/"));
-                const isActive = isFileSection || isRouteActive;
-                return (
-                  <Link key={item.href} href={item.href}>
-                    <motion.div
-                      whileHover={{ x: 4 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={cn(
-                        "relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
-                        isActive
-                          ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
-                          : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
-                      )}
-                    >
-                      <item.icon
-                        className={cn("h-5 w-5", isActive && "text-primary")}
-                      />
-                      <span className="flex-1">{item.label}</span>
-                      {isActive && (
-                        <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.16)]" />
-                      )}
-                    </motion.div>
-                  </Link>
-                );
-              })}
+              <button
+                type="button"
+                onClick={() => toggleCollapse(group.id)}
+                className="flex w-full items-center justify-between px-4 pb-1 group"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.label}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-3.5 w-3.5 text-muted-foreground/50 transition-transform duration-200 group-hover:text-muted-foreground",
+                    collapsed[group.id] && "-rotate-90",
+                  )}
+                />
+              </button>
+              <AnimatePresence initial={false}>
+                {!collapsed[group.id] && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    {group.items.map((item) => {
+                      const isFileSection =
+                        item.section &&
+                        isFilesPage &&
+                        activeSection === item.section;
+                      const isRouteActive =
+                        !item.section &&
+                        (pathname === item.href ||
+                          pathname.startsWith(item.href + "/"));
+                      const isActive = isFileSection || isRouteActive;
+                      return (
+                        <Link key={item.href} href={item.href}>
+                          <motion.div
+                            whileHover={{ x: 4 }}
+                            whileTap={{ scale: 0.98 }}
+                            className={cn(
+                              "relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                              isActive
+                                ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                                : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
+                            )}
+                          >
+                            <item.icon
+                              className={cn(
+                                "h-5 w-5",
+                                isActive && "text-primary",
+                              )}
+                            />
+                            <span className="flex-1">{item.label}</span>
+                            {isActive && (
+                              <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.16)]" />
+                            )}
+                          </motion.div>
+                        </Link>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ))}
 
