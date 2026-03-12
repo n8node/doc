@@ -346,7 +346,7 @@ export default function RagMemoryPage() {
       }
 
       let buffer = "";
-      let finalData: { succeeded?: number; total?: number; failed?: number } = {};
+      let finalData: { succeeded?: number; total?: number; failed?: number; processableCount?: number; processableProcessed?: number; skipFirst?: number } = {};
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -370,6 +370,7 @@ export default function RagMemoryPage() {
               currentFileName?: string;
               fileName?: string;
               error?: string;
+              skipFirst?: number;
             };
             const pc = ev.processableCount ?? processableCount;
             const pp = ev.processableProcessed;
@@ -424,7 +425,14 @@ export default function RagMemoryPage() {
                 currentFileName: ev.currentFileName,
               });
             } else if (ev.type === "done") {
-              finalData = { succeeded: ev.succeeded, total: ev.total, failed: ev.failed };
+              finalData = {
+                succeeded: ev.succeeded,
+                total: ev.total,
+                failed: ev.failed,
+                processableCount: ev.processableCount,
+                processableProcessed: ev.processableProcessed,
+                skipFirst: ev.skipFirst,
+              };
             }
           } catch {
             /* skip invalid lines */
@@ -433,17 +441,27 @@ export default function RagMemoryPage() {
       }
       if (buffer.trim()) {
         try {
-          const ev = JSON.parse(buffer) as { type: string; succeeded?: number; total?: number; failed?: number };
+          const ev = JSON.parse(buffer) as Record<string, unknown>;
           if (ev.type === "done") {
-            finalData = { succeeded: ev.succeeded, total: ev.total, failed: ev.failed };
+            finalData = {
+              succeeded: ev.succeeded as number | undefined,
+              total: ev.total as number | undefined,
+              failed: ev.failed as number | undefined,
+              processableCount: ev.processableCount as number | undefined,
+              processableProcessed: ev.processableProcessed as number | undefined,
+              skipFirst: ev.skipFirst as number | undefined,
+            };
           }
         } catch {
           /* ignore */
         }
       }
 
+      const doneSucceeded = finalData.succeeded ?? 0;
+      const doneTotal = finalData.processableCount ?? finalData.total ?? 0;
+      const doneFailed = doneTotal - doneSucceeded - (finalData.skipFirst ?? 0);
       toast.success(
-        `Векторизовано: ${finalData.succeeded ?? 0} из ${finalData.total ?? 0}${(finalData.failed ?? 0) > 0 ? ` (${finalData.failed} пропущено)` : ""}`
+        `Векторизовано: ${doneSucceeded} из ${doneTotal}${doneFailed > 0 ? ` (${doneFailed} пропущено)` : ""}`
       );
       loadCollections();
     } catch {

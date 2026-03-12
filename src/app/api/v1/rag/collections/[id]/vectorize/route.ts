@@ -303,6 +303,9 @@ export async function POST(request: NextRequest, ctx: Ctx) {
             total: results.length,
             succeeded,
             failed: results.length - succeeded,
+            processableCount,
+            processableProcessed,
+            skipFirst,
           })
         )
       );
