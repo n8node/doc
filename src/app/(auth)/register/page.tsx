@@ -369,10 +369,6 @@ export default function RegisterPage() {
             </Link>
           </p>
         </div>
-
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Регистрируясь, вы получаете бесплатный тариф с 25 ГБ хранилища
-        </p>
       </motion.div>
     </main>
   );
