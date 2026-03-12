@@ -95,6 +95,10 @@ const config: Config = {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        stripe: {
+          "0%": { backgroundPosition: "0 0" },
+          "100%": { backgroundPosition: "1rem 0" },
+        },
         pulse: {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.5" },
@@ -110,6 +114,7 @@ const config: Config = {
         "zoom-in": "zoom-in 0.2s ease-out",
         "zoom-out": "zoom-out 0.2s ease-out",
         shimmer: "shimmer 2s infinite linear",
+        stripe: "stripe 0.6s linear infinite",
         pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },

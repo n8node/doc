@@ -689,9 +689,18 @@ export default function RagMemoryPage() {
                     <div className="mt-3 space-y-1">
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/20">
                         <div
-                          className="h-full rounded-full bg-primary transition-all duration-300"
+                          className="h-full rounded-full bg-primary transition-all duration-300 relative overflow-hidden"
                           style={{ width: `${vecState.progressPercent}%` }}
-                        />
+                        >
+                          <div
+                            className="absolute inset-0 animate-stripe"
+                            style={{
+                              backgroundImage:
+                                "linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%)",
+                              backgroundSize: "1rem 1rem",
+                            }}
+                          />
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground flex items-center justify-between gap-2">
                         <span>
