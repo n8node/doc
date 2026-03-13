@@ -56,8 +56,9 @@ export async function createN8nConnection(
     const escapedPwd = password.replace(/'/g, "''");
     await client.query(`CREATE ROLE "${dbRoleName}" WITH LOGIN PASSWORD '${escapedPwd}'`);
     await client.query(`ALTER ROLE "${dbRoleName}" SET search_path = '${SCHEMA_NAME}'`);
-    // Grant usage on schema
-    await client.query(`GRANT USAGE ON SCHEMA ${SCHEMA_NAME} TO "${dbRoleName}"`);
+    // n8n PGVector Store node runs CREATE TABLE IF NOT EXISTS / CREATE INDEX
+    // on init, so the role needs USAGE + CREATE on the schema.
+    await client.query(`GRANT USAGE, CREATE ON SCHEMA ${SCHEMA_NAME} TO "${dbRoleName}"`);
 
     const tableName = `${SCHEMA_NAME}.${viewName}`;
     const dim = embeddings[0]?.vector?.length ?? 1536;
@@ -86,8 +87,9 @@ export async function createN8nConnection(
       }
     }
 
-    // Grant SELECT to role
-    await client.query(`GRANT SELECT ON ${tableName} TO "${dbRoleName}"`);
+    // Grant full access on the table so PGVector Store can SELECT, INSERT,
+    // create indexes, etc.
+    await client.query(`GRANT ALL ON ${tableName} TO "${dbRoleName}"`);
 
     return { connectionId, dbRoleName, dbPassword: password, viewName };
   } finally {
@@ -151,6 +153,28 @@ export async function syncN8nConnection(
         );
       }
     }
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Upgrade permissions for an existing n8n role to match what PGVector Store needs.
+ * Safe to call multiple times (GRANT is idempotent in PostgreSQL).
+ */
+export async function upgradeN8nConnectionPermissions(
+  dbRoleName: string,
+  viewName: string,
+  target: N8nDbTarget = "DEFAULT",
+): Promise<void> {
+  const client = createN8nDbClient(target);
+  if (!client) return;
+
+  await client.connect();
+  try {
+    const tableName = `${SCHEMA_NAME}.${viewName}`;
+    await client.query(`GRANT USAGE, CREATE ON SCHEMA ${SCHEMA_NAME} TO "${dbRoleName}"`);
+    await client.query(`GRANT ALL ON ${tableName} TO "${dbRoleName}"`);
   } finally {
     await client.end();
   }
