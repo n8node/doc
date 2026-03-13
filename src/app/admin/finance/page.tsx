@@ -12,12 +12,16 @@ import {
   CreditCard,
   DollarSign,
   Trash2,
+  BarChart3,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type Tab = "summary" | "settings" | "batches" | "expenses";
+type Tab = "summary" | "settings" | "batches" | "expenses" | "profitability";
 
 interface FinanceSettings {
   taxRatePct: number;
@@ -57,7 +61,26 @@ interface Summary {
   totalUsdRemaining: number;
   batchesCount: number;
   monthlyFixedCents: number;
+  monthlyVariableCents?: number;
+  totalMonthlyExpensesCents?: number;
+  totalStorageGb?: number;
+  variableExpenseItems?: { category: string; amountCents: number; storageGb: number }[];
+  refMonth?: string;
   settings: Partial<FinanceSettings>;
+}
+
+interface TariffProfitabilityItem {
+  id: string;
+  name: string;
+  isFree: boolean;
+  usersCount: number;
+  priceMonthlyRub: number;
+  allocatedFixedCents: number;
+  allocatedFixedRub: string;
+  profitCents: number;
+  profitRub: string;
+  status: "profitable" | "at_risk" | "loss" | "free";
+  minPriceForTargetRub: number | null;
 }
 
 function formatRub(cents: number): string {
@@ -96,15 +119,26 @@ export default function AdminFinancePage() {
   const [saving, setSaving] = useState(false);
   const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [summaryMonth, setSummaryMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [profitability, setProfitability] = useState<{
+    items: TariffProfitabilityItem[];
+    totalMonthlyFixedCents: number;
+    totalPaidUsers: number;
+    targetProfitRub: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sumRes, setRes, batchRes, expRes] = await Promise.all([
-        fetch("/api/v1/admin/finance/summary"),
+      const [sumRes, setRes, batchRes, expRes, profRes] = await Promise.all([
+        fetch(`/api/v1/admin/finance/summary${summaryMonth ? `?month=${summaryMonth}` : ""}`),
         fetch("/api/v1/admin/finance/settings"),
         fetch("/api/v1/admin/finance/batches"),
         fetch("/api/v1/admin/finance/expenses"),
+        fetch("/api/v1/admin/finance/tariff-profitability"),
       ]);
       if (sumRes.ok) setSummary(await sumRes.json());
       if (setRes.ok) {
@@ -120,12 +154,15 @@ export default function AdminFinancePage() {
         const d = await expRes.json();
         setExpenses(d.expenses ?? []);
       }
+      if (profRes.ok) {
+        setProfitability(await profRes.json());
+      }
     } catch {
       toast.error("Ошибка загрузки");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [summaryMonth]);
 
   useEffect(() => {
     void load();
@@ -272,7 +309,7 @@ export default function AdminFinancePage() {
       </div>
 
       <div className="flex gap-2 border-b border-border pb-2">
-        {(["summary", "settings", "batches", "expenses"] as const).map((t) => (
+        {(["summary", "profitability", "settings", "batches", "expenses"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -281,6 +318,7 @@ export default function AdminFinancePage() {
             }`}
           >
             {t === "summary" && "Сводка"}
+            {t === "profitability" && "Рентабельность"}
             {t === "settings" && "Настройки"}
             {t === "batches" && "Партии OpenRouter"}
             {t === "expenses" && "Расходы"}
@@ -289,66 +327,179 @@ export default function AdminFinancePage() {
       </div>
 
       {tab === "summary" && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Средневзвешенный курс
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {summary?.blendedRateRubPerUsd != null
-                  ? `${summary.blendedRateRubPerUsd.toFixed(2)} ₽/USD`
-                  : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Добавьте партии пополнения OpenRouter
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Рабочий курс
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {summary?.workingRateRubPerUsd != null
-                  ? `${summary.workingRateRubPerUsd.toFixed(2)} ₽/USD`
-                  : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                С учётом буфера {summary?.settings?.fxBufferPct ?? 5}%
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">USD в партиях</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{formatUsd(summary?.totalUsdRemaining ?? 0)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {summary?.batchesCount ?? 0} активных партий
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Фикс. расходы / мес
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{formatRub(summary?.monthlyFixedCents ?? 0)}</p>
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Месяц:</label>
+            <Input
+              type="month"
+              value={summaryMonth}
+              onChange={(e) => setSummaryMonth(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Средневзвешенный курс
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {summary?.blendedRateRubPerUsd != null
+                    ? `${summary.blendedRateRubPerUsd.toFixed(2)} ₽/USD`
+                    : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Добавьте партии пополнения OpenRouter
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Рабочий курс
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {summary?.workingRateRubPerUsd != null
+                    ? `${summary.workingRateRubPerUsd.toFixed(2)} ₽/USD`
+                    : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  С учётом буфера {summary?.settings?.fxBufferPct ?? 5}%
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">USD в партиях</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{formatUsd(summary?.totalUsdRemaining ?? 0)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {summary?.batchesCount ?? 0} активных партий
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Фикс. расходы / мес
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{formatRub(summary?.monthlyFixedCents ?? 0)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  sinceAt ≤ конец месяца
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Перем. расходы (S3)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{formatRub(summary?.monthlyVariableCents ?? 0)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {summary?.totalStorageGb?.toFixed(1) ?? "0"} ГБ × 30 дней
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Всего расходы / мес</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {formatRub(summary?.totalMonthlyExpensesCents ?? (summary?.monthlyFixedCents ?? 0))}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
+      )}
+
+      {tab === "profitability" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Рентабельность тарифов
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Фикс. расходы распределены по платным пользователям. Цель: ≥{profitability?.targetProfitRub ?? 1000} ₽ прибыли с тарифа.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-surface2/50">
+                    <th className="px-4 py-2 text-left">Тариф</th>
+                    <th className="px-4 py-2 text-right">Пользователей</th>
+                    <th className="px-4 py-2 text-right">Цена ₽</th>
+                    <th className="px-4 py-2 text-right">Доля расходов ₽</th>
+                    <th className="px-4 py-2 text-right">Прибыль ₽</th>
+                    <th className="px-4 py-2 text-right">Мин. цена для 1000 ₽</th>
+                    <th className="px-4 py-2 text-left">Статус</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profitability?.items.map((item) => (
+                    <tr key={item.id} className="border-t border-border">
+                      <td className="px-4 py-2 font-medium">
+                        {item.name}
+                        {item.isFree && (
+                          <span className="ml-1 text-xs text-muted-foreground">(бесплатный)</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-right">{item.usersCount}</td>
+                      <td className="px-4 py-2 text-right">{item.isFree ? "—" : `${item.priceMonthlyRub} ₽`}</td>
+                      <td className="px-4 py-2 text-right">{item.allocatedFixedRub} ₽</td>
+                      <td className="px-4 py-2 text-right font-medium">
+                        {item.isFree ? "—" : `${item.profitRub} ₽`}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        {item.minPriceForTargetRub != null ? `${item.minPriceForTargetRub} ₽` : "—"}
+                      </td>
+                      <td className="px-4 py-2">
+                        {item.status === "profitable" && (
+                          <span className="inline-flex items-center gap-1 rounded bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-600">
+                            <CheckCircle className="h-3 w-3" />
+                            Прибыльный
+                          </span>
+                        )}
+                        {item.status === "at_risk" && (
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-600">
+                            <AlertTriangle className="h-3 w-3" />
+                            На грани
+                          </span>
+                        )}
+                        {item.status === "loss" && (
+                          <span className="inline-flex items-center gap-1 rounded bg-red-500/20 px-2 py-0.5 text-xs text-red-600">
+                            <XCircle className="h-3 w-3" />
+                            Убыточный
+                          </span>
+                        )}
+                        {item.status === "free" && (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {(!profitability?.items?.length) && (
+                <p className="p-6 text-center text-muted-foreground">Нет данных</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {tab === "settings" && (
@@ -603,11 +754,16 @@ export default function AdminFinancePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Сумма (₽)</label>
+                  <label className="block text-sm font-medium mb-1">
+                    {formExpense.type === "variable_per_gb_day"
+                      ? "Стоимость за 1 ГБ/день (₽)"
+                      : "Сумма (₽)"}
+                  </label>
                   <Input
                     type="number"
                     step="0.01"
                     required
+                    placeholder={formExpense.type === "variable_per_gb_day" ? "0.07" : "8000"}
                     value={formExpense.amountCents}
                     onChange={(e) => setFormExpense((f) => ({ ...f, amountCents: e.target.value }))}
                   />
