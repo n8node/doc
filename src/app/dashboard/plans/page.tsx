@@ -151,7 +151,7 @@ export default function DashboardPlansPage() {
       </div>
 
       {/* Plans grid */}
-      <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-2 lg:grid-cols-4">
         {plans.map((plan, index) => {
           const current = isCurrent(plan.id);
           const isPopular = plan.isPopular;
