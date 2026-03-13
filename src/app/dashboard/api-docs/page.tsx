@@ -5,7 +5,7 @@ import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit, Bell } from "lucide-react";
+import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit, Bell, Store } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -380,7 +380,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <BrainCircuit className="h-4 w-4 text-muted-foreground" />
-                  RAG-память (10 методов)
+                  RAG-память (14 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -424,7 +424,29 @@ export default function ApiDocsPage() {
                   <Section
                     method="POST"
                     path="/api/v1/rag/collections/{id}/vectorize"
-                    desc="Массовая векторизация файлов коллекции"
+                    desc="Массовая векторизация (возвращает taskId, фоновая задача). Статус — polling vectorize/status"
+                  />
+                  <Section
+                    method="GET"
+                    path="/api/v1/rag/collections/{id}/vectorize/status"
+                    desc="Статус векторизации (polling после POST vectorize)"
+                    params={[{ name: "taskId", type: "string", desc: "ID задачи (опционально — последняя активная)" }]}
+                  />
+                  <Section
+                    method="GET"
+                    path="/api/v1/rag/collections/{id}/n8n-connections"
+                    desc="Список PGVector-подключений коллекции (для n8n)"
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/rag/collections/{id}/n8n-connections"
+                    desc="Создать PGVector-подключение (host, port, user, password, viewName для n8n)"
+                    body={{ target: '"DEFAULT" | "RF" (optional)' }}
+                  />
+                  <Section
+                    method="DELETE"
+                    path="/api/v1/rag/collections/{id}/n8n-connections/{connId}"
+                    desc="Удалить PGVector-подключение"
                   />
                   <Section
                     method="GET"
@@ -472,6 +494,46 @@ export default function ApiDocsPage() {
                     path="/api/v1/files/{id}/embeddings"
                     desc="Удалить чанки по ID. Body: { ids: string[] }"
                     body={{ ids: "string[]" }}
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="marketplace" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Store className="h-4 w-4 text-muted-foreground" />
+                  API Маркетплейс (4 методов)
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    OpenAI-совместимый прокси (Chat, Embeddings). Base URL: <code className="rounded bg-surface2 px-1">/api/v1/marketplace</code>.{" "}
+                    <a href="/dashboard/n8n-guide" className="text-primary hover:underline">Гайд по интеграции с n8n</a>
+                  </p>
+                  <Section
+                    method="GET"
+                    path="/api/v1/marketplace/models"
+                    desc="Каталог моделей (формат OpenAI: object: list, data: [{ id, object, created, owned_by }])"
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/marketplace/chat/completions"
+                    desc="Chat Completions API"
+                    body={{ messages: "Message[]", model: "string", stream: "boolean (optional)" }}
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/marketplace/responses"
+                    desc="Responses API (OpenAI SDK v4+, n8n 1.70+)"
+                    body={{ messages: "Message[]", model: "string", stream: "boolean (optional)" }}
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/marketplace/embeddings"
+                    desc="Генерация эмбеддингов"
+                    body={{ input: "string | string[]", model: "string" }}
                   />
                 </div>
               </AccordionContent>

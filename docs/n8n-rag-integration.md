@@ -179,7 +179,11 @@ pm2 restart qoqon
 | PATCH | `/api/v1/rag/collections/{id}` | Обновить |
 | DELETE | `/api/v1/rag/collections/{id}` | Удалить |
 | POST | `/api/v1/rag/collections/{id}/validate` | Проверка файлов |
-| POST | `/api/v1/rag/collections/{id}/vectorize` | Векторизация |
+| POST | `/api/v1/rag/collections/{id}/vectorize` | Векторизация (возвращает `{ taskId }`, фоновая задача; для статуса — polling) |
+| GET | `/api/v1/rag/collections/{id}/vectorize/status?taskId=...` | Статус векторизации (polling после POST vectorize) |
+| GET | `/api/v1/rag/collections/{id}/n8n-connections` | Список PGVector-подключений коллекции |
+| POST | `/api/v1/rag/collections/{id}/n8n-connections` | Создать PGVector-подключение (Body: `{ target?: "DEFAULT" \| "RF" }`, возвращает host, port, user, password, viewName) |
+| DELETE | `/api/v1/rag/collections/{id}/n8n-connections/{connId}` | Удалить PGVector-подключение |
 | GET | `/api/v1/files/search?q=...&collectionId=...` | Семантический поиск (RAG) — возвращает `results[].chunkText` |
 
 ## API-эндпоинты Marketplace (OpenAI-совместимые)
@@ -189,4 +193,4 @@ pm2 restart qoqon
 | POST | `/api/v1/marketplace/chat/completions` | Chat Completions (стандартный) |
 | POST | `/api/v1/marketplace/responses` | Responses API (OpenAI SDK v4+, n8n 1.70+) |
 | POST | `/api/v1/marketplace/embeddings` | Генерация эмбеддингов |
-| GET | `/api/v1/marketplace/models` | Каталог доступных моделей |
+| GET | `/api/v1/marketplace/models` | Каталог моделей (формат OpenAI: `object: "list"`, `data: [{ id, object: "model", created, owned_by }]`) |
