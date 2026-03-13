@@ -108,6 +108,19 @@ const DEFAULT_PGVECTOR_HTML = `
 </table>
 <p><strong>Важно:</strong> У Qoqon одна таблица на коллекцию, без отдельной таблицы коллекций. Поле <strong>Use Collection</strong> нужно <strong>выключить</strong>, а Collection Name и Collection Table Name не заполнять.</p>
 
+<h3>Column Names (Options)</h3>
+<p>В Node options откройте <strong>Column Names</strong> и задайте:</p>
+<table>
+  <thead><tr><th>Параметр</th><th>Значение</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Content Column Name</strong></td><td><code>content</code></td></tr>
+    <tr><td><strong>Vector Column Name</strong></td><td><code>embedding</code></td></tr>
+    <tr><td><strong>ID Column Name</strong></td><td><code>id</code></td></tr>
+    <tr><td><strong>Metadata Column Name</strong></td><td><code>metadata</code></td></tr>
+  </tbody>
+</table>
+<p>Без этих настроек поиск может не находить данные.</p>
+
 <h2>6. Chat Model и Embeddings — credential</h2>
 <p>Для Chat Model (мозгов) и Embeddings в n8n можно использовать <strong>Qoqon API Маркетплейс</strong> — один ключ для обоих.</p>
 

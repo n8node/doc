@@ -74,6 +74,15 @@ n8n автоматически подставляет нужный путь к B
 | **Limit** | 4–10 |
 | **Use Collection** | **выключить** |
 
+**Column Names** (Options / Node options) — укажите имена колонок, иначе поиск может не находить данные:
+
+| Параметр | Значение |
+|----------|----------|
+| Content Column Name | `content` |
+| Vector Column Name | `embedding` |
+| ID Column Name | `id` |
+| Metadata Column Name | `metadata` |
+
 ### Шаг 6: Embeddings
 
 Модель эмбеддингов в n8n должна совпадать с Qoqon (например, `text-embedding-3-small`).
