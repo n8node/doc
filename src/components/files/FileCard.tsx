@@ -28,6 +28,7 @@ import {
   MessageCircle,
   Mic2,
   Database,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -66,6 +67,8 @@ interface FileCardProps {
   onShareLinksClick?: () => void;
   onProcess?: () => void;
   onTranscribe?: () => void;
+  processLocked?: string;
+  transcribeLocked?: string;
   onViewTranscript?: () => void;
   onChat?: () => void;
   onDelete: () => void;
@@ -247,6 +250,8 @@ export function FileCard({
   onShareLinksClick,
   onProcess,
   onTranscribe,
+  processLocked,
+  transcribeLocked,
   onViewTranscript,
   onChat,
   onDelete,
@@ -604,39 +609,55 @@ export function FileCard({
             </Tooltip>
           )}
 
-          {onProcess && (
+          {(onProcess || (processLocked && isProcessable)) && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onProcess();
+                    if (onProcess) onProcess();
                   }}
-                  className={cn(ACTION_BTN, "text-emerald-500 hover:bg-emerald-500/10")}
+                  disabled={!!processLocked}
+                  className={cn(
+                    ACTION_BTN,
+                    processLocked
+                      ? "cursor-not-allowed text-muted-foreground opacity-60"
+                      : "text-emerald-500 hover:bg-emerald-500/10"
+                  )}
                 >
-                  <ScanSearch className="h-4 w-4" />
+                  {processLocked ? <Lock className="h-4 w-4" /> : <ScanSearch className="h-4 w-4" />}
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Анализ документа</TooltipContent>
+              <TooltipContent>
+                {processLocked ?? "Анализ документа"}
+              </TooltipContent>
             </Tooltip>
           )}
 
-          {onTranscribe && (
+          {(onTranscribe || (transcribeLocked && isTranscribable)) && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onTranscribe();
+                    if (onTranscribe) onTranscribe();
                   }}
-                  className={cn(ACTION_BTN, "text-amber-500 hover:bg-amber-500/10")}
+                  disabled={!!transcribeLocked}
+                  className={cn(
+                    ACTION_BTN,
+                    transcribeLocked
+                      ? "cursor-not-allowed text-muted-foreground opacity-60"
+                      : "text-amber-500 hover:bg-amber-500/10"
+                  )}
                 >
-                  <Mic2 className="h-4 w-4" />
+                  {transcribeLocked ? <Lock className="h-4 w-4" /> : <Mic2 className="h-4 w-4" />}
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Транскрибировать</TooltipContent>
+              <TooltipContent>
+                {transcribeLocked ?? "Транскрибировать"}
+              </TooltipContent>
             </Tooltip>
           )}
 

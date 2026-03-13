@@ -35,6 +35,7 @@ import {
   CheckSquare,
   Mic2,
   FileWarning,
+  Lock,
 } from "lucide-react";
 import {
   Dialog,
@@ -53,6 +54,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { FullPageDropOverlay } from "./FullPageDropOverlay";
 import { EmptyState } from "./EmptyState";
 import { FileCard, FolderCard } from "./FileCard";
@@ -1140,6 +1146,12 @@ export function FileManager() {
     "text/plain",
     "text/csv",
     "text/markdown",
+    // Изображения — Docling поддерживает OCR
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/tiff",
+    "image/bmp",
   ]);
 
   const embeddingQuotaExceeded =
@@ -2315,6 +2327,14 @@ export function FileManager() {
           ? () => openAnalysisIfAllowed(file.id)
           : undefined
       }
+      processLocked={
+        PROCESSABLE_MIMES.has(file.mimeType) &&
+        !file.aiMetadata?.processedAt &&
+        !analyzingFiles.has(file.id) &&
+        !documentAnalysisAllowed
+          ? "Доступно с платного тарифа. Обновите тариф →"
+          : undefined
+      }
       onTranscribe={
         !transcriptionQuotaExceeded &&
         TRANSCRIBABLE_MIMES.has(file.mimeType) &&
@@ -2322,6 +2342,15 @@ export function FileManager() {
         !transcribingFiles.has(file.id) &&
         (file.mediaMetadata?.durationSeconds != null || file.mimeType.startsWith("audio/"))
           ? () => handleTranscribeFile(file.id)
+          : undefined
+      }
+      transcribeLocked={
+        transcriptionQuotaExceeded &&
+        TRANSCRIBABLE_MIMES.has(file.mimeType) &&
+        !file.aiMetadata?.transcriptProcessedAt &&
+        !transcribingFiles.has(file.id) &&
+        (file.mediaMetadata?.durationSeconds != null || file.mimeType.startsWith("audio/"))
+          ? "Лимит минут транскрибации исчерпан. Обновите тариф →"
           : undefined
       }
       onChat={
@@ -3348,14 +3377,27 @@ export function FileManager() {
                                   {PROCESSABLE_MIMES.has(file.mimeType) &&
                                     !file.aiMetadata?.processedAt &&
                                     !analyzingFiles.has(file.id) && (
-                                      <button
-                                        type="button"
-                                        onClick={() => openAnalysisIfAllowed(file.id)}
-                                        className="rounded-md p-1.5 text-emerald-500 transition-colors hover:bg-emerald-500/10"
-                                        aria-label="Анализ документа"
-                                      >
-                                        <ScanSearch className="h-4 w-4" />
-                                      </button>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            type="button"
+                                            onClick={() => openAnalysisIfAllowed(file.id)}
+                                            disabled={!documentAnalysisAllowed}
+                                            className={cn(
+                                              "rounded-md p-1.5 transition-colors",
+                                              documentAnalysisAllowed
+                                                ? "text-emerald-500 hover:bg-emerald-500/10"
+                                                : "cursor-not-allowed text-muted-foreground opacity-60"
+                                            )}
+                                            aria-label="Анализ документа"
+                                          >
+                                            {documentAnalysisAllowed ? <ScanSearch className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {documentAnalysisAllowed ? "Анализ документа" : "Доступно с платного тарифа. Обновите тариф →"}
+                                        </TooltipContent>
+                                      </Tooltip>
                                     )}
                                   {PROCESSABLE_MIMES.has(file.mimeType) && file.aiMetadata?.processedAt && !analyzingFiles.has(file.id) && (
                                     <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-600" title="Обработан AI">
@@ -3393,19 +3435,33 @@ export function FileManager() {
                                       <Mic2 className="h-4 w-4" />
                                     </span>
                                   )}
-                                  {!transcriptionQuotaExceeded &&
-                                    TRANSCRIBABLE_MIMES.has(file.mimeType) &&
+                                  {TRANSCRIBABLE_MIMES.has(file.mimeType) &&
                                     !file.aiMetadata?.transcriptProcessedAt &&
                                     !transcribingFiles.has(file.id) &&
                                     (file.mediaMetadata?.durationSeconds != null || file.mimeType.startsWith("audio/")) && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleTranscribeFile(file.id)}
-                                        className="rounded-md p-1.5 text-amber-500 transition-colors hover:bg-amber-500/10"
-                                        aria-label="Транскрибировать"
-                                      >
-                                        <Mic2 className="h-4 w-4" />
-                                      </button>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            type="button"
+                                            onClick={() => !transcriptionQuotaExceeded && handleTranscribeFile(file.id)}
+                                            disabled={transcriptionQuotaExceeded}
+                                            className={cn(
+                                              "rounded-md p-1.5 transition-colors",
+                                              transcriptionQuotaExceeded
+                                                ? "cursor-not-allowed text-muted-foreground opacity-60"
+                                                : "text-amber-500 hover:bg-amber-500/10"
+                                            )}
+                                            aria-label="Транскрибировать"
+                                          >
+                                            {transcriptionQuotaExceeded ? <Lock className="h-4 w-4" /> : <Mic2 className="h-4 w-4" />}
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {transcriptionQuotaExceeded
+                                            ? "Лимит минут транскрибации исчерпан. Обновите тариф →"
+                                            : "Транскрибировать"}
+                                        </TooltipContent>
+                                      </Tooltip>
                                     )}
                                   {TRANSCRIBABLE_MIMES.has(file.mimeType) && file.aiMetadata?.transcriptProcessedAt && !transcribingFiles.has(file.id) && (
                                     <button

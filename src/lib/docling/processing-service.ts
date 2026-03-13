@@ -20,6 +20,12 @@ const PROCESSABLE_MIMES = new Set([
   "text/plain",
   "text/csv",
   "text/markdown",
+  // Изображения — Docling поддерживает OCR
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/tiff",
+  "image/bmp",
 ]);
 
 export function isProcessable(mimeType: string): boolean {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { getBrandingConfig } from "@/lib/branding";
 import { getSeoConfig } from "@/lib/seo";
@@ -36,8 +37,10 @@ export default function RootLayout({
       <body className="antialiased">
         <ThemeProvider>
           <SessionProvider>
-            {children}
-            <Toaster position="top-right" richColors />
+            <TooltipProvider delayDuration={300}>
+              {children}
+              <Toaster position="top-right" richColors />
+            </TooltipProvider>
           </SessionProvider>
         </ThemeProvider>
       </body>
