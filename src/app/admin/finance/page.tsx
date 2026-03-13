@@ -11,6 +11,7 @@ import {
   TrendingUp,
   CreditCard,
   DollarSign,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,8 @@ export default function AdminFinancePage() {
     comment: "",
   });
   const [saving, setSaving] = useState(false);
+  const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -217,6 +220,36 @@ export default function AdminFinancePage() {
       toast.error(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteBatch = async (id: string) => {
+    if (!confirm("Удалить партию? Это действие нельзя отменить.")) return;
+    setDeletingBatchId(id);
+    try {
+      const res = await fetch(`/api/v1/admin/finance/batches/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Ошибка удаления");
+      toast.success("Партия удалена");
+      void load();
+    } catch {
+      toast.error("Ошибка удаления");
+    } finally {
+      setDeletingBatchId(null);
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm("Удалить расход? Это действие нельзя отменить.")) return;
+    setDeletingExpenseId(id);
+    try {
+      const res = await fetch(`/api/v1/admin/finance/expenses/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Ошибка удаления");
+      toast.success("Расход удалён");
+      void load();
+    } catch {
+      toast.error("Ошибка удаления");
+    } finally {
+      setDeletingExpenseId(null);
     }
   };
 
@@ -491,6 +524,7 @@ export default function AdminFinancePage() {
                       <th className="px-4 py-2 text-right">Курс ₽/USD</th>
                       <th className="px-4 py-2 text-right">Остаток USD</th>
                       <th className="px-4 py-2 text-left">Источник</th>
+                      <th className="px-4 py-2 w-12"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -502,6 +536,23 @@ export default function AdminFinancePage() {
                         <td className="px-4 py-2 text-right font-mono">{b.effectiveRateRubPerUsd.toFixed(2)}</td>
                         <td className="px-4 py-2 text-right">{formatUsd(b.usdRemaining)}</td>
                         <td className="px-4 py-2">{b.source || "—"}</td>
+                        <td className="px-4 py-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                            onClick={() => handleDeleteBatch(b.id)}
+                            disabled={deletingBatchId === b.id}
+                            aria-label="Удалить"
+                          >
+                            {deletingBatchId === b.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -597,6 +648,7 @@ export default function AdminFinancePage() {
                       <th className="px-4 py-2 text-right">Сумма</th>
                       <th className="px-4 py-2 text-left">С</th>
                       <th className="px-4 py-2 text-left">Комментарий</th>
+                      <th className="px-4 py-2 w-12"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -607,6 +659,23 @@ export default function AdminFinancePage() {
                         <td className="px-4 py-2 text-right">{formatRub(e.amountCents)}</td>
                         <td className="px-4 py-2">{new Date(e.sinceAt).toLocaleDateString("ru-RU")}</td>
                         <td className="px-4 py-2">{e.comment || "—"}</td>
+                        <td className="px-4 py-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                            onClick={() => handleDeleteExpense(e.id)}
+                            disabled={deletingExpenseId === e.id}
+                            aria-label="Удалить"
+                          >
+                            {deletingExpenseId === e.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
