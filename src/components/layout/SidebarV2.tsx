@@ -240,8 +240,8 @@ export function SidebarV2() {
                             whileHover={{ x: 4 }}
                             whileTap={{ scale: 0.98 }}
                             className={cn(
-                              "relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
-                              isActive
+"relative flex items-center gap-3 rounded-2xl border-l-2 border-transparent px-4 py-3 text-sm font-medium transition-all duration-200",
+                                              isActive
                                 ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
                                 : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
                             )}
