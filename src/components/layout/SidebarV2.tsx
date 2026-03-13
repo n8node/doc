@@ -156,7 +156,7 @@ export function SidebarV2() {
         </div>
 
         {/* Upload */}
-        <div className="space-y-3 px-3 pt-4">
+        <div className="space-y-3 px-4 pt-4">
           <button
             type="button"
             onClick={handleUploadClick}
@@ -169,12 +169,11 @@ export function SidebarV2() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
+        <nav className="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-4 py-5">
           {/* Dashboard */}
           <div className="space-y-1.5">
             <Link href="/dashboard">
               <motion.div
-                whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.98 }}
                 className={cn(
                   "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
@@ -203,9 +202,9 @@ export function SidebarV2() {
               <button
                 type="button"
                 onClick={() => toggleCollapse(group.id)}
-                className="flex w-full items-center justify-between rounded-xl border-l-2 border-primary/40 px-4 py-2 bg-surface2/30 group hover:bg-surface2/50 transition-colors"
+                className="flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border-l-2 border-primary/40 px-4 py-2 bg-surface2/30 group hover:bg-surface2/50 transition-colors"
               >
-                <span className="text-xs font-semibold uppercase tracking-wide text-foreground/90">
+                <span className="truncate text-xs font-semibold uppercase tracking-wide text-foreground/90">
                   {group.label}
                 </span>
                 <ChevronDown
@@ -236,11 +235,10 @@ export function SidebarV2() {
                       const isActive = isFileSection || isRouteActive;
                       return (
                         <Link key={item.href} href={item.href}>
-                          <motion.div
-                            whileHover={{ x: 4 }}
+<motion.div
                             whileTap={{ scale: 0.98 }}
                             className={cn(
-"relative flex items-center gap-3 rounded-2xl border-l-2 border-transparent px-4 py-3 text-sm font-medium transition-all duration-200",
+                              "relative flex items-center gap-3 rounded-2xl border-l-2 border-transparent px-4 py-3 text-sm font-medium transition-all duration-200",
                                               isActive
                                 ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
                                 : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
@@ -270,7 +268,6 @@ export function SidebarV2() {
           <div className="space-y-1.5">
             <Link href="/dashboard/plans">
               <motion.div
-                whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.98 }}
                 className={cn(
                   "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
@@ -297,10 +294,10 @@ export function SidebarV2() {
         </div>
 
         {/* Footer */}
-        <div className="space-y-1 border-t border-border/70 px-3 py-4">
+        <div className="space-y-1 border-t border-border/70 px-4 py-4">
           <Link href="/dashboard/settings">
             <motion.div
-              whileHover={{ x: 4 }}
+              whileTap={{ scale: 0.98 }}
               className={cn(
                 "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                 pathname === "/dashboard/settings"
@@ -314,7 +311,7 @@ export function SidebarV2() {
           </Link>
           <LogoutButton className="w-full text-left">
             <motion.div
-              whileHover={{ x: 4 }}
+              whileTap={{ scale: 0.98 }}
               className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-surface2/75 hover:text-foreground"
             >
               <LogOut className="h-5 w-5" />
