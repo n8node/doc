@@ -203,14 +203,14 @@ export function SidebarV2() {
               <button
                 type="button"
                 onClick={() => toggleCollapse(group.id)}
-                className="flex w-full items-center justify-between px-4 pb-1 group"
+                className="flex w-full items-center justify-between rounded-xl border-l-2 border-primary/40 px-4 py-2 bg-surface2/30 group hover:bg-surface2/50 transition-colors"
               >
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="text-xs font-semibold uppercase tracking-wide text-foreground/90">
                   {group.label}
                 </span>
                 <ChevronDown
                   className={cn(
-                    "h-3.5 w-3.5 text-muted-foreground/50 transition-transform duration-200 group-hover:text-muted-foreground",
+                    "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 group-hover:text-foreground",
                     collapsed[group.id] && "-rotate-90",
                   )}
                 />
