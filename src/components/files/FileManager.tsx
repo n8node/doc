@@ -2060,6 +2060,81 @@ export function FileManager() {
     setSelectedFolders(new Set());
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const inInput = target.closest("input, textarea, [contenteditable=true]");
+      const dialogOpen =
+        moveDialogOpen ||
+        copyDialogOpen ||
+        !!shareTarget ||
+        !!shareLinksTarget ||
+        !!renameTarget ||
+        createFolderOpen ||
+        !!mediaModal;
+
+      if (e.key === "Escape") {
+        if (dialogOpen) return;
+        if (selectedFiles.size > 0 || selectedFolders.size > 0) {
+          e.preventDefault();
+          clearSelection();
+        }
+        return;
+      }
+      if (inInput) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        e.preventDefault();
+        if (!isHistorySection && !isTrashSection) handleQuickSelectAll();
+        return;
+      }
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedCount === 0) return;
+        e.preventDefault();
+        if (isTrashSection) handleBulkPermanentDelete();
+        else if (!isHistorySection) handleBulkDelete();
+        return;
+      }
+
+      if (e.key === "Enter" && selectedCount === 1 && !dialogOpen) {
+        e.preventDefault();
+        if (selectedFolders.size === 1) {
+          const folderId = Array.from(selectedFolders)[0];
+          navigateToFolder(folderId);
+        } else if (selectedFiles.size === 1) {
+          const file = files.find((f) => selectedFiles.has(f.id));
+          if (
+            file &&
+            (file.mimeType.startsWith("video/") || file.mimeType.startsWith("audio/"))
+          ) {
+            setMediaModal({
+              type: file.mimeType.startsWith("video/") ? "video" : "audio",
+              id: file.id,
+              name: file.name,
+            });
+          }
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    selectedFiles,
+    selectedFolders,
+    selectedCount,
+    moveDialogOpen,
+    copyDialogOpen,
+    shareTarget,
+    shareLinksTarget,
+    renameTarget,
+    createFolderOpen,
+    mediaModal,
+    isHistorySection,
+    isTrashSection,
+    files,
+  ]);
+
   const handleQuickSelectAllFolders = () => {
     const allSelected = folders.length > 0 && selectedFolders.size === folders.length;
     setSelectedFolders(allSelected ? new Set() : new Set(folders.map((f) => f.id)));
