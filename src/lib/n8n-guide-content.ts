@@ -59,11 +59,22 @@ const DEFAULT_HTTP_HTML = `
 </ul>
 <pre><code>https://qoqon.ru/api/v1/files/search?q=ваш+запрос&amp;collectionId=&lt;id_коллекции&gt;&amp;limit=10</code></pre>
 
-<h2>5. Схема агента</h2>
+<h2>5. Chat Model — credential для LLM</h2>
+<p>Для ноды LLM (Chat Model) в агенте можно использовать <strong>Qoqon API Маркетплейс</strong>:</p>
+<table>
+  <thead><tr><th>Поле</th><th>Значение</th></tr></thead>
+  <tbody>
+    <tr><td><strong>API Key</strong></td><td><code>QoQon_LLM_xxx</code> (ключ маркетплейса)</td></tr>
+    <tr><td><strong>Base URL</strong></td><td><code>https://qoqon.ru/api/v1/marketplace</code></td></tr>
+  </tbody>
+</table>
+<p>Или используйте свой ключ OpenAI / OpenRouter напрямую.</p>
+
+<h2>6. Схема агента</h2>
 <p><strong>Trigger</strong> → <strong>HTTP Request</strong> (files/search) → <strong>Собрать чанки в контекст</strong> → <strong>LLM</strong> (промпт с контекстом) → <strong>Ответ</strong></p>
 <p>В ответе Search API: <code>results[].chunkText</code> (результаты с type: "chunk") — передайте в системный промпт.</p>
 
-<h2>6. Формат контекста для промпта</h2>
+<h2>7. Формат контекста для промпта</h2>
 <pre><code>Контекст из базы знаний:
 {{ $json.results.filter(r => r.type === 'chunk').map(r => r.chunkText).join('\\n\\n') }}
 
@@ -97,7 +108,24 @@ const DEFAULT_PGVECTOR_HTML = `
 </table>
 <p><strong>Важно:</strong> У Qoqon одна таблица на коллекцию, без отдельной таблицы коллекций. Поле <strong>Use Collection</strong> нужно <strong>выключить</strong>, а Collection Name и Collection Table Name не заполнять.</p>
 
-<h2>6. Embeddings в n8n</h2>
+<h2>6. Chat Model и Embeddings — credential</h2>
+<p>Для Chat Model (мозгов) и Embeddings в n8n можно использовать <strong>Qoqon API Маркетплейс</strong> — один ключ для обоих.</p>
+
+<h3>Вариант A: Qoqon Marketplace (рекомендуется)</h3>
+<p>Создайте credential типа <strong>OpenAI API</strong> в n8n:</p>
+<table>
+  <thead><tr><th>Поле</th><th>Значение</th></tr></thead>
+  <tbody>
+    <tr><td><strong>API Key</strong></td><td><code>QoQon_LLM_xxx</code> (ключ маркетплейса из Qoqon)</td></tr>
+    <tr><td><strong>Base URL</strong></td><td><code>https://qoqon.ru/api/v1/marketplace</code></td></tr>
+  </tbody>
+</table>
+<p>Этот credential подходит и для Chat Model, и для Embeddings. Доступны все модели OpenRouter.</p>
+
+<h3>Вариант B: Свой ключ OpenAI / OpenRouter</h3>
+<p>Создайте credential <strong>OpenAI API</strong> с вашим ключом и Base URL провайдера (например, <code>https://openrouter.ai/api/v1</code>).</p>
+
+<h3>Embeddings — совпадение модели</h3>
 <p>Модель эмбеддингов в n8n <strong>должна совпадать</strong> с моделью в Qoqon:</p>
 <table>
   <thead><tr><th>В Qoqon</th><th>В n8n</th></tr></thead>
@@ -111,7 +139,7 @@ const DEFAULT_PGVECTOR_HTML = `
 
 <h2>7. Схема агента</h2>
 <pre><code>[AI Agent]
-   ├─ Chat Model → OpenRouter Chat Model (или другая LLM)
+   ├─ Chat Model → OpenAI Chat Model (credential: Qoqon Marketplace или свой)
    └─ Tool → Postgres PGVector Store
                  └─ Embeddings → Embeddings OpenAI (та же модель, что в Qoqon)</code></pre>
 `.trim();

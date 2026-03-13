@@ -4,7 +4,12 @@
 
 ## Обзор
 
-Qoqon предоставляет REST API для семантического поиска по документам. Вы можете подключить RAG-коллекции (векторные «мозги») к агентам n8n через ноду **HTTP Request**.
+Qoqon предоставляет REST API для семантического поиска по документам. Есть **два способа** подключения:
+
+1. **Postgres PGVector Store** (рекомендуется) — прямое подключение к БД, эмбеддинги генерируются в n8n
+2. **HTTP Request** — REST API, эмбеддинги на стороне Qoqon
+
+Для Chat Model (мозгов) агента можно использовать **Qoqon API Маркетплейс** как OpenAI-совместимый провайдер.
 
 ## Шаг 1: Создание RAG-коллекции
 
@@ -29,7 +34,64 @@ Authorization: Bearer <ваш_ключ>
 
 > **Важно:** Эндпоинт `rag/collections` возвращает только список коллекций и файлов (метаданные). Он **не** выполняет семантический поиск. Для RAG-запросов используйте `files/search` (см. шаг 4).
 
-## Шаг 4: n8n — HTTP Request для RAG-поиска
+## Qoqon API Маркетплейс (credential для Chat Model)
+
+Qoqon Marketplace — OpenAI-совместимый прокси. Один ключ для Chat Model и Embeddings.
+
+В n8n: **Settings → Credentials → Add Credential → OpenAI API**
+
+| Поле | Значение |
+|------|----------|
+| **API Key** | `QoQon_LLM_xxx` (ключ маркетплейса из Qoqon) |
+| **Base URL** | `https://qoqon.ru/api/v1/marketplace` |
+
+### Доступные эндпоинты Marketplace
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/api/v1/marketplace/chat/completions` | Chat Completions API |
+| POST | `/api/v1/marketplace/responses` | Responses API (OpenAI SDK v4+) |
+| POST | `/api/v1/marketplace/embeddings` | Embeddings API |
+| GET | `/api/v1/marketplace/models` | Каталог моделей |
+
+n8n автоматически подставляет нужный путь к Base URL.
+
+---
+
+## Способ 1: Postgres PGVector Store (рекомендуется)
+
+### Шаг 4: Postgres Credential
+
+Создайте credential типа **Postgres** (n8n 2.0) с данными из Qoqon (RAG-память → коллекция → n8n → Создать подключение).
+
+### Шаг 5: Нода Postgres PGVector Store
+
+| Параметр | Значение |
+|----------|----------|
+| **Credential** | Postgres 2.0 (из шага 4) |
+| **Operation** | Retrieve Documents (As Tool for AI Agent) |
+| **Table Name** | `coll_xxx` — из Qoqon |
+| **Limit** | 4–10 |
+| **Use Collection** | **выключить** |
+
+### Шаг 6: Embeddings
+
+Модель эмбеддингов в n8n должна совпадать с Qoqon (например, `text-embedding-3-small`).
+
+### Схема агента (PGVector)
+
+```
+[AI Agent]
+   ├─ Chat Model → OpenAI Chat Model (credential: Qoqon Marketplace)
+   └─ Tool → Postgres PGVector Store
+                 └─ Embeddings → Embeddings OpenAI (credential: Qoqon Marketplace, та же модель)
+```
+
+---
+
+## Способ 2: HTTP Request
+
+### Шаг 4: n8n — HTTP Request для RAG-поиска
 
 Для семантического поиска по содержимому документов используйте **только** эндпоинт `files/search`. Он возвращает `results[].chunkText` — релевантные фрагменты для контекста LLM.
 
@@ -110,3 +172,12 @@ pm2 restart qoqon
 | POST | `/api/v1/rag/collections/{id}/validate` | Проверка файлов |
 | POST | `/api/v1/rag/collections/{id}/vectorize` | Векторизация |
 | GET | `/api/v1/files/search?q=...&collectionId=...` | Семантический поиск (RAG) — возвращает `results[].chunkText` |
+
+## API-эндпоинты Marketplace (OpenAI-совместимые)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/api/v1/marketplace/chat/completions` | Chat Completions (стандартный) |
+| POST | `/api/v1/marketplace/responses` | Responses API (OpenAI SDK v4+, n8n 1.70+) |
+| POST | `/api/v1/marketplace/embeddings` | Генерация эмбеддингов |
+| GET | `/api/v1/marketplace/models` | Каталог доступных моделей |
