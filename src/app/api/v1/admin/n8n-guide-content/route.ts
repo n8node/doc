@@ -30,6 +30,8 @@ export async function POST(request: NextRequest) {
   await setN8nGuideContent({
     title: typeof body.title === "string" ? body.title : undefined,
     subtitle: typeof body.subtitle === "string" ? body.subtitle : undefined,
+    commonStepsHtml: typeof body.commonStepsHtml === "string" ? body.commonStepsHtml : undefined,
+    comparisonHtml: typeof body.comparisonHtml === "string" ? body.comparisonHtml : undefined,
     httpTabHtml: typeof body.httpTabHtml === "string" ? body.httpTabHtml : undefined,
     pgvectorTabHtml: typeof body.pgvectorTabHtml === "string" ? body.pgvectorTabHtml : undefined,
   });

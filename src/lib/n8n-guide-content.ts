@@ -3,6 +3,8 @@ import { configStore } from "./config-store";
 export type N8nGuideContent = {
   title: string;
   subtitle: string;
+  commonStepsHtml: string;
+  comparisonHtml: string;
   httpTabHtml: string;
   pgvectorTabHtml: string;
 };
@@ -13,6 +15,37 @@ const CATEGORY = "n8n_guide";
 const DEFAULT_TITLE = "Интеграция Qoqon RAG с n8n";
 const DEFAULT_SUBTITLE =
   "Использование векторной базы Qoqon в качестве RAG-памяти для AI-агентов.";
+
+const DEFAULT_COMMON_STEPS_HTML = `
+<h2>1. Создание RAG-коллекции</h2>
+<ol>
+  <li>Раздел <strong>RAG-память</strong> → Создать</li>
+  <li>Укажите название, выберите папку или файлы</li>
+  <li>Нажмите <strong>Векторизовать</strong></li>
+</ol>
+
+<h2>2. API-ключ</h2>
+<p>Раздел <a href="/dashboard/api-docs">API настройки</a> → создайте ключ. Формат: <code>qk_...__...</code></p>
+
+<h2>3. ID коллекции</h2>
+<pre><code>GET https://qoqon.ru/api/v1/rag/collections
+Authorization: Bearer &lt;ключ&gt;</code></pre>
+<p>Скопируйте <code>id</code> нужной коллекции.</p>
+`.trim();
+
+const DEFAULT_COMPARISON_HTML = `
+<table>
+  <thead>
+    <tr><th>Параметр</th><th>HTTP Request</th><th>PGVector Store</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Эмбеддинги</strong></td><td>На стороне Qoqon</td><td>Генерируются в n8n</td></tr>
+    <tr><td><strong>Согласование модели</strong></td><td>Не требуется</td><td>Обязательно та же, что в Qoqon</td></tr>
+    <tr><td><strong>Тариф Qoqon</strong></td><td>RAG + токены на поиск</td><td>Только подключение к БД</td></tr>
+    <tr><td><strong>Когда удобнее</strong></td><td>Один источник (Qoqon)</td><td>Агент с Vector Store в n8n</td></tr>
+  </tbody>
+</table>
+`.trim();
 
 const DEFAULT_HTTP_HTML = `
 <h2>4. n8n — HTTP Request для поиска</h2>
@@ -84,16 +117,21 @@ const DEFAULT_PGVECTOR_HTML = `
 `.trim();
 
 export async function getN8nGuideContent(): Promise<N8nGuideContent> {
-  const [title, subtitle, httpHtml, pgvectorHtml] = await Promise.all([
-    configStore.get(`${PREFIX}title`),
-    configStore.get(`${PREFIX}subtitle`),
-    configStore.get(`${PREFIX}http_tab_html`),
-    configStore.get(`${PREFIX}pgvector_tab_html`),
-  ]);
+  const [title, subtitle, commonSteps, comparison, httpHtml, pgvectorHtml] =
+    await Promise.all([
+      configStore.get(`${PREFIX}title`),
+      configStore.get(`${PREFIX}subtitle`),
+      configStore.get(`${PREFIX}common_steps_html`),
+      configStore.get(`${PREFIX}comparison_html`),
+      configStore.get(`${PREFIX}http_tab_html`),
+      configStore.get(`${PREFIX}pgvector_tab_html`),
+    ]);
 
   return {
     title: title?.trim() || DEFAULT_TITLE,
     subtitle: subtitle?.trim() || DEFAULT_SUBTITLE,
+    commonStepsHtml: commonSteps?.trim() || DEFAULT_COMMON_STEPS_HTML,
+    comparisonHtml: comparison?.trim() || DEFAULT_COMPARISON_HTML,
     httpTabHtml: httpHtml?.trim() || DEFAULT_HTTP_HTML,
     pgvectorTabHtml: pgvectorHtml?.trim() || DEFAULT_PGVECTOR_HTML,
   };
@@ -120,6 +158,22 @@ export async function setN8nGuideContent(
       }),
     );
   }
+  if (typeof data.commonStepsHtml === "string") {
+    updates.push(
+      configStore.set(`${PREFIX}common_steps_html`, data.commonStepsHtml, {
+        category: CATEGORY,
+        description: "HTML общих шагов (подготовка)",
+      }),
+    );
+  }
+  if (typeof data.comparisonHtml === "string") {
+    updates.push(
+      configStore.set(`${PREFIX}comparison_html`, data.comparisonHtml, {
+        category: CATEGORY,
+        description: "HTML таблицы сравнения подходов",
+      }),
+    );
+  }
   if (typeof data.httpTabHtml === "string") {
     updates.push(
       configStore.set(`${PREFIX}http_tab_html`, data.httpTabHtml, {
@@ -142,6 +196,8 @@ export async function setN8nGuideContent(
   [
     `${PREFIX}title`,
     `${PREFIX}subtitle`,
+    `${PREFIX}common_steps_html`,
+    `${PREFIX}comparison_html`,
     `${PREFIX}http_tab_html`,
     `${PREFIX}pgvector_tab_html`,
   ].forEach((k) => configStore.invalidate(k));

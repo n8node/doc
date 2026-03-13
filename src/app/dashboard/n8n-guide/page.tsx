@@ -9,6 +9,8 @@ type TabId = "pgvector" | "http";
 type Content = {
   title: string;
   subtitle: string;
+  commonStepsHtml: string;
+  comparisonHtml: string;
   httpTabHtml: string;
   pgvectorTabHtml: string;
 };
@@ -27,8 +29,17 @@ export default function N8nGuidePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const codeClassName =
-    "rounded bg-primary/15 px-1.5 py-0.5 text-primary font-medium";
+  const htmlClasses = `
+    prose prose-sm dark:prose-invert max-w-none
+    [&_table]:w-full [&_table]:overflow-hidden [&_table]:rounded-lg [&_table]:border [&_table]:border-border
+    [&_thead]:bg-muted/50
+    [&_th]:px-4 [&_th]:py-2 [&_th]:text-left [&_th]:font-medium [&_th]:text-muted-foreground
+    [&_td]:border-t [&_td]:border-border [&_td]:px-4 [&_td]:py-2
+    [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-4 [&_pre]:text-sm [&_pre]:text-foreground
+    [&_code]:rounded [&_code]:bg-primary/15 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-primary [&_code]:font-medium
+    [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:py-0 [&_pre_code]:text-foreground
+    [&_a]:text-primary [&_a]:underline
+  `;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -52,47 +63,12 @@ export default function N8nGuidePage() {
       </div>
 
       {/* Common steps */}
-      <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
-        <section>
-          <h2 className="text-lg font-semibold">1. Создание RAG-коллекции</h2>
-          <ol className="list-decimal space-y-2 pl-6">
-            <li>
-              Раздел <strong>RAG-память</strong> → Создать
-            </li>
-            <li>Укажите название, выберите папку или файлы</li>
-            <li>
-              Нажмите <strong>Векторизовать</strong>
-            </li>
-          </ol>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold">2. API-ключ</h2>
-          <p>
-            Раздел{" "}
-            <Link
-              href="/dashboard/api-docs"
-              className="text-primary hover:underline"
-            >
-              API настройки
-            </Link>{" "}
-            → создайте ключ. Формат:{" "}
-            <code className={codeClassName}>qk_...__...</code>
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold">3. ID коллекции</h2>
-          <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-sm text-foreground">
-            {`GET https://qoqon.ru/api/v1/rag/collections
-Authorization: Bearer <ключ>`}
-          </pre>
-          <p>
-            Скопируйте <code className={codeClassName}>id</code> нужной
-            коллекции.
-          </p>
-        </section>
-      </div>
+      {content?.commonStepsHtml && (
+        <div
+          className={htmlClasses}
+          dangerouslySetInnerHTML={{ __html: content.commonStepsHtml }}
+        />
+      )}
 
       {/* Comparison cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -145,67 +121,12 @@ Authorization: Bearer <ключ>`}
       </div>
 
       {/* Comparison table */}
-      <div className="overflow-hidden rounded-xl border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-muted/50">
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                Параметр
-              </th>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                HTTP Request
-              </th>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                PGVector Store
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            <tr>
-              <td className="px-4 py-2 font-medium text-foreground">
-                Эмбеддинги
-              </td>
-              <td className="px-4 py-2 text-muted-foreground">
-                На стороне Qoqon
-              </td>
-              <td className="px-4 py-2 text-muted-foreground">
-                Генерируются в n8n
-              </td>
-            </tr>
-            <tr>
-              <td className="px-4 py-2 font-medium text-foreground">
-                Согласование модели
-              </td>
-              <td className="px-4 py-2 text-muted-foreground">Не требуется</td>
-              <td className="px-4 py-2 text-muted-foreground">
-                Обязательно та же, что в Qoqon
-              </td>
-            </tr>
-            <tr>
-              <td className="px-4 py-2 font-medium text-foreground">
-                Тариф Qoqon
-              </td>
-              <td className="px-4 py-2 text-muted-foreground">
-                RAG + токены на поиск
-              </td>
-              <td className="px-4 py-2 text-muted-foreground">
-                Только подключение к БД
-              </td>
-            </tr>
-            <tr>
-              <td className="px-4 py-2 font-medium text-foreground">
-                Когда удобнее
-              </td>
-              <td className="px-4 py-2 text-muted-foreground">
-                Один источник (Qoqon)
-              </td>
-              <td className="px-4 py-2 text-muted-foreground">
-                Агент с Vector Store в n8n
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {content?.comparisonHtml && (
+        <div
+          className={htmlClasses}
+          dangerouslySetInnerHTML={{ __html: content.comparisonHtml }}
+        />
+      )}
 
       {/* Tab content */}
       {loading ? (
@@ -215,16 +136,7 @@ Authorization: Bearer <ключ>`}
         </div>
       ) : (
         <div
-          className="
-            prose prose-sm dark:prose-invert max-w-none
-            [&_table]:w-full [&_table]:overflow-hidden [&_table]:rounded-lg [&_table]:border [&_table]:border-border
-            [&_thead]:bg-muted/50
-            [&_th]:px-4 [&_th]:py-2 [&_th]:text-left [&_th]:font-medium [&_th]:text-muted-foreground
-            [&_td]:border-t [&_td]:border-border [&_td]:px-4 [&_td]:py-2
-            [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-4 [&_pre]:text-sm [&_pre]:text-foreground
-            [&_code]:rounded [&_code]:bg-primary/15 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-primary [&_code]:font-medium
-            [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:py-0 [&_pre_code]:text-foreground
-          "
+          className={htmlClasses}
           dangerouslySetInnerHTML={{
             __html:
               tab === "http"

@@ -10,6 +10,8 @@ import { Loader2, Save, RotateCcw } from "lucide-react";
 type Content = {
   title: string;
   subtitle: string;
+  commonStepsHtml: string;
+  comparisonHtml: string;
   httpTabHtml: string;
   pgvectorTabHtml: string;
 };
@@ -67,6 +69,8 @@ export function N8nGuideContentForm() {
         body: JSON.stringify({
           title: "",
           subtitle: "",
+          commonStepsHtml: "",
+          comparisonHtml: "",
           httpTabHtml: "",
           pgvectorTabHtml: "",
         }),
@@ -121,6 +125,32 @@ export function N8nGuideContentForm() {
             className="mt-1"
           />
         </div>
+      </div>
+
+      {/* Common steps */}
+      <div className="space-y-4 rounded-xl border border-border p-4">
+        <h3 className="text-sm font-semibold text-foreground">Общие шаги (подготовка)</h3>
+        <p className="text-xs text-muted-foreground">
+          Шаги 1–3, которые отображаются перед выбором способа подключения.
+        </p>
+        <TipTapEditor
+          content={content.commonStepsHtml}
+          onChange={(html) => setContent({ ...content, commonStepsHtml: html })}
+          placeholder="Шаги подготовки..."
+        />
+      </div>
+
+      {/* Comparison table */}
+      <div className="space-y-4 rounded-xl border border-border p-4">
+        <h3 className="text-sm font-semibold text-foreground">Таблица сравнения</h3>
+        <p className="text-xs text-muted-foreground">
+          Таблица сравнения HTTP Request и PGVector Store. Используйте кнопку «Таблица» в панели редактора.
+        </p>
+        <TipTapEditor
+          content={content.comparisonHtml}
+          onChange={(html) => setContent({ ...content, comparisonHtml: html })}
+          placeholder="Таблица сравнения..."
+        />
       </div>
 
       {/* Tab editors */}
