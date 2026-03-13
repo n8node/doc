@@ -327,6 +327,38 @@ model AdminConfig {
   @@map("admin_config")
 }
 
+model OpenRouterTopupBatch {
+  id                    String   @id @default(cuid()) @map("id")
+  usdAmount             Float    @map("usd_amount")
+  rubSpentCents         Int      @map("rub_spent_cents")
+  rubFeeCents           Int      @default(0) @map("rub_fee_cents")
+  effectiveRateRubPerUsd Float   @map("effective_rate_rub_per_usd")
+  usdRemaining          Float    @map("usd_remaining")
+  source                String?  @map("source")
+  comment               String?  @map("comment")
+  toppedAt              DateTime @map("topped_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@index([toppedAt(sort: Desc)])
+  @@map("open_router_topup_batches")
+}
+
+model PlatformExpense {
+  id          String   @id @default(cuid()) @map("id")
+  category    String   @map("category") // server, s3, domain, ...
+  type        String   @map("type") // fixed_monthly, variable_per_gb_day, ...
+  amountCents Int      @map("amount_cents")
+  unit        String?  @map("unit") // для variable: "gb_day", "gb_month"
+  sinceAt     DateTime @map("since_at")
+  comment     String?  @map("comment")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([sinceAt(sort: Desc)])
+  @@map("platform_expenses")
+}
+
 model DocPage {
   id        String   @id @default(cuid()) @map("id")
   slug      String   @unique @map("slug")
