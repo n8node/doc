@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Bell, BellRing, ChevronRight } from "lucide-react";
 import {
@@ -51,6 +51,25 @@ export function NotificationsDropdown() {
   const [data, setData] = useState<NotificationsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const markAsRead = useCallback(async (id: string) => {
+    try {
+      await fetch(`/api/v1/notifications/${id}/read`, { method: "PATCH" });
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((n) =>
+                n.id === id ? { ...n, readAt: new Date().toISOString() } : n
+              ),
+              unreadCount: Math.max(0, prev.unreadCount - 1),
+            }
+          : null
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+      window.dispatchEvent(new CustomEvent("notifications:refresh"));
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetchUnreadCount(setUnreadCount);
@@ -120,7 +139,10 @@ export function NotificationsDropdown() {
                 <Link
                   key={n.id}
                   href="/dashboard/notifications"
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    if (!n.readAt) void markAsRead(n.id);
+                    setOpen(false);
+                  }}
                   className={cn(
                     "block px-3 py-2 hover:bg-surface2 transition-colors",
                     !n.readAt && "bg-surface2/50"
