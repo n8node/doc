@@ -32,9 +32,11 @@ export async function GET(
 
   try {
     const { body, contentType, contentLength } = await getStreamFromS3(s3Key);
+    const isFavicon = kind === "favicon";
     const headers: HeadersInit = {
       "Content-Type": mimeType || contentType || "application/octet-stream",
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": isFavicon ? "no-store, no-cache, must-revalidate, max-age=0" : "public, max-age=300",
+      ...(isFavicon && { Pragma: "no-cache" }),
     };
     if (contentLength != null) {
       headers["Content-Length"] = String(contentLength);
