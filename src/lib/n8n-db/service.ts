@@ -62,7 +62,7 @@ export async function createN8nConnection(
     // Create role (PostgreSQL does not support $1 in PASSWORD clause)
     const escapedPwd = password.replace(/'/g, "''");
     await client.query(`CREATE ROLE "${dbRoleName}" WITH LOGIN PASSWORD '${escapedPwd}'`);
-    await client.query(`ALTER ROLE "${dbRoleName}" SET search_path = '${SCHEMA_NAME}'`);
+    await client.query(`ALTER ROLE "${dbRoleName}" SET search_path = '${SCHEMA_NAME}','public'`);
     // n8n PGVector Store node runs CREATE TABLE IF NOT EXISTS / CREATE INDEX
     // on init, so the role needs USAGE + CREATE on the schema.
     await client.query(`GRANT USAGE, CREATE ON SCHEMA ${SCHEMA_NAME} TO "${dbRoleName}"`);
@@ -180,6 +180,7 @@ export async function upgradeN8nConnectionPermissions(
   await client.connect();
   try {
     const tableName = `${SCHEMA_NAME}.${viewName}`;
+    await client.query(`ALTER ROLE "${dbRoleName}" SET search_path = '${SCHEMA_NAME}','public'`);
     await client.query(`GRANT USAGE, CREATE ON SCHEMA ${SCHEMA_NAME} TO "${dbRoleName}"`);
     await client.query(`GRANT ALL ON ${tableName} TO "${dbRoleName}"`);
   } finally {
