@@ -63,11 +63,11 @@ export async function createN8nConnection(
     const tableName = `${SCHEMA_NAME}.${viewName}`;
     const dim = embeddings[0]?.vector?.length ?? 1536;
 
-    // Create table
+    // Create table — column named "embedding" to match LangChain/n8n PGVector Store expectations
     await client.query(`
       CREATE TABLE ${tableName} (
         id TEXT PRIMARY KEY,
-        vector vector(${dim}) NOT NULL,
+        embedding vector(${dim}) NOT NULL,
         content TEXT NOT NULL,
         metadata JSONB DEFAULT '{}'
       )
@@ -81,7 +81,7 @@ export async function createN8nConnection(
           ? JSON.stringify(e.metadata)
           : "{}";
         await client.query(
-          `INSERT INTO ${tableName} (id, vector, content, metadata) VALUES ($1, $2::vector, $3, $4::jsonb)`,
+          `INSERT INTO ${tableName} (id, embedding, content, metadata) VALUES ($1, $2::vector, $3, $4::jsonb)`,
           [e.id, vecStr, e.chunkText, metaJson]
         );
       }
@@ -148,7 +148,7 @@ export async function syncN8nConnection(
           ? JSON.stringify(e.metadata)
           : "{}";
         await client.query(
-          `INSERT INTO ${tableName} (id, vector, content, metadata) VALUES ($1, $2::vector, $3, $4::jsonb)`,
+          `INSERT INTO ${tableName} (id, embedding, content, metadata) VALUES ($1, $2::vector, $3, $4::jsonb)`,
           [e.id, vecStr, e.chunkText, metaJson]
         );
       }
