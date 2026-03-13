@@ -162,7 +162,6 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setEmbeddingTokensQuota("");
       setChatTokensQuota("");
       setSearchTokensQuota("");
-      setTranscriptionTokensQuota("");
       setAiAnalysisDocumentsQuota("");
       setRagDocumentsQuota("");
       setFreePlanDurationDays("");
