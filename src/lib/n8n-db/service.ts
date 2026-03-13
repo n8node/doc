@@ -50,6 +50,13 @@ export async function createN8nConnection(
   try {
     // Ensure pgvector
     await client.query("CREATE EXTENSION IF NOT EXISTS vector");
+    // Implicit cast text->vector so n8n/LangChain query params (unknown type) work with <=>
+    await client.query(`
+      DO $$ BEGIN
+        CREATE CAST (text AS vector) WITH INOUT AS IMPLICIT;
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$
+    `);
     // Ensure schema
     await client.query(`CREATE SCHEMA IF NOT EXISTS ${SCHEMA_NAME}`);
     // Create role (PostgreSQL does not support $1 in PASSWORD clause)
