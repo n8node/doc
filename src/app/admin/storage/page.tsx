@@ -27,6 +27,7 @@ import {
   Music,
   FileText,
   MoreVertical,
+  RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -124,6 +125,7 @@ export default function AdminStoragePage() {
   // UI states
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [recalculating, setRecalculating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
@@ -197,10 +199,36 @@ export default function AdminStoragePage() {
     }
   }, [page, userIdFilter, currentFolder, search, mimeTypeFilter]);
 
+  const recalcStorage = useCallback(async () => {
+    setRecalculating(true);
+    try {
+      const res = await fetch("/api/v1/admin/storage/recalc", { method: "POST" });
+      if (res.ok) {
+        await loadStats();
+      }
+    } catch (e) {
+      console.error("Recalc failed:", e);
+    } finally {
+      setRecalculating(false);
+    }
+  }, [loadStats]);
+
   useEffect(() => {
     loadUsers();
     loadStats();
   }, [loadUsers, loadStats]);
+
+  // Авто-обновление статистики каждые 60 сек
+  useEffect(() => {
+    const id = setInterval(() => void loadStats(), 60_000);
+    return () => clearInterval(id);
+  }, [loadStats]);
+
+  // При загрузке страницы — пересчёт User.storageUsed в фоне (синхронизация с фактическими файлами)
+  useEffect(() => {
+    void fetch("/api/v1/admin/storage/recalc", { method: "POST" }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -369,7 +397,27 @@ export default function AdminStoragePage() {
           ))}
         </div>
       ) : stats && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              Данные из фактических файлов. Авто-обновление каждые 60 сек.
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={recalcStorage}
+              disabled={recalculating}
+              className="gap-2"
+            >
+              {recalculating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Обновить статистику
+            </Button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2">
@@ -418,6 +466,7 @@ export default function AdminStoragePage() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
 

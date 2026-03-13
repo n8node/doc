@@ -55,17 +55,35 @@ export async function GET(_request: NextRequest) {
       }),
     ]),
     
-    // Top 5 users by storage used
-    prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        storageUsed: true,
-        _count: { select: { files: true } },
-      },
-      orderBy: { storageUsed: "desc" },
-      take: 5,
-    }),
+    // Top 5 users by storage used — считаем из реальных файлов, не из user.storageUsed
+    prisma.file
+      .groupBy({
+        by: ["userId"],
+        _sum: { size: true },
+        _count: true,
+      })
+      .then(async (rows) => {
+        const sorted = rows
+          .map((r) => ({
+            userId: r.userId,
+            storageUsed: Number(r._sum.size ?? 0),
+            filesCount: r._count,
+          }))
+          .sort((a, b) => b.storageUsed - a.storageUsed)
+          .slice(0, 5);
+        if (sorted.length === 0) return [];
+        const users = await prisma.user.findMany({
+          where: { id: { in: sorted.map((s) => s.userId) } },
+          select: { id: true, email: true },
+        });
+        const byId = new Map(users.map((u) => [u.id, u]));
+        return sorted.map((s) => ({
+          id: s.userId,
+          email: byId.get(s.userId)?.email ?? null,
+          storageUsed: s.storageUsed,
+          filesCount: s.filesCount,
+        }));
+      }),
     
     // Files with active share links
     prisma.file.count({
@@ -110,11 +128,11 @@ export async function GET(_request: NextRequest) {
       documents: documentsCount,
       other: otherFilesCount,
     },
-    topUsers: topUsersByStorage.map(user => ({
+    topUsers: topUsersByStorage.map((user) => ({
       id: user.id,
       email: user.email,
-      storageUsed: Number(user.storageUsed),
-      filesCount: user._count.files,
+      storageUsed: user.storageUsed,
+      filesCount: user.filesCount,
     })),
   });
 }
