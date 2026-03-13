@@ -32,7 +32,7 @@ interface PlanItem {
   embeddingTokensQuota?: number | null;
   chatTokensQuota?: number | null;
   searchTokensQuota?: number | null;
-  transcriptionTokensQuota?: number | null;
+  transcriptionMinutesQuota?: number | null;
   ragDocumentsQuota?: number | null;
   priceMonthly: number | null;
   priceYearly: number | null;
@@ -304,7 +304,7 @@ export default function DashboardPlansPage() {
                           {key === "transcription" && enabled && (
                             <span className="text-muted-foreground">
                               {" "}
-                              ({plan.transcriptionTokensQuota != null ? `${plan.transcriptionTokensQuota.toLocaleString()} ток./мес` : "безлимит"})
+                              ({plan.transcriptionMinutesQuota != null ? `${plan.transcriptionMinutesQuota} мин/мес` : "безлимит"})
                             </span>
                           )}
                           {key === "rag_memory" && enabled && (

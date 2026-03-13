@@ -91,7 +91,6 @@ export async function getUserBillingContext(userId: string) {
           chatTokensQuota: true,
           searchTokensQuota: true,
           embeddingTokensQuota: true,
-          transcriptionTokensQuota: true,
         },
       },
     },
@@ -124,13 +123,12 @@ export function getPlanTokenQuotas(plan: {
   chatTokensQuota?: number | null;
   searchTokensQuota?: number | null;
   embeddingTokensQuota?: number | null;
-  transcriptionTokensQuota?: number | null;
 } | null): Quotas {
   return {
     CHAT_DOCUMENT: plan?.chatTokensQuota ?? null,
     SEARCH: plan?.searchTokensQuota ?? null,
     EMBEDDING: plan?.embeddingTokensQuota ?? null,
-    TRANSCRIPTION: plan?.transcriptionTokensQuota ?? null,
+    TRANSCRIPTION: null, // квота транскрибации — по минутам, не по токенам
   };
 }
 

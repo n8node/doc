@@ -277,7 +277,6 @@ model Plan {
   embeddingTokensQuota         Int?        @map("embedding_tokens_quota") // токенов на эмбеддинг в месяц, null = без лимита
   chatTokensQuota              Int?        @map("chat_tokens_quota") // токенов чата по документам в месяц, null = без лимита
   searchTokensQuota            Int?        @map("search_tokens_quota") // токенов поиска в месяц, null = без лимита
-  transcriptionTokensQuota     Int?        @map("transcription_tokens_quota") // токенов транскрибации в месяц, null = без лимита
   aiAnalysisDocumentsQuota     Int?        @map("ai_analysis_documents_quota") // документов AI-анализа в месяц, null = без лимита
   ragDocumentsQuota            Int?        @map("rag_documents_quota") // документов RAG-коллекций, null = без лимита
   freePlanDurationDays         Int?        @map("free_plan_duration_days") // срок действия бесплатного тарифа в днях (24 часа), null = без ограничения

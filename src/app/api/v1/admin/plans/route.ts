@@ -25,7 +25,6 @@ export async function GET() {
       embeddingTokensQuota: p.embeddingTokensQuota,
       chatTokensQuota: p.chatTokensQuota,
       searchTokensQuota: p.searchTokensQuota,
-      transcriptionTokensQuota: p.transcriptionTokensQuota,
       aiAnalysisDocumentsQuota: p.aiAnalysisDocumentsQuota,
       ragDocumentsQuota: p.ragDocumentsQuota,
       freePlanDurationDays: p.freePlanDurationDays,
@@ -46,7 +45,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
-    chatTokensQuota, searchTokensQuota, transcriptionTokensQuota,
+    chatTokensQuota, searchTokensQuota,
     aiAnalysisDocumentsQuota,
     ragDocumentsQuota,
     freePlanDurationDays,
@@ -109,10 +108,6 @@ export async function POST(req: NextRequest) {
         searchTokensQuota === undefined || searchTokensQuota === null || searchTokensQuota === ""
           ? null
           : Math.max(0, parseInt(String(searchTokensQuota), 10) || 0) || null,
-      transcriptionTokensQuota:
-        transcriptionTokensQuota === undefined || transcriptionTokensQuota === null || transcriptionTokensQuota === ""
-          ? null
-          : Math.max(0, parseInt(String(transcriptionTokensQuota), 10) || 0) || null,
       aiAnalysisDocumentsQuota: analysisDocsQuota,
       ragDocumentsQuota:
         ragDocumentsQuota === undefined || ragDocumentsQuota === null || ragDocumentsQuota === ""

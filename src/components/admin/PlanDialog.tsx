@@ -23,7 +23,6 @@ interface PlanData {
   embeddingTokensQuota: number | null;
   chatTokensQuota?: number | null;
   searchTokensQuota?: number | null;
-  transcriptionTokensQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   ragDocumentsQuota?: number | null;
   freePlanDurationDays?: number | null;
@@ -90,7 +89,6 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
   const [chatTokensQuota, setChatTokensQuota] = useState("");
   const [searchTokensQuota, setSearchTokensQuota] = useState("");
-  const [transcriptionTokensQuota, setTranscriptionTokensQuota] = useState("");
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState("");
   const [maxTranscriptionVideoMinutes, setMaxTranscriptionVideoMinutes] = useState("60");
   const [maxTranscriptionAudioMinutes, setMaxTranscriptionAudioMinutes] = useState("120");
@@ -131,9 +129,6 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       );
       setSearchTokensQuota(
         plan.searchTokensQuota != null ? String(plan.searchTokensQuota) : "",
-      );
-      setTranscriptionTokensQuota(
-        plan.transcriptionTokensQuota != null ? String(plan.transcriptionTokensQuota) : "",
       );
       setAiAnalysisDocumentsQuota(
         plan.aiAnalysisDocumentsQuota != null ? String(plan.aiAnalysisDocumentsQuota) : "",
@@ -215,9 +210,6 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         : null,
       searchTokensQuota: searchTokensQuota.trim()
         ? Math.max(0, parseInt(searchTokensQuota, 10) || 0) || null
-        : null,
-      transcriptionTokensQuota: transcriptionTokensQuota.trim()
-        ? Math.max(0, parseInt(transcriptionTokensQuota, 10) || 0) || null
         : null,
       aiAnalysisDocumentsQuota: aiAnalysisDocumentsQuota.trim()
         ? Math.max(0, parseInt(aiAnalysisDocumentsQuota, 10) || 0) || null
@@ -400,18 +392,6 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
                   min={0}
                   value={embeddingTokensQuota}
                   onChange={(e) => setEmbeddingTokensQuota(e.target.value)}
-                  placeholder="Без лимита"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Транскрибация / мес
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={transcriptionTokensQuota}
-                  onChange={(e) => setTranscriptionTokensQuota(e.target.value)}
                   placeholder="Без лимита"
                 />
               </div>
