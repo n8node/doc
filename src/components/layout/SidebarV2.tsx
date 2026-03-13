@@ -169,7 +169,7 @@ export function SidebarV2() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-4 py-5">
+        <nav className="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-5 py-5">
           {/* Dashboard */}
           <div className="space-y-1.5">
             <Link href="/dashboard">
@@ -178,7 +178,7 @@ export function SidebarV2() {
                 className={cn(
                   "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                   pathname === "/dashboard"
-                    ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                    ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
                     : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
                 )}
               >
@@ -221,7 +221,7 @@ export function SidebarV2() {
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.2, ease: "easeInOut" }}
-                    className="overflow-hidden"
+                    className="overflow-hidden py-1.5"
                   >
                     {group.items.map((item) => {
                       const isFileSection =
@@ -240,7 +240,7 @@ export function SidebarV2() {
                             className={cn(
                               "relative flex items-center gap-3 rounded-2xl border-l-2 border-transparent px-4 py-3 text-sm font-medium transition-all duration-200",
                                               isActive
-                                ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                                ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
                                 : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
                             )}
                           >
@@ -272,7 +272,7 @@ export function SidebarV2() {
                 className={cn(
                   "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                   pathname === "/dashboard/plans"
-                    ? "bg-primary/15 text-primary ring-1 ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                    ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
                     : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
                 )}
               >
@@ -301,7 +301,7 @@ export function SidebarV2() {
               className={cn(
                 "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                 pathname === "/dashboard/settings"
-                  ? "bg-primary/15 text-primary ring-1 ring-primary/35"
+                  ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/35"
                   : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
               )}
             >
