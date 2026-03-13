@@ -11,6 +11,7 @@ import { AuthSettingsForm } from "@/components/admin/AuthSettingsForm";
 import { EmailSettingsForm } from "@/components/admin/EmailSettingsForm";
 import { BrandingSettingsForm } from "@/components/admin/BrandingSettingsForm";
 import { MarketplaceOpenRouterForm } from "@/components/admin/MarketplaceOpenRouterForm";
+import { MarketplaceOpenRouterActivityForm } from "@/components/admin/MarketplaceOpenRouterActivityForm";
 import { SeoSettingsForm } from "@/components/admin/SeoSettingsForm";
 import { FooterSettingsForm } from "@/components/admin/FooterSettingsForm";
 
@@ -59,7 +60,12 @@ function AdminSettingsContent() {
         {tab === "s3" && <S3SettingsForm />}
         {tab === "yookassa" && <YookassaSettingsForm />}
         {tab === "ai" && <AiProvidersForm />}
-        {tab === "marketplace" && <MarketplaceOpenRouterForm />}
+        {tab === "marketplace" && (
+          <>
+            <MarketplaceOpenRouterForm />
+            <MarketplaceOpenRouterActivityForm />
+          </>
+        )}
         {tab === "telegram" && <TelegramSettingsForm />}
         {tab === "auth" && <AuthSettingsForm />}
         {tab === "email" && <EmailSettingsForm />}
