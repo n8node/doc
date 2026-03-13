@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Search, FileText, Loader2, Sparkles, AlertCircle, FolderOpen, Filter, ChevronDown, Check, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -87,9 +87,32 @@ const THRESHOLD_PRESETS = [
 ] as const;
 
 const LIMIT_OPTIONS = [10, 20, 50] as const;
+const SEARCH_HISTORY_KEY = "ai-search-history";
+const MAX_HISTORY = 10;
+
+function loadSearchHistory(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(SEARCH_HISTORY_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.slice(0, MAX_HISTORY) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToSearchHistory(q: string) {
+  if (typeof window === "undefined" || !q.trim()) return;
+  const prev = loadSearchHistory();
+  const next = [q.trim(), ...prev.filter((x) => x !== q.trim())].slice(0, MAX_HISTORY);
+  try {
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
+  } catch {}
+}
 
 export default function DashboardSearchPage() {
   const [query, setQuery] = useState("");
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,9 +121,14 @@ export default function DashboardSearchPage() {
   const [searchByName, setSearchByName] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
 
-  const handleSearch = useCallback(async () => {
-    const q = query.trim();
+  useEffect(() => {
+    setSearchHistory(loadSearchHistory());
+  }, []);
+
+  const handleSearch = useCallback(async (overrideQuery?: string) => {
+    const q = (overrideQuery ?? query).trim();
     if (q.length < 2) return;
+    if (overrideQuery) setQuery(overrideQuery);
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -127,6 +155,8 @@ export default function DashboardSearchPage() {
         setResponse(null);
       } else {
         setResponse(data);
+        saveToSearchHistory(q);
+        setSearchHistory(loadSearchHistory());
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
@@ -183,6 +213,25 @@ export default function DashboardSearchPage() {
           <span className="ml-2 hidden sm:inline">Найти</span>
         </Button>
       </div>
+
+      {searchHistory.length > 0 && !response && !loading && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Вы искали:</span>
+          {searchHistory.map((h) => (
+            <button
+              key={h}
+              type="button"
+              onClick={() => {
+                setError(null);
+                void handleSearch(h);
+              }}
+              className="rounded-lg border border-border bg-surface2/60 px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-surface2 hover:border-primary/30"
+            >
+              {h}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="rounded-2xl modal-glass-soft p-3 sm:p-4">
         <div className="flex flex-col gap-3">
