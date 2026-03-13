@@ -2,11 +2,10 @@
 const nextConfig = {
   output: "standalone",
   async rewrites() {
-    const buildId = process.env.VERCEL_BUILD_ID || process.env.BUILD_ID || "0";
     return [
       {
         source: "/favicon.ico",
-        destination: `/api/public/branding/favicon?bust=${buildId}`,
+        destination: "/api/public/favicon-redirect",
       },
     ];
   },
