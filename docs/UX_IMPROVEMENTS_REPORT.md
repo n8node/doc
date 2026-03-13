@@ -66,7 +66,6 @@
 - **FileCard:** добавлены пропсы `processLocked` и `transcribeLocked` — показ кнопки с иконкой замка и подсказкой, когда нет доступа.
 - **FileManager:** передача `processLocked` при `!documentAnalysisAllowed`, `transcribeLocked` при `transcriptionQuotaExceeded`.
 - Inline-кнопки в grid-режиме (фото-сетка) с теми же tooltip и состоянием locked.
-- **Поддержка анализа изображений в фото-сетке:** добавлены MIME-типы `image/png`, `image/jpeg`, `image/jpg`, `image/tiff`, `image/bmp` в `PROCESSABLE_MIMES` (backend Docling поддерживает OCR для изображений).
 - **TooltipProvider** добавлен в корневой `layout.tsx` для корректной работы tooltip во всём приложении.
 
 **Файлы:**
@@ -108,4 +107,4 @@ npm run dev
 2. Файлы — Esc, Delete, Ctrl+A, Enter.
 3. AI-поиск — история запросов «Вы искали:».
 4. Document-chats — пустой список → CTA и инструкция.
-5. Файлы — заблокированные кнопки «Анализ» и «Транскрибация» с замком и tooltip; фото в сетке — кнопка «Анализ» для изображений.
+5. Файлы — заблокированные кнопки «Анализ» и «Транскрибация» с замком и tooltip.

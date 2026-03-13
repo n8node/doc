@@ -208,7 +208,7 @@ export default function DashboardSearchPage() {
             className="pl-10"
           />
         </div>
-        <Button onClick={handleSearch} disabled={loading || query.trim().length < 2}>
+        <Button onClick={() => void handleSearch()} disabled={loading || query.trim().length < 2}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           <span className="ml-2 hidden sm:inline">Найти</span>
         </Button>

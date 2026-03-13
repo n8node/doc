@@ -1146,12 +1146,6 @@ export function FileManager() {
     "text/plain",
     "text/csv",
     "text/markdown",
-    // Изображения — Docling поддерживает OCR
-    "image/png",
-    "image/jpeg",
-    "image/jpg",
-    "image/tiff",
-    "image/bmp",
   ]);
 
   const embeddingQuotaExceeded =
