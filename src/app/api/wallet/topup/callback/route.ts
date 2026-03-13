@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
                 userEmail: paid.user.email,
                 userName: paid.user.name,
                 planName: paid.plan?.name ?? "",
-                amount: paid.amount / 100,
+                amount: paid.amount,
                 currency: paid.currency,
               });
               await sendTelegramMessage(tg.botToken, tg.chatId, text);
