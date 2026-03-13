@@ -129,7 +129,7 @@ export function SidebarV2() {
       initial={{ x: -100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="fixed left-0 top-0 z-40 h-screen w-72 p-3"
+      className="fixed left-0 top-0 z-40 h-screen w-[291px] p-3"
     >
       <div className="modal-glass flex h-full flex-col overflow-hidden rounded-3xl border border-border/70">
         {/* Logo */}

@@ -19,7 +19,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       {sidebarV2Enabled ? <SidebarV2 /> : <Sidebar />}
-      <div className="pl-72">
+      <div className="pl-[291px]">
         <FreePlanAccessGuard />
         <DashboardHeader
           title="Личный кабинет"
