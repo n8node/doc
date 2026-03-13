@@ -2096,14 +2096,14 @@ export function FileManager() {
       }
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (selectedCount === 0) return;
+        if (selectedFiles.size === 0 && selectedFolders.size === 0) return;
         e.preventDefault();
         if (isTrashSection) handleBulkPermanentDelete();
         else if (!isHistorySection) handleBulkDelete();
         return;
       }
 
-      if (e.key === "Enter" && selectedCount === 1 && !dialogOpen) {
+      if (e.key === "Enter" && selectedFiles.size + selectedFolders.size === 1 && !dialogOpen) {
         e.preventDefault();
         if (selectedFolders.size === 1) {
           const folderId = Array.from(selectedFolders)[0];
@@ -2128,7 +2128,6 @@ export function FileManager() {
   }, [
     selectedFiles,
     selectedFolders,
-    selectedCount,
     moveDialogOpen,
     copyDialogOpen,
     shareTarget,
