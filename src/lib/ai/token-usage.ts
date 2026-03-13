@@ -132,8 +132,10 @@ export function getPlanTokenQuotas(plan: {
   };
 }
 
+/** Сумма квот по токенам (CHAT, SEARCH, EMBEDDING). TRANSCRIPTION исключён — квота по минутам. */
 export function getTotalQuota(quotas: Quotas): number | null {
-  const values = Object.values(quotas);
+  const tokenCategories = ["CHAT_DOCUMENT", "SEARCH", "EMBEDDING"] as const;
+  const values = tokenCategories.map((k) => quotas[k]);
   if (values.some((v) => v == null)) return null;
   return (values as number[]).reduce((sum, v) => sum + v, 0);
 }

@@ -49,6 +49,10 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
   const quotas = getPlanTokenQuotas(billing.plan);
   const totalQuota = getTotalQuota(quotas);
+  const totalUsed =
+    (current.byCategory.CHAT_DOCUMENT ?? 0) +
+    (current.byCategory.SEARCH ?? 0) +
+    (current.byCategory.EMBEDDING ?? 0);
 
   return NextResponse.json({
     anchorType: billing.anchorType,
@@ -60,7 +64,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       ...current,
       totalQuota,
       totalRemaining:
-        totalQuota != null ? Math.max(0, totalQuota - current.totalTokens) : null,
+        totalQuota != null ? Math.max(0, totalQuota - totalUsed) : null,
     },
     allTime,
     recentEvents: recent,

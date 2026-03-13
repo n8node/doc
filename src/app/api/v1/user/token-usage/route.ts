@@ -173,7 +173,11 @@ export async function GET(request: NextRequest) {
 
   const quotas = getPlanTokenQuotas(billing.plan);
   const totalQuota = getTotalQuota(quotas);
-  const totalUsed = current.totalTokens;
+  // totalUsed только по категориям с квотами токенов (CHAT, SEARCH, EMBEDDING). TRANSCRIPTION — по минутам.
+  const totalUsed =
+    (current.byCategory.CHAT_DOCUMENT ?? 0) +
+    (current.byCategory.SEARCH ?? 0) +
+    (current.byCategory.EMBEDDING ?? 0);
   const totalRemaining = totalQuota != null ? Math.max(0, totalQuota - totalUsed) : null;
 
   const dailyMap = new Map<string, { total: number; byCategory: Record<CategoryKey, number> }>();

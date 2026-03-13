@@ -42,7 +42,11 @@ export async function GET(req: NextRequest) {
     : null;
   const quotas = getPlanTokenQuotas(plan);
   const totalQuota = getTotalQuota(quotas);
-  const totalUsed = cycleUsage?.totalTokens ?? 0;
+  const totalUsed = cycleUsage
+    ? (cycleUsage.byCategory.CHAT_DOCUMENT ?? 0) +
+      (cycleUsage.byCategory.SEARCH ?? 0) +
+      (cycleUsage.byCategory.EMBEDDING ?? 0)
+    : 0;
   const totalRemaining = totalQuota != null ? Math.max(0, totalQuota - totalUsed) : null;
 
   const user = await prisma.user.findUnique({
