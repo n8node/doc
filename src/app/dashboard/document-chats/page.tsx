@@ -99,28 +99,30 @@ export default function DocumentChatsPage() {
             <p className="mt-2 max-w-md mx-auto text-sm text-muted-foreground">
               Выберите документ (PDF, Word и др.) в разделе «Мои файлы», обработайте его и нажмите кнопку «Чат» на карточке.
             </p>
-            <ol className="mt-6 inline-flex flex-col items-center gap-2 text-left text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary">1</span>
-                <span>Откройте <strong className="text-foreground">Мои файлы</strong></span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary">2</span>
-                <span>Обработайте документ (если ещё не обработан)</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary">3</span>
-                <span>Нажмите <strong className="text-foreground">Чат</strong> на карточке файла</span>
-              </li>
-            </ol>
-            <Link
-              href="/dashboard/files?section=my-files"
-              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <FolderOpen className="h-4 w-4" />
-              Перейти к файлам и начать чат
-              <span aria-hidden>→</span>
-            </Link>
+            <div className="mt-6 flex flex-col items-center gap-6">
+              <ol className="flex flex-col items-center gap-2 text-left text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary">1</span>
+                  <span>Откройте <strong className="text-foreground">Мои файлы</strong></span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary">2</span>
+                  <span>Обработайте документ (если ещё не обработан)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary">3</span>
+                  <span>Нажмите <strong className="text-foreground">Чат</strong> на карточке файла</span>
+                </li>
+              </ol>
+              <Link
+                href="/dashboard/files?section=my-files"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Перейти к файлам и начать чат
+                <span aria-hidden>→</span>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : (
