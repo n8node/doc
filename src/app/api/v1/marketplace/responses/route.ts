@@ -3,7 +3,7 @@ import { getUserIdFromLlmKey } from "@/lib/llm-api-key-auth";
 import { getOpenRouterApiKey } from "@/lib/marketplace/get-openrouter-key";
 import { getMarketplaceMarginPercent, applyMargin } from "@/lib/marketplace/margin";
 import { prisma } from "@/lib/prisma";
-import { calculateCostCents } from "@/lib/marketplace/pricing";
+import { getBaseCostCents } from "@/lib/marketplace/provider-cost";
 import { parseUsageTokens, inferCategory } from "@/lib/marketplace/usage";
 import { getPublicBaseUrl } from "@/lib/app-url";
 
@@ -94,9 +94,11 @@ export async function POST(request: NextRequest) {
   const category = inferCategory(bodyObj, model);
 
   if (tokensIn > 0 || tokensOut > 0) {
-    const baseCost = calculateCostCents(tokensIn, tokensOut);
+    const { baseCostCents, costUsd } = await getBaseCostCents(data, tokensIn, tokensOut);
     const marginPercent = await getMarketplaceMarginPercent();
-    const costCents = applyMargin(baseCost, marginPercent);
+    const costCents = applyMargin(baseCostCents, marginPercent);
+    const metadata: Record<string, unknown> = { provider: "openrouter", api: "responses" };
+    if (costUsd != null) metadata.costUsd = costUsd;
 
     await prisma.$transaction([
       prisma.user.update({
@@ -111,7 +113,7 @@ export async function POST(request: NextRequest) {
           tokensIn,
           tokensOut,
           costCents,
-          metadata: { provider: "openrouter", api: "responses" },
+          metadata,
         },
       }),
     ]);
