@@ -85,6 +85,11 @@ const STATUS_CONFIG: Record<
   },
 };
 
+function getStatusConfig(status: string) {
+  const cfg = STATUS_CONFIG[status as TicketStatus];
+  return cfg ?? STATUS_CONFIG.AWAITING_ADMIN;
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("ru-RU", {
     day: "numeric",
@@ -281,7 +286,7 @@ export default function SupportPage() {
             ) : (
               <ul className="space-y-1">
                 {tickets.map((t) => {
-                  const cfg = STATUS_CONFIG[t.status];
+                  const cfg = getStatusConfig(t.status);
                   const Icon = cfg.icon;
                   return (
                     <li key={t.id}>
@@ -297,7 +302,7 @@ export default function SupportPage() {
                       >
                         <div className="flex items-center gap-2">
                           <Icon className="h-4 w-4 shrink-0" />
-                          <span className="font-medium truncate">{t.theme.name}</span>
+                          <span className="font-medium truncate">{t.theme?.name}</span>
                           {cfg.badge && (
                             <span className="shrink-0 inline-flex items-center rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                               {cfg.badge}
@@ -322,25 +327,29 @@ export default function SupportPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
-                    {selectedTicket.theme.name}
+                    {selectedTicket.theme?.name}
                     {selectedTicket.subject && ` — ${selectedTicket.subject}`}
                   </CardTitle>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      STATUS_CONFIG[selectedTicket.status].className
-                    )}
-                  >
-                    {STATUS_CONFIG[selectedTicket.status].icon({
-                      className: "h-3 w-3",
-                    })}
-                    {STATUS_CONFIG[selectedTicket.status].label}
-                  </span>
+                  {(() => {
+                    const statusCfg = getStatusConfig(selectedTicket.status);
+                    const StatusIcon = statusCfg.icon;
+                    return (
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                          statusCfg.className
+                        )}
+                      >
+                        <StatusIcon className="h-3 w-3" />
+                        {statusCfg.label}
+                      </span>
+                    );
+                  })()}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                  {selectedTicket.messages.map((m) => (
+                  {(selectedTicket.messages ?? []).map((m) => (
                     <div
                       key={m.id}
                       className={cn(
