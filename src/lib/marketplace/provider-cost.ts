@@ -33,5 +33,5 @@ export async function getBaseCostCents(
     }
   }
   const baseCostCents = calculateCostCents(tokensIn, tokensOut);
-  return { baseCostCents, null };
+  return { baseCostCents, costUsd: null };
 }
