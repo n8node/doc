@@ -16,6 +16,7 @@ const navItems = [
   { href: "/admin/payments", label: "Платежи", icon: "📋" },
   { href: "/admin/stats", label: "Статистика AI", icon: "📊" },
   { href: "/admin/openrouter-account", label: "OpenRouter аккаунт", icon: "📈" },
+  { href: "/admin/marketplace-stats", label: "Статистика маркетплейса", icon: "💵" },
   { href: "/admin/finance", label: "Финансы", icon: "💰" },
   { href: "/admin/storage", label: "Storage", icon: "📁" },
   { href: "/admin/settings?tab=s3", label: "S3", icon: "☁️" },
@@ -48,6 +49,7 @@ export function AdminSidebar() {
     if (pathname === "/admin/payments" && href === "/admin/payments") return true;
     if (pathname === "/admin/stats" && href === "/admin/stats") return true;
     if (pathname === "/admin/openrouter-account" && href === "/admin/openrouter-account") return true;
+    if (pathname === "/admin/marketplace-stats" && href === "/admin/marketplace-stats") return true;
     if (pathname === "/admin/finance" && href === "/admin/finance") return true;
     if (pathname === "/admin/telegram-broadcast" && href === "/admin/telegram-broadcast") return true;
     if (pathname === "/admin/settings") {
