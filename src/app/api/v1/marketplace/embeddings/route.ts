@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getUserIdFromLlmKey } from "@/lib/llm-api-key-auth";
 import { getOpenRouterApiKey } from "@/lib/marketplace/get-openrouter-key";
 import { getMarketplaceMarginPercent, applyMargin } from "@/lib/marketplace/margin";
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
           tokensIn,
           tokensOut,
           costCents,
-          metadata,
+          metadata: metadata as Prisma.InputJsonValue,
         },
       }),
     ]);
