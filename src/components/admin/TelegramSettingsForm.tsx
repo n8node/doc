@@ -22,6 +22,7 @@ export function TelegramSettingsForm() {
     notifyRegisterEnabled: true,
     notifyPaymentEnabled: true,
     notifySpamRegistrationEnabled: true,
+    notifyTicketEnabled: true,
     registerMessage: "",
     registerEmailVerifiedMessage: "",
     paymentMessage: "",
@@ -54,6 +55,7 @@ export function TelegramSettingsForm() {
           notifyRegisterEnabled: data.notifyRegisterEnabled !== false,
           notifyPaymentEnabled: data.notifyPaymentEnabled !== false,
           notifySpamRegistrationEnabled: data.notifySpamRegistrationEnabled !== false,
+          notifyTicketEnabled: data.notifyTicketEnabled !== false,
           registerMessage: data.registerMessage ?? data.defaultRegisterMessage ?? "",
           registerEmailVerifiedMessage:
             data.registerEmailVerifiedMessage ?? data.defaultRegisterEmailVerifiedMessage ?? "",
@@ -120,6 +122,7 @@ export function TelegramSettingsForm() {
         notifyRegisterEnabled: values.notifyRegisterEnabled,
         notifyPaymentEnabled: values.notifyPaymentEnabled,
         notifySpamRegistrationEnabled: values.notifySpamRegistrationEnabled,
+        notifyTicketEnabled: values.notifyTicketEnabled,
         registerMessage: values.registerMessage || undefined,
         registerEmailVerifiedMessage: values.registerEmailVerifiedMessage || undefined,
         paymentMessage: values.paymentMessage || undefined,
@@ -282,6 +285,19 @@ export function TelegramSettingsForm() {
               className="mt-1 w-full max-w-2xl rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">Уведомлять о тикетах поддержки</label>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={values.notifyTicketEnabled}
+              onChange={(e) => setValues((v) => ({ ...v, notifyTicketEnabled: e.target.checked }))}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm">Отправлять сообщение при создании тикета и новом сообщении от пользователя</span>
+          </label>
         </div>
 
         <div>

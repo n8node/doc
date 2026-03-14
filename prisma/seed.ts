@@ -278,6 +278,21 @@ async function main() {
     update: { title: "Политика возврата средств" },
   });
   console.log("Seed: public page refund");
+
+  const supportThemes = [
+    { name: "Финансы", slug: "finance", sortOrder: 1 },
+    { name: "Технический сбой", slug: "technical", sortOrder: 2 },
+    { name: "RAG память", slug: "rag", sortOrder: 3 },
+    { name: "Подключение n8n", slug: "n8n", sortOrder: 4 },
+  ];
+  for (const t of supportThemes) {
+    await prisma.supportTicketTheme.upsert({
+      where: { slug: t.slug },
+      create: t,
+      update: { name: t.name, sortOrder: t.sortOrder },
+    });
+  }
+  console.log("Seed: support ticket themes", supportThemes.length);
 }
 
 main()

@@ -13,6 +13,7 @@ const VALID_TYPES: NotificationType[] = [
   "AI_TASK",
   "QUOTA",
   "SHARE_LINK",
+  "SUPPORT_TICKET",
 ];
 
 export async function GET(request: NextRequest) {

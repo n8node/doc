@@ -18,6 +18,7 @@ const NOTIFICATION_TYPE_KEYS: Record<string, string> = {
   AI_TASK: "aiTask",
   QUOTA: "quota",
   SHARE_LINK: "shareLink",
+  SUPPORT_TICKET: "supportTicket",
 };
 
 async function isNotificationTypeEnabled(

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Bell, BellRing, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,8 @@ type NotificationType =
   | "PAYMENT"
   | "AI_TASK"
   | "QUOTA"
-  | "SHARE_LINK";
+  | "SHARE_LINK"
+  | "SUPPORT_TICKET";
 
 interface NotificationItem {
   id: string;
@@ -21,6 +23,7 @@ interface NotificationItem {
   category: string;
   title: string;
   body: string | null;
+  payload?: { ticketId?: string } | null;
   readAt: string | null;
   createdAt: string;
 }
@@ -38,6 +41,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   AI_TASK: "AI анализ",
   QUOTA: "Лимиты",
   SHARE_LINK: "Ссылки",
+  SUPPORT_TICKET: "Поддержка",
 };
 
 function formatDate(iso: string) {
@@ -51,6 +55,7 @@ function formatDate(iso: string) {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [data, setData] = useState<NotificationsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>("all");
@@ -197,7 +202,12 @@ export default function NotificationsPage() {
                     "flex items-start gap-3 py-3 px-2 -mx-2 rounded-lg hover:bg-surface2/50 transition-colors cursor-pointer",
                     !n.readAt && "bg-surface2/30"
                   )}
-                  onClick={() => !n.readAt && handleMarkRead(n.id)}
+                  onClick={() => {
+                    if (!n.readAt) handleMarkRead(n.id);
+                    if (n.type === "SUPPORT_TICKET" && n.payload?.ticketId) {
+                      router.push(`/dashboard/support?ticket=${n.payload.ticketId}`);
+                    }
+                  }}
                 >
                   <div className="mt-0.5">
                     {n.readAt ? (

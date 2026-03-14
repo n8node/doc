@@ -25,6 +25,7 @@ const navItems = [
   { href: "/admin/users", label: "Пользователи", icon: "👥" },
   { href: "/admin/invites", label: "Инвайты", icon: "🧩" },
   { href: "/admin/spam-alerts", label: "Антиспам", icon: "🚨" },
+  { href: "/admin/support", label: "Тикеты поддержки", icon: "🎫" },
 ];
 
 export function AdminSidebar() {
@@ -36,6 +37,7 @@ export function AdminSidebar() {
     if (pathname === "/admin/users" && href === "/admin/users") return true;
     if (pathname === "/admin/invites" && href === "/admin/invites") return true;
     if (pathname === "/admin/spam-alerts" && href === "/admin/spam-alerts") return true;
+    if (pathname.startsWith("/admin/support") && href === "/admin/support") return true;
     if (pathname === "/admin/dashboard-content" && href === "/admin/dashboard-content") return true;
     if (pathname.startsWith("/admin/docs") && href === "/admin/docs") return true;
     if (pathname.startsWith("/admin/pages") && href === "/admin/pages") return true;

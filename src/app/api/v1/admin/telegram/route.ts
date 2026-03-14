@@ -19,13 +19,17 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const cfg = await getTelegramConfig();
+  const [cfg, notifyTicket] = await Promise.all([
+    getTelegramConfig(),
+    import("@/lib/config-store").then((m) => m.configStore.get("telegram.notify_ticket_enabled")),
+  ]);
   return NextResponse.json({
     chatId: cfg.chatId ?? "",
     botTokenSet: !!cfg.botToken,
     notifyRegisterEnabled: cfg.notifyRegisterEnabled,
     notifyPaymentEnabled: cfg.notifyPaymentEnabled,
     notifySpamRegistrationEnabled: cfg.notifySpamRegistrationEnabled,
+    notifyTicketEnabled: notifyTicket === "true",
     registerMessage: cfg.registerMessage,
     registerEmailVerifiedMessage: cfg.registerEmailVerifiedMessage,
     paymentMessage: cfg.paymentMessage,
@@ -52,6 +56,7 @@ export async function POST(request: NextRequest) {
     notifyRegisterEnabled,
     notifyPaymentEnabled,
     notifySpamRegistrationEnabled,
+    notifyTicketEnabled,
     registerMessage,
     registerEmailVerifiedMessage,
     paymentMessage,
@@ -116,6 +121,16 @@ export async function POST(request: NextRequest) {
     )
   );
 
+  if (notifyTicketEnabled !== undefined) {
+    updates.push(
+      configStore.set(
+        "telegram.notify_ticket_enabled",
+        notifyTicketEnabled === true || notifyTicketEnabled === "true" ? "true" : "false",
+        { category: "notifications", description: "Notify on new support tickets" }
+      )
+    );
+  }
+
   if (registerMessage != null && typeof registerMessage === "string") {
     updates.push(
       configStore.set("telegram.register_message", registerMessage.trim(), {
@@ -163,6 +178,7 @@ export async function POST(request: NextRequest) {
   configStore.invalidate("telegram.notify_register_enabled");
   configStore.invalidate("telegram.notify_payment_enabled");
   configStore.invalidate("telegram.notify_spam_registration_enabled");
+  configStore.invalidate("telegram.notify_ticket_enabled");
   configStore.invalidate("telegram.register_message");
   configStore.invalidate("telegram.register_email_verified_message");
   configStore.invalidate("telegram.payment_message");

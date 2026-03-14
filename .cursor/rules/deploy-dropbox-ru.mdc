@@ -1,0 +1,45 @@
+---
+description: Деплой dropbox-ru — синхронизация гита, миграции и пересборка Docker
+alwaysApply: true
+---
+
+# Деплой dropbox-ru на сервер
+
+Команды выполняются в **Termius (SSH)** на удалённом сервере в указанном порядке.
+
+## 1. Синхронизация Git
+
+Обновить код из репозитория:
+
+```bash
+cd /opt/dropbox-ru && git pull origin main
+```
+
+## 2. Миграция базы данных
+
+Применить SQL-миграцию к PostgreSQL (замени путь на актуальную миграцию при необходимости):
+
+```bash
+docker exec -i dropbox-ru-db-1 psql -U postgres -d dropbox_ru < /opt/dropbox-ru/prisma/migrations/20260314120000_add_support_tickets/migration.sql
+```
+
+Для других миграций подставь путь: `/opt/dropbox-ru/prisma/migrations/<имя_миграции>/migration.sql`.
+
+После миграции support_tickets выполни seed для тем тикетов (см. seed-dropbox-ru).
+
+## 3. Пересборка образа и запуск
+
+Пересобрать образы `app` и `docling`, затем перезапустить контейнеры:
+
+```bash
+docker compose build docling app && docker compose up -d
+```
+
+Если меняли только фронт/бэкенд (не docling):
+```bash
+docker compose build app && docker compose up -d
+```
+
+---
+
+**Порядок**: сначала `git pull`, затем миграция, затем `build` и `up -d`.

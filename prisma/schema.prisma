@@ -53,6 +53,7 @@ model User {
   usedInvites          Invite[]              @relation("InviteUsedByUser")
   ownedInvites         Invite[]              @relation("InviteOwnedByUser")
   spamAlerts           SpamAlertEvent[]
+  supportTickets       SupportTicket[]
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
 
@@ -610,6 +611,7 @@ enum NotificationType {
   AI_TASK
   QUOTA
   SHARE_LINK
+  SUPPORT_TICKET
 }
 
 enum TokenUsageCategory {
@@ -640,6 +642,64 @@ enum EmailVerificationPurpose {
 enum SpamAlertSeverity {
   WARNING
   CRITICAL
+}
+
+enum TicketStatus {
+  OPEN
+  AWAITING_ADMIN
+  AWAITING_USER
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketMessageAuthor {
+  USER
+  ADMIN
+}
+
+model SupportTicketTheme {
+  id        String   @id @default(cuid()) @map("id")
+  name      String   @unique @map("name")
+  slug      String   @unique @map("slug")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  tickets   SupportTicket[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("support_ticket_themes")
+}
+
+model SupportTicket {
+  id        String          @id @default(cuid()) @map("id")
+  userId    String          @map("user_id")
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  themeId   String          @map("theme_id")
+  theme     SupportTicketTheme @relation(fields: [themeId], references: [id])
+  subject   String?         @map("subject")
+  status    TicketStatus    @default(AWAITING_ADMIN) @map("status")
+  messages  SupportTicketMessage[]
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([themeId, status])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id         String             @id @default(cuid()) @map("id")
+  ticketId   String             @map("ticket_id")
+  ticket     SupportTicket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId   String             @map("author_id")
+  authorRole TicketMessageAuthor @map("author_role")
+  body       String             @db.Text @map("body")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("support_ticket_messages")
 }
 
 model Notification {

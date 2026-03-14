@@ -98,6 +98,7 @@ export default function DashboardSettingsPage() {
     aiTask: true,
     quota: true,
     shareLink: true,
+    supportTicket: true,
   });
   const [savingNotificationPrefs, setSavingNotificationPrefs] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
@@ -172,6 +173,7 @@ export default function DashboardSettingsPage() {
             ...(typeof n.aiTask === "boolean" && { aiTask: n.aiTask }),
             ...(typeof n.quota === "boolean" && { quota: n.quota }),
             ...(typeof n.shareLink === "boolean" && { shareLink: n.shareLink }),
+            ...(typeof n.supportTicket === "boolean" && { supportTicket: n.supportTicket }),
           }));
         }
         if (d.modules) {
@@ -704,6 +706,7 @@ export default function DashboardSettingsPage() {
                 { key: "aiTask" as const, label: "AI анализ и транскрипция" },
                 { key: "quota" as const, label: "Лимиты (токены, минуты)" },
                 { key: "shareLink" as const, label: "Публичные ссылки" },
+                { key: "supportTicket" as const, label: "Ответы в тикетах поддержки" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex cursor-pointer items-center gap-3">
                   <input
