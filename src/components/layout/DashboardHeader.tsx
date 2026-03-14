@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationsDropdown } from "./NotificationsDropdown";
+import { SupportWidget } from "./SupportWidget";
 import { UserMenu } from "./UserMenu";
 import { TokenUsageWidget } from "./TokenUsageWidget";
 import { MarketplaceBalanceWidget } from "./MarketplaceBalanceWidget";
@@ -31,6 +32,7 @@ export async function DashboardHeader({
         <TokenUsageWidget />
         <FreePlanTimerWidget />
         <NotificationsDropdown />
+        <SupportWidget />
         <ThemeToggle />
         <UserMenu
           initial={initial}
