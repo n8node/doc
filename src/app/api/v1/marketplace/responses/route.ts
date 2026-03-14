@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getUserIdFromLlmKey } from "@/lib/llm-api-key-auth";
 import { getOpenRouterApiKey } from "@/lib/marketplace/get-openrouter-key";
-import { getMarketplaceMarginPercent, applyMargin } from "@/lib/marketplace/margin";
+import { getMarketplaceMarginPercent, applyMargin, getBilledTokens } from "@/lib/marketplace/margin";
 import { prisma } from "@/lib/prisma";
 import { getBaseCostCents } from "@/lib/marketplace/provider-cost";
 import { parseUsageTokens, inferCategory } from "@/lib/marketplace/usage";
@@ -98,7 +98,11 @@ export async function POST(request: NextRequest) {
     const { baseCostCents, costUsd } = await getBaseCostCents(data, tokensIn, tokensOut);
     const marginPercent = await getMarketplaceMarginPercent();
     const costCents = applyMargin(baseCostCents, marginPercent);
-    const metadata: Record<string, unknown> = { provider: "openrouter", api: "responses" };
+    const metadata: Record<string, unknown> = {
+      provider: "openrouter",
+      api: "responses",
+      billedTokens: getBilledTokens(tokensIn + tokensOut, marginPercent),
+    };
     if (costUsd != null) metadata.costUsd = costUsd;
 
     await prisma.$transaction([

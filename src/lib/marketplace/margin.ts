@@ -29,5 +29,16 @@ export function applyMargin(baseCostCents: number, marginPercent: number): numbe
   return Math.max(1, Math.ceil((baseCostCents * 100) / divisor));
 }
 
+/**
+ * Учтённые токены с маржой (для отображения в истории).
+ * Та же формула, что и для стоимости: rawTokens * 100 / (100 - marginPercent).
+ */
+export function getBilledTokens(rawTokens: number, marginPercent: number): number {
+  if (marginPercent <= 0) return rawTokens;
+  const divisor = 100 - marginPercent;
+  if (divisor <= 0) return rawTokens;
+  return Math.max(rawTokens, Math.round((rawTokens * 100) / divisor));
+}
+
 export const MARGIN_CONFIG_KEY = CONFIG_KEY;
 export { MIN_MARGIN, MAX_MARGIN };

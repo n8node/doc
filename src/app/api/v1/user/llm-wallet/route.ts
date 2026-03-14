@@ -41,6 +41,7 @@ export async function GET() {
         tokensIn: true,
         tokensOut: true,
         costCents: true,
+        metadata: true,
         createdAt: true,
       },
     }),
@@ -55,14 +56,22 @@ export async function GET() {
       createdAt: t.createdAt.toISOString(),
       succeededAt: t.succeededAt?.toISOString() ?? null,
     })),
-    usage: usage.map((u) => ({
-      id: u.id,
-      category: u.category,
-      model: u.model,
-      tokensIn: u.tokensIn,
-      tokensOut: u.tokensOut,
-      costCents: u.costCents,
-      createdAt: u.createdAt.toISOString(),
-    })),
+    usage: usage.map((u) => {
+      const meta = u.metadata as Record<string, unknown> | null;
+      const billedTokens =
+        typeof meta?.billedTokens === "number" && meta.billedTokens >= 0
+          ? meta.billedTokens
+          : u.tokensIn + u.tokensOut;
+      return {
+        id: u.id,
+        category: u.category,
+        model: u.model,
+        tokensIn: u.tokensIn,
+        tokensOut: u.tokensOut,
+        tokensBilled: billedTokens,
+        costCents: u.costCents,
+        createdAt: u.createdAt.toISOString(),
+      };
+    }),
   });
 }

@@ -20,7 +20,7 @@ interface LlmKeyItem {
 interface WalletData {
   balanceCents: number;
   topups: { id: string; amountCents: number; status: string; createdAt: string; succeededAt: string | null }[];
-  usage: { id: string; category: string; model: string; tokensIn: number; tokensOut: number; costCents: number; createdAt: string }[];
+  usage: { id: string; category: string; model: string; tokensIn: number; tokensOut: number; tokensBilled: number; costCents: number; createdAt: string }[];
 }
 
 interface ModelItem {
@@ -444,7 +444,7 @@ export default function MarketplacePage() {
                           key={u.id}
                           className="flex justify-between text-sm rounded-lg px-3 py-2 bg-surface2/30"
                         >
-                          <span>{u.model} · {u.tokensIn + u.tokensOut} tok</span>
+                          <span>{u.model} · {u.tokensBilled} tok</span>
                           <span className="text-muted-foreground">−{(u.costCents / 100).toFixed(2)} ₽</span>
                         </div>
                       ))}
