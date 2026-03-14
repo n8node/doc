@@ -24,6 +24,18 @@ export async function Header() {
         </Link>
         <nav className="flex items-center gap-4">
           <Link
+            href="/#features"
+            className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
+          >
+            Возможности
+          </Link>
+          <Link
+            href="/#how-it-works"
+            className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
+          >
+            Как это работает
+          </Link>
+          <Link
             href="/docs"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
@@ -51,9 +63,16 @@ export async function Header() {
               </Button>
             </LogoutButton>
           ) : (
-            <Link href="/login">
-              <Button size="sm">Вход</Button>
-            </Link>
+            <>
+              <Link href="/login">
+                <Button variant="outline" size="sm">
+                  Войти
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button size="sm">Начать работу</Button>
+              </Link>
+            </>
           )}
         </nav>
       </div>
