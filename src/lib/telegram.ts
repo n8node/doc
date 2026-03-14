@@ -107,6 +107,35 @@ export async function sendTelegramMessage(
   }
 }
 
+export type MediaType = "photo" | "document" | "video";
+
+export async function sendTelegramMedia(
+  botToken: string,
+  chatId: string,
+  mediaUrl: string,
+  mediaType: MediaType,
+  caption?: string
+): Promise<boolean> {
+  const method = mediaType === "photo" ? "sendPhoto" : mediaType === "video" ? "sendVideo" : "sendDocument";
+  const mediaField = mediaType === "photo" ? "photo" : mediaType === "video" ? "video" : "document";
+  const url = `${TELEGRAM_API}/bot${botToken}/${method}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        [mediaField]: mediaUrl,
+        ...(caption ? { caption } : {}),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return data?.ok === true;
+  } catch {
+    return false;
+  }
+}
+
 export type RegisterMessageVars = {
   email: string;
   name?: string | null;

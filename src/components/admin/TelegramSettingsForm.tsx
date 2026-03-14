@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Send, Eye, EyeOff, CheckCircle, Play, Square } from "lucide-react";
+import { Loader2, Send, Eye, EyeOff, CheckCircle, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
 
 export function TelegramSettingsForm() {
   const [loading, setLoading] = useState(true);
@@ -28,6 +28,10 @@ export function TelegramSettingsForm() {
     paymentMessage: "",
     spamRegistrationMessage: "",
   });
+  const [userTemplates, setUserTemplates] = useState<Record<string, string>>({});
+  const [userTemplatesLoading, setUserTemplatesLoading] = useState(false);
+  const [userTemplatesSaving, setUserTemplatesSaving] = useState(false);
+  const [userTemplatesOpen, setUserTemplatesOpen] = useState(false);
 
   const fetchBotStatus = () => {
     fetch("/api/v1/admin/telegram-bot")
@@ -69,6 +73,40 @@ export function TelegramSettingsForm() {
       .catch(() => toast.error("Не удалось загрузить настройки"))
       .finally(() => setLoading(false));
   }, []);
+
+  const loadUserTemplates = () => {
+    setUserTemplatesLoading(true);
+    fetch("/api/v1/admin/telegram/user-templates")
+      .then((r) => r.json())
+      .then((data) => {
+        const t: Record<string, string> = {};
+        for (const [k, v] of Object.entries(data.templates ?? {})) {
+          const item = v as { value: string };
+          t[k] = item?.value ?? "";
+        }
+        setUserTemplates(t);
+      })
+      .catch(() => toast.error("Не удалось загрузить шаблоны"))
+      .finally(() => setUserTemplatesLoading(false));
+  };
+
+  const saveUserTemplates = async () => {
+    setUserTemplatesSaving(true);
+    try {
+      const res = await fetch("/api/v1/admin/telegram/user-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templates: userTemplates }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Ошибка");
+      toast.success("Шаблоны сохранены");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setUserTemplatesSaving(false);
+    }
+  };
 
   const handleBotStart = async () => {
     setBotAction(true);
@@ -351,6 +389,63 @@ export function TelegramSettingsForm() {
             "Сохранить"
           )}
         </Button>
+      </div>
+
+      <div className="rounded-xl border border-border bg-surface2 p-4">
+        <h3
+          className="flex cursor-pointer items-center justify-between font-medium text-foreground"
+          onClick={() => {
+            setUserTemplatesOpen(!userTemplatesOpen);
+            if (!userTemplatesOpen && Object.keys(userTemplates).length === 0) loadUserTemplates();
+          }}
+        >
+          <span>Шаблоны уведомлений пользователям (DM в Telegram)</span>
+          {userTemplatesOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </h3>
+        {userTemplatesOpen && (
+          <div className="mt-4 space-y-3">
+            {userTemplatesLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Загрузка...
+              </div>
+            ) : (
+              <>
+                {[
+                  ["llm_topup", "Пополнение LLM-баланса", "{amount} {balance}"],
+                  ["plan_subscribe", "Подписка на тариф", "{planName}"],
+                  ["plan_expiry_7d", "Истечение тарифа через 7 дней", "{planName} {appUrl}"],
+                  ["plan_expiry_3d", "Истечение тарифа через 3 дня", "{planName} {appUrl}"],
+                  ["support_reply", "Ответ в тикете", "{themeName} {ticketUrl}"],
+                  ["vectorize_done", "Векторизация завершена", "{collectionName} {succeeded} {total}"],
+                  ["share_onetime_viewed", "Просмотр одноразовой ссылки", "{targetName}"],
+                  ["free_plan_expiry", "Истечение бесплатного периода", "{appUrl}"],
+                ].map(([key, label, vars]) => (
+                  <div key={key}>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                      {label} — {vars}
+                    </label>
+                    <textarea
+                      value={userTemplates[key] ?? ""}
+                      onChange={(e) =>
+                        setUserTemplates((t) => ({ ...t, [key]: e.target.value }))
+                      }
+                      placeholder={`Шаблон для ${key}`}
+                      rows={2}
+                      className="w-full max-w-2xl rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                ))}
+                <Button size="sm" onClick={saveUserTemplates} disabled={userTemplatesSaving}>
+                  {userTemplatesSaving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Сохранить шаблоны
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-border bg-surface2 p-4">

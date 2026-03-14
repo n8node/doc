@@ -22,6 +22,7 @@ const navItems = [
   { href: "/admin/settings?tab=yookassa", label: "ЮKassa", icon: "💳" },
   { href: "/admin/settings?tab=ai", label: "AI-провайдеры", icon: "🤖" },
   { href: "/admin/settings?tab=telegram", label: "Telegram", icon: "📱" },
+  { href: "/admin/telegram-broadcast", label: "Telegram-рассылка", icon: "📢" },
   { href: "/admin/users", label: "Пользователи", icon: "👥" },
   { href: "/admin/invites", label: "Инвайты", icon: "🧩" },
   { href: "/admin/spam-alerts", label: "Антиспам", icon: "🚨" },
@@ -48,6 +49,7 @@ export function AdminSidebar() {
     if (pathname === "/admin/stats" && href === "/admin/stats") return true;
     if (pathname === "/admin/openrouter-account" && href === "/admin/openrouter-account") return true;
     if (pathname === "/admin/finance" && href === "/admin/finance") return true;
+    if (pathname === "/admin/telegram-broadcast" && href === "/admin/telegram-broadcast") return true;
     if (pathname === "/admin/settings") {
       if (href === "/admin/settings" && !tab) return true;
       if (tab && href.includes(`tab=${tab}`)) return true;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveShareLink, markShareLinkUsed } from "@/lib/share-service";
 import { prisma } from "@/lib/prisma";
+import { sendUserTelegramNotify } from "@/lib/user-telegram-notify";
 
 interface FolderTreeNode {
   id: string;
@@ -22,6 +23,17 @@ export async function GET(
     );
 
   if (link.oneTime) {
+    try {
+      const targetName =
+        link.targetType === "FILE"
+          ? link.file?.name ?? "файл"
+          : link.folder?.name ?? "папка";
+      await sendUserTelegramNotify(link.createdById, "share_onetime_viewed", {
+        targetName,
+      });
+    } catch {
+      // ignore
+    }
     await markShareLinkUsed(link.id);
   }
 

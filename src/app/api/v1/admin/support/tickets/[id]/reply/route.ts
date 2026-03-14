@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notification-service";
 import { sendEmail } from "@/lib/email-sender";
+import { sendUserTelegramNotify } from "@/lib/user-telegram-notify";
 
 const APP_URL = process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? "https://qoqon.ru";
 
@@ -91,6 +92,15 @@ export async function POST(
     });
   } catch {
     // ignore email errors
+  }
+
+  try {
+    await sendUserTelegramNotify(ticket.user.id, "support_reply", {
+      themeName: ticket.theme.name,
+      ticketUrl,
+    });
+  } catch {
+    // ignore telegram errors
   }
 
   const updated = await prisma.supportTicket.findUnique({

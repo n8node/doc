@@ -5,6 +5,7 @@ import {
   sendTelegramMessage,
   formatPaymentMessage,
 } from "@/lib/telegram";
+import { sendUserTelegramNotify } from "@/lib/user-telegram-notify";
 
 /**
  * POST /api/wallet/topup/callback
@@ -41,6 +42,19 @@ export async function POST(req: NextRequest) {
               },
             }),
           ]);
+          try {
+            const u = await prisma.user.findUnique({
+              where: { id: topup.userId },
+              select: { llmWalletBalanceCents: true },
+            });
+            const balanceRub = u ? Math.round(Number(u.llmWalletBalanceCents) / 100) : 0;
+            await sendUserTelegramNotify(topup.userId, "llm_topup", {
+              amount: Math.round(topup.amountCents / 100),
+              balance: balanceRub,
+            });
+          } catch {
+            // ignore
+          }
         }
       } else {
         // Обычная оплата тарифа
@@ -91,6 +105,9 @@ export async function POST(req: NextRequest) {
               await sendTelegramMessage(tg.botToken, tg.chatId, text);
             }
           }
+          await sendUserTelegramNotify(existing.userId, "plan_subscribe", {
+            planName: plan?.name ?? "",
+          });
         } catch {
           // ignore telegram errors
         }

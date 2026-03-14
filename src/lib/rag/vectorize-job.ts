@@ -5,6 +5,7 @@ import {
   isProcessable,
 } from "@/lib/docling/processing-service";
 import { createNotificationIfEnabled } from "@/lib/notification-service";
+import { sendUserTelegramNotify } from "@/lib/user-telegram-notify";
 import { resolveEmbeddingConfig } from "@/lib/ai/embedding-config";
 import type { ResolvedEmbeddingConfig } from "@/lib/ai/embedding-config";
 
@@ -237,6 +238,15 @@ export async function processVectorizeJob(taskId: string): Promise<void> {
           total: processableCount,
         },
       });
+      try {
+        await sendUserTelegramNotify(userId, "vectorize_done", {
+          collectionName: collection.name,
+          succeeded,
+          total: processableCount,
+        });
+      } catch {
+        // ignore
+      }
     }
 
     await updateProgress(results[results.length - 1]?.fileName ?? "", "done");
