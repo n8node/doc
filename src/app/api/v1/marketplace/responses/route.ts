@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromLlmKey } from "@/lib/llm-api-key-auth";
 import { getOpenRouterApiKey } from "@/lib/marketplace/get-openrouter-key";
+import { getMarketplaceMarginPercent, applyMargin } from "@/lib/marketplace/margin";
 import { prisma } from "@/lib/prisma";
 import { calculateCostCents } from "@/lib/marketplace/pricing";
+import { parseUsageTokens, inferCategory } from "@/lib/marketplace/usage";
 import { getPublicBaseUrl } from "@/lib/app-url";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/responses";
@@ -85,13 +87,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const usage = data.usage as Record<string, number> | undefined;
-  const tokensIn = usage?.input_tokens ?? usage?.prompt_tokens ?? 0;
-  const tokensOut = usage?.output_tokens ?? usage?.completion_tokens ?? 0;
+  const usage = data.usage as Record<string, unknown> | undefined;
+  const { tokensIn, tokensOut } = parseUsageTokens(usage);
   const model = (typeof data.model === "string" ? data.model : "") || "unknown";
+  const bodyObj = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
+  const category = inferCategory(bodyObj, model);
 
   if (tokensIn > 0 || tokensOut > 0) {
-    const costCents = calculateCostCents(tokensIn, tokensOut);
+    const baseCost = calculateCostCents(tokensIn, tokensOut);
+    const marginPercent = await getMarketplaceMarginPercent();
+    const costCents = applyMargin(baseCost, marginPercent);
 
     await prisma.$transaction([
       prisma.user.update({
@@ -101,7 +106,7 @@ export async function POST(request: NextRequest) {
       prisma.marketplaceUsageEvent.create({
         data: {
           userId,
-          category: "chat",
+          category,
           model,
           tokensIn,
           tokensOut,

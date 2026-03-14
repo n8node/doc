@@ -12,6 +12,7 @@ import { EmailSettingsForm } from "@/components/admin/EmailSettingsForm";
 import { BrandingSettingsForm } from "@/components/admin/BrandingSettingsForm";
 import { MarketplaceOpenRouterForm } from "@/components/admin/MarketplaceOpenRouterForm";
 import { MarketplaceOpenRouterActivityForm } from "@/components/admin/MarketplaceOpenRouterActivityForm";
+import { MarketplaceMarginForm } from "@/components/admin/MarketplaceMarginForm";
 import { SeoSettingsForm } from "@/components/admin/SeoSettingsForm";
 import { FooterSettingsForm } from "@/components/admin/FooterSettingsForm";
 
@@ -61,10 +62,12 @@ function AdminSettingsContent() {
         {tab === "yookassa" && <YookassaSettingsForm />}
         {tab === "ai" && <AiProvidersForm />}
         {tab === "marketplace" && (
-          <>
+          <div className="space-y-10">
+            <MarketplaceMarginForm />
+            <hr className="border-border" />
             <MarketplaceOpenRouterForm />
             <MarketplaceOpenRouterActivityForm />
-          </>
+          </div>
         )}
         {tab === "telegram" && <TelegramSettingsForm />}
         {tab === "auth" && <AuthSettingsForm />}
