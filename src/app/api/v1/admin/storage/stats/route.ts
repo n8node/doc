@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
+import { getFinanceSettings } from "@/lib/finance/settings";
 
 export async function GET(_request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -16,11 +17,14 @@ export async function GET(_request: NextRequest) {
     totalFiles,
     totalFolders,
     totalStorageStats,
+    storageFreeAgg,
+    storagePaidAgg,
     rootFilesCount,
     mimeTypeStats,
     topUsersByStorage,
     sharedFilesCount,
     recentFilesCount,
+    financeSettings,
   ] = await Promise.all([
     // Total files and folders
     prisma.file.count(),
@@ -30,7 +34,22 @@ export async function GET(_request: NextRequest) {
     prisma.file.aggregate({
       _sum: { size: true },
     }),
-    
+    // Storage on free plans (no plan or plan.isFree)
+    prisma.file.aggregate({
+      where: {
+        user: {
+          OR: [{ planId: null }, { plan: { isFree: true } }],
+        },
+      },
+      _sum: { size: true },
+    }),
+    // Storage on paid plans
+    prisma.file.aggregate({
+      where: {
+        user: { plan: { isFree: false } },
+      },
+      _sum: { size: true },
+    }),
     // Files without folder (in root)
     prisma.file.count({ where: { folderId: null } }),
     
@@ -107,19 +126,39 @@ export async function GET(_request: NextRequest) {
         }
       }
     }),
+    getFinanceSettings(),
   ]);
 
   const [imagesCount, videosCount, audioCount, documentsCount] = mimeTypeStats;
   const otherFilesCount = totalFiles - imagesCount - videosCount - audioCount - documentsCount;
 
+  const storageUsed = Number(totalStorageStats._sum.size || 0);
+  const storageFree = Number(storageFreeAgg._sum.size || 0);
+  const storagePaid = Number(storagePaidAgg._sum.size || 0);
+  const costPerGbDayCents = financeSettings.s3CostPerGbDayCents ?? 7;
+  const storageGb = storageUsed / (1024 * 1024 * 1024);
+  const expenseCentsPerDay = Math.round(storageGb * costPerGbDayCents);
+  const expenseFreeCentsPerDay = Math.round((storageFree / (1024 * 1024 * 1024)) * costPerGbDayCents);
+  const expensePaidCentsPerDay = Math.round((storagePaid / (1024 * 1024 * 1024)) * costPerGbDayCents);
+
   return NextResponse.json({
     totals: {
       files: totalFiles,
       folders: totalFolders,
-      storageUsed: Number(totalStorageStats._sum.size || 0),
+      storageUsed,
       rootFiles: rootFilesCount,
       sharedFiles: sharedFilesCount,
       recentFiles: recentFilesCount,
+    },
+    storageCost: {
+      costPerGbDayCents,
+      expenseCentsPerDay,
+      expenseFreeCentsPerDay,
+      expensePaidCentsPerDay,
+    },
+    byPlan: {
+      storageFree,
+      storagePaid,
     },
     mimeTypes: {
       images: imagesCount,

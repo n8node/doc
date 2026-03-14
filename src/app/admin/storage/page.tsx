@@ -28,6 +28,9 @@ import {
   FileText,
   MoreVertical,
   RefreshCw,
+  DollarSign,
+  Gift,
+  CreditCard,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -91,6 +94,16 @@ interface StorageStats {
     rootFiles: number;
     sharedFiles: number;
     recentFiles: number;
+  };
+  storageCost?: {
+    costPerGbDayCents: number;
+    expenseCentsPerDay: number;
+    expenseFreeCentsPerDay: number;
+    expensePaidCentsPerDay: number;
+  };
+  byPlan?: {
+    storageFree: number;
+    storagePaid: number;
   };
   mimeTypes: {
     images: number;
@@ -466,6 +479,64 @@ export default function AdminStoragePage() {
               </div>
             </CardContent>
           </Card>
+          </div>
+
+          {stats.storageCost != null && stats.byPlan != null && (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <div className="text-sm font-medium">Расход в день</div>
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {(stats.storageCost.expenseCentsPerDay / 100).toFixed(2)} ₽
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    по занятому месту и тарифу из Финансов
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <HardDrive className="h-4 w-4 text-muted-foreground" />
+                    <div className="text-sm font-medium">Стоимость за ГБ/день</div>
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {(stats.storageCost.costPerGbDayCents / 100).toFixed(2)} ₽
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    настройка в разделе Финансы
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <Gift className="h-4 w-4 text-muted-foreground" />
+                    <div className="text-sm font-medium">Бесплатные тарифы</div>
+                  </div>
+                  <div className="text-2xl font-bold">{formatBytes(stats.byPlan.storageFree)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    расход {(stats.storageCost.expenseFreeCentsPerDay / 100).toFixed(2)} ₽/день
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <div className="text-sm font-medium">Платные тарифы</div>
+                  </div>
+                  <div className="text-2xl font-bold">{formatBytes(stats.byPlan.storagePaid)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    расход {(stats.storageCost.expensePaidCentsPerDay / 100).toFixed(2)} ₽/день
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
           </div>
         </div>
       )}
