@@ -30,7 +30,9 @@ interface StatsResponse {
   revenueCents: number;
   revenueRub: number;
   requestsCount: number;
-  openRouterUsageUsd: number;
+  openRouterCostUsdFromDb: number;
+  openRouterUsageUsdFromApi: number;
+  openRouterCostUsd: number;
   openRouterCostRub: number | null;
   blendedRateRubPerUsd: number | null;
   platformEarningsRub: number;
@@ -297,9 +299,11 @@ export default function MarketplaceStatsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">{formatUsd(data.openRouterUsageUsd)}</p>
+                <p className="text-2xl font-bold">{formatUsd(data.openRouterCostUsd)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Фактические списания с аккаунта
+                  {data.openRouterCostUsdFromDb > 0
+                    ? "По нашим запросам за период (cost из ответов)"
+                    : "По отчёту OpenRouter (если ключ настроен)"}
                 </p>
               </CardContent>
             </Card>
@@ -363,8 +367,14 @@ export default function MarketplaceStatsPage() {
                     </tr>
                     <tr className="border-t border-border">
                       <td className="px-4 py-2">Расход OpenRouter (USD)</td>
-                      <td className="px-4 py-2 text-right font-medium">{formatUsd(data.openRouterUsageUsd)}</td>
+                      <td className="px-4 py-2 text-right font-medium">{formatUsd(data.openRouterCostUsd)}</td>
                     </tr>
+                    {data.openRouterUsageUsdFromApi > 0 && data.openRouterCostUsdFromDb !== data.openRouterUsageUsdFromApi && (
+                      <tr className="border-t border-border">
+                        <td className="px-4 py-2 text-muted-foreground">По отчёту OpenRouter (API)</td>
+                        <td className="px-4 py-2 text-right text-muted-foreground">{formatUsd(data.openRouterUsageUsdFromApi)}</td>
+                      </tr>
+                    )}
                     <tr className="border-t border-border">
                       <td className="px-4 py-2">Расход OpenRouter (руб)</td>
                       <td className="px-4 py-2 text-right font-medium">{formatRub(data.openRouterCostRub)}</td>

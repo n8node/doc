@@ -57,13 +57,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const [revenueAgg, blendedRate, activityByDay] = await Promise.all([
+  const [revenueAgg, eventsWithMeta, blendedRate, activityByDay] = await Promise.all([
     prisma.marketplaceUsageEvent.aggregate({
       where: {
         createdAt: { gte: fromDate, lte: toDate },
       },
       _sum: { costCents: true },
       _count: true,
+    }),
+    prisma.marketplaceUsageEvent.findMany({
+      where: { createdAt: { gte: fromDate, lte: toDate } },
+      select: { metadata: true },
     }),
     getBlendedRateRubPerUsd(),
     fetchActivityForRange(dateFrom, dateTo),
@@ -72,9 +76,20 @@ export async function GET(request: NextRequest) {
   const revenueCents = revenueAgg._sum.costCents ?? 0;
   const revenueRub = revenueCents / 100;
   const requestsCount = revenueAgg._count;
-  const openRouterUsageUsd = activityByDay.totalUsageUsd;
+
+  let openRouterCostUsdFromDb = 0;
+  for (const e of eventsWithMeta) {
+    const meta = e.metadata as Record<string, unknown> | null;
+    const costUsd = meta?.costUsd;
+    if (typeof costUsd === "number" && Number.isFinite(costUsd) && costUsd >= 0) {
+      openRouterCostUsdFromDb += costUsd;
+    }
+  }
+
+  const openRouterUsageUsdFromApi = activityByDay.totalUsageUsd;
+  const openRouterCostUsd = openRouterCostUsdFromDb > 0 ? openRouterCostUsdFromDb : openRouterUsageUsdFromApi;
   const openRouterCostRub =
-    blendedRate != null && openRouterUsageUsd > 0 ? openRouterUsageUsd * blendedRate : null;
+    blendedRate != null && openRouterCostUsd > 0 ? openRouterCostUsd * blendedRate : null;
   const platformEarningsRub =
     openRouterCostRub != null ? revenueRub - openRouterCostRub : revenueRub;
 
@@ -84,7 +99,9 @@ export async function GET(request: NextRequest) {
     revenueCents,
     revenueRub,
     requestsCount,
-    openRouterUsageUsd,
+    openRouterCostUsdFromDb,
+    openRouterUsageUsdFromApi,
+    openRouterCostUsd,
     openRouterCostRub,
     blendedRateRubPerUsd: blendedRate,
     platformEarningsRub,
