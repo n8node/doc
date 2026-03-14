@@ -537,7 +537,6 @@ export default function AdminStoragePage() {
               </Card>
             </div>
           )}
-          </div>
         </div>
       )}
 
