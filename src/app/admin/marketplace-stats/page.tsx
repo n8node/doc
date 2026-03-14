@@ -11,10 +11,18 @@ import {
   BarChart3,
   AlertCircle,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface StatsResponse {
   dateFrom: string;
@@ -54,6 +62,10 @@ export default function MarketplaceStatsPage() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetSecretKey, setResetSecretKey] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +95,28 @@ export default function MarketplaceStatsPage() {
     }
   }, [dateFrom, dateTo, month, useMonth]);
 
+  const handleReset = useCallback(async () => {
+    setResetLoading(true);
+    setResetError(null);
+    try {
+      const res = await fetch("/api/v1/admin/marketplace-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secretKey: resetSecretKey }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Ошибка сброса");
+      setResetDialogOpen(false);
+      setResetSecretKey("");
+      toast.success("Данные сброшены");
+      void load();
+    } catch (e) {
+      setResetError(e instanceof Error ? e.message : "Ошибка сброса");
+    } finally {
+      setResetLoading(false);
+    }
+  }, [resetSecretKey, load]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -99,11 +133,66 @@ export default function MarketplaceStatsPage() {
             Выручка, расходы OpenRouter, заработок платформы
           </p>
         </div>
-        <Button onClick={() => void load()} disabled={loading} variant="outline" className="gap-2">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Обновить
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => void load()} disabled={loading} variant="outline" className="gap-2">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Обновить
+          </Button>
+          <Button
+            variant="destructive"
+            className="gap-2"
+            onClick={() => {
+              setResetError(null);
+              setResetSecretKey("");
+              setResetDialogOpen(true);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+            Сбросить данные
+          </Button>
+        </div>
       </div>
+
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Сброс финансовых данных</DialogTitle>
+            <DialogDescription>
+              Будет удалено: usage маркетплейса, пополнения, token_usage, payments. Все пользователи переведутся на бесплатный план. API-ключи сохранятся. Действие необратимо.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Секретный ключ</label>
+              <Input
+                type="password"
+                placeholder="Введите ключ"
+                value={resetSecretKey}
+                onChange={(e) => setResetSecretKey(e.target.value)}
+                className="max-w-xs"
+                autoComplete="off"
+              />
+            </div>
+            {resetError && (
+              <p className="text-sm text-destructive">{resetError}</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setResetDialogOpen(false)} disabled={resetLoading}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleReset()}
+              disabled={resetLoading || !resetSecretKey}
+              className="gap-2"
+            >
+              {resetLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Сбросить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2">
