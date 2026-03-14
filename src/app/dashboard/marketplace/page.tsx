@@ -55,6 +55,23 @@ export default function MarketplacePage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [showModels, setShowModels] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<ModelItem | null>(null);
+
+  const apiBase = typeof window !== "undefined" ? window.location.origin : "https://qoqon.ru";
+  const keyPlaceholder = llmKeys[0]?.keyPrefix?.replace(/\.{3}$/, "xxx__yyy") ?? "QoQon_LLM_xxx__yyy";
+
+  function buildCurl(model: ModelItem): string {
+    if (model.category === "embeddings") {
+      return `curl -X POST "${apiBase}/api/v1/marketplace/embeddings" \\
+  -H "Authorization: Bearer ${keyPlaceholder}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"${model.id}","input":"Текст для векторизации"}'`;
+    }
+    return `curl -X POST "${apiBase}/api/v1/marketplace/chat/completions" \\
+  -H "Authorization: Bearer ${keyPlaceholder}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"${model.id}","messages":[{"role":"user","content":"Привет"}]}'`;
+  }
 
   const loadData = useCallback(async () => {
     const [keysSettled, walletSettled] = await Promise.allSettled([
@@ -360,13 +377,17 @@ export default function MarketplacePage() {
                   className="mt-4 max-h-80 overflow-y-auto space-y-1"
                 >
                   {models.map((m) => (
-                    <div
+                    <button
                       key={m.id}
-                      className="flex items-center justify-between rounded-lg border border-border bg-surface2/30 px-3 py-2 text-sm"
+                      type="button"
+                      onClick={() => setSelectedModel(m)}
+                      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:bg-surface2/50 focus:outline-none focus:ring-2 focus:ring-ring ${
+                        selectedModel?.id === m.id ? "border-primary bg-primary/10" : "border-border bg-surface2/30"
+                      }`}
                     >
                       <span className="font-mono truncate">{m.id}</span>
                       <span className="text-muted-foreground shrink-0 ml-2">{m.category}</span>
-                    </div>
+                    </button>
                   ))}
                 </motion.div>
               )}
@@ -377,17 +398,34 @@ export default function MarketplacePage() {
             <CardHeader>
               <CardTitle>Использование API</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Chat completions: <code className="rounded bg-surface2 px-1">POST /api/v1/marketplace/chat/completions</code>.
-                Embeddings: <code className="rounded bg-surface2 px-1">POST /api/v1/marketplace/embeddings</code>.
+                {selectedModel ? (
+                  <>
+                    Выбрана модель <code className="rounded bg-surface2 px-1">{selectedModel.id}</code> ({selectedModel.category}).
+                    Клик по другой модели обновит пример.
+                  </>
+                ) : (
+                  <>
+                    Chat: <code className="rounded bg-surface2 px-1">POST /api/v1/marketplace/chat/completions</code>.
+                    Embeddings: <code className="rounded bg-surface2 px-1">POST /api/v1/marketplace/embeddings</code>.
+                    Выберите модель выше — пример curl подставится автоматически.
+                  </>
+                )}
               </p>
             </CardHeader>
             <CardContent>
-              <pre className="overflow-x-auto rounded-lg bg-surface2 p-4 text-sm">
-{`curl -X POST "https://qoqon.ru/api/v1/marketplace/chat/completions" \\
-  -H "Authorization: Bearer QoQon_LLM_xxx__yyy" \\
-  -H "Content-Type: application/json" \\
-  -d '{"model":"openai/gpt-4o-mini","messages":[{"role":"user","content":"Привет"}]}'`}
-              </pre>
+              {(() => {
+                const exampleCurl = selectedModel
+                  ? buildCurl(selectedModel)
+                  : buildCurl({ id: "openai/gpt-4o-mini", name: "", category: "chat", contextLength: null, pricing: null });
+                return (
+                  <pre className="relative overflow-x-auto rounded-lg bg-surface2 p-4 pr-10 text-sm">
+                    {exampleCurl}
+                    <Button variant="ghost" size="sm" className="absolute right-2 top-2" onClick={() => handleCopy(exampleCurl)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </pre>
+                );
+              })()}
             </CardContent>
           </div>
 
