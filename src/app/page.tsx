@@ -17,8 +17,8 @@ export default async function HomePage() {
       <main className="flex-1">
         <LandingHero content={content} />
         <LandingFileCards content={content} />
-        <LandingFeatures />
-        <LandingHowItWorks />
+        <LandingFeatures content={content} />
+        <LandingHowItWorks content={content} />
       </main>
       <Footer />
     </div>

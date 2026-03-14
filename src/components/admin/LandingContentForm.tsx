@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Upload, Trash2, Save, Plus } from "lucide-react";
-import type { LandingContent } from "@/lib/landing-content";
+import type { LandingContent, LandingFeature } from "@/lib/landing-content";
 
 function getImageUrl(imageId: string): string {
   return `/api/public/landing-asset/${imageId}?v=${Date.now()}`;
@@ -17,7 +17,7 @@ export function LandingContentForm() {
   const [saving, setSaving] = useState(false);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [content, setContent] = useState<LandingContent | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const load = async () => {
     setLoading(true);
@@ -56,7 +56,7 @@ export function LandingContentForm() {
     }
   };
 
-  const uploadImage = async (imageId: string, file: File) => {
+  const uploadImage = async (imageId: string, file: File, opts?: { skipReload?: boolean }) => {
     setUploadingId(imageId);
     try {
       const fd = new FormData();
@@ -69,28 +69,28 @@ export function LandingContentForm() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
       toast.success("Изображение загружено");
-      await load();
+      if (!opts?.skipReload) await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка загрузки");
     } finally {
       setUploadingId(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      const input = fileInputRefs.current[imageId];
+      if (input) input.value = "";
     }
   };
 
-  const removeImage = async () => {
-    if (!content?.heroImageKey) return;
+  const removeImage = async (imageId: string, opts?: { skipReload?: boolean }) => {
     setSaving(true);
     try {
       const res = await fetch("/api/v1/admin/landing-content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ removeImageIds: ["hero"] }),
+        body: JSON.stringify({ removeImageIds: [imageId] }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Ошибка удаления");
       toast.success("Изображение удалено");
-      await load();
+      if (!opts?.skipReload) await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка удаления");
     } finally {
@@ -105,11 +105,25 @@ export function LandingContentForm() {
     setContent({ ...content, benefits });
   };
 
-  const updateFileCard = (index: number, field: "title" | "size" | "color", value: string) => {
+  const updateFileCard = (index: number, field: "title" | "size" | "color" | "iconKey", value: string) => {
     if (!content) return;
     const fileCards = [...content.fileCards];
     fileCards[index] = { ...fileCards[index], [field]: value };
     setContent({ ...content, fileCards });
+  };
+
+  const updateFeature = (index: number, field: keyof LandingFeature, value: string) => {
+    if (!content) return;
+    const features = [...content.features];
+    features[index] = { ...features[index], [field]: value };
+    setContent({ ...content, features });
+  };
+
+  const updateStep = (index: number, field: "title" | "desc" | "num" | "iconKey", value: string | number) => {
+    if (!content) return;
+    const steps = [...content.steps];
+    steps[index] = { ...steps[index], [field]: field === "num" ? Number(value) : value };
+    setContent({ ...content, steps });
   };
 
   const addBenefit = () => {
@@ -140,6 +154,36 @@ export function LandingContentForm() {
     setContent({ ...content, fileCards });
   };
 
+  const addFeature = () => {
+    if (!content) return;
+    const id = `f${Date.now()}`;
+    setContent({
+      ...content,
+      features: [...content.features, { id, title: "Новая возможность", description: "", href: "/dashboard" }],
+    });
+  };
+
+  const removeFeature = (index: number) => {
+    if (!content || content.features.length <= 1) return;
+    const features = content.features.filter((_, i) => i !== index);
+    setContent({ ...content, features });
+  };
+
+  const addStep = () => {
+    if (!content) return;
+    const num = content.steps.length + 1;
+    setContent({
+      ...content,
+      steps: [...content.steps, { num, title: "Новый шаг", desc: "" }],
+    });
+  };
+
+  const removeStep = (index: number) => {
+    if (!content || content.steps.length <= 1) return;
+    const steps = content.steps.filter((_, i) => i !== index);
+    setContent({ ...content, steps });
+  };
+
   if (loading || !content) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -154,15 +198,15 @@ export function LandingContentForm() {
       <div>
         <h2 className="text-lg font-semibold text-foreground">Контент главной страницы</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Редактируйте тексты, изображения и блоки лендинга. Изменения отображаются на главной /.
+          Кнопки показываются только если заполнены и текст, и ссылка. Пустое поле «Выделение» — без подсветки.
         </p>
       </div>
 
       {/* Hero */}
       <div className="space-y-4 rounded-xl border border-border p-4">
-        <h3 className="text-sm font-semibold text-foreground">Блок героя</h3>
+        <h3 className="text-sm font-semibold text-foreground">Блок героя (центрированный)</h3>
         <div>
-          <label className="text-sm text-muted-foreground">Тэглайн (над заголовком)</label>
+          <label className="text-sm text-muted-foreground">Тэглайн</label>
           <Input
             value={content.tagline}
             onChange={(e) => setContent({ ...content, tagline: e.target.value })}
@@ -175,7 +219,16 @@ export function LandingContentForm() {
           <Input
             value={content.heroTitle}
             onChange={(e) => setContent({ ...content, heroTitle: e.target.value })}
-            placeholder="Облачное хранилище + API‑маркетплейс для RAG, поиска и чатов по документам"
+            placeholder="Облачное хранилище + API‑маркетплейс для RAG..."
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-muted-foreground">Слово/фраза для выделения акцентным цветом (оставьте пустым, чтобы не выделять)</label>
+          <Input
+            value={content.heroTitleHighlight}
+            onChange={(e) => setContent({ ...content, heroTitleHighlight: e.target.value })}
+            placeholder="API‑маркетплейс"
             className="mt-1"
           />
         </div>
@@ -184,14 +237,14 @@ export function LandingContentForm() {
           <Textarea
             value={content.heroDescription}
             onChange={(e) => setContent({ ...content, heroDescription: e.target.value })}
-            placeholder="Храните файлы, находите нужное..."
+            placeholder="Храните файлы..."
             rows={3}
             className="mt-1"
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-sm text-muted-foreground">Кнопка 1 (текст)</label>
+            <label className="text-sm text-muted-foreground">Кнопка 1 — текст (пусто = скрыть)</label>
             <Input
               value={content.ctaPrimary}
               onChange={(e) => setContent({ ...content, ctaPrimary: e.target.value })}
@@ -200,7 +253,7 @@ export function LandingContentForm() {
             />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground">Кнопка 1 (ссылка)</label>
+            <label className="text-sm text-muted-foreground">Кнопка 1 — ссылка</label>
             <Input
               value={content.ctaPrimaryHref}
               onChange={(e) => setContent({ ...content, ctaPrimaryHref: e.target.value })}
@@ -209,7 +262,7 @@ export function LandingContentForm() {
             />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground">Кнопка 2 (текст)</label>
+            <label className="text-sm text-muted-foreground">Кнопка 2 — текст (пусто = скрыть)</label>
             <Input
               value={content.ctaSecondary}
               onChange={(e) => setContent({ ...content, ctaSecondary: e.target.value })}
@@ -218,61 +271,13 @@ export function LandingContentForm() {
             />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground">Кнопка 2 (ссылка)</label>
+            <label className="text-sm text-muted-foreground">Кнопка 2 — ссылка</label>
             <Input
               value={content.ctaSecondaryHref}
               onChange={(e) => setContent({ ...content, ctaSecondaryHref: e.target.value })}
               placeholder="/docs"
               className="mt-1"
             />
-          </div>
-        </div>
-        <div>
-          <label className="text-sm text-muted-foreground">Изображение героя (опционально)</label>
-          <div className="mt-2 flex items-center gap-4">
-            {content.heroImageKey ? (
-              <img
-                src={getImageUrl("hero")}
-                alt="hero"
-                className="h-24 w-auto rounded-lg border border-border object-contain"
-              />
-            ) : (
-              <div className="flex h-24 w-32 items-center justify-center rounded-lg border border-dashed border-border bg-surface2/50 text-sm text-muted-foreground">
-                Нет изображения
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void uploadImage("hero", file);
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingId !== null}
-              >
-                {uploadingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                Загрузить
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => void removeImage()}
-                disabled={saving || !content.heroImageKey}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Удалить
-              </Button>
-            </div>
           </div>
         </div>
       </div>
@@ -322,48 +327,276 @@ export function LandingContentForm() {
       {/* File cards */}
       <div className="space-y-4 rounded-xl border border-border p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Карточки примеров файлов</h3>
+          <h3 className="text-sm font-semibold text-foreground">Карточки примеров файлов (PNG-иконка или цвет)</h3>
           <Button type="button" variant="outline" size="sm" onClick={addFileCard}>
             <Plus className="mr-2 h-4 w-4" />
             Добавить
           </Button>
         </div>
         <div className="space-y-3">
-          {content.fileCards.map((c, i) => (
-            <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-surface2/30 p-3">
-              <Input
-                value={c.title}
-                onChange={(e) => updateFileCard(i, "title", e.target.value)}
-                placeholder="Название файла"
-                className="min-w-[180px]"
-              />
-              <Input
-                value={c.size}
-                onChange={(e) => updateFileCard(i, "size", e.target.value)}
-                placeholder="Размер"
-                className="w-24"
-              />
-              <select
-                value={c.color ?? "default"}
-                onChange={(e) => updateFileCard(i, "color", e.target.value)}
-                className="rounded border border-border bg-surface px-2 py-1.5 text-sm"
-              >
-                <option value="red">Красный</option>
-                <option value="blue">Синий</option>
-                <option value="green">Зелёный</option>
-                <option value="default">Акцент</option>
-              </select>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeFileCard(i)}
-                disabled={content.fileCards.length <= 1}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+          {content.fileCards.map((c, i) => {
+            const iconId = `file_card_${i}`;
+            const hasIcon = c.iconKey === iconId;
+            return (
+              <div key={i} className="space-y-2 rounded-lg border border-border/70 bg-surface2/30 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={c.title}
+                    onChange={(e) => updateFileCard(i, "title", e.target.value)}
+                    placeholder="Название файла"
+                    className="min-w-[180px]"
+                  />
+                  <Input
+                    value={c.size}
+                    onChange={(e) => updateFileCard(i, "size", e.target.value)}
+                    placeholder="Размер"
+                    className="w-24"
+                  />
+                  <select
+                    value={c.color ?? "default"}
+                    onChange={(e) => updateFileCard(i, "color", e.target.value)}
+                    className="rounded border border-border bg-surface px-2 py-1.5 text-sm"
+                  >
+                    <option value="red">Квадрат красный</option>
+                    <option value="blue">Квадрат синий</option>
+                    <option value="green">Квадрат зелёный</option>
+                    <option value="default">Квадрат акцент</option>
+                  </select>
+                  <span className="text-xs text-muted-foreground">или PNG-иконка:</span>
+                  <input
+                    ref={(el) => { fileInputRefs.current[iconId] = el; }}
+                    type="file"
+                    accept="image/png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        void uploadImage(iconId, file, { skipReload: true }).then(() => {
+                          updateFileCard(i, "iconKey", iconId);
+                        });
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRefs.current[iconId]?.click()}
+                    disabled={uploadingId !== null}
+                  >
+                    {uploadingId === iconId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  </Button>
+                  {hasIcon && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        updateFileCard(i, "iconKey", "");
+                        void removeImage(iconId, { skipReload: true });
+                      }}
+                      disabled={saving}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFileCard(i)}
+                    disabled={content.fileCards.length <= 1}
+                  >
+                    Удалить карточку
+                  </Button>
+                </div>
+                {hasIcon && (
+                  <img
+                    src={getImageUrl(iconId)}
+                    alt=""
+                    className="h-10 w-10 rounded border object-contain"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Features */}
+      <div className="space-y-4 rounded-xl border border-border p-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Раздел «Возможности»</h3>
+          <Button type="button" variant="outline" size="sm" onClick={addFeature}>
+            <Plus className="mr-2 h-4 w-4" />
+            Добавить
+          </Button>
+        </div>
+        <div>
+          <label className="text-sm text-muted-foreground">Заголовок раздела</label>
+          <Input
+            value={content.featuresTitle}
+            onChange={(e) => setContent({ ...content, featuresTitle: e.target.value })}
+            placeholder="Возможности"
+            className="mt-1"
+          />
+        </div>
+        <div className="space-y-3">
+          {content.features.map((f, i) => {
+            const iconId = `feature_${i}`;
+            return (
+              <div key={f.id} className="space-y-2 rounded-lg border border-border/70 bg-surface2/30 p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Иконка PNG:</span>
+                  <input
+                    ref={(el) => { fileInputRefs.current[iconId] = el; }}
+                    type="file"
+                    accept="image/png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        void uploadImage(iconId, file, { skipReload: true }).then(() => {
+                          updateFeature(i, "iconKey", iconId);
+                        });
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRefs.current[iconId]?.click()}
+                    disabled={uploadingId !== null}
+                  >
+                    {uploadingId === iconId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  </Button>
+                  {f.iconKey && (
+                    <>
+                      <img src={getImageUrl(iconId)} alt="" className="h-8 w-8 rounded object-contain" />
+                      <Button variant="ghost" size="sm" onClick={() => { updateFeature(i, "iconKey", ""); void removeImage(iconId, { skipReload: true }); }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <Input
+                  value={f.title}
+                  onChange={(e) => updateFeature(i, "title", e.target.value)}
+                  placeholder="Заголовок"
+                />
+                <Textarea
+                  value={f.description}
+                  onChange={(e) => updateFeature(i, "description", e.target.value)}
+                  placeholder="Описание"
+                  rows={2}
+                />
+                <Input
+                  value={f.href}
+                  onChange={(e) => updateFeature(i, "href", e.target.value)}
+                  placeholder="/dashboard/files"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeFeature(i)}
+                  disabled={content.features.length <= 1}
+                >
+                  Удалить
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-4 rounded-xl border border-border p-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Раздел «Как это работает»</h3>
+          <Button type="button" variant="outline" size="sm" onClick={addStep}>
+            <Plus className="mr-2 h-4 w-4" />
+            Добавить
+          </Button>
+        </div>
+        <div>
+          <label className="text-sm text-muted-foreground">Заголовок раздела</label>
+          <Input
+            value={content.stepsTitle}
+            onChange={(e) => setContent({ ...content, stepsTitle: e.target.value })}
+            placeholder="Как это работает"
+            className="mt-1"
+          />
+        </div>
+        <div className="space-y-3">
+          {content.steps.map((s, i) => {
+            const iconId = `step_${i}`;
+            return (
+              <div key={i} className="space-y-2 rounded-lg border border-border/70 bg-surface2/30 p-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-muted-foreground">№</label>
+                  <Input
+                    type="number"
+                    value={s.num}
+                    onChange={(e) => updateStep(i, "num", e.target.value)}
+                    className="w-16"
+                  />
+                  <span className="text-xs text-muted-foreground">Иконка PNG:</span>
+                  <input
+                    ref={(el) => { fileInputRefs.current[iconId] = el; }}
+                    type="file"
+                    accept="image/png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        void uploadImage(iconId, file, { skipReload: true }).then(() => {
+                          updateStep(i, "iconKey", iconId);
+                        });
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRefs.current[iconId]?.click()}
+                    disabled={uploadingId !== null}
+                  >
+                    {uploadingId === iconId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  </Button>
+                  {s.iconKey && (
+                    <>
+                      <img src={getImageUrl(iconId)} alt="" className="h-8 w-8 rounded object-contain" />
+                      <Button variant="ghost" size="sm" onClick={() => { updateStep(i, "iconKey", ""); void removeImage(iconId, { skipReload: true }); }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <Input
+                  value={s.title}
+                  onChange={(e) => updateStep(i, "title", e.target.value)}
+                  placeholder="Заголовок шага"
+                />
+                <Input
+                  value={s.desc}
+                  onChange={(e) => updateStep(i, "desc", e.target.value)}
+                  placeholder="Описание"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeStep(i)}
+                  disabled={content.steps.length <= 1}
+                >
+                  Удалить
+                </Button>
+              </div>
+            );
+          })}
         </div>
       </div>
 

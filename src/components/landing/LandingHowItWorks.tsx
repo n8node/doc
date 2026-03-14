@@ -1,22 +1,40 @@
-const STEPS = [
-  { num: 1, title: "Загрузка", desc: "Загрузите документы в хранилище" },
-  { num: 2, title: "Индексация", desc: "Система создаёт поисковые индексы" },
-  { num: 3, title: "Поиск и чаты", desc: "Ищите и задавайте вопросы AI по документам" },
-];
+import type { LandingContent } from "@/lib/landing-content";
+import { getLandingAssetUrl } from "@/lib/landing-content";
 
-export function LandingHowItWorks() {
+function StepIcon({ step, iconKey }: { step: { num: number }; iconKey?: string | null }) {
+  const key = iconKey?.trim();
+  if (key) {
+    return (
+      <img
+        src={`${getLandingAssetUrl(key)}?v=${Date.now()}`}
+        alt=""
+        className="h-12 w-12 shrink-0 rounded-full object-contain"
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
+      />
+    );
+  }
+  return (
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/20 text-lg font-bold text-primary">
+      {step.num}
+    </span>
+  );
+}
+
+export function LandingHowItWorks({ content }: { content: LandingContent }) {
+  if (!content.steps?.length) return null;
+
   return (
     <section id="how-it-works" className="px-4 py-16">
       <div className="container mx-auto max-w-5xl">
         <h2 className="mb-10 text-center text-2xl font-bold text-foreground sm:text-3xl">
-          Как это работает
+          {content.stepsTitle}
         </h2>
         <div className="flex flex-col gap-8 sm:flex-row sm:justify-center sm:gap-12">
-          {STEPS.map((s) => (
-            <div key={s.num} className="flex items-start gap-4">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/20 text-lg font-bold text-primary">
-                {s.num}
-              </span>
+          {content.steps.map((s, i) => (
+            <div key={i} className="flex items-start gap-4">
+              <StepIcon step={s} iconKey={s.iconKey} />
               <div>
                 <h3 className="font-semibold text-foreground">{s.title}</h3>
                 <p className="text-sm text-muted-foreground">{s.desc}</p>

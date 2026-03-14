@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { LandingContent } from "@/lib/landing-content";
-import { getLandingAssetUrl } from "@/lib/landing-content";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 const BENEFIT_COLORS: Record<string, string> = {
@@ -11,44 +10,59 @@ const BENEFIT_COLORS: Record<string, string> = {
   default: "bg-primary",
 };
 
+function renderTitle(title: string, highlight: string) {
+  if (!highlight || !title.includes(highlight)) {
+    return title;
+  }
+  const parts = title.split(highlight);
+  return (
+    <>
+      {parts[0]}
+      <span className="bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
+        {highlight}
+      </span>
+      {parts[1]}
+    </>
+  );
+}
+
 export function LandingHero({ content }: { content: LandingContent }) {
+  const showCtaPrimary = content.ctaPrimary.trim() && content.ctaPrimaryHref.trim();
+  const showCtaSecondary = content.ctaSecondary.trim() && content.ctaSecondaryHref.trim();
+
   return (
     <section className="relative overflow-hidden bg-background px-4 py-16 sm:py-24 lg:py-32">
-      <div className="container mx-auto max-w-5xl">
-        <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="container mx-auto max-w-4xl text-center">
+        <p className="mb-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Sparkles className="h-4 w-4 text-primary" />
           {content.tagline}
         </p>
         <h1 className="mb-6 text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-          {content.heroTitle.split("API‑маркетплейс").length > 1 ? (
-            <>
-              {content.heroTitle.split("API‑маркетплейс")[0]}
-              <span className="bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-                API‑маркетплейс
-              </span>
-              {content.heroTitle.split("API‑маркетплейс")[1]}
-            </>
-          ) : (
-            content.heroTitle
-          )}
+          {renderTitle(content.heroTitle, content.heroTitleHighlight)}
         </h1>
-        <p className="mb-10 max-w-2xl text-lg text-muted-foreground">
+        <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground">
           {content.heroDescription}
         </p>
-        <div className="mb-10 flex flex-wrap gap-4">
-          <Link href={content.ctaPrimaryHref}>
-            <Button size="lg" className="gap-2 shadow-lg">
-              {content.ctaPrimary}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Link href={content.ctaSecondaryHref}>
-            <Button variant="outline" size="lg">
-              {content.ctaSecondary}
-            </Button>
-          </Link>
-        </div>
-        <div className="flex flex-wrap gap-6">
+        {(showCtaPrimary || showCtaSecondary) && (
+          <div className="mb-10 flex flex-wrap justify-center gap-4">
+            {showCtaPrimary && (
+              <Link href={content.ctaPrimaryHref}>
+                <Button size="lg" className="gap-2 shadow-lg">
+                  {content.ctaPrimary}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            )}
+            {showCtaSecondary && (
+              <Link href={content.ctaSecondaryHref}>
+                <Button variant="outline" size="lg">
+                  {content.ctaSecondary}
+                </Button>
+              </Link>
+            )}
+          </div>
+        )}
+        <div className="flex flex-wrap justify-center gap-6">
           {content.benefits.map((b, i) => (
             <span key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
               <span
@@ -59,15 +73,6 @@ export function LandingHero({ content }: { content: LandingContent }) {
           ))}
         </div>
       </div>
-      {content.heroImageKey && (
-        <div className="absolute right-0 top-1/2 hidden -translate-y-1/2 lg:block">
-          <img
-            src={`${getLandingAssetUrl("hero")}?v=${Date.now()}`}
-            alt=""
-            className="max-h-80 w-auto rounded-2xl object-contain opacity-90"
-          />
-        </div>
-      )}
     </section>
   );
 }

@@ -9,6 +9,8 @@ import {
   getLandingImageConfigKeys,
   type LandingBenefit,
   type LandingFileCard,
+  type LandingFeature,
+  type LandingStep,
 } from "@/lib/landing-content";
 
 const PREFIX = "landing.";
@@ -24,6 +26,27 @@ function isValidFileCard(x: unknown): x is LandingFileCard {
     x !== null &&
     typeof (x as { title?: unknown }).title === "string" &&
     typeof (x as { size?: unknown }).size === "string"
+  );
+}
+
+function isValidFeature(x: unknown): x is LandingFeature {
+  return (
+    typeof x === "object" &&
+    x !== null &&
+    typeof (x as { id?: unknown }).id === "string" &&
+    typeof (x as { title?: unknown }).title === "string" &&
+    typeof (x as { description?: unknown }).description === "string" &&
+    typeof (x as { href?: unknown }).href === "string"
+  );
+}
+
+function isValidStep(x: unknown): x is LandingStep {
+  return (
+    typeof x === "object" &&
+    x !== null &&
+    typeof (x as { num?: unknown }).num === "number" &&
+    typeof (x as { title?: unknown }).title === "string" &&
+    typeof (x as { desc?: unknown }).desc === "string"
   );
 }
 
@@ -49,28 +72,21 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const updates: Promise<void>[] = [];
 
-  const strKeys = [
-    "tagline",
-    "heroTitle",
-    "heroDescription",
-    "ctaPrimary",
-    "ctaPrimaryHref",
-    "ctaSecondary",
-    "ctaSecondaryHref",
-  ] as const;
-
   const keyToConfig: Record<string, string> = {
     tagline: "tagline",
     heroTitle: "hero_title",
+    heroTitleHighlight: "hero_title_highlight",
     heroDescription: "hero_description",
     ctaPrimary: "cta_primary",
     ctaPrimaryHref: "cta_primary_href",
     ctaSecondary: "cta_secondary",
     ctaSecondaryHref: "cta_secondary_href",
+    featuresTitle: "features_title",
+    stepsTitle: "steps_title",
   };
-  for (const key of strKeys) {
-    const configKey = keyToConfig[key];
-    if (configKey && typeof body[key] === "string") {
+
+  for (const [key, configKey] of Object.entries(keyToConfig)) {
+    if (typeof body[key] === "string") {
       updates.push(
         configStore.set(`${PREFIX}${configKey}`, body[key].trim(), {
           category: CATEGORY,
@@ -100,6 +116,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (Array.isArray(body.features)) {
+    const features = body.features.filter(isValidFeature);
+    updates.push(
+      configStore.set(`${PREFIX}features_json`, JSON.stringify(features), {
+        category: CATEGORY,
+        description: "Блок Возможности",
+      })
+    );
+  }
+
+  if (Array.isArray(body.steps)) {
+    const steps = body.steps.filter(isValidStep);
+    updates.push(
+      configStore.set(`${PREFIX}steps_json`, JSON.stringify(steps), {
+        category: CATEGORY,
+        description: "Блок Как это работает",
+      })
+    );
+  }
+
   if (Array.isArray(body.removeImageIds)) {
     for (const imageId of body.removeImageIds) {
       if (typeof imageId === "string" && isValidLandingImageId(imageId)) {
@@ -117,6 +153,7 @@ export async function POST(request: NextRequest) {
   const keysToInvalidate = [
     `${PREFIX}tagline`,
     `${PREFIX}hero_title`,
+    `${PREFIX}hero_title_highlight`,
     `${PREFIX}hero_description`,
     `${PREFIX}cta_primary`,
     `${PREFIX}cta_primary_href`,
@@ -124,8 +161,10 @@ export async function POST(request: NextRequest) {
     `${PREFIX}cta_secondary_href`,
     `${PREFIX}benefits_json`,
     `${PREFIX}file_cards_json`,
-    `${PREFIX}image_hero_key`,
-    `${PREFIX}image_hero_mime`,
+    `${PREFIX}features_title`,
+    `${PREFIX}features_json`,
+    `${PREFIX}steps_title`,
+    `${PREFIX}steps_json`,
   ];
   keysToInvalidate.forEach((k) => configStore.invalidate(k));
 

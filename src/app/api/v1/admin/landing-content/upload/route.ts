@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   const fileRaw = formData.get("file");
 
   if (!imageId) {
-    return NextResponse.json({ error: "Некорректный imageId. Допустим: hero" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный imageId. Допустимы: file_card_N, feature_N, step_N" }, { status: 400 });
   }
 
   const keys = getLandingImageConfigKeys(imageId);
