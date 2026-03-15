@@ -102,6 +102,8 @@ export default function SheetDetailPage() {
   const [selectedRowIndices, setSelectedRowIndices] = useState<Set<number>>(new Set());
   const [fillDragging, setFillDragging] = useState(false);
   const [fillDragEnd, setFillDragEnd] = useState<{ rowIndex: number; columnId: string } | null>(null);
+  const [editingColumnTypeId, setEditingColumnTypeId] = useState<string | null>(null);
+  const [editColumnDataType, setEditColumnDataType] = useState("text");
 
   const loadSheet = useCallback(async () => {
     if (!id) return;
@@ -222,6 +224,36 @@ export default function SheetDetailPage() {
         setEditingColumnId(null);
       } catch {
         toast.error("Не удалось переименовать");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [id]
+  );
+
+  const updateColumnType = useCallback(
+    async (columnId: string, dataType: string) => {
+      if (!id) return;
+      setSaving(true);
+      try {
+        const res = await fetch(`/api/v1/sheets/${id}/columns/${columnId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dataType }),
+        });
+        if (!res.ok) throw new Error("Ошибка");
+        setSheet((prev) =>
+          prev
+            ? {
+                ...prev,
+                columns: prev.columns.map((c) => (c.id === columnId ? { ...c, dataType } : c)),
+              }
+            : prev
+        );
+        setEditingColumnTypeId(null);
+        toast.success("Тип колонки изменён");
+      } catch {
+        toast.error("Не удалось изменить тип колонки");
       } finally {
         setSaving(false);
       }
@@ -613,6 +645,14 @@ export default function SheetDetailPage() {
                   Переименовать
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  onClick={() => {
+                    setEditingColumnTypeId(col.id);
+                    setEditColumnDataType(col.dataType);
+                  }}
+                >
+                  Изменить тип
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   className="text-destructive"
                   onClick={() => deleteColumn(col.id)}
                 >
@@ -952,6 +992,46 @@ export default function SheetDetailPage() {
               </DialogClose>
               <Button onClick={addColumnWithType} disabled={saving}>
                 Добавить
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingColumnTypeId} onOpenChange={(open) => !open && setEditingColumnTypeId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Изменить тип колонки</DialogTitle>
+            {editingColumnTypeId && sheet && (
+              <p className="text-sm text-muted-foreground">
+                {sheet.columns.find((c) => c.id === editingColumnTypeId)?.name}
+              </p>
+            )}
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Тип данных</label>
+              <select
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={editColumnDataType}
+                onChange={(e) => setEditColumnDataType(e.target.value)}
+              >
+                {DATA_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setEditingColumnTypeId(null)}>
+                Отмена
+              </Button>
+              <Button
+                onClick={() => editingColumnTypeId && updateColumnType(editingColumnTypeId, editColumnDataType)}
+                disabled={saving}
+              >
+                Сохранить
               </Button>
             </div>
           </div>
