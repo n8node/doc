@@ -26,8 +26,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, RefreshCw, Link2 } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, Link2 } from "lucide-react";
 import { toast } from "sonner";
+import { SheetN8nConnectionDialog } from "@/components/sheets/SheetN8nConnectionDialog";
 
 const DATA_TYPES = [
   { value: "text", label: "Текст" },
@@ -92,9 +93,7 @@ export default function SheetDetailPage() {
   const [newColumnDataType, setNewColumnDataType] = useState("text");
   const [fillDialogOpen, setFillDialogOpen] = useState(false);
   const [fillValue, setFillValue] = useState("");
-  const [n8nConnections, setN8nConnections] = useState<Array<{ id: string; dbRoleName: string; tableName: string }>>([]);
-  const [n8nCreating, setN8nCreating] = useState(false);
-  const [n8nSyncingId, setN8nSyncingId] = useState<string | null>(null);
+  const [n8nDialogOpen, setN8nDialogOpen] = useState(false);
 
   const loadSheet = useCallback(async () => {
     if (!id) return;
@@ -123,23 +122,6 @@ export default function SheetDetailPage() {
   useEffect(() => {
     loadSheet();
   }, [loadSheet]);
-
-  const loadN8nConnections = useCallback(async () => {
-    if (!id) return;
-    try {
-      const res = await fetch(`/api/v1/sheets/${id}/n8n-connections`);
-      if (res.ok) {
-        const data = await res.json();
-        setN8nConnections(data.connections ?? []);
-      }
-    } catch {
-      setN8nConnections([]);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (sheet) loadN8nConnections();
-  }, [sheet, loadN8nConnections]);
 
   const deleteColumn = useCallback(
     async (columnId: string) => {
@@ -299,60 +281,6 @@ export default function SheetDetailPage() {
       setSaving(false);
     }
   }, [id, sheet, selectedRange, fillValue, loadSheet]);
-
-  const handleN8nCreate = useCallback(async () => {
-    if (!id) return;
-    setN8nCreating(true);
-    try {
-      const res = await fetch(`/api/v1/sheets/${id}/n8n-connections`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error ?? "Ошибка");
-      }
-      const data = await res.json();
-      toast.success(`Подключение создано. Пароль: ${data.dbPassword}`);
-      await loadN8nConnections();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Ошибка создания");
-    } finally {
-      setN8nCreating(false);
-    }
-  }, [id, loadN8nConnections]);
-
-  const handleN8nSync = useCallback(
-    async (connId: string) => {
-      if (!id) return;
-      setN8nSyncingId(connId);
-      try {
-        const res = await fetch(`/api/v1/sheets/${id}/n8n-connections/${connId}/sync`, { method: "POST" });
-        if (!res.ok) throw new Error("Ошибка");
-        toast.success("Синхронизировано");
-        await loadSheet();
-      } catch {
-        toast.error("Ошибка синхронизации");
-      } finally {
-        setN8nSyncingId(null);
-      }
-    },
-    [id, loadSheet]
-  );
-
-  const handleN8nDelete = useCallback(
-    async (connId: string) => {
-      if (!id || !confirm("Удалить подключение n8n?")) return;
-      try {
-        await fetch(`/api/v1/sheets/${id}/n8n-connections/${connId}`, { method: "DELETE" });
-        await loadN8nConnections();
-      } catch {
-        toast.error("Ошибка удаления");
-      }
-    },
-    [id, loadN8nConnections]
-  );
 
   const isCellInRange = useCallback(
     (rowIndex: number, columnId: string) => {
@@ -689,52 +617,18 @@ export default function SheetDetailPage() {
         </div>
       </div>
 
-      {n8nConnections.length > 0 && (
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
-              <Link2 className="h-4 w-4" />
-              Подключения n8n (PostgreSQL)
-            </div>
-            <ul className="space-y-2">
-              {n8nConnections.map((conn) => (
-                <li key={conn.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                  <span className="text-sm">{conn.tableName}</span>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleN8nSync(conn.id)}
-                      disabled={n8nSyncingId === conn.id}
-                    >
-                      {n8nSyncingId === conn.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      Синхронизировать
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleN8nDelete(conn.id)}>
-                      Удалить
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <Button variant="outline" size="sm" className="mt-2" onClick={handleN8nCreate} disabled={n8nCreating}>
-              {n8nCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Создать подключение n8n
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      <Button variant="outline" size="sm" onClick={() => setN8nDialogOpen(true)} className="gap-1">
+        <Link2 className="h-4 w-4" />
+        Подключения n8n (PostgreSQL)
+      </Button>
 
-      {n8nConnections.length === 0 && (
-        <Card>
-          <CardContent className="pt-4">
-            <Button variant="outline" size="sm" onClick={handleN8nCreate} disabled={n8nCreating} className="gap-1">
-              {n8nCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-              Создать подключение n8n (PostgreSQL)
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      <SheetN8nConnectionDialog
+        sheetId={id}
+        sheetName={sheet.name}
+        open={n8nDialogOpen}
+        onClose={() => setN8nDialogOpen(false)}
+        onSyncDone={loadSheet}
+      />
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
