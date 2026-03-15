@@ -67,6 +67,8 @@ declare module "@tanstack/react-table" {
     isCellInRange?: (rowIndex: number, columnId: string) => boolean;
     onCellClick?: (rowIndex: number, columnId: string, shiftKey: boolean) => void;
     deleteRow?: (rowIndex: number) => void;
+    rangeAnchor?: { rowIndex: number; columnId: string } | null;
+    selectedRange?: { startRow: number; endRow: number; startColId: string; endColId: string } | null;
   }
 }
 
@@ -666,7 +668,9 @@ export default function SheetDetailPage() {
           const value = getValue() as string | null | undefined;
           const v = value ?? "";
           const inRange = table.options.meta?.isCellInRange?.(row.original.rowIndex, col.id);
-          const isAnchor = rangeAnchor?.rowIndex === row.original.rowIndex && rangeAnchor?.columnId === col.id;
+          const anchor = table.options.meta?.rangeAnchor;
+          const selRange = table.options.meta?.selectedRange;
+          const isAnchor = anchor?.rowIndex === row.original.rowIndex && anchor?.columnId === col.id;
           return (
             <div
               className={`relative ${inRange ? "bg-primary/10" : ""}`}
@@ -685,7 +689,7 @@ export default function SheetDetailPage() {
                   }
                 }}
               />
-              {isAnchor && !selectedRange && (
+              {isAnchor && !selRange && (
                 <div
                   className="absolute bottom-0 right-0 h-2 w-2 bg-primary cursor-crosshair shrink-0"
                   title="Перетащите для заполнения"
@@ -703,7 +707,7 @@ export default function SheetDetailPage() {
       };
     });
     return [checkCol, rowActionsCol, ...dataCols];
-  }, [sheet, editingColumnId, editingColumnName, renameColumn, deleteColumn, selectedRowIndices, tableData, rangeAnchor, selectedRange, filterBy]);
+  }, [sheet, editingColumnId, editingColumnName, renameColumn, deleteColumn, selectedRowIndices, tableData, filterBy]);
 
   const handleCellClick = useCallback(
     (rowIndex: number, columnId: string, shiftKey: boolean) => {
@@ -733,6 +737,8 @@ export default function SheetDetailPage() {
       isCellInRange,
       onCellClick: handleCellClick,
       deleteRow,
+      rangeAnchor,
+      selectedRange,
     },
   });
 
