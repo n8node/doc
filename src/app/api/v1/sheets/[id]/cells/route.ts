@@ -110,7 +110,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   }
 
   if (body.fill && Array.isArray(body.fill.columnIds)) {
-    const { startRow, endRow, value } = body.fill;
+    const { startRow, endRow } = body.fill;
     const s = Number(startRow);
     const e = Number(endRow);
     if (!Number.isFinite(s) || !Number.isFinite(e)) {
