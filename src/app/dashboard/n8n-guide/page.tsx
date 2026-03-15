@@ -13,6 +13,7 @@ type Content = {
   comparisonHtml: string;
   httpTabHtml: string;
   pgvectorTabHtml: string;
+  tablesSectionHtml: string;
 };
 
 export default function N8nGuidePage() {
@@ -144,6 +145,16 @@ export default function N8nGuidePage() {
                 : content?.pgvectorTabHtml || "",
           }}
         />
+      )}
+
+      {/* Tables section (anchor #tables for links from sheet connection dialog) */}
+      {content?.tablesSectionHtml && (
+        <section id="tables" className="scroll-mt-6 pt-8 border-t border-border mt-8">
+          <div
+            className={htmlClasses}
+            dangerouslySetInnerHTML={{ __html: content.tablesSectionHtml }}
+          />
+        </section>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -364,10 +365,10 @@ export function SheetN8nConnectionDialog({
                     )}
 
                     <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
-                      <a href="/dashboard/n8n-guide" className="flex items-center gap-2 text-primary hover:underline">
+                      <Link href="/dashboard/n8n-guide#tables" className="flex items-center gap-2 text-primary hover:underline">
                         <Info className="h-4 w-4 shrink-0" />
-                        Инструкция по настройке n8n
-                      </a>
+                        Инструкция по настройке таблиц в n8n
+                      </Link>
                     </div>
                   </motion.div>
                 )}

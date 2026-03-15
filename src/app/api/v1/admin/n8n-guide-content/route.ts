@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     comparisonHtml: typeof body.comparisonHtml === "string" ? body.comparisonHtml : undefined,
     httpTabHtml: typeof body.httpTabHtml === "string" ? body.httpTabHtml : undefined,
     pgvectorTabHtml: typeof body.pgvectorTabHtml === "string" ? body.pgvectorTabHtml : undefined,
+    tablesSectionHtml: typeof body.tablesSectionHtml === "string" ? body.tablesSectionHtml : undefined,
   });
 
   return NextResponse.json({ ok: true });

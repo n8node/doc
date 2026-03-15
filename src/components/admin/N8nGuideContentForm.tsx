@@ -14,6 +14,7 @@ type Content = {
   comparisonHtml: string;
   httpTabHtml: string;
   pgvectorTabHtml: string;
+  tablesSectionHtml: string;
 };
 
 export function N8nGuideContentForm() {
@@ -73,6 +74,7 @@ export function N8nGuideContentForm() {
           comparisonHtml: "",
           httpTabHtml: "",
           pgvectorTabHtml: "",
+          tablesSectionHtml: "",
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -206,6 +208,19 @@ export function N8nGuideContentForm() {
             />
           </div>
         )}
+      </div>
+
+      {/* Tables section (link target: #tables) */}
+      <div className="space-y-4 rounded-xl border border-border p-4">
+        <h3 className="text-sm font-semibold text-foreground">Раздел «Таблицы» (подключение таблиц к n8n)</h3>
+        <p className="text-xs text-muted-foreground">
+          Отображается на странице гайда внизу, якорь <code className="rounded bg-muted px-1">#tables</code>. Инструкция для ноды PostgreSQL и таблиц из раздела Таблицы.
+        </p>
+        <TipTapEditor
+          content={content.tablesSectionHtml}
+          onChange={(html) => setContent({ ...content, tablesSectionHtml: html })}
+          placeholder="Инструкция по подключению таблиц к n8n..."
+        />
       </div>
 
       <div className="flex gap-3">

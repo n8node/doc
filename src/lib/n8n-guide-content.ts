@@ -7,6 +7,7 @@ export type N8nGuideContent = {
   comparisonHtml: string;
   httpTabHtml: string;
   pgvectorTabHtml: string;
+  tablesSectionHtml: string;
 };
 
 const PREFIX = "n8n_guide.";
@@ -157,8 +158,43 @@ const DEFAULT_PGVECTOR_HTML = `
                  └─ Embeddings → Embeddings OpenAI (та же модель, что в Qoqon)</code></pre>
 `.trim();
 
+const DEFAULT_TABLES_SECTION_HTML = `
+<h2>Подключение таблиц (Sheets) к n8n</h2>
+<p>В разделе <strong>Таблицы</strong> можно создавать таблицы и подключать их к n8n через обычную ноду <strong>PostgreSQL</strong> (не PGVector Store). Данные синхронизируются в обе стороны.</p>
+
+<h3>1. Создание подключения в Qoqon</h3>
+<ol>
+  <li>Откройте нужную таблицу в разделе <strong>Таблицы</strong>.</li>
+  <li>Нажмите <strong>Подключения n8n (PostgreSQL)</strong>.</li>
+  <li>Нажмите <strong>Создать подключение</strong>.</li>
+  <li>Скопируйте и сохраните: Host, Port, Database, User, Password и Table Name — пароль больше не будет показан.</li>
+</ol>
+
+<h3>2. Нода PostgreSQL в n8n</h3>
+<p>Создайте credential типа <strong>Postgres</strong> (n8n 2.0) и укажите:</p>
+<ul>
+  <li><strong>Host</strong>, <strong>Port</strong>, <strong>Database</strong>, <strong>User</strong>, <strong>Password</strong> — из полей, полученных в Qoqon.</li>
+  <li><strong>SSL</strong> — включить, если требуется.</li>
+</ul>
+
+<h3>3. Операции с таблицей</h3>
+<p>В ноде <strong>Postgres</strong> выберите операцию (Execute Query, Insert, Select и т.д.). Для указания таблицы:</p>
+<ul>
+  <li><strong>Schema:</strong> <code>n8n</code></li>
+  <li><strong>Table:</strong> значение из поля «Table Name» (например, <code>sheet_xxxxxxxx</code>)</li>
+</ul>
+
+<h3>4. Колонки</h3>
+<ul>
+  <li><code>row_index</code> (INTEGER) — индекс строки.</li>
+  <li>Остальные колонки — по названиям колонок таблицы в Qoqon, тип TEXT.</li>
+</ul>
+
+<p>После изменений в n8n нажмите <strong>Синхронизировать</strong> в диалоге подключений в Qoqon, чтобы подтянуть данные в интерфейс.</p>
+`.trim();
+
 export async function getN8nGuideContent(): Promise<N8nGuideContent> {
-  const [title, subtitle, commonSteps, comparison, httpHtml, pgvectorHtml] =
+  const [title, subtitle, commonSteps, comparison, httpHtml, pgvectorHtml, tablesHtml] =
     await Promise.all([
       configStore.get(`${PREFIX}title`),
       configStore.get(`${PREFIX}subtitle`),
@@ -166,6 +202,7 @@ export async function getN8nGuideContent(): Promise<N8nGuideContent> {
       configStore.get(`${PREFIX}comparison_html`),
       configStore.get(`${PREFIX}http_tab_html`),
       configStore.get(`${PREFIX}pgvector_tab_html`),
+      configStore.get(`${PREFIX}tables_section_html`),
     ]);
 
   return {
@@ -175,6 +212,7 @@ export async function getN8nGuideContent(): Promise<N8nGuideContent> {
     comparisonHtml: comparison?.trim() || DEFAULT_COMPARISON_HTML,
     httpTabHtml: httpHtml?.trim() || DEFAULT_HTTP_HTML,
     pgvectorTabHtml: pgvectorHtml?.trim() || DEFAULT_PGVECTOR_HTML,
+    tablesSectionHtml: tablesHtml?.trim() || DEFAULT_TABLES_SECTION_HTML,
   };
 }
 
@@ -231,6 +269,14 @@ export async function setN8nGuideContent(
       }),
     );
   }
+  if (typeof data.tablesSectionHtml === "string") {
+    updates.push(
+      configStore.set(`${PREFIX}tables_section_html`, data.tablesSectionHtml, {
+        category: CATEGORY,
+        description: "HTML раздела про подключение таблиц к n8n",
+      }),
+    );
+  }
 
   await Promise.all(updates);
 
@@ -241,5 +287,6 @@ export async function setN8nGuideContent(
     `${PREFIX}comparison_html`,
     `${PREFIX}http_tab_html`,
     `${PREFIX}pgvector_tab_html`,
+    `${PREFIX}tables_section_html`,
   ].forEach((k) => configStore.invalidate(k));
 }
