@@ -272,10 +272,18 @@ export function SheetN8nConnectionDialog({
                         onCopy={() => copyToClipboard(createdCreds.tableName, "table")}
                       />
                     </div>
-                    <p className="flex items-start gap-2 rounded-lg bg-surface2/50 p-2.5 text-xs text-muted-foreground">
-                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      В n8n в ноде PostgreSQL укажите: Host, Port, Database, User и Password из полей выше. Schema = <code className="rounded bg-muted px-1">n8n</code>, Table = значение из поля «Table Name». Колонки: <code className="rounded bg-muted px-1">row_index</code> (INTEGER), остальные — по названиям колонок таблицы (TEXT).
-                    </p>
+                    <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-foreground">
+                      <p className="mb-2 flex items-center gap-2 font-medium text-foreground">
+                        <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        Как настроить в n8n
+                      </p>
+                      <ul className="list-disc list-inside space-y-1.5 text-muted-foreground">
+                        <li>В ноде PostgreSQL укажите Host, Port, Database, User и Password из полей выше.</li>
+                        <li>Schema = <code className="rounded bg-background px-1.5 py-0.5 font-mono text-foreground">n8n</code></li>
+                        <li>Table = значение из поля «Table Name».</li>
+                        <li>Колонки: <code className="rounded bg-background px-1.5 py-0.5 font-mono text-foreground">row_index</code> (INTEGER), остальные — по названиям колонок таблицы (TEXT).</li>
+                      </ul>
+                    </div>
                     <Button variant="outline" onClick={() => setCreatedCreds(null)}>
                       Закрыть
                     </Button>
@@ -355,12 +363,12 @@ export function SheetN8nConnectionDialog({
                       </div>
                     )}
 
-                    <p className="flex items-start gap-2 rounded-lg bg-surface2/50 p-2.5 text-xs text-muted-foreground">
-                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <a href="/dashboard/n8n-guide" className="text-primary hover:underline">
+                    <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+                      <a href="/dashboard/n8n-guide" className="flex items-center gap-2 text-primary hover:underline">
+                        <Info className="h-4 w-4 shrink-0" />
                         Инструкция по настройке n8n
                       </a>
-                    </p>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
