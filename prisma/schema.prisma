@@ -43,6 +43,7 @@ model User {
   llmApiKeys           UserLlmApiKey[]
   llmWalletTopups      LlmWalletTopup[]
   marketplaceUsage     MarketplaceUsageEvent[]
+  sheets               Sheet[]
   preferences          Json?                 @map("preferences") // { theme?: string, notifications?: { storage, trash, payment, ... } }
   telegramUserId       BigInt?               @unique @map("telegram_user_id")
   telegramUsername     String?               @map("telegram_username")
@@ -232,6 +233,53 @@ model MarketplaceUsageEvent {
   @@index([userId, createdAt(sort: Desc)])
   @@index([llmKeyId, createdAt(sort: Desc)])
   @@map("marketplace_usage_events")
+}
+
+// Таблицы (спредшиты) — TanStack Table, импорт Excel, n8n Postgres
+model Sheet {
+  id        String        @id @default(cuid()) @map("id")
+  userId    String        @map("user_id")
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String        @map("name")
+  columns   SheetColumn[]
+  cells     SheetCell[]
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("sheets")
+}
+
+model SheetColumn {
+  id       String    @id @default(cuid()) @map("id")
+  sheetId  String    @map("sheet_id")
+  sheet    Sheet     @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  order    Int       @default(0) @map("order")
+  name     String    @map("name")
+  dataType String    @default("text") @map("data_type") // text | number | boolean | date | datetime | select
+  config   Json?     @map("config") // { decimals?, min?, max?, options?, format? }
+  cells    SheetCell[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([sheetId])
+  @@map("sheet_columns")
+}
+
+model SheetCell {
+  id         String      @id @default(cuid()) @map("id")
+  sheetId    String      @map("sheet_id")
+  sheet      Sheet       @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  columnId   String      @map("column_id")
+  column     SheetColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  rowIndex   Int         @map("row_index")
+  value      String?     @map("value") // stored as string; type interpretation from column.dataType
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  @@unique([sheetId, columnId, rowIndex])
+  @@index([sheetId])
+  @@index([columnId])
+  @@map("sheet_cells")
 }
 
 model ShareLink {
