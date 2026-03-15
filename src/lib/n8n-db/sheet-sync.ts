@@ -24,17 +24,19 @@ export interface CreateN8nTableConnectionResult {
 
 /**
  * Create n8n PostgreSQL table for a sheet: schema, role, table (row_index + one column per sheet column), grant SELECT/INSERT/UPDATE/DELETE, push data.
+ * connectionId must be unique per connection (e.g. cuid) so multiple connections per sheet get distinct role/table names.
  */
 export async function createN8nTableConnection(
   sheet: SheetForSync,
-  target: N8nDbTarget = "DEFAULT"
+  target: N8nDbTarget = "DEFAULT",
+  connectionId: string
 ): Promise<CreateN8nTableConnectionResult> {
   const client = createN8nDbClient(target);
   if (!client) {
     throw new Error(target === "RF" ? "N8N_DB_URL_RF не настроен" : "N8N_DB_URL не настроен");
   }
 
-  const shortId = sanitizeIdent(sheet.id.slice(-12));
+  const shortId = sanitizeIdent(connectionId).slice(0, 24) || sanitizeIdent(sheet.id).slice(0, 24);
   const dbRoleName = `${ROLE_PREFIX}${shortId}`;
   const tableName = `sheet_${shortId}`;
   const password = randomBytes(24).toString("base64url");

@@ -9,6 +9,7 @@ import {
   isN8nDbTarget,
   type N8nDbTarget,
 } from "@/lib/n8n-db/client";
+import { randomUUID } from "crypto";
 import {
   createN8nTableConnection,
   hashN8nTablePassword,
@@ -108,10 +109,12 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     );
   }
   try {
-    const result = await createN8nTableConnection(sheetData, target);
+    const connectionId = randomUUID();
+    const result = await createN8nTableConnection(sheetData, target, connectionId);
     const passwordHash = await hashN8nTablePassword(result.dbPassword);
     await prisma.n8nTableConnection.create({
       data: {
+        id: connectionId,
         userId: session.user.id,
         sheetId,
         dbRoleName: result.dbRoleName,
