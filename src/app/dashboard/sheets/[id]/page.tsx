@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, Link2 } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, Link2, ArrowUp, ArrowDown, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { SheetN8nConnectionDialog } from "@/components/sheets/SheetN8nConnectionDialog";
 
@@ -94,6 +94,14 @@ export default function SheetDetailPage() {
   const [fillDialogOpen, setFillDialogOpen] = useState(false);
   const [fillValue, setFillValue] = useState("");
   const [n8nDialogOpen, setN8nDialogOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<{ columnId: string; dir: "asc" | "desc" } | null>(null);
+  const [filterBy, setFilterBy] = useState<{ columnId: string; type: "contains" | "equals" | "empty"; value?: string } | null>(null);
+  const [filterColumnOpen, setFilterColumnOpen] = useState<string | null>(null);
+  const [filterInputValue, setFilterInputValue] = useState("");
+  const [filterType, setFilterType] = useState<"contains" | "equals" | "empty">("contains");
+  const [selectedRowIndices, setSelectedRowIndices] = useState<Set<number>>(new Set());
+  const [fillDragging, setFillDragging] = useState(false);
+  const [fillDragEnd, setFillDragEnd] = useState<{ rowIndex: number; columnId: string } | null>(null);
 
   const loadSheet = useCallback(async () => {
     if (!id) return;
@@ -122,6 +130,56 @@ export default function SheetDetailPage() {
   useEffect(() => {
     loadSheet();
   }, [loadSheet]);
+
+  useEffect(() => {
+    if (!fillDragging || !rangeAnchor || !sheet) return;
+    const onMove = (e: MouseEvent) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const cell = el?.closest("[data-sheet-row][data-sheet-col]");
+      if (cell) {
+        const r = parseInt(cell.getAttribute("data-sheet-row") ?? "", 10);
+        const c = cell.getAttribute("data-sheet-col");
+        if (!Number.isNaN(r) && c) setFillDragEnd({ rowIndex: r, columnId: c });
+      }
+    };
+    const onUp = async () => {
+      setFillDragging(false);
+      if (!rangeAnchor || !fillDragEnd || !id || !sheet) return;
+      const colIds = sheet.columns.map((x) => x.id);
+      const c1 = colIds.indexOf(rangeAnchor.columnId);
+      const c2 = colIds.indexOf(fillDragEnd.columnId);
+      if (c1 < 0 || c2 < 0) return;
+      const startRow = Math.min(rangeAnchor.rowIndex, fillDragEnd.rowIndex);
+      const endRow = Math.max(rangeAnchor.rowIndex, fillDragEnd.rowIndex);
+      const startC = Math.min(c1, c2);
+      const endC = Math.max(c1, c2);
+      const fillColIds = colIds.slice(startC, endC + 1);
+      const anchorRow = sheet.rows.find((r) => r.rowIndex === rangeAnchor.rowIndex);
+      const value = anchorRow?.cells[rangeAnchor.columnId] ?? null;
+      setFillDragEnd(null);
+      if (startRow === endRow && fillColIds.length === 1) return;
+      setSaving(true);
+      try {
+        await fetch(`/api/v1/sheets/${id}/cells`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fill: { startRow, endRow, columnIds: fillColIds, value } }),
+        });
+        await loadSheet();
+        setSelectedRange(null);
+        toast.success("Диапазон заполнен");
+      } catch {
+        toast.error("Не удалось заполнить");
+      } finally {
+        setSaving(false);
+      }
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp, { once: true });
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+    };
+  }, [fillDragging, rangeAnchor, sheet, id, loadSheet]);
 
   const deleteColumn = useCallback(
     async (columnId: string) => {
@@ -366,6 +424,77 @@ export default function SheetDetailPage() {
     setAddColumnOpen(true);
   }, []);
 
+  const tableData: RowRecord[] = useMemo(() => {
+    if (!sheet) return [];
+    let rows: RowRecord[] = sheet.rows.map((r) => ({
+      rowIndex: r.rowIndex,
+      ...r.cells,
+    } as RowRecord));
+    if (filterBy) {
+      const colId = filterBy.columnId;
+      const val = filterBy.value?.toLowerCase() ?? "";
+      rows = rows.filter((row) => {
+        const cell = row[colId];
+        const s = (cell != null ? String(cell) : "").toLowerCase();
+        if (filterBy.type === "empty") return !s.trim();
+        if (filterBy.type === "equals") return s.trim() === val.trim();
+        return s.includes(val.trim());
+      });
+    }
+    if (sortBy) {
+      const colId = sortBy.columnId;
+      const dir = sortBy.dir;
+      rows = [...rows].sort((a, b) => {
+        const va = a[colId] != null ? String(a[colId]) : "";
+        const vb = b[colId] != null ? String(b[colId]) : "";
+        const c = va.localeCompare(vb, undefined, { numeric: true });
+        return dir === "asc" ? c : -c;
+      });
+    }
+    return rows;
+  }, [sheet, sortBy, filterBy]);
+
+  const toggleRowSelection = useCallback((rowIndex: number) => {
+    setSelectedRowIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowIndex)) next.delete(rowIndex);
+      else next.add(rowIndex);
+      return next;
+    });
+  }, []);
+
+  const selectAllRows = useCallback(() => {
+    if (!sheet) return;
+    const indices = new Set(tableData.map((r) => r.rowIndex as number));
+    setSelectedRowIndices(indices);
+  }, [sheet, tableData]);
+
+  const clearRowSelection = useCallback(() => setSelectedRowIndices(new Set()), []);
+
+  const deleteSelectedRows = useCallback(async () => {
+    if (!id || !sheet || selectedRowIndices.size === 0) return;
+    const columnIds = sheet.columns.map((c) => c.id);
+    if (columnIds.length === 0) return;
+    setSaving(true);
+    try {
+      for (const rowIndex of Array.from(selectedRowIndices)) {
+        await fetch(`/api/v1/sheets/${id}/cells`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ startRow: rowIndex, endRow: rowIndex, columnIds }),
+        });
+      }
+      await loadSheet();
+      setSelectedRowIndices(new Set());
+      setSelectedRange(null);
+      toast.success(`Удалено строк: ${selectedRowIndices.size}`);
+    } catch {
+      toast.error("Не удалось удалить строки");
+    } finally {
+      setSaving(false);
+    }
+  }, [id, sheet, selectedRowIndices, loadSheet]);
+
   const renameSheet = useCallback(async () => {
     if (!id || !editName.trim()) return;
     setSaving(true);
@@ -385,23 +514,41 @@ export default function SheetDetailPage() {
     }
   }, [id, editName]);
 
-  const tableData: RowRecord[] = useMemo(() => {
-    if (!sheet) return [];
-    return sheet.rows.map((r) => ({
-      rowIndex: r.rowIndex,
-      ...r.cells,
-    }));
-  }, [sheet]);
-
   const columns: ColumnDef<RowRecord>[] = useMemo(() => {
     if (!sheet) return [];
+    const dataTypeLabel = (dt: string) => DATA_TYPES.find((t) => t.value === dt)?.label ?? dt;
+
+    const checkCol: ColumnDef<RowRecord> = {
+      id: "__check",
+      header: () => (
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-border"
+          checked={tableData.length > 0 && selectedRowIndices.size === tableData.length}
+          onChange={(e) => (e.target.checked ? selectAllRows() : clearRowSelection())}
+          title="Выбрать все"
+        />
+      ),
+      size: 44,
+      cell: ({ row }) => (
+        <div className="flex h-8 items-center justify-center">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-border"
+            checked={selectedRowIndices.has(row.original.rowIndex)}
+            onChange={() => toggleRowSelection(row.original.rowIndex)}
+          />
+        </div>
+      ),
+    };
+
     const rowActionsCol: ColumnDef<RowRecord> = {
       id: "__row",
-      header: "",
-      size: 80,
+      header: () => <span className="text-muted-foreground text-xs">#</span>,
+      size: 56,
       cell: ({ row, table }) => (
         <div className="flex h-8 items-center gap-1 px-1">
-          <span className="text-muted-foreground text-xs w-6">{row.original.rowIndex}</span>
+          <span className="text-muted-foreground text-xs w-5">{(row.original.rowIndex as number) + 1}</span>
           <Button
             type="button"
             variant="ghost"
@@ -414,78 +561,109 @@ export default function SheetDetailPage() {
         </div>
       ),
     };
-    const dataCols: ColumnDef<RowRecord>[] = sheet.columns.map((col) => ({
-      id: col.id,
-      header: () =>
-        editingColumnId === col.id ? (
-          <div className="flex items-center gap-1">
-            <Input
-              className="h-7 w-32 text-sm rounded-none"
-              value={editingColumnName}
-              onChange={(e) => setEditingColumnName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") renameColumn(col.id, editingColumnName);
-                if (e.key === "Escape") setEditingColumnId(null);
-              }}
-              autoFocus
-            />
-            <Button size="sm" variant="ghost" onClick={() => renameColumn(col.id, editingColumnName)}>
-              OK
-            </Button>
-          </div>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className="flex items-center gap-1 hover:bg-muted/50 rounded px-1 -mx-1">
-                <span>{col.name}</span>
-                <MoreVertical className="h-3 w-3 opacity-50" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem
-                onClick={() => {
-                  setEditingColumnId(col.id);
-                  setEditingColumnName(col.name);
+
+    const dataCols: ColumnDef<RowRecord>[] = sheet.columns.map((col) => {
+      return {
+        id: col.id,
+        header: () =>
+          editingColumnId === col.id ? (
+            <div className="flex items-center gap-1">
+              <Input
+                className="h-7 w-32 text-sm rounded-none"
+                value={editingColumnName}
+                onChange={(e) => setEditingColumnName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") renameColumn(col.id, editingColumnName);
+                  if (e.key === "Escape") setEditingColumnId(null);
                 }}
-              >
-                Переименовать
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => deleteColumn(col.id)}
-              >
-                Удалить колонку
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
-      accessorKey: col.id,
-      cell: ({ row, getValue, table }) => {
-        const value = getValue() as string | null | undefined;
-        const v = value ?? "";
-        const inRange = table.options.meta?.isCellInRange?.(row.original.rowIndex, col.id);
-        return (
-          <div
-            className={inRange ? "bg-primary/10" : ""}
-            role="gridcell"
-            onClick={(e) => table.options.meta?.onCellClick?.(row.original.rowIndex, col.id, e.shiftKey)}
-          >
-            <Input
-              className="h-8 min-w-[120px] rounded-none border-0 bg-transparent text-sm focus-visible:ring-1"
-              defaultValue={v}
-              onBlur={(e) => {
-                const next = e.target.value.trim() || null;
-                if (next !== (value ?? null)) {
-                  table.options.meta?.updateCell?.(row.original.rowIndex, col.id, next);
-                }
-              }}
-            />
-          </div>
-        );
-      },
-    }));
-    return [rowActionsCol, ...dataCols];
-  }, [sheet, editingColumnId, editingColumnName, renameColumn, deleteColumn]);
+                autoFocus
+              />
+              <Button size="sm" variant="ghost" onClick={() => renameColumn(col.id, editingColumnName)}>
+                OK
+              </Button>
+            </div>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className="flex items-center gap-1 hover:bg-muted/50 rounded px-1 -mx-1 text-left w-full min-w-0">
+                  <span className="font-medium truncate">{col.name}</span>
+                  <span className="text-muted-foreground text-xs shrink-0">({dataTypeLabel(col.dataType)})</span>
+                  <MoreVertical className="h-3 w-3 opacity-50 shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => { setSortBy((s) => (s?.columnId === col.id && s.dir === "asc" ? null : { columnId: col.id, dir: "asc" })); }}>
+                  <ArrowUp className="h-3.5 w-3.5 mr-2" />
+                  Сортировать по возрастанию
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setSortBy((s) => (s?.columnId === col.id && s.dir === "desc" ? null : { columnId: col.id, dir: "desc" })); }}>
+                  <ArrowDown className="h-3.5 w-3.5 mr-2" />
+                  Сортировать по убыванию
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setFilterColumnOpen(col.id); setFilterInputValue(filterBy?.columnId === col.id ? (filterBy.value ?? "") : ""); setFilterType(filterBy?.columnId === col.id ? filterBy.type : "contains"); }}>
+                  <Filter className="h-3.5 w-3.5 mr-2" />
+                  Фильтр по колонке
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setEditingColumnId(col.id);
+                    setEditingColumnName(col.name);
+                  }}
+                >
+                  Переименовать
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => deleteColumn(col.id)}
+                >
+                  Удалить колонку
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ),
+        accessorKey: col.id,
+        cell: ({ row, getValue, table }) => {
+          const value = getValue() as string | null | undefined;
+          const v = value ?? "";
+          const inRange = table.options.meta?.isCellInRange?.(row.original.rowIndex, col.id);
+          const isAnchor = rangeAnchor?.rowIndex === row.original.rowIndex && rangeAnchor?.columnId === col.id;
+          return (
+            <div
+              className={`relative ${inRange ? "bg-primary/10" : ""}`}
+              role="gridcell"
+              onClick={(e) => table.options.meta?.onCellClick?.(row.original.rowIndex, col.id, e.shiftKey)}
+              data-sheet-row={row.original.rowIndex}
+              data-sheet-col={col.id}
+            >
+              <Input
+                className="h-8 min-w-[120px] rounded-none border-0 bg-transparent text-sm focus-visible:ring-1"
+                defaultValue={v}
+                onBlur={(e) => {
+                  const next = e.target.value.trim() || null;
+                  if (next !== (value ?? null)) {
+                    table.options.meta?.updateCell?.(row.original.rowIndex, col.id, next);
+                  }
+                }}
+              />
+              {isAnchor && !selectedRange && (
+                <div
+                  className="absolute bottom-0 right-0 h-2 w-2 bg-primary cursor-crosshair shrink-0"
+                  title="Перетащите для заполнения"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setFillDragging(true);
+                    setFillDragEnd({ rowIndex: row.original.rowIndex, columnId: col.id });
+                  }}
+                />
+              )}
+            </div>
+          );
+        },
+      };
+    });
+    return [checkCol, rowActionsCol, ...dataCols];
+  }, [sheet, editingColumnId, editingColumnName, renameColumn, deleteColumn, selectedRowIndices, tableData, rangeAnchor, selectedRange, filterBy]);
 
   const handleCellClick = useCallback(
     (rowIndex: number, columnId: string, shiftKey: boolean) => {
@@ -522,6 +700,45 @@ export default function SheetDetailPage() {
     if (!id) return;
     window.open(`/api/v1/sheets/${id}/export?format=json`, "_blank");
   }, [id]);
+
+  const applyFilter = useCallback(() => {
+    if (!filterColumnOpen) return;
+    setFilterBy({
+      columnId: filterColumnOpen,
+      type: filterType,
+      value: filterType === "empty" ? undefined : filterInputValue,
+    });
+    setFilterColumnOpen(null);
+  }, [filterColumnOpen, filterType, filterInputValue]);
+
+  const clearFilter = useCallback(() => {
+    setFilterBy(null);
+    setFilterColumnOpen(null);
+  }, []);
+
+  const isColumnHighlighted = useCallback(
+    (columnId: string) => {
+      if (rangeAnchor?.columnId === columnId) return true;
+      if (!selectedRange || !sheet) return false;
+      const order = sheet.columns.map((c) => c.id);
+      const a = order.indexOf(selectedRange.startColId);
+      const b = order.indexOf(selectedRange.endColId);
+      const c = order.indexOf(columnId);
+      return c >= Math.min(a, b) && c <= Math.max(a, b);
+    },
+    [rangeAnchor, selectedRange, sheet]
+  );
+
+  const isRowHighlighted = useCallback(
+    (rowIndex: number) => {
+      if (rangeAnchor?.rowIndex === rowIndex) return true;
+      if (!selectedRange) return false;
+      const minR = Math.min(selectedRange.startRow, selectedRange.endRow);
+      const maxR = Math.max(selectedRange.startRow, selectedRange.endRow);
+      return rowIndex >= minR && rowIndex <= maxR;
+    },
+    [rangeAnchor, selectedRange]
+  );
 
   if (!id) {
     return (
@@ -591,7 +808,18 @@ export default function SheetDetailPage() {
           </h1>
         )}
         {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {selectedRowIndices.size > 0 && (
+            <Button variant="outline" size="sm" onClick={deleteSelectedRows} disabled={saving} className="gap-1 text-destructive hover:bg-destructive/10">
+              <Trash2 className="h-4 w-4" />
+              Удалить выбранные ({selectedRowIndices.size})
+            </Button>
+          )}
+          {(sortBy || filterBy) && (
+            <Button variant="ghost" size="sm" onClick={() => { setSortBy(null); setFilterBy(null); }} className="gap-1 text-muted-foreground">
+              Сбросить сортировку и фильтр
+            </Button>
+          )}
           {selectedRange && (
             <>
               <Button variant="outline" size="sm" onClick={clearRange} disabled={saving} className="gap-1">
@@ -610,9 +838,9 @@ export default function SheetDetailPage() {
             <Plus className="h-4 w-4" />
             Колонка
           </Button>
-          <Button variant="outline" size="sm" onClick={addRow} disabled={saving} className="gap-1">
+          <Button size="sm" onClick={addRow} disabled={saving} className="gap-1 bg-green-600 hover:bg-green-700 text-white">
             <Plus className="h-4 w-4" />
-            Строка
+            Добавить строку
           </Button>
         </div>
       </div>
@@ -634,12 +862,29 @@ export default function SheetDetailPage() {
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
+              <tr>
+                {table.getHeaderGroups()[0]?.headers.map((h, i) => (
+                  <th
+                    key={`letter-${h.id}`}
+                    className={`border border-border bg-muted/30 px-1 py-0.5 text-center text-xs font-medium text-muted-foreground ${(h.column.id !== "__check" && h.column.id !== "__row" && isColumnHighlighted(h.column.id)) ? "bg-primary/15" : ""}`}
+                  >
+                    {h.column.id === "__check" || h.column.id === "__row"
+                      ? ""
+                      : (() => {
+                          const li = i - 2;
+                          if (li < 0) return "";
+                          if (li < 26) return String.fromCharCode(65 + li);
+                          return String.fromCharCode(64 + Math.floor(li / 26)) + String.fromCharCode(65 + (li % 26));
+                        })()}
+                  </th>
+                ))}
+              </tr>
               {table.getHeaderGroups().map((hg) => (
                 <tr key={hg.id}>
                   {hg.headers.map((h) => (
                     <th
                       key={h.id}
-                      className="border border-border bg-muted/50 px-2 py-1.5 text-left text-sm font-medium"
+                      className={`border border-border bg-muted/50 px-2 py-1.5 text-left text-sm font-medium ${(h.column.id !== "__check" && h.column.id !== "__row" && isColumnHighlighted(h.column.id)) ? "bg-primary/15" : ""}`}
                     >
                       {flexRender(h.column.columnDef.header, h.getContext())}
                     </th>
@@ -651,12 +896,15 @@ export default function SheetDetailPage() {
               {table.getRowModel().rows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="border border-border px-2 py-4 text-center text-muted-foreground text-sm">
-                    Нет данных. Нажмите «Строка» чтобы добавить строку.
+                    Нет данных. Нажмите «Добавить строку» чтобы добавить строку.
                   </td>
                 </tr>
               ) : (
                 table.getRowModel().rows.map((row) => (
-                  <tr key={row.id}>
+                  <tr
+                    key={row.id}
+                    className={isRowHighlighted((row.original as RowRecord).rowIndex) ? "bg-primary/5" : ""}
+                  >
                     {row.getVisibleCells().map((cell) => (
                       <td key={cell.id} className="border border-border p-0">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -727,6 +975,51 @@ export default function SheetDetailPage() {
               </DialogClose>
               <Button onClick={fillRange} disabled={saving}>
                 Заполнить
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!filterColumnOpen} onOpenChange={(open) => !open && setFilterColumnOpen(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Фильтр по колонке</DialogTitle>
+            {filterColumnOpen && (
+              <p className="text-sm text-muted-foreground">
+                {sheet?.columns.find((c) => c.id === filterColumnOpen)?.name}
+              </p>
+            )}
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Условие</label>
+              <select
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as "contains" | "equals" | "empty")}
+              >
+                <option value="contains">Содержит</option>
+                <option value="equals">Равно</option>
+                <option value="empty">Пусто</option>
+              </select>
+            </div>
+            {filterType !== "empty" && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Значение</label>
+                <Input
+                  value={filterInputValue}
+                  onChange={(e) => setFilterInputValue(e.target.value)}
+                  placeholder="Введите значение"
+                />
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={clearFilter}>
+                Сбросить фильтр
+              </Button>
+              <Button onClick={applyFilter}>
+                Применить
               </Button>
             </div>
           </div>
