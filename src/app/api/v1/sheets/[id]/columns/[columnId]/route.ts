@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isN8nDbTarget } from "@/lib/n8n-db/client";
+import { renameSheetColumnInN8n } from "@/lib/n8n-db/sheet-sync";
 
 type Ctx = { params: Promise<{ id: string; columnId: string }> };
 
@@ -45,6 +47,34 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     where: { id: columnId },
     data,
   });
+
+  if (typeof data.name === "string") {
+    const columnsWithNewName = sheet.columns.map((c) =>
+      c.id === columnId ? { id: c.id, order: c.order, name: updated.name } : { id: c.id, order: c.order, name: c.name }
+    );
+    const sorted = [...columnsWithNewName].sort((a, b) => a.order - b.order);
+    const columnIndex = sorted.findIndex((c) => c.id === columnId);
+    if (columnIndex >= 0) {
+      const connections = await prisma.n8nTableConnection.findMany({
+        where: { sheetId, userId: session.user.id },
+        select: { tableName: true, target: true },
+      });
+      for (const conn of connections) {
+        const target = isN8nDbTarget(conn.target) ? conn.target : "DEFAULT";
+        try {
+          await renameSheetColumnInN8n(
+            conn.tableName,
+            columnIndex,
+            updated.name,
+            columnsWithNewName,
+            target
+          );
+        } catch (err) {
+          console.error("[sheets PATCH column] rename in n8n-db:", err);
+        }
+      }
+    }
+  }
 
   return NextResponse.json({
     id: updated.id,

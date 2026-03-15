@@ -6,6 +6,54 @@ import type { N8nDbTarget } from "./client";
 const ROLE_PREFIX = "n8n_sheet_";
 const SCHEMA_NAME = "n8n";
 
+/** Транслитерация кириллицы в латиницу для человекочитаемых имён колонок в PG */
+const RU_TO_LAT: Record<string, string> = {
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z",
+  и: "i", й: "j", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r",
+  с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "ts", ч: "ch", ш: "sh", щ: "sch",
+  ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+  А: "A", Б: "B", В: "V", Г: "G", Д: "D", Е: "E", Ё: "E", Ж: "Zh", З: "Z",
+  И: "I", Й: "J", К: "K", Л: "L", М: "M", Н: "N", О: "O", П: "P", Р: "R",
+  С: "S", Т: "T", У: "U", Ф: "F", Х: "H", Ц: "Ts", Ч: "Ch", Ш: "Sh", Щ: "Sch",
+  Ъ: "", Ы: "Y", Ь: "", Э: "E", Ю: "Yu", Я: "Ya",
+};
+
+function transliterate(text: string): string {
+  return text
+    .split("")
+    .map((ch) => RU_TO_LAT[ch] ?? ch)
+    .join("");
+}
+
+/** Человекочитаемое имя для PG: транслитерация + только буквы/цифры/подчёркивания, уникальность через суффикс */
+function toPgColumnName(displayName: string, columnId: string, used: Set<string>): string {
+  const transliterated = transliterate(displayName);
+  const base = transliterated
+    .replace(/[^a-zA-Z0-9_\s]/g, " ")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 32)
+    .toLowerCase();
+  let candidate = base || `column_${columnId.slice(-8)}`;
+  if (!/^[a-z]/.test(candidate)) candidate = `c_${candidate}`.slice(0, 32);
+  let name = candidate;
+  let n = 1;
+  while (used.has(name)) {
+    name = `${candidate.slice(0, 28)}_${n}`;
+    n += 1;
+  }
+  used.add(name);
+  return name;
+}
+
+/** По списку колонок листа возвращает массив имён для PG (по порядку, уникальные, человекочитаемые) */
+function getSafeColumnNames(columns: Array<{ id: string; order: number; name: string }>): string[] {
+  const sorted = [...columns].sort((a, b) => a.order - b.order);
+  const used = new Set<string>();
+  return sorted.map((c) => toPgColumnName(c.name, c.id, used));
+}
+
 function sanitizeIdent(id: string): string {
   return id.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 32);
 }
@@ -51,12 +99,8 @@ export async function createN8nTableConnection(
     await client.query(`GRANT USAGE ON SCHEMA ${SCHEMA_NAME} TO "${dbRoleName}"`);
 
     const cols = sheet.columns.sort((a, b) => a.order - b.order);
-    const colDefs = cols
-      .map((c) => {
-        const safeName = sanitizeIdent(c.name) || `col_${c.id.slice(-8)}`;
-        return `"${safeName}" TEXT`;
-      })
-      .join(", ");
+    const safeColNames = getSafeColumnNames(cols);
+    const colDefs = safeColNames.map((name) => `"${name}" TEXT`).join(", ");
     const fullTableName = `${SCHEMA_NAME}.${tableName}`;
     await client.query(`
       CREATE TABLE ${fullTableName} (
@@ -68,7 +112,6 @@ export async function createN8nTableConnection(
     await client.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ${fullTableName} TO "${dbRoleName}"`);
 
     if (sheet.rows.length > 0) {
-      const safeColNames = cols.map((c) => sanitizeIdent(c.name) || `col_${c.id.slice(-8)}`);
       for (const row of sheet.rows) {
         const values = safeColNames.map((cn, i) => {
           const colId = cols[i].id;
@@ -127,7 +170,7 @@ export async function pushSheetToN8n(
   await client.connect();
   try {
     const cols = sheet.columns.sort((a, b) => a.order - b.order);
-    const safeColNames = cols.map((c) => sanitizeIdent(c.name) || `col_${c.id.slice(-8)}`);
+    const safeColNames = getSafeColumnNames(cols);
     const existingRes = await client.query(
       `SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2`,
       [SCHEMA_NAME, tableName]
@@ -186,6 +229,46 @@ export async function pullSheetFromN8n(
       rows.push({ rowIndex, cells });
     }
     return rows;
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Переименовать колонку в таблице n8n-db (после переименования в приложении).
+ * columnIndex — индекс колонки в sheet.columns (по order), newDisplayName — новое отображаемое имя.
+ */
+export async function renameSheetColumnInN8n(
+  tableName: string,
+  columnIndex: number,
+  newDisplayName: string,
+  columns: Array<{ id: string; order: number; name: string }>,
+  target: N8nDbTarget = "DEFAULT"
+): Promise<void> {
+  const client = createN8nDbClient(target);
+  if (!client) {
+    throw new Error(target === "RF" ? "N8N_DB_URL_RF не настроен" : "N8N_DB_URL не настроен");
+  }
+  const fullTableName = `${SCHEMA_NAME}.${tableName}`;
+  await client.connect();
+  try {
+    const res = await client.query(
+      `SELECT column_name FROM information_schema.columns 
+       WHERE table_schema = $1 AND table_name = $2 AND column_name != 'row_index' 
+       ORDER BY ordinal_position`,
+      [SCHEMA_NAME, tableName]
+    );
+    const pgCols = (res.rows as { column_name: string }[]).map((r) => r.column_name);
+    const oldName = pgCols[columnIndex];
+    if (!oldName) return;
+
+    const used = new Set(pgCols);
+    const sorted = [...columns].sort((a, b) => a.order - b.order);
+    const col = sorted[columnIndex];
+    const newName = col ? toPgColumnName(newDisplayName, col.id, used) : toPgColumnName(newDisplayName, `col_${columnIndex}`, used);
+    if (newName === oldName) return;
+
+    await client.query(`ALTER TABLE ${fullTableName} RENAME COLUMN "${oldName}" TO "${newName}"`);
   } finally {
     await client.end();
   }
