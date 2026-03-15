@@ -5,6 +5,66 @@ import { prisma } from "@/lib/prisma";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+type ColumnMeta = { id: string; dataType: string; config: unknown };
+
+function validateCellValue(
+  value: string | null,
+  dataType: string,
+  config: unknown
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  const s = value == null ? "" : String(value).trim();
+  if (s === "") return { ok: true, value: null };
+
+  switch (dataType) {
+    case "text":
+      return { ok: true, value: value };
+    case "number": {
+      const n = parseFloat(s);
+      if (Number.isNaN(n)) return { ok: false, error: "Ожидается число" };
+      return { ok: true, value: String(n) };
+    }
+    case "boolean": {
+      const lower = s.toLowerCase();
+      if (["true", "false", "1", "0", "да", "нет", "yes", "no"].includes(lower)) {
+        const normalized = ["true", "1", "да", "yes"].includes(lower) ? "true" : "false";
+        return { ok: true, value: normalized };
+      }
+      return { ok: false, error: "Ожидается Да/Нет (true/false, 1/0)" };
+    }
+    case "date": {
+      const dateOnly = /^\d{4}-\d{2}-\d{2}$/;
+      if (dateOnly.test(s)) return { ok: true, value: s };
+      const parsed = Date.parse(s);
+      if (!Number.isNaN(parsed)) {
+        const d = new Date(parsed);
+        const iso = d.toISOString().slice(0, 10);
+        return { ok: true, value: iso };
+      }
+      return { ok: false, error: "Ожидается дата (YYYY-MM-DD)" };
+    }
+    case "datetime": {
+      const parsed = Date.parse(s);
+      if (!Number.isNaN(parsed)) {
+        const d = new Date(parsed);
+        return { ok: true, value: d.toISOString() };
+      }
+      return { ok: false, error: "Ожидается дата и время" };
+    }
+    case "select": {
+      const opts = config && typeof config === "object" && "options" in config && Array.isArray((config as { options?: unknown }).options)
+        ? ((config as { options: string[] }).options)
+        : null;
+      if (opts && opts.length > 0) {
+        const found = opts.includes(s) || opts.some((o) => String(o).toLowerCase() === s.toLowerCase());
+        if (!found) return { ok: false, error: `Значение должно быть из списка: ${opts.slice(0, 5).join(", ")}${opts.length > 5 ? "…" : ""}` };
+      }
+      return { ok: true, value: s };
+    }
+    default:
+      return { ok: true, value: value };
+  }
+}
+
 async function getSheetForUser(sheetId: string, userId: string) {
   return prisma.sheet.findFirst({
     where: { id: sheetId, userId },
@@ -95,33 +155,46 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const columnById = new Map<string, ColumnMeta>(
+    sheet.columns.map((c) => [c.id, { id: c.id, dataType: c.dataType, config: c.config }])
+  );
   const columnIds = new Set(sheet.columns.map((c) => c.id));
   const updates: Array<{ rowIndex: number; columnId: string; value: string | null }> = [];
 
-  if (Array.isArray(body.updates)) {
-    for (const u of body.updates) {
-      if (typeof u.rowIndex !== "number" || !columnIds.has(u.columnId)) continue;
-      updates.push({
-        rowIndex: u.rowIndex,
-        columnId: u.columnId,
-        value: u.value == null ? null : String(u.value),
-      });
-    }
+  function validateAndPush(rowIndex: number, columnId: string, rawValue: string | null): void {
+    const col = columnById.get(columnId);
+    if (!col) return;
+    const result = validateCellValue(rawValue, col.dataType, col.config);
+    if (!result.ok) throw new Error(result.error);
+    updates.push({ rowIndex, columnId, value: result.value });
   }
 
-  if (body.fill && Array.isArray(body.fill.columnIds)) {
-    const { startRow, endRow } = body.fill;
-    const s = Number(startRow);
-    const e = Number(endRow);
-    if (!Number.isFinite(s) || !Number.isFinite(e)) {
-      return NextResponse.json({ error: "fill.startRow and fill.endRow required" }, { status: 400 });
-    }
-    const val = body.fill.value == null ? null : String(body.fill.value);
-    for (let r = s; r <= e; r++) {
-      for (const colId of body.fill.columnIds) {
-        if (columnIds.has(colId)) updates.push({ rowIndex: r, columnId: colId, value: val });
+  try {
+    if (Array.isArray(body.updates)) {
+      for (const u of body.updates) {
+        if (typeof u.rowIndex !== "number" || !columnIds.has(u.columnId)) continue;
+        const raw = u.value == null ? null : String(u.value);
+        validateAndPush(u.rowIndex, u.columnId, raw);
       }
     }
+
+    if (body.fill && Array.isArray(body.fill.columnIds)) {
+      const { startRow, endRow } = body.fill;
+      const s = Number(startRow);
+      const e = Number(endRow);
+      if (!Number.isFinite(s) || !Number.isFinite(e)) {
+        return NextResponse.json({ error: "fill.startRow and fill.endRow required" }, { status: 400 });
+      }
+      const val = body.fill.value == null ? null : String(body.fill.value);
+      for (let r = s; r <= e; r++) {
+        for (const colId of body.fill.columnIds) {
+          if (columnIds.has(colId)) validateAndPush(r, colId, val);
+        }
+      }
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Неверное значение ячейки";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   if (updates.length === 0) {

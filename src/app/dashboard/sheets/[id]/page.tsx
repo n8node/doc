@@ -401,7 +401,11 @@ export default function SheetDetailPage() {
             updates: [{ rowIndex, columnId, value }],
           }),
         });
-        if (!res.ok) throw new Error("Ошибка сохранения");
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const msg = typeof data.error === "string" ? data.error : "Не удалось сохранить ячейку";
+          throw new Error(msg);
+        }
         setSheet((prev) => {
           if (!prev) return prev;
           const rows = [...prev.rows];
@@ -414,8 +418,8 @@ export default function SheetDetailPage() {
           row.cells = { ...row.cells, [columnId]: value };
           return { ...prev, rows };
         });
-      } catch {
-        toast.error("Не удалось сохранить ячейку");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Не удалось сохранить ячейку");
       } finally {
         setSaving(false);
       }
@@ -680,6 +684,8 @@ export default function SheetDetailPage() {
               data-sheet-col={col.id}
             >
               <Input
+                type={col.dataType === "number" ? "number" : "text"}
+                step={col.dataType === "number" ? "any" : undefined}
                 className="h-8 min-w-[120px] rounded-none border-0 bg-transparent text-sm focus-visible:ring-1"
                 defaultValue={v}
                 onBlur={(e) => {
