@@ -44,6 +44,7 @@ model User {
   llmWalletTopups      LlmWalletTopup[]
   marketplaceUsage     MarketplaceUsageEvent[]
   sheets               Sheet[]
+  n8nTableConnections  N8nTableConnection[]
   preferences          Json?                 @map("preferences") // { theme?: string, notifications?: { storage, trash, payment, ... } }
   telegramUserId       BigInt?               @unique @map("telegram_user_id")
   telegramUsername     String?               @map("telegram_username")
@@ -237,14 +238,15 @@ model MarketplaceUsageEvent {
 
 // Таблицы (спредшиты) — TanStack Table, импорт Excel, n8n Postgres
 model Sheet {
-  id        String        @id @default(cuid()) @map("id")
-  userId    String        @map("user_id")
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String        @map("name")
-  columns   SheetColumn[]
-  cells     SheetCell[]
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
+  id                 String                 @id @default(cuid()) @map("id")
+  userId             String                 @map("user_id")
+  user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String                 @map("name")
+  columns            SheetColumn[]
+  cells              SheetCell[]
+  n8nTableConnections N8nTableConnection[]
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
 
   @@index([userId])
   @@map("sheets")
@@ -280,6 +282,23 @@ model SheetCell {
   @@index([sheetId])
   @@index([columnId])
   @@map("sheet_cells")
+}
+
+model N8nTableConnection {
+  id              String   @id @default(cuid()) @map("id")
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sheetId         String   @map("sheet_id")
+  sheet           Sheet    @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  dbRoleName      String   @unique @map("db_role_name")
+  dbPasswordHash  String   @map("db_password_hash")
+  tableName       String   @map("table_name")
+  target          String   @default("DEFAULT") @map("target")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([sheetId])
+  @@map("n8n_table_connections")
 }
 
 model ShareLink {
