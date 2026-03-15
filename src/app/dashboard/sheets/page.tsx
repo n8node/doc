@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Table2, Trash2 } from "lucide-react";
+import { Loader2, Plus, Table2, Trash2, FileUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface SheetItem {
@@ -22,6 +22,7 @@ export default function SheetsListPage() {
   const [sheets, setSheets] = useState<SheetItem[]>([]);
   const [createName, setCreateName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadSheets = useCallback(async () => {
@@ -70,6 +71,30 @@ export default function SheetsListPage() {
     }
   };
 
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/v1/sheets/import", { method: "POST", body: form });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Ошибка импорта");
+      }
+      const data = await res.json();
+      toast.success(`Импортировано: ${data.rowsImported ?? 0} строк`);
+      await loadSheets();
+      window.location.href = `/dashboard/sheets/${data.id}`;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка импорта");
+    } finally {
+      setImporting(false);
+      e.target.value = "";
+    }
+  };
+
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Удалить таблицу «${name}»?`)) return;
     setDeletingId(id);
@@ -89,7 +114,7 @@ export default function SheetsListPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Таблицы</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Input
             placeholder="Название таблицы"
             value={createName}
@@ -100,6 +125,23 @@ export default function SheetsListPage() {
           <Button onClick={handleCreate} disabled={creating} className="gap-2">
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Создать
+          </Button>
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            id="excel-import"
+            onChange={handleImportExcel}
+            disabled={importing}
+          />
+          <Button
+            variant="outline"
+            disabled={importing}
+            className="gap-2"
+            onClick={() => document.getElementById("excel-import")?.click()}
+          >
+            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
+            Импорт Excel
           </Button>
         </div>
       </div>
@@ -118,7 +160,7 @@ export default function SheetsListPage() {
             </div>
           ) : sheets.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">
-              Нет таблиц. Создайте первую или импортируйте из Excel (скоро).
+              Нет таблиц. Создайте первую или импортируйте из Excel.
             </p>
           ) : (
             <ul className="space-y-2">
