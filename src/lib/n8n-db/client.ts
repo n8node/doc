@@ -1,5 +1,8 @@
 import { Client } from "pg";
 
+/** Максимум n8n-подключений на одну таблицу или одну RAG-коллекцию */
+export const MAX_N8N_CONNECTIONS_PER_ENTITY = 3;
+
 export type N8nDbTarget = "DEFAULT" | "RF";
 
 function normalizeTarget(target: N8nDbTarget | string | undefined): N8nDbTarget {

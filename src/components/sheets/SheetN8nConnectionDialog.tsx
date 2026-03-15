@@ -297,23 +297,29 @@ export function SheetN8nConnectionDialog({
                     exit={{ opacity: 0 }}
                     className="space-y-4"
                   >
-                    <Button
-                      onClick={handleCreate}
-                      disabled={creating}
-                      className="w-full gap-2"
-                    >
-                      {creating ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Создание...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="h-4 w-4" />
-                          Создать подключение
-                        </>
-                      )}
-                    </Button>
+                    {connections.length >= 3 ? (
+                      <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                        Достигнут лимит из 3 подключений. Чтобы создать новое, удалите одно из существующих.
+                      </p>
+                    ) : (
+                      <Button
+                        onClick={handleCreate}
+                        disabled={creating}
+                        className="w-full gap-2"
+                      >
+                        {creating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Создание...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4" />
+                            Создать подключение
+                          </>
+                        )}
+                      </Button>
+                    )}
 
                     {connections.length > 0 && (
                       <div>

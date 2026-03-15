@@ -7,6 +7,7 @@ import {
   getN8nDbConnectionParams,
   isN8nDbEnabled,
   isN8nDbTarget,
+  MAX_N8N_CONNECTIONS_PER_ENTITY,
   type N8nDbTarget,
 } from "@/lib/n8n-db/client";
 import { createN8nConnection, hashN8nPassword } from "@/lib/n8n-db/service";
@@ -94,6 +95,17 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   if (embeddings.length === 0) {
     return NextResponse.json(
       { error: "В коллекции нет эмбеддингов. Сначала векторизуйте файлы." },
+      { status: 400 }
+    );
+  }
+
+  const count = await prisma.n8nPgConnection.count({ where: { collectionId } });
+  if (count >= MAX_N8N_CONNECTIONS_PER_ENTITY) {
+    return NextResponse.json(
+      {
+        error:
+          "Достигнут лимит: не более 3 подключений на коллекцию. Удалите одно из существующих, чтобы создать новое.",
+      },
       { status: 400 }
     );
   }
