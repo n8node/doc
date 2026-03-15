@@ -56,16 +56,28 @@ export async function POST(request: NextRequest) {
   const name = typeof body.name === "string" ? body.name.trim() : "Новая таблица";
   const columnsInput = Array.isArray(body.columns) ? body.columns : [];
 
+  const defaultColumns = [
+    { order: 0, name: "id", dataType: "text" as const },
+    { order: 1, name: "Дата и время создания", dataType: "datetime" as const },
+  ];
+  const userColumns = columnsInput.slice(0, 48).map((c, i) => ({
+    order: i + 2,
+    name: typeof c.name === "string" ? c.name.trim() || `Колонка ${i + 3}` : `Колонка ${i + 3}`,
+    dataType: typeof c.dataType === "string" ? c.dataType : "text",
+    config: c.config && typeof c.config === "object" ? (c.config as object) : undefined,
+  }));
+  const columnsToCreate = [...defaultColumns, ...userColumns];
+
   const sheet = await prisma.sheet.create({
     data: {
       userId: session.user.id,
       name: name || "Новая таблица",
       columns: {
-        create: columnsInput.slice(0, 50).map((c, i) => ({
-          order: i,
-          name: typeof c.name === "string" ? c.name.trim() || `Колонка ${i + 1}` : `Колонка ${i + 1}`,
-          dataType: typeof c.dataType === "string" ? c.dataType : "text",
-          config: c.config && typeof c.config === "object" ? (c.config as object) : undefined,
+        create: columnsToCreate.map((c) => ({
+          order: c.order,
+          name: c.name,
+          dataType: c.dataType,
+          config: "config" in c && c.config ? c.config : undefined,
         })),
       },
     },

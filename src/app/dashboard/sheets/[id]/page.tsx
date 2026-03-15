@@ -420,7 +420,7 @@ export default function SheetDetailPage() {
         editingColumnId === col.id ? (
           <div className="flex items-center gap-1">
             <Input
-              className="h-7 w-32 text-sm"
+              className="h-7 w-32 text-sm rounded-none"
               value={editingColumnName}
               onChange={(e) => setEditingColumnName(e.target.value)}
               onKeyDown={(e) => {
@@ -471,7 +471,7 @@ export default function SheetDetailPage() {
             onClick={(e) => table.options.meta?.onCellClick?.(row.original.rowIndex, col.id, e.shiftKey)}
           >
             <Input
-              className="h-8 min-w-[120px] border-0 bg-transparent text-sm focus-visible:ring-1"
+              className="h-8 min-w-[120px] rounded-none border-0 bg-transparent text-sm focus-visible:ring-1"
               defaultValue={v}
               onBlur={(e) => {
                 const next = e.target.value.trim() || null;
@@ -630,7 +630,7 @@ export default function SheetDetailPage() {
         onSyncDone={loadSheet}
       />
 
-      <Card>
+      <Card className="rounded-none">
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
