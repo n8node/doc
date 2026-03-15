@@ -11,7 +11,6 @@ import {
 } from "@/lib/n8n-db/client";
 import {
   createN8nTableConnection,
-  revokeN8nTableConnection,
   hashN8nTablePassword,
   type SheetForSync,
 } from "@/lib/n8n-db/sheet-sync";
