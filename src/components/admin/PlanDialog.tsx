@@ -53,6 +53,7 @@ const featureLabels: Record<string, string> = {
   document_analysis: "AI-анализ документов",
   rag_memory: "RAG-память",
   n8n_connection: "Подключение к n8n",
+  sheets: "Таблицы",
   transcription: "Транскрибация",
   own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
 };
@@ -80,6 +81,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     document_analysis: false,
     rag_memory: false,
     n8n_connection: false,
+    sheets: false,
     own_ai_keys: false,
   });
   const [trashDays, setTrashDays] = useState("0");
@@ -179,6 +181,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         document_analysis: false,
         rag_memory: false,
         n8n_connection: false,
+        sheets: false,
         transcription: false,
         own_ai_keys: false,
       });
