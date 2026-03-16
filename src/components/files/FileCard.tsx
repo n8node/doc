@@ -404,6 +404,24 @@ export function FileCard({
                 </span>
               </>
             )}
+            {importingToTable && (
+              <>
+                <span>•</span>
+                <span
+                  className="flex items-center gap-2 text-emerald-500"
+                  title="Импорт в таблицу..."
+                >
+                  <Table2 className="h-4 w-4 shrink-0" />
+                  <span className="text-xs">Импорт в таблицу...</span>
+                  <div className="h-1.5 w-16 min-w-16 overflow-hidden rounded-full bg-emerald-500/20">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 animate-pulse"
+                      style={{ width: "60%" }}
+                    />
+                  </div>
+                </span>
+              </>
+            )}
             {isTranscribable && isTranscribing && (
               <>
                 <span>•</span>
