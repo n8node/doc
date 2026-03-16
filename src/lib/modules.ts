@@ -26,7 +26,8 @@ export type ModuleId =
   | "storage"
   | "ai_tools"
   | "generation"
-  | "integrations";
+  | "integrations"
+  | "tools";
 
 export interface NavItem {
   href: string;
@@ -48,13 +49,15 @@ export const MODULE_LABELS: Record<ModuleId, string> = {
   ai_tools: "AI и RAG",
   generation: "Генерация",
   integrations: "Интеграции",
+  tools: "Инструменты",
 };
 
 export const MODULE_DESCRIPTIONS: Record<ModuleId, string> = {
   storage: "Хранение, навигация и управление файлами",
-  ai_tools: "Поиск, RAG-память, векторная база, AI чаты",
+  ai_tools: "RAG-память, векторная база, AI чаты",
   generation: "Генерация текста, изображений, видео",
   integrations: "API-ключи и маркетплейс провайдеров",
+  tools: "Поиск по файлам, таблицы",
 };
 
 export const navGroups: NavGroup[] = [
@@ -75,7 +78,6 @@ export const navGroups: NavGroup[] = [
     id: "ai_tools",
     label: "AI и RAG",
     items: [
-      { href: "/dashboard/search", icon: Search, label: "Поиск" },
       { href: "/dashboard/rag-memory", icon: BrainCircuit, label: "RAG-память" },
       { href: "/dashboard/embeddings", icon: Database, label: "Векторная база" },
       { href: "/dashboard/document-chats", icon: MessageCircle, label: "AI чаты по документам" },
@@ -97,6 +99,13 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/dashboard/api-docs", icon: Key, label: "API настройки" },
       { href: "/dashboard/marketplace", icon: Store, label: "API маркетплейс" },
+    ],
+  },
+  {
+    id: "tools",
+    label: "Инструменты",
+    items: [
+      { href: "/dashboard/search", icon: Search, label: "Поиск по файлам" },
       { href: "/dashboard/sheets", icon: Table2, label: "Таблицы" },
     ],
   },
@@ -109,6 +118,7 @@ const DEFAULTS: Record<ModuleId, boolean> = {
   ai_tools: true,
   generation: true,
   integrations: true,
+  tools: true,
 };
 
 export function resolveModulePrefs(raw: unknown): Record<ModuleId, boolean> {

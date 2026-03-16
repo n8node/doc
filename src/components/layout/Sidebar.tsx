@@ -38,6 +38,7 @@ export function Sidebar() {
     ai_tools: true,
     generation: true,
     integrations: true,
+    tools: true,
   });
   const [planFeatures, setPlanFeatures] = useState<Record<string, boolean>>({});
 
@@ -204,8 +205,11 @@ export function Sidebar() {
             </div>
           ))}
 
-          {/* Plans */}
-          <Link href="/dashboard/plans">
+          <SidebarFolderTree />
+        </nav>
+
+        <div className="space-y-3 px-4 pb-4">
+          <Link href="/dashboard/plans" className="block" style={{ marginLeft: "1cm" }}>
             <motion.div
               whileHover={{ x: 4 }}
               whileTap={{ scale: 0.98 }}
@@ -225,11 +229,6 @@ export function Sidebar() {
               <span className="flex-1">Тарифы</span>
             </motion.div>
           </Link>
-
-          <SidebarFolderTree />
-        </nav>
-
-        <div className="px-4 pb-4">
           <StorageWidget />
         </div>
 

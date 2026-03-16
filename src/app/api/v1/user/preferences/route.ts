@@ -19,6 +19,7 @@ const MODULE_KEYS = [
   "ai_tools",
   "generation",
   "integrations",
+  "tools",
 ] as const;
 
 type ModulePrefs = Record<(typeof MODULE_KEYS)[number], boolean>;
@@ -29,6 +30,7 @@ function parseModulePrefs(obj: unknown): ModulePrefs {
     ai_tools: true,
     generation: true,
     integrations: true,
+    tools: true,
   };
   if (!obj || typeof obj !== "object") return def;
   const o = obj as Record<string, unknown>;

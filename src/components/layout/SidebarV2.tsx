@@ -47,6 +47,7 @@ export function SidebarV2() {
     ai_tools: true,
     generation: true,
     integrations: true,
+    tools: true,
   });
   const [planFeatures, setPlanFeatures] = useState<Record<string, boolean>>({});
 
@@ -263,33 +264,32 @@ export function SidebarV2() {
               </AnimatePresence>
             </div>
           ))}
-
-          {/* Plans — always visible */}
-          <div className="space-y-1.5">
-            <Link href="/dashboard/plans">
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                className={cn(
-                  "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
-                  pathname === "/dashboard/plans"
-                    ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
-                    : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
-                )}
-              >
-                <Crown
-                  className={cn(
-                    "h-5 w-5",
-                    pathname === "/dashboard/plans" && "text-primary",
-                  )}
-                />
-                <span className="flex-1">Тарифы</span>
-              </motion.div>
-            </Link>
-          </div>
         </nav>
 
-        {/* Storage widget */}
-        <div className="px-4 pb-4">
+        {/* Тарифы + Storage widget */}
+        <div className="space-y-3 px-4 pb-4">
+          <Link href="/dashboard/plans" className="block" style={{ marginLeft: "1cm" }}>
+            <motion.div
+              whileTap={{ scale: 0.98 }}
+              className={cn(
+                "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                pathname === "/dashboard/plans"
+                  ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                  : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
+              )}
+            >
+              <Crown
+                className={cn(
+                  "h-5 w-5",
+                  pathname === "/dashboard/plans" && "text-primary",
+                )}
+              />
+              <span className="flex-1">Тарифы</span>
+              {pathname === "/dashboard/plans" && (
+                <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.16)]" />
+              )}
+            </motion.div>
+          </Link>
           <StorageWidget />
         </div>
 

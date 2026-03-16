@@ -109,6 +109,7 @@ export default function DashboardSettingsPage() {
     ai_tools: true,
     generation: true,
     integrations: true,
+    tools: true,
   });
   const [savingModule, setSavingModule] = useState<string | null>(null);
   const { setTheme } = useTheme();
