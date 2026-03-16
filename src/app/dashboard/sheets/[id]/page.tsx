@@ -110,6 +110,7 @@ export default function SheetDetailPage() {
   const [editingColumnTypeId, setEditingColumnTypeId] = useState<string | null>(null);
   const [editColumnDataType, setEditColumnDataType] = useState("text");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
   const loadSheet = useCallback(async () => {
@@ -587,6 +588,9 @@ export default function SheetDetailPage() {
         />
       ),
       size: 44,
+      minSize: 44,
+      maxSize: 44,
+      enableResizing: false,
       cell: ({ row }) => (
         <div className="flex h-8 items-center justify-center">
           <input
@@ -603,6 +607,9 @@ export default function SheetDetailPage() {
       id: "__row",
       header: () => <span className="text-muted-foreground text-xs">#</span>,
       size: 56,
+      minSize: 56,
+      maxSize: 56,
+      enableResizing: false,
       cell: ({ row, table }) => (
         <div className="flex h-8 items-center gap-1 px-1">
           <span className="text-muted-foreground text-xs w-5">{(row.original.rowIndex as number) + 1}</span>
@@ -622,8 +629,11 @@ export default function SheetDetailPage() {
     const dataCols: ColumnDef<RowRecord>[] = sheet.columns.map((col) => {
       return {
         id: col.id,
-        header: () =>
-          editingColumnId === col.id ? (
+        size: 180,
+        minSize: 80,
+        header: (ctx) => (
+          <div className="relative h-full w-full">
+          {editingColumnId === col.id ? (
             <div className="flex items-center gap-1">
               <Input
                 className="h-7 w-32 text-sm rounded-none"
@@ -685,6 +695,15 @@ export default function SheetDetailPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+        {ctx.column.getCanResize() && (
+          <div
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 shrink-0"
+            onMouseDown={ctx.header.getResizeHandler()}
+            onTouchStart={ctx.header.getResizeHandler()}
+          />
+        )}
+      </div>
           ),
         accessorKey: col.id,
         cell: ({ row, getValue, table }) => {
@@ -757,8 +776,11 @@ export default function SheetDetailPage() {
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    state: { pagination },
+    state: { pagination, columnSizing },
     onPaginationChange: setPagination,
+    onColumnSizingChange: setColumnSizing,
+    enableColumnResizing: true,
+    columnResizeMode: "onEnd",
     initialState: { pagination: { pageSize: PAGE_SIZE } },
     meta: {
       updateCell: saveCell,
@@ -972,12 +994,13 @@ export default function SheetDetailPage() {
 
       <Card className="rounded-none">
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse table-fixed">
             <thead>
               <tr>
                 {table.getHeaderGroups()[0]?.headers.map((h, i) => (
                   <th
                     key={`letter-${h.id}`}
+                    style={{ width: h.column.getSize(), minWidth: h.column.getSize(), maxWidth: h.column.getSize() }}
                     className={`border border-border bg-muted/30 px-1 py-0.5 text-center text-xs font-medium text-muted-foreground ${(h.column.id !== "__check" && h.column.id !== "__row" && isColumnHighlighted(h.column.id)) ? "bg-primary/15" : ""}`}
                   >
                     {h.column.id === "__check" || h.column.id === "__row"
@@ -996,7 +1019,8 @@ export default function SheetDetailPage() {
                   {hg.headers.map((h) => (
                     <th
                       key={h.id}
-                      className={`border border-border bg-muted/50 px-2 py-1.5 text-left text-sm font-medium ${(h.column.id !== "__check" && h.column.id !== "__row" && isColumnHighlighted(h.column.id)) ? "bg-primary/15" : ""}`}
+                      style={{ width: h.column.getSize(), minWidth: h.column.getSize(), maxWidth: h.column.getSize() }}
+                      className={`relative border border-border bg-muted/50 px-2 py-1.5 text-left text-sm font-medium ${(h.column.id !== "__check" && h.column.id !== "__row" && isColumnHighlighted(h.column.id)) ? "bg-primary/15" : ""}`}
                     >
                       {flexRender(h.column.columnDef.header, h.getContext())}
                     </th>
@@ -1018,7 +1042,11 @@ export default function SheetDetailPage() {
                     className={isRowHighlighted((row.original as RowRecord).rowIndex) ? "bg-primary/5" : ""}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="border border-border p-0">
+                      <td
+                        key={cell.id}
+                        style={{ width: cell.column.getSize(), minWidth: cell.column.getSize(), maxWidth: cell.column.getSize() }}
+                        className="border border-border p-0 overflow-hidden"
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
