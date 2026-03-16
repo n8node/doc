@@ -556,7 +556,7 @@ export function FileCard({
                     onImportToTable();
                   }}
                   disabled={importingToTable}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-all hover:bg-emerald-500/20 disabled:opacity-50"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-emerald-500/10 hover:text-emerald-600 disabled:opacity-50"
                   title="Импорт в таблицу"
                 >
                   {importingToTable ? (
