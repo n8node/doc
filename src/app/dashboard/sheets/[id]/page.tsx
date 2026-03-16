@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   useReactTable,
   getCoreRowModel,
+  getPaginationRowModel,
   flexRender,
   type ColumnDef,
   type RowData,
@@ -26,9 +27,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, Link2, ArrowUp, ArrowDown, Filter } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, Link2, ArrowUp, ArrowDown, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { SheetN8nConnectionDialog } from "@/components/sheets/SheetN8nConnectionDialog";
+
+const PAGE_SIZE = 100;
 
 const DATA_TYPES = [
   { value: "text", label: "Текст" },
@@ -106,6 +109,7 @@ export default function SheetDetailPage() {
   const [fillDragEnd, setFillDragEnd] = useState<{ rowIndex: number; columnId: string } | null>(null);
   const [editingColumnTypeId, setEditingColumnTypeId] = useState<string | null>(null);
   const [editColumnDataType, setEditColumnDataType] = useState("text");
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const loadSheet = useCallback(async () => {
     if (!id) return;
@@ -184,6 +188,10 @@ export default function SheetDetailPage() {
       document.removeEventListener("mousemove", onMove);
     };
   }, [fillDragging, rangeAnchor, sheet, id, loadSheet]);
+
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [sortBy, filterBy]);
 
   const deleteColumn = useCallback(
     async (columnId: string) => {
@@ -737,6 +745,10 @@ export default function SheetDetailPage() {
     data: tableData,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    state: { pagination },
+    onPaginationChange: setPagination,
+    initialState: { pagination: { pageSize: PAGE_SIZE } },
     meta: {
       updateCell: saveCell,
       sheetId: id,
@@ -969,6 +981,34 @@ export default function SheetDetailPage() {
           </table>
         </CardContent>
       </Card>
+
+      {tableData.length > PAGE_SIZE && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">
+            Строки {pagination.pageIndex * pagination.pageSize + 1}–{Math.min((pagination.pageIndex + 1) * pagination.pageSize, tableData.length)} из {tableData.length}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPagination((p) => ({ ...p, pageIndex: Math.max(0, p.pageIndex - 1) }))}
+            disabled={pagination.pageIndex === 0}
+            className="gap-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Назад
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPagination((p) => ({ ...p, pageIndex: p.pageIndex + 1 }))}
+            disabled={pagination.pageIndex >= Math.ceil(tableData.length / pagination.pageSize) - 1}
+            className="gap-1"
+          >
+            Вперёд
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       <Dialog open={addColumnOpen} onOpenChange={setAddColumnOpen}>
         <DialogContent>
