@@ -266,15 +266,20 @@ export function SidebarV2() {
           ))}
         </nav>
 
-        {/* Тарифы + Storage widget */}
-        <div className="space-y-3 px-4 pb-4">
-          <Link href="/dashboard/plans" className="block" style={{ marginLeft: "1cm" }}>
+        {/* Storage widget */}
+        <div className="px-4 pb-4">
+          <StorageWidget />
+        </div>
+
+        {/* Footer */}
+        <div className="space-y-1 border-t border-border/70 px-4 py-4">
+          <Link href="/dashboard/plans">
             <motion.div
               whileTap={{ scale: 0.98 }}
               className={cn(
                 "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                 pathname === "/dashboard/plans"
-                  ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/35 shadow-[0_14px_30px_-18px_hsl(var(--primary)/0.85)]"
+                  ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/35"
                   : "text-muted-foreground hover:bg-surface2/75 hover:text-foreground",
               )}
             >
@@ -290,11 +295,6 @@ export function SidebarV2() {
               )}
             </motion.div>
           </Link>
-          <StorageWidget />
-        </div>
-
-        {/* Footer */}
-        <div className="space-y-1 border-t border-border/70 px-4 py-4">
           <Link href="/dashboard/settings">
             <motion.div
               whileTap={{ scale: 0.98 }}

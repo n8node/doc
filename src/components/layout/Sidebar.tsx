@@ -208,8 +208,12 @@ export function Sidebar() {
           <SidebarFolderTree />
         </nav>
 
-        <div className="space-y-3 px-4 pb-4">
-          <Link href="/dashboard/plans" className="block" style={{ marginLeft: "1cm" }}>
+        <div className="px-4 pb-4">
+          <StorageWidget />
+        </div>
+
+        <div className="space-y-1 border-t border-border px-3 py-4">
+          <Link href="/dashboard/plans">
             <motion.div
               whileHover={{ x: 4 }}
               whileTap={{ scale: 0.98 }}
@@ -229,10 +233,6 @@ export function Sidebar() {
               <span className="flex-1">Тарифы</span>
             </motion.div>
           </Link>
-          <StorageWidget />
-        </div>
-
-        <div className="space-y-1 border-t border-border px-3 py-4">
           <Link href="/dashboard/settings">
             <motion.div
               whileHover={{ x: 4 }}
