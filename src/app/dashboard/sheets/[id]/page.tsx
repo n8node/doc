@@ -734,10 +734,13 @@ export default function SheetDetailPage() {
     return () => document.removeEventListener("mouseup", handleMouseUp, true);
   }, []);
 
-  const handleExportJson = useCallback(() => {
-    if (!id) return;
-    window.open(`/api/v1/sheets/${id}/export?format=json`, "_blank");
-  }, [id]);
+  const handleExport = useCallback(
+    (format: "json" | "xlsx" | "sql") => {
+      if (!id) return;
+      window.open(`/api/v1/sheets/${id}/export?format=${format}`, "_blank");
+    },
+    [id]
+  );
 
   const applyFilter = useCallback(() => {
     if (!filterColumnOpen) return;
@@ -905,9 +908,17 @@ export default function SheetDetailPage() {
               </Button>
             </>
           )}
-          <Button variant="outline" size="sm" onClick={handleExportJson} className="gap-1">
+          <Button variant="outline" size="sm" onClick={() => handleExport("json")} className="gap-1">
             <Download className="h-4 w-4" />
             JSON
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleExport("xlsx")} className="gap-1">
+            <Download className="h-4 w-4" />
+            XLSX
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleExport("sql")} className="gap-1">
+            <Download className="h-4 w-4" />
+            SQL
           </Button>
           <Button variant="outline" size="sm" onClick={openAddColumn} disabled={saving} className="gap-1">
             <Plus className="h-4 w-4" />
