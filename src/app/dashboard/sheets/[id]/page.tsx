@@ -111,6 +111,21 @@ export default function SheetDetailPage() {
   const [editColumnDataType, setEditColumnDataType] = useState("text");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
+  const [columnSizingInfo, setColumnSizingInfo] = useState<{
+    isResizingColumn: false | string;
+    startOffset: number | null;
+    startSize: number | null;
+    deltaOffset: number | null;
+    deltaPercentage: number | null;
+    columnSizingStart: [string, number][];
+  }>({
+    isResizingColumn: false,
+    startOffset: null,
+    startSize: null,
+    deltaOffset: null,
+    deltaPercentage: null,
+    columnSizingStart: [],
+  });
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
   const loadSheet = useCallback(async () => {
@@ -766,9 +781,10 @@ export default function SheetDetailPage() {
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    state: { pagination, columnSizing },
+    state: { pagination, columnSizing, columnSizingInfo },
     onPaginationChange: setPagination,
     onColumnSizingChange: setColumnSizing,
+    onColumnSizingInfoChange: setColumnSizingInfo,
     enableColumnResizing: true,
     columnResizeMode: "onChange",
     initialState: { pagination: { pageSize: PAGE_SIZE } },
@@ -782,6 +798,17 @@ export default function SheetDetailPage() {
       selectedRange,
     },
   });
+
+  // Fix: end column resize on any mouseup (capture) so release outside table still clears resizing state
+  useEffect(() => {
+    const handleMouseUp = () => {
+      setColumnSizingInfo((prev) =>
+        prev.isResizingColumn ? { ...prev, isResizingColumn: false } : prev
+      );
+    };
+    document.addEventListener("mouseup", handleMouseUp, true);
+    return () => document.removeEventListener("mouseup", handleMouseUp, true);
+  }, []);
 
   const handleExportJson = useCallback(() => {
     if (!id) return;
