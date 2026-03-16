@@ -625,18 +625,9 @@ export default function SheetDetailPage() {
       minSize: 56,
       maxSize: 56,
       enableResizing: false,
-      cell: ({ row, table }) => (
-        <div className="flex h-8 items-center gap-1 px-1">
-          <span className="text-muted-foreground text-xs w-5">{(row.original.rowIndex as number) + 1}</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-destructive"
-            onClick={() => table.options.meta?.deleteRow?.(row.original.rowIndex)}
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
+      cell: ({ row }) => (
+        <div className="flex h-8 items-center justify-center px-1">
+          <span className="text-muted-foreground text-xs">{(row.original.rowIndex as number) + 1}</span>
         </div>
       ),
     };
