@@ -52,6 +52,7 @@ const featureLabels: Record<string, string> = {
   folder_share: "Шаринг папок",
   rag_memory: "RAG-память",
   n8n_connection: "Подключение к n8n",
+  sheets: "Таблицы",
   ai_search: "AI-поиск по документам",
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
