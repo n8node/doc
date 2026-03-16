@@ -27,7 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, Link2, ArrowUp, ArrowDown, Filter, ChevronLeft, ChevronRight, Crown } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, Link2, ArrowUp, ArrowDown, Filter, ChevronLeft, ChevronRight, Crown, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { SheetN8nConnectionDialog } from "@/components/sheets/SheetN8nConnectionDialog";
 
@@ -631,9 +631,8 @@ export default function SheetDetailPage() {
         id: col.id,
         size: 180,
         minSize: 80,
-        header: (ctx) => (
-          <div className="relative h-full w-full">
-          {editingColumnId === col.id ? (
+        header: () =>
+          editingColumnId === col.id ? (
             <div className="flex items-center gap-1">
               <Input
                 className="h-7 w-32 text-sm rounded-none"
@@ -695,15 +694,6 @@ export default function SheetDetailPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-        {ctx.column.getCanResize() && (
-          <div
-            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 shrink-0"
-            onMouseDown={ctx.header.getResizeHandler()}
-            onTouchStart={ctx.header.getResizeHandler()}
-          />
-        )}
-      </div>
           ),
         accessorKey: col.id,
         cell: ({ row, getValue, table }) => {
@@ -780,7 +770,7 @@ export default function SheetDetailPage() {
     onPaginationChange: setPagination,
     onColumnSizingChange: setColumnSizing,
     enableColumnResizing: true,
-    columnResizeMode: "onEnd",
+    columnResizeMode: "onChange",
     initialState: { pagination: { pageSize: PAGE_SIZE } },
     meta: {
       updateCell: saveCell,
@@ -1001,7 +991,7 @@ export default function SheetDetailPage() {
                   <th
                     key={`letter-${h.id}`}
                     style={{ width: h.column.getSize(), minWidth: h.column.getSize(), maxWidth: h.column.getSize() }}
-                    className={`border border-border bg-muted/30 px-1 py-0.5 text-center text-xs font-medium text-muted-foreground ${(h.column.id !== "__check" && h.column.id !== "__row" && isColumnHighlighted(h.column.id)) ? "bg-primary/15" : ""}`}
+                    className={`relative border border-border bg-muted/30 px-1 py-0.5 text-center text-xs font-medium text-muted-foreground ${(h.column.id !== "__check" && h.column.id !== "__row" && isColumnHighlighted(h.column.id)) ? "bg-primary/15" : ""}`}
                   >
                     {h.column.id === "__check" || h.column.id === "__row"
                       ? ""
@@ -1011,6 +1001,16 @@ export default function SheetDetailPage() {
                           if (li < 26) return String.fromCharCode(65 + li);
                           return String.fromCharCode(64 + Math.floor(li / 26)) + String.fromCharCode(65 + (li % 26));
                         })()}
+                    {h.column.getCanResize() && (
+                      <span
+                        className="absolute right-0 top-0 bottom-0 flex cursor-col-resize items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        onMouseDown={h.getResizeHandler()}
+                        onTouchStart={h.getResizeHandler()}
+                        title="Изменить ширину"
+                      >
+                        <GripVertical className="h-4 w-4 shrink-0" />
+                      </span>
+                    )}
                   </th>
                 ))}
               </tr>
