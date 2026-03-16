@@ -340,6 +340,7 @@ export function FileManager() {
   const [chatFile, setChatFile] = useState<{ id: string; name: string } | null>(null);
   const [transcriptFile, setTranscriptFile] = useState<{ id: string; name: string } | null>(null);
   const [importingToTableFileId, setImportingToTableFileId] = useState<string | null>(null);
+  const [existingSheetModal, setExistingSheetModal] = useState<{ sheetId: string; fileName: string } | null>(null);
 
   const [highlightOverlayFile, setHighlightOverlayFile] = useState<FileItem | null>(null);
   const highlightFileIdToScrollRef = useRef<string | null>(null);
@@ -2409,7 +2410,17 @@ export function FileManager() {
       isProcessable={PROCESSABLE_MIMES.has(file.mimeType)}
       isAnalyzing={analyzingFiles.has(file.id)}
       importedSheetId={file.importedSheetId}
-      onImportToTable={EXCEL_FILE_MIMES.has(file.mimeType) ? () => handleImportFileToTable(file.id) : undefined}
+      onImportToTable={
+        EXCEL_FILE_MIMES.has(file.mimeType)
+          ? () => {
+              if (file.importedSheetId) {
+                setExistingSheetModal({ sheetId: file.importedSheetId, fileName: file.name });
+              } else {
+                handleImportFileToTable(file.id);
+              }
+            }
+          : undefined
+      }
       isExcelFile={EXCEL_FILE_MIMES.has(file.mimeType)}
       importingToTable={importingToTableFileId === file.id}
       analyzeError={analyzeError.get(file.id)}
@@ -3905,6 +3916,33 @@ export function FileManager() {
           onClose={() => setShareTarget(null)}
         />
       )}
+
+      {/* Existing table modal — таблица уже создана из этого файла */}
+      <Dialog
+        open={!!existingSheetModal}
+        onOpenChange={(open) => !open && setExistingSheetModal(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Таблица уже создана</DialogTitle>
+            <DialogDescription>
+              {existingSheetModal
+                ? `Из файла «${existingSheetModal.fileName}» уже создана таблица. Вы можете открыть её или закрыть это окно.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-2 pt-2">
+            {existingSheetModal && (
+              <Button asChild>
+                <Link href={`/dashboard/sheets/${existingSheetModal.sheetId}`}>Открыть таблицу</Link>
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setExistingSheetModal(null)}>
+              Закрыть
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Document chat dialog */}
       {transcriptFile && (
