@@ -105,8 +105,6 @@ export default function SheetDetailPage() {
   const [filterInputValue, setFilterInputValue] = useState("");
   const [filterType, setFilterType] = useState<"contains" | "equals" | "empty">("contains");
   const [selectedRowIndices, setSelectedRowIndices] = useState<Set<number>>(new Set());
-  const [fillDragging, setFillDragging] = useState(false);
-  const [fillDragEnd, setFillDragEnd] = useState<{ rowIndex: number; columnId: string } | null>(null);
   const [editingColumnTypeId, setEditingColumnTypeId] = useState<string | null>(null);
   const [editColumnDataType, setEditColumnDataType] = useState("text");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
@@ -165,56 +163,6 @@ export default function SheetDetailPage() {
   useEffect(() => {
     loadSheet();
   }, [loadSheet]);
-
-  useEffect(() => {
-    if (!fillDragging || !rangeAnchor || !sheet) return;
-    const onMove = (e: MouseEvent) => {
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      const cell = el?.closest("[data-sheet-row][data-sheet-col]");
-      if (cell) {
-        const r = parseInt(cell.getAttribute("data-sheet-row") ?? "", 10);
-        const c = cell.getAttribute("data-sheet-col");
-        if (!Number.isNaN(r) && c) setFillDragEnd({ rowIndex: r, columnId: c });
-      }
-    };
-    const onUp = async () => {
-      setFillDragging(false);
-      if (!rangeAnchor || !fillDragEnd || !id || !sheet) return;
-      const colIds = sheet.columns.map((x) => x.id);
-      const c1 = colIds.indexOf(rangeAnchor.columnId);
-      const c2 = colIds.indexOf(fillDragEnd.columnId);
-      if (c1 < 0 || c2 < 0) return;
-      const startRow = Math.min(rangeAnchor.rowIndex, fillDragEnd.rowIndex);
-      const endRow = Math.max(rangeAnchor.rowIndex, fillDragEnd.rowIndex);
-      const startC = Math.min(c1, c2);
-      const endC = Math.max(c1, c2);
-      const fillColIds = colIds.slice(startC, endC + 1);
-      const anchorRow = sheet.rows.find((r) => r.rowIndex === rangeAnchor.rowIndex);
-      const value = anchorRow?.cells[rangeAnchor.columnId] ?? null;
-      setFillDragEnd(null);
-      if (startRow === endRow && fillColIds.length === 1) return;
-      setSaving(true);
-      try {
-        await fetch(`/api/v1/sheets/${id}/cells`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fill: { startRow, endRow, columnIds: fillColIds, value } }),
-        });
-        await loadSheet();
-        setSelectedRange(null);
-        toast.success("Диапазон заполнен");
-      } catch {
-        toast.error("Не удалось заполнить");
-      } finally {
-        setSaving(false);
-      }
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp, { once: true });
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-    };
-  }, [fillDragging, rangeAnchor, sheet, id, loadSheet]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
@@ -706,9 +654,6 @@ export default function SheetDetailPage() {
           const value = getValue() as string | null | undefined;
           const v = value ?? "";
           const inRange = table.options.meta?.isCellInRange?.(row.original.rowIndex, col.id);
-          const anchor = table.options.meta?.rangeAnchor;
-          const selRange = table.options.meta?.selectedRange;
-          const isAnchor = anchor?.rowIndex === row.original.rowIndex && anchor?.columnId === col.id;
           return (
             <div
               className={`relative ${inRange ? "bg-primary/10" : ""}`}
@@ -729,18 +674,6 @@ export default function SheetDetailPage() {
                   }
                 }}
               />
-              {isAnchor && !selRange && (
-                <div
-                  className="absolute bottom-0 right-0 h-2 w-2 bg-primary cursor-crosshair shrink-0"
-                  title="Перетащите для заполнения"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setFillDragging(true);
-                    setFillDragEnd({ rowIndex: row.original.rowIndex, columnId: col.id });
-                  }}
-                />
-              )}
             </div>
           );
         },
