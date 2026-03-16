@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Table2, Trash2, FileUp } from "lucide-react";
+import { Loader2, Plus, Table2, Trash2, FileUp, Crown } from "lucide-react";
 import { toast } from "sonner";
 
 interface SheetItem {
@@ -24,10 +24,20 @@ export default function SheetsListPage() {
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
 
   const loadSheets = useCallback(async () => {
     setLoading(true);
     try {
+      const planRes = await fetch("/api/v1/plans/me", { credentials: "include" });
+      const planData = await planRes.json().catch(() => ({}));
+      const canUseSheets = !!planData.features?.sheets;
+      setAllowed(canUseSheets);
+      if (!canUseSheets) {
+        setSheets([]);
+        return;
+      }
+
       const res = await fetch("/api/v1/sheets");
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -109,6 +119,35 @@ export default function SheetsListPage() {
       setDeletingId(null);
     }
   };
+
+  if (allowed === false) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Таблицы</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Функция недоступна на вашем тарифе.
+          </p>
+        </div>
+        <Card className="border-border bg-surface">
+          <CardContent className="py-16 text-center">
+            <Crown className="mx-auto h-12 w-12 text-muted-foreground/50" />
+            <p className="mt-4 text-lg font-medium text-foreground">Обновите тариф</p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Таблицы доступны только на тарифах с включённой функцией работы с таблицами. Перейдите в тарифы и подключите подходящий план.
+            </p>
+            <Link
+              href="/dashboard/plans"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Выбрать тариф
+              <span aria-hidden>→</span>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

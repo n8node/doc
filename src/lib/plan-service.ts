@@ -15,6 +15,7 @@ const FREE_PLAN_DEFAULTS = {
     document_analysis: false,
     rag_memory: false,
     n8n_connection: false,
+    sheets: false,
   } as Record<string, boolean>,
 };
 

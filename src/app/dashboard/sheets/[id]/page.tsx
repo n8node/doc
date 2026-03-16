@@ -27,7 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, Link2, ArrowUp, ArrowDown, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Download, MoreVertical, Trash2, Link2, ArrowUp, ArrowDown, Filter, ChevronLeft, ChevronRight, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { SheetN8nConnectionDialog } from "@/components/sheets/SheetN8nConnectionDialog";
 
@@ -110,19 +110,30 @@ export default function SheetDetailPage() {
   const [editingColumnTypeId, setEditingColumnTypeId] = useState<string | null>(null);
   const [editColumnDataType, setEditColumnDataType] = useState("text");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const [allowed, setAllowed] = useState<boolean | null>(null);
 
   const loadSheet = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
     try {
+      const planRes = await fetch("/api/v1/plans/me", { credentials: "include" });
+      const planData = await planRes.json().catch(() => ({}));
+      const canUseSheets = !!planData.features?.sheets;
+      setAllowed(canUseSheets);
+      if (!canUseSheets) {
+        setSheet(null);
+        return;
+      }
+
       const res = await fetch(`/api/v1/sheets/${id}`);
       if (!res.ok) {
         if (res.status === 404) {
           setError("Таблица не найдена");
           return;
         }
-        throw new Error("Ошибка загрузки");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Ошибка загрузки");
       }
       const data = await res.json();
       setSheet(data);
@@ -815,6 +826,43 @@ export default function SheetDetailPage() {
           К списку таблиц
         </Link>
         <p className="text-muted-foreground">Неверный идентификатор таблицы.</p>
+      </div>
+    );
+  }
+
+  if (allowed === false) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/sheets"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium hover:bg-surface hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Таблица</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Функция таблиц недоступна на вашем тарифе.
+            </p>
+          </div>
+        </div>
+        <Card className="border-border bg-surface">
+          <CardContent className="py-16 text-center">
+            <Crown className="mx-auto h-12 w-12 text-muted-foreground/50" />
+            <p className="mt-4 text-lg font-medium text-foreground">Обновите тариф</p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Таблицы доступны только на тарифах с включённой функцией работы с таблицами. Перейдите в тарифы и подключите подходящий план.
+            </p>
+            <Link
+              href="/dashboard/plans"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Выбрать тариф
+              <span aria-hidden>→</span>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }
