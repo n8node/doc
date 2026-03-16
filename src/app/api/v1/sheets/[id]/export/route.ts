@@ -42,6 +42,24 @@ function escapeSqlValue(value: string | null): string {
   return "'" + String(value).replace(/'/g, "''") + "'";
 }
 
+/** dataType из SheetColumn → тип PostgreSQL */
+function dataTypeToSqlType(dataType: string): string {
+  switch (dataType) {
+    case "number":
+      return "DOUBLE PRECISION";
+    case "boolean":
+      return "BOOLEAN";
+    case "date":
+      return "DATE";
+    case "datetime":
+      return "TIMESTAMP";
+    case "text":
+    case "select":
+    default:
+      return "TEXT";
+  }
+}
+
 /**
  * GET /api/v1/sheets/:id/export?format=json|xlsx|sql — экспорт таблицы
  */
@@ -118,14 +136,22 @@ export async function GET(request: NextRequest, ctx: Ctx) {
       return u;
     });
     const colsList = uniqueCols.map((c) => `"${c}"`).join(", ");
-    const lines: string[] = [];
+    const createDefs = sheet.columns.map(
+      (c, i) => `  "${uniqueCols[i]}" ${dataTypeToSqlType(c.dataType)}`
+    );
+    const parts: string[] = [
+      `-- Table: ${sheet.name}`,
+      `DROP TABLE IF EXISTS "${tableName}";`,
+      `CREATE TABLE "${tableName}" (\n${createDefs.join(",\n")}\n);`,
+      "",
+    ];
     for (const row of rows) {
       const values = sheet.columns.map((_, i) =>
         escapeSqlValue(row[sheet.columns[i].name] ?? null)
       );
-      lines.push(`INSERT INTO "${tableName}" (${colsList}) VALUES (${values.join(", ")});`);
+      parts.push(`INSERT INTO "${tableName}" (${colsList}) VALUES (${values.join(", ")});`);
     }
-    const sql = lines.length ? lines.join("\n") : `-- Table "${tableName}" (no rows)\n`;
+    const sql = parts.join("\n");
     return new NextResponse(sql, {
       status: 200,
       headers: {
