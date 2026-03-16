@@ -29,6 +29,7 @@ import {
   Mic2,
   Database,
   Lock,
+  Table2,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -84,6 +85,10 @@ interface FileCardProps {
   transcribeError?: string;
   transcribeEstimateMinutes?: number;
   transcribeStartedAt?: number;
+  importedSheetId?: string | null;
+  onImportToTable?: () => void;
+  isExcelFile?: boolean;
+  importingToTable?: boolean;
 }
 
 interface FolderCardProps {
@@ -267,6 +272,10 @@ export function FileCard({
   transcribeEstimateMinutes,
   transcribeStartedAt,
   transcribeError,
+  importedSheetId,
+  onImportToTable,
+  isExcelFile = false,
+  importingToTable = false,
 }: FileCardProps) {
   const { icon: Icon, color, bg } = getFileIcon(mimeType);
   const [thumbnailError, setThumbnailError] = useState(false);
@@ -500,6 +509,20 @@ export function FileCard({
                 </Link>
               </>
             )}
+            {importedSheetId && (
+              <>
+                <span>•</span>
+                <Link
+                  href={`/dashboard/sheets/${importedSheetId}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600 transition-colors hover:bg-emerald-500/20"
+                  title="Открыть таблицу"
+                >
+                  <Table2 className="h-3 w-3" />
+                  Таблица
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -520,6 +543,30 @@ export function FileCard({
                 </button>
               </TooltipTrigger>
               <TooltipContent>{isVideo ? "Смотреть видео" : "Слушать аудио"}</TooltipContent>
+            </Tooltip>
+          )}
+
+          {isExcelFile && onImportToTable && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onImportToTable();
+                  }}
+                  disabled={importingToTable}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-all hover:bg-emerald-500/20 disabled:opacity-50"
+                  title="Импорт в таблицу"
+                >
+                  {importingToTable ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                  ) : (
+                    <Table2 className="h-4 w-4" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Импорт в раздел «Таблицы»</TooltipContent>
             </Tooltip>
           )}
 

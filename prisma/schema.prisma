@@ -146,6 +146,7 @@ model File {
   aiTasks               AiTask[]
   chatMessages          DocumentChatMessage[]
   vectorCollectionFiles VectorCollectionFile[]
+  sheetsFromFile        Sheet[]
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
 
@@ -242,6 +243,8 @@ model Sheet {
   userId             String                 @map("user_id")
   user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   name               String                 @map("name")
+  sourceFileId       String?                @map("source_file_id")
+  sourceFile         File?                  @relation(fields: [sourceFileId], references: [id], onDelete: SetNull)
   columns            SheetColumn[]
   cells              SheetCell[]
   n8nTableConnections N8nTableConnection[]
@@ -249,6 +252,7 @@ model Sheet {
   updatedAt          DateTime               @updatedAt @map("updated_at")
 
   @@index([userId])
+  @@index([sourceFileId])
   @@map("sheets")
 }
 

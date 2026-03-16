@@ -77,6 +77,11 @@ import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { cn, formatBytes } from "@/lib/utils";
 import { buildDashboardFilesUrl, parseFilesSection } from "@/lib/files-navigation";
 
+const EXCEL_FILE_MIMES = new Set([
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
 interface FileItem {
   id: string;
   name: string;
@@ -95,6 +100,7 @@ interface FileItem {
   hasShareLink?: boolean;
   shareLinksCount?: number;
   deletedAt?: string | null;
+  importedSheetId?: string | null;
 }
 
 interface HistoryEntry {
@@ -333,6 +339,7 @@ export function FileManager() {
   } | null>(null);
   const [chatFile, setChatFile] = useState<{ id: string; name: string } | null>(null);
   const [transcriptFile, setTranscriptFile] = useState<{ id: string; name: string } | null>(null);
+  const [importingToTableFileId, setImportingToTableFileId] = useState<string | null>(null);
 
   const [highlightOverlayFile, setHighlightOverlayFile] = useState<FileItem | null>(null);
   const highlightFileIdToScrollRef = useRef<string | null>(null);
@@ -1113,6 +1120,45 @@ export function FileManager() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Ошибка скачивания";
       toast.error(msg, { id: toastId });
+    }
+  };
+
+  const handleImportFileToTable = async (fileId: string) => {
+    setImportingToTableFileId(fileId);
+    try {
+      const res = await fetch("/api/v1/sheets/import-from-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error ?? "Ошибка импорта");
+      }
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId ? { ...f, importedSheetId: data.id ?? f.importedSheetId } : f
+        )
+      );
+      toast.success(
+        data.rowsImported != null
+          ? `Импортировано ${data.rowsImported} строк. Открыть таблицу`
+          : "Таблица создана",
+        {
+          action: data.id
+            ? {
+                label: "Открыть",
+                onClick: () => {
+                  window.location.href = `/dashboard/sheets/${data.id}`;
+                },
+              }
+            : undefined,
+        }
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка импорта в таблицу");
+    } finally {
+      setImportingToTableFileId(null);
     }
   };
 
@@ -2362,6 +2408,10 @@ export function FileManager() {
       index={index}
       isProcessable={PROCESSABLE_MIMES.has(file.mimeType)}
       isAnalyzing={analyzingFiles.has(file.id)}
+      importedSheetId={file.importedSheetId}
+      onImportToTable={EXCEL_FILE_MIMES.has(file.mimeType) ? () => handleImportFileToTable(file.id) : undefined}
+      isExcelFile={EXCEL_FILE_MIMES.has(file.mimeType)}
+      importingToTable={importingToTableFileId === file.id}
       analyzeError={analyzeError.get(file.id)}
       analyzeEstimateMinutes={analyzeEstimateMinutes.get(file.id)}
       analyzeStartedAt={analyzeStartedAt.get(file.id)}
