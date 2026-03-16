@@ -3933,8 +3933,13 @@ export function FileManager() {
           </DialogHeader>
           <div className="flex flex-wrap gap-2 pt-2">
             {existingSheetModal && (
-              <Button asChild>
-                <Link href={`/dashboard/sheets/${existingSheetModal.sheetId}`}>Открыть таблицу</Link>
+              <Button
+                onClick={() => {
+                  router.push(`/dashboard/sheets/${existingSheetModal.sheetId}`);
+                  setExistingSheetModal(null);
+                }}
+              >
+                Открыть таблицу
               </Button>
             )}
             <Button variant="outline" onClick={() => setExistingSheetModal(null)}>
