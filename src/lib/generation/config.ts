@@ -101,6 +101,14 @@ export async function setImageModelsConfig(models: ImageModelConfig[]): Promise<
 }
 
 /**
+ * Сбросить задачи и модели к умолчанию (пустой список в БД → при чтении вернутся DEFAULT_TASKS и DEFAULT_MODELS).
+ */
+export async function resetImageGenerationTasksAndModels(): Promise<void> {
+  await setImageTasksConfig([]);
+  await setImageModelsConfig([]);
+}
+
+/**
  * Наценка на кредиты при генерации изображений/видео (отдельно от маркетплейса LLM).
  * 0–95%. По умолчанию 0.
  */

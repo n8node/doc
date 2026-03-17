@@ -60,6 +60,7 @@ export default function AdminGenerationPage() {
   const [pricingItems, setPricingItems] = useState<{ modelId: string; variant: string | null; priceCredits: number; priceUsd: number | null; fetchedAt: string }[]>([]);
   const [pricingFetchedAt, setPricingFetchedAt] = useState<string | null>(null);
   const [pricingSyncing, setPricingSyncing] = useState(false);
+  const [resettingTasksModels, setResettingTasksModels] = useState(false);
 
   const loadConfig = useCallback(async () => {
     try {
@@ -122,6 +123,23 @@ export default function AdminGenerationPage() {
       toast.error("Ошибка запроса");
     } finally {
       setPricingSyncing(false);
+    }
+  };
+
+  const handleResetTasksModels = async () => {
+    setResettingTasksModels(true);
+    try {
+      const res = await fetch("/api/v1/admin/generation/config/reset-tasks-models", { method: "POST" });
+      if (!res.ok) {
+        toast.error("Ошибка сброса");
+        return;
+      }
+      await loadConfig();
+      toast.success("Задачи и модели сброшены к умолчанию");
+    } catch {
+      toast.error("Ошибка запроса");
+    } finally {
+      setResettingTasksModels(false);
     }
   };
 
@@ -407,10 +425,16 @@ export default function AdminGenerationPage() {
               ))}
             </ul>
           </div>
-          <Button onClick={handleSaveConfig} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Сохранить настройки
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={handleSaveConfig} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Сохранить настройки
+            </Button>
+            <Button variant="outline" onClick={handleResetTasksModels} disabled={resettingTasksModels}>
+              {resettingTasksModels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Сбросить к умолчанию
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
