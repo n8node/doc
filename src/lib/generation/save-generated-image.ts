@@ -1,4 +1,5 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import type { File as PrismaFile } from "@prisma/client";
 import { getS3Config } from "@/lib/s3-config";
 import { createS3Client } from "@/lib/s3";
 import {
@@ -18,7 +19,7 @@ export async function saveGeneratedImageToUserStorage(params: {
   imageUrl: string;
   fileName?: string;
   folderId?: string | null;
-}): Promise<File> {
+}): Promise<PrismaFile> {
   const { userId, imageUrl, folderId = null } = params;
 
   const res = await fetch(imageUrl, { method: "GET" });
