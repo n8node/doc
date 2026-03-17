@@ -56,6 +56,7 @@ model User {
   ownedInvites         Invite[]              @relation("InviteOwnedByUser")
   spamAlerts           SpamAlertEvent[]
   supportTickets       SupportTicket[]
+  imageGenerationTasks ImageGenerationTask[]
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
 
@@ -396,6 +397,26 @@ model AdminConfig {
 
   @@index([category])
   @@map("admin_config")
+}
+
+model ImageGenerationTask {
+  id           String    @id @default(cuid()) @map("id")
+  userId       String    @map("user_id")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kieTaskId    String    @map("kie_task_id")
+  modelId      String    @map("model_id")
+  taskType     String    @map("task_type") // text_to_image | edit_image | variations
+  status       String    @map("status") // pending | processing | success | failed
+  costCredits  Int?      @map("cost_credits")
+  resultUrl    String?   @map("result_url")
+  fileId       String?   @map("file_id") // после автосохранения на диск
+  errorMessage String?   @map("error_message")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([kieTaskId])
+  @@map("image_generation_tasks")
 }
 
 model OpenRouterTopupBatch {
