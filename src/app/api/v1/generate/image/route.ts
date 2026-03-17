@@ -140,11 +140,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
   }
 
+  const variant =
+    modelId === "kie-flux-kontext" ? (body.fluxModel ?? null) : null;
+
   const task = await prisma.imageGenerationTask.create({
     data: {
       userId,
       kieTaskId,
       modelId,
+      variant,
       taskType,
       status: "processing",
     },

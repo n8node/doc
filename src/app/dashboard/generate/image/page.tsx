@@ -448,7 +448,7 @@ export default function GenerateImagePage() {
               {resultUrl && (
                 <img src={resultUrl} alt="Результат" className="max-w-full rounded-lg border object-contain max-h-[70vh]" />
               )}
-              {/* Стоимость генерации: с учётом наценки из админки (billedCredits уже включает margin) */}
+              {/* Стоимость генерации: из прайса kie_pricing, с учётом наценки из админки */}
               {(billedCredits != null || costCredits != null) && (
                 <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-4 py-3 border border-border">
                   <Coins className="h-5 w-5 text-muted-foreground" />

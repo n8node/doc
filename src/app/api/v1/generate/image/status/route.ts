@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getKieApiKey } from "@/lib/generation/kie-api-key";
 import { getKieTaskRecord, parseKieResultJson } from "@/lib/generation/kie-image-client";
 import { getGenerationMarginPercent, applyGenerationMargin } from "@/lib/generation/config";
+import { getPriceCreditsForModel } from "@/lib/generation/kie-pricing-lookup";
 
 /**
  * GET /api/v1/generate/image/status?taskId=...
@@ -59,21 +60,24 @@ export async function GET(request: NextRequest) {
         const parsed = parseKieResultJson(record.resultJson);
         const resultUrl = parsed.resultUrls?.[0] ?? parsed.resultImageUrl;
         if (resultUrl) {
+          const costCredits = await getPriceCreditsForModel(task.modelId, task.variant ?? null);
           await prisma.imageGenerationTask.update({
             where: { id: task.id },
             data: {
               status: "success",
               resultUrl,
-              costCredits: null,
+              ...(costCredits !== null && { costCredits }),
             },
           });
+          const marginPercent = await getGenerationMarginPercent();
+          const billedCredits = costCredits != null ? applyGenerationMargin(costCredits, marginPercent) : null;
           return NextResponse.json({
             taskId: task.id,
             status: "success",
             resultUrl,
             fileId: task.fileId,
-            costCredits: null,
-            billedCredits: null,
+            costCredits,
+            billedCredits,
           });
         }
       } else if (record.state === "fail") {

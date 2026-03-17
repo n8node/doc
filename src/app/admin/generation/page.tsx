@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Key, Wifi, CheckCircle, ImageIcon, Percent, ListOrdered } from "lucide-react";
+import { Loader2, Key, Wifi, CheckCircle, ImageIcon, Percent, ListOrdered, RefreshCw, Coins } from "lucide-react";
 
 interface ImageTaskConfig {
   id: string;
@@ -45,6 +45,9 @@ export default function AdminGenerationPage() {
   const [marginPercent, setMarginPercent] = useState(0);
   const [tasks, setTasks] = useState<ImageTaskConfig[]>([]);
   const [models, setModels] = useState<ImageModelConfig[]>([]);
+  const [pricingItems, setPricingItems] = useState<{ modelId: string; variant: string | null; priceCredits: number; priceUsd: number | null; fetchedAt: string }[]>([]);
+  const [pricingFetchedAt, setPricingFetchedAt] = useState<string | null>(null);
+  const [pricingSyncing, setPricingSyncing] = useState(false);
 
   const loadConfig = useCallback(async () => {
     try {
@@ -71,9 +74,44 @@ export default function AdminGenerationPage() {
     }
   }, []);
 
+  const loadPricing = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/admin/generation/pricing");
+      const data = await res.json();
+      if (res.ok && data.items) {
+        setPricingItems(data.items);
+        setPricingFetchedAt(data.fetchedAt ?? null);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
+
+  useEffect(() => {
+    loadPricing();
+  }, [loadPricing]);
+
+  const handleSyncPricing = async () => {
+    setPricingSyncing(true);
+    try {
+      const res = await fetch("/api/v1/admin/generation/pricing/sync", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        await loadPricing();
+        toast.success(data.usedDefaults ? "Прайс обновлён (использованы значения по умолчанию)" : "Прайс синхронизирован");
+      } else {
+        toast.error("Ошибка синхронизации прайса");
+      }
+    } catch {
+      toast.error("Ошибка запроса");
+    } finally {
+      setPricingSyncing(false);
+    }
+  };
 
   const handleTestKie = async () => {
     setTesting(true);
@@ -246,6 +284,55 @@ export default function AdminGenerationPage() {
               <p className="mt-1 text-xs text-muted-foreground">0–95%. Отдельно от маркетплейса LLM.</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Coins className="h-5 w-5" />
+            Прайс Kie (стоимость в кредитах по моделям)
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Синхронизация с <a href="https://kie.ai/pricing" target="_blank" rel="noopener noreferrer" className="underline">kie.ai/pricing</a>. Рекомендуется запускать раз в сутки. При неудачном парсинге подставляются значения по умолчанию.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {pricingFetchedAt && (
+            <p className="text-xs text-muted-foreground">
+              Последнее обновление: {new Date(pricingFetchedAt).toLocaleString()}
+            </p>
+          )}
+          {pricingItems.length > 0 ? (
+            <div className="overflow-x-auto rounded border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="p-2 text-left font-medium">Модель</th>
+                    <th className="p-2 text-left font-medium">Вариант</th>
+                    <th className="p-2 text-right font-medium">Кредиты</th>
+                    <th className="p-2 text-right font-medium">USD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pricingItems.map((row, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="p-2">{row.modelId}</td>
+                      <td className="p-2 text-muted-foreground">{row.variant ?? "—"}</td>
+                      <td className="p-2 text-right">{row.priceCredits}</td>
+                      <td className="p-2 text-right">{row.priceUsd != null ? row.priceUsd.toFixed(4) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Прайс пуст. Нажмите «Обновить прайс», чтобы загрузить цены (или подставить значения по умолчанию).</p>
+          )}
+          <Button variant="outline" onClick={handleSyncPricing} disabled={pricingSyncing}>
+            {pricingSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Обновить прайс
+          </Button>
         </CardContent>
       </Card>
 
