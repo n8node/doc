@@ -84,6 +84,7 @@ services:
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - app
+      - wordpress
     restart: unless-stopped
 
   docling:
@@ -116,7 +117,43 @@ services:
       - db
     restart: unless-stopped
 
+  # База данных только для WordPress (отдельно от PostgreSQL проекта)
+  wordpress-db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_DATABASE: ${WP_DB_NAME:-wordpress}
+      MYSQL_USER: ${WP_DB_USER:-wp_user}
+      MYSQL_PASSWORD: ${WP_DB_PASSWORD:-wp_change_me}
+      MYSQL_ROOT_PASSWORD: ${WP_DB_ROOT_PASSWORD:-wp_root_change_me}
+    volumes:
+      - wordpress_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  wordpress:
+    image: wordpress:6.4-php8.2-apache
+    environment:
+      WORDPRESS_DB_HOST: wordpress-db:3306
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WP_DB_USER:-wp_user}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD:-wp_change_me}
+      WORDPRESS_TABLE_PREFIX: wp_
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME', '${WP_HOME:-https://qoqon.ru}');
+        define('WP_SITEURL', '${WP_SITEURL:-https://qoqon.ru}');
+    volumes:
+      - wordpress_data:/var/www/html
+    depends_on:
+      wordpress-db: { condition: service_healthy }
+    restart: unless-stopped
+
 volumes:
   pg_data:
   redis_data:
   n8n_db_data:
+  wordpress_db_data:
+  wordpress_data:
