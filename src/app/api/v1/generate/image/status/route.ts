@@ -67,7 +67,6 @@ export async function GET(request: NextRequest) {
               costCredits: null,
             },
           });
-          const marginPercent = await getGenerationMarginPercent();
           return NextResponse.json({
             taskId: task.id,
             status: "success",
