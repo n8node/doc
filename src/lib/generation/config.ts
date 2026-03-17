@@ -31,9 +31,9 @@ export interface ImageModelConfig {
 }
 
 const DEFAULT_TASKS: ImageTaskConfig[] = [
-  { id: "text_to_image", label: "Генерация по описанию", enabled: true, order: 1 },
-  { id: "edit_image", label: "Редактирование по промпту", enabled: true, order: 2 },
-  { id: "variations", label: "Вариации по образцу", enabled: true, order: 3 },
+  { id: "text_to_image", label: "Text to image", enabled: true, order: 1 },
+  { id: "edit_image", label: "Edit image", enabled: true, order: 2 },
+  { id: "variations", label: "Image to image", enabled: true, order: 3 },
 ];
 
 const DEFAULT_MODELS: ImageModelConfig[] = [

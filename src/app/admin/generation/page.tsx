@@ -25,9 +25,9 @@ interface ImageModelConfig {
 }
 
 const TASK_OPTIONS: { id: string; label: string }[] = [
-  { id: "text_to_image", label: "Генерация по описанию" },
-  { id: "edit_image", label: "Редактирование по промпту" },
-  { id: "variations", label: "Вариации по образцу" },
+  { id: "text_to_image", label: "Text to image" },
+  { id: "edit_image", label: "Edit image" },
+  { id: "variations", label: "Image to image" },
 ];
 
 const MODEL_OPTIONS: { id: string; name: string; description: string }[] = [
