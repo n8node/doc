@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     .sort((a, b) => a.order - b.order)
     .map((m) => ({
       id: m.id,
-      name: m.name,
+      name: (m.displayName != null && m.displayName.trim() !== "" ? m.displayName : m.name) as string,
       description: m.description,
     }));
 

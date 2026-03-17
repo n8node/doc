@@ -20,7 +20,10 @@ export interface ImageTaskConfig {
 
 export interface ImageModelConfig {
   id: string;
+  /** Системное название (Kie / API). */
   name: string;
+  /** Публичное название для интерфейса (если задано — показывается вместо name). */
+  displayName?: string;
   description?: string;
   enabled: boolean;
   taskIds: string[];

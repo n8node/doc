@@ -17,6 +17,7 @@ interface ImageTaskConfig {
 interface ImageModelConfig {
   id: string;
   name: string;
+  displayName?: string;
   description?: string;
   enabled: boolean;
   taskIds: string[];
@@ -74,7 +75,7 @@ export default function AdminGenerationPage() {
         setImageEnabled(config.imageEnabled ?? true);
         setMarginPercent(config.marginPercent ?? 0);
         setTasks(Array.isArray(config.imageTasks) && config.imageTasks.length > 0 ? config.imageTasks : TASK_OPTIONS.map((t, i) => ({ ...t, enabled: true, order: i + 1 })));
-        setModels(Array.isArray(config.imageModels) && config.imageModels.length > 0 ? config.imageModels : MODEL_OPTIONS.map((m, i) => ({ ...m, enabled: true, taskIds: m.id === "kie-4o-image" ? ["text_to_image", "edit_image", "variations"] : ["text_to_image", "edit_image"], order: i + 1 })));
+        setModels(Array.isArray(config.imageModels) && config.imageModels.length > 0 ? config.imageModels : MODEL_OPTIONS.map((m, i) => ({ ...m, displayName: m.name, enabled: true, taskIds: m.id === "kie-4o-image" ? ["text_to_image", "edit_image", "variations"] : ["text_to_image", "edit_image"], order: i + 1 })));
       }
       if (keyRes.ok && keyData.apiKeySet) {
         setApiKeySet(true);
@@ -218,6 +219,10 @@ export default function AdminGenerationPage() {
         return { ...m, taskIds: has ? m.taskIds.filter((t) => t !== taskId) : [...m.taskIds, taskId] };
       })
     );
+  };
+
+  const setModelDisplayName = (modelId: string, displayName: string) => {
+    setModels((prev) => prev.map((m) => (m.id === modelId ? { ...m, displayName: displayName.trim() || undefined } : m)));
   };
 
   if (loading) {
@@ -398,15 +403,24 @@ export default function AdminGenerationPage() {
             <ul className="space-y-3">
               {models.map((m) => (
                 <li key={m.id} className="border rounded-lg p-3 space-y-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <input
                       type="checkbox"
                       checked={m.enabled}
                       onChange={() => toggleModel(m.id)}
                       className="h-4 w-4 rounded"
                     />
-                    <span className="font-medium">{m.name}</span>
+                    <span className="font-medium">Системное: {m.name}</span>
                     {m.description && <span className="text-muted-foreground text-sm">— {m.description}</span>}
+                  </div>
+                  <div className="pl-6 space-y-1">
+                    <label className="text-xs text-muted-foreground">Публичное название (для интерфейса)</label>
+                    <Input
+                      value={m.displayName ?? ""}
+                      onChange={(e) => setModelDisplayName(m.id, e.target.value)}
+                      placeholder={m.name}
+                      className="max-w-md"
+                    />
                   </div>
                   <div className="flex flex-wrap gap-2 pl-6">
                     {TASK_OPTIONS.map((t) => (

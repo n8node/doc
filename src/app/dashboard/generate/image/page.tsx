@@ -301,7 +301,7 @@ export default function GenerateImagePage() {
             )}
           </div>
 
-          {/* Сегментированный выбор модели */}
+          {/* Модели — теги со скруглением, перенос на новую строку в пределах левой колонки */}
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">Модель</label>
             {loadingModels ? (
@@ -310,17 +310,17 @@ export default function GenerateImagePage() {
                 Загрузка...
               </div>
             ) : (
-              <div className="inline-flex rounded-lg border border-input bg-muted/30 p-0.5">
-                {models.map((m, i) => (
+              <div className="flex flex-wrap gap-2">
+                {models.map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => setSelectedModelId(m.id)}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition-colors border ${
                       selectedModelId === m.id
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    } ${i === 0 ? "rounded-l-md" : ""} ${i === models.length - 1 ? "rounded-r-md" : ""}`}
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/50 text-muted-foreground border-border hover:text-foreground hover:bg-muted"
+                    }`}
                   >
                     {m.name}
                   </button>
