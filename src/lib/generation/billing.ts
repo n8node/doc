@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { getUserPlan } from "@/lib/plan-service";
-import { getGenerationKopecksPerCredit } from "@/lib/generation/config";
+import {
+  getGenerationKopecksPerCredit,
+  getGenerationMarginPercent,
+  applyGenerationMargin,
+} from "@/lib/generation/config";
 
 /** Текущий месяц UTC (начало и конец). */
 export function currentMonthUtc(now: Date = new Date()) {
@@ -11,8 +15,19 @@ export function currentMonthUtc(now: Date = new Date()) {
   return { start, end };
 }
 
+/** Кредиты для отображения: всегда с наценкой (billedCredits или costCredits + margin). */
+function toDisplayCredits(
+  costCredits: number | null,
+  billedCredits: number | null,
+  marginPercent: number
+): number {
+  if (billedCredits != null && billedCredits > 0) return billedCredits;
+  if (costCredits != null && costCredits > 0) return applyGenerationMargin(costCredits, marginPercent);
+  return 0;
+}
+
 /**
- * Сумма списанных кредитов генерации за текущий месяц (billedCredits ?? costCredits).
+ * Сумма списанных кредитов генерации за текущий месяц (всегда с наценкой для отображения).
  * Исключает задачу с id = excludeTaskId если передан.
  */
 export async function getImageGenerationCreditsUsedThisMonth(
@@ -20,55 +35,64 @@ export async function getImageGenerationCreditsUsedThisMonth(
   excludeTaskId?: string
 ): Promise<number> {
   const { start, end } = currentMonthUtc();
-  const tasks = await prisma.imageGenerationTask.findMany({
-    where: {
-      userId,
-      status: "success",
-      createdAt: { gte: start, lte: end },
-      ...(excludeTaskId ? { id: { not: excludeTaskId } } : {}),
-    },
-    select: { costCredits: true, billedCredits: true },
-  });
-  return tasks.reduce((sum, t) => {
-    const credits = t.billedCredits ?? t.costCredits ?? 0;
-    return sum + credits;
-  }, 0);
+  const [marginPercent, tasks] = await Promise.all([
+    getGenerationMarginPercent(),
+    prisma.imageGenerationTask.findMany({
+      where: {
+        userId,
+        status: "success",
+        createdAt: { gte: start, lte: end },
+        ...(excludeTaskId ? { id: { not: excludeTaskId } } : {}),
+      },
+      select: { costCredits: true, billedCredits: true },
+    }),
+  ]);
+  return tasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
 }
 
 /** Использовано кредитов (с наценкой) и число успешных генераций за текущий месяц. */
 export async function getImageGenerationStatsThisMonth(userId: string): Promise<{ usedCredits: number; count: number }> {
   const { start, end } = currentMonthUtc();
-  const tasks = await prisma.imageGenerationTask.findMany({
-    where: { userId, status: "success", createdAt: { gte: start, lte: end } },
-    select: { costCredits: true, billedCredits: true },
-  });
-  const usedCredits = tasks.reduce((sum, t) => sum + (t.billedCredits ?? t.costCredits ?? 0), 0);
+  const [marginPercent, tasks] = await Promise.all([
+    getGenerationMarginPercent(),
+    prisma.imageGenerationTask.findMany({
+      where: { userId, status: "success", createdAt: { gte: start, lte: end } },
+      select: { costCredits: true, billedCredits: true },
+    }),
+  ]);
+  const usedCredits = tasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
   return { usedCredits, count: tasks.length };
 }
 
 /** Сумма кредитов генерации (с наценкой) с даты since. */
 export async function getImageGenerationSinceAnchor(userId: string, since: Date): Promise<number> {
-  const tasks = await prisma.imageGenerationTask.findMany({
-    where: { userId, status: "success", createdAt: { gte: since } },
-    select: { costCredits: true, billedCredits: true },
-  });
-  return tasks.reduce((sum, t) => sum + (t.billedCredits ?? t.costCredits ?? 0), 0);
+  const [marginPercent, tasks] = await Promise.all([
+    getGenerationMarginPercent(),
+    prisma.imageGenerationTask.findMany({
+      where: { userId, status: "success", createdAt: { gte: since } },
+      select: { costCredits: true, billedCredits: true },
+    }),
+  ]);
+  return tasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
 }
 
-/** Последние успешные генерации для списка списаний. */
+/** Последние успешные генерации для списка списаний (tokensTotal — с наценкой). */
 export async function getRecentImageGenerationEvents(
   userId: string,
   limit: number
 ): Promise<Array<{ id: string; tokensTotal: number; createdAt: Date }>> {
-  const tasks = await prisma.imageGenerationTask.findMany({
-    where: { userId, status: "success" },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    select: { id: true, costCredits: true, billedCredits: true, createdAt: true },
-  });
+  const [marginPercent, tasks] = await Promise.all([
+    getGenerationMarginPercent(),
+    prisma.imageGenerationTask.findMany({
+      where: { userId, status: "success" },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, costCredits: true, billedCredits: true, createdAt: true },
+    }),
+  ]);
   return tasks.map((t) => ({
     id: t.id,
-    tokensTotal: t.billedCredits ?? t.costCredits ?? 0,
+    tokensTotal: toDisplayCredits(t.costCredits, t.billedCredits, marginPercent),
     createdAt: t.createdAt,
   }));
 }

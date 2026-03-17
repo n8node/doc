@@ -44,7 +44,9 @@ export async function GET(request: NextRequest) {
     resultUrl: t.resultUrl,
     fileId: t.fileId,
     costCredits: t.costCredits,
-    billedCredits: t.costCredits != null ? applyGenerationMargin(t.costCredits, marginPercent) : null,
+    billedCredits:
+      t.billedCredits ??
+      (t.costCredits != null ? applyGenerationMargin(t.costCredits, marginPercent) : null),
   }));
 
   const total = await prisma.imageGenerationTask.count({ where: { status: "success" } });
