@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { getBrandingConfig } from "@/lib/branding";
 import { getSeoConfig } from "@/lib/seo";
+import { getYandexMetrikaConfig } from "@/lib/yandex-metrika";
+import { YandexMetrikaInjector } from "@/components/YandexMetrikaInjector";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +31,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const yandexMetrikaConfig = await getYandexMetrikaConfig();
+
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className="antialiased">
@@ -43,6 +47,7 @@ export default function RootLayout({
             </TooltipProvider>
           </SessionProvider>
         </ThemeProvider>
+        <YandexMetrikaInjector config={yandexMetrikaConfig} />
       </body>
     </html>
   );

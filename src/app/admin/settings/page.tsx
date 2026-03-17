@@ -15,8 +15,9 @@ import { MarketplaceOpenRouterActivityForm } from "@/components/admin/Marketplac
 import { MarketplaceMarginForm } from "@/components/admin/MarketplaceMarginForm";
 import { SeoSettingsForm } from "@/components/admin/SeoSettingsForm";
 import { FooterSettingsForm } from "@/components/admin/FooterSettingsForm";
+import { YandexMetrikaSettingsForm } from "@/components/admin/YandexMetrikaSettingsForm";
 
-type Tab = "s3" | "yookassa" | "ai" | "marketplace" | "telegram" | "auth" | "email" | "branding" | "seo" | "footer";
+type Tab = "s3" | "yookassa" | "ai" | "marketplace" | "telegram" | "auth" | "email" | "branding" | "seo" | "footer" | "analytics";
 
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
@@ -27,6 +28,7 @@ function AdminSettingsContent() {
     branding: "Брендинг",
     seo: "SEO",
     footer: "Футер",
+    analytics: "Яндекс.Метрика",
     auth: "Авторизация",
     email: "Email / SMTP",
     s3: "S3 хранилище",
@@ -39,7 +41,7 @@ function AdminSettingsContent() {
   return (
     <div className="space-y-6">
       <div className="flex gap-2 border-b border-border pb-2">
-        {(["branding", "seo", "footer", "auth", "email", "s3", "yookassa", "ai", "marketplace", "telegram"] as const).map((t) => (
+        {(["branding", "seo", "footer", "analytics", "auth", "email", "s3", "yookassa", "ai", "marketplace", "telegram"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -58,6 +60,7 @@ function AdminSettingsContent() {
         {tab === "branding" && <BrandingSettingsForm />}
         {tab === "seo" && <SeoSettingsForm />}
         {tab === "footer" && <FooterSettingsForm />}
+        {tab === "analytics" && <YandexMetrikaSettingsForm />}
         {tab === "s3" && <S3SettingsForm />}
         {tab === "yookassa" && <YookassaSettingsForm />}
         {tab === "ai" && <AiProvidersForm />}
