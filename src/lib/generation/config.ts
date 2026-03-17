@@ -5,6 +5,7 @@ const KEYS = {
   imageTasks: "generation.image_tasks",
   imageModels: "generation.image_models",
   marginPercent: "generation.margin_percent",
+  kopecksPerCredit: "generation.kopecks_per_credit",
 } as const;
 
 const DEFAULT_MARGIN = 0;
@@ -139,6 +140,25 @@ export async function setGenerationMarginPercent(percent: number): Promise<void>
 export function applyGenerationMargin(rawCredits: number, marginPercent: number): number {
   if (marginPercent <= 0) return rawCredits;
   return Math.max(rawCredits, Math.round((rawCredits * (100 + marginPercent)) / 100));
+}
+
+const DEFAULT_KOPECKS_PER_CREDIT = 10;
+
+/** Курс: копеек за 1 кредит генерации (для списания с кошелька при исчерпании квоты). */
+export async function getGenerationKopecksPerCredit(): Promise<number> {
+  const v = await configStore.get(KEYS.kopecksPerCredit);
+  if (v == null || v === "") return DEFAULT_KOPECKS_PER_CREDIT;
+  const n = parseInt(v, 10);
+  if (Number.isNaN(n) || n < 0) return DEFAULT_KOPECKS_PER_CREDIT;
+  return n;
+}
+
+export async function setGenerationKopecksPerCredit(kopecks: number): Promise<void> {
+  const value = Math.max(0, Math.round(kopecks));
+  await configStore.set(KEYS.kopecksPerCredit, String(value), {
+    category: "generation",
+    description: "Копеек за 1 кредит генерации (докупка с кошелька)",
+  });
 }
 
 export const GENERATION_MARGIN_CONFIG_KEY = KEYS.marginPercent;

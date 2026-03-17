@@ -3,7 +3,7 @@
 ## Что сделано
 
 1. **БД**: таблица `image_generation_tasks` (миграция `20260317180000_add_image_generation_tasks`).
-2. **Конфиг**: ключи AdminConfig — `kie.api_key`, `generation.image_enabled`, `generation.image_tasks`, `generation.image_models`, `generation.margin_percent` (наценка на кредиты отдельно от маркетплейса LLM).
+2. **Конфиг**: ключи AdminConfig — `kie.api_key`, `generation.image_enabled`, `generation.image_tasks`, `generation.image_models`, `generation.margin_percent`, `generation.kopecks_per_credit` (курс: копеек за 1 кредит при доплате с кошелька).
 3. **Бэкенд**: клиент Kie (4o Image, Flux Kontext), создание задачи, опрос статуса, webhook; автосохранение результата на диск пользователя (S3 + запись File).
 4. **API**:  
    - `POST /api/v1/generate/image` — запуск генерации  
@@ -13,7 +13,7 @@
    - `GET /api/v1/files/:id/generation-url` — временный URL файла для Kie  
    - `POST /api/v1/webhooks/kie-image` — callback от Kie (без авторизации)  
    - Админ: `GET/PUT /api/v1/admin/generation/config`, `GET/POST /api/v1/admin/kie/api-key`, `GET /api/v1/admin/kie/status`
-5. **Админка**: страница «Генерация изображений» — API-ключ Kie, вкл/выкл раздела, наценка %, задачи и модели. В форме тарифа добавлена фича «Генерация изображений (Kie.ai)» (`content_generation`).
+5. **Админка**: страница «Генерация изображений» — API-ключ Kie, вкл/выкл раздела, наценка %, курс (коп./кредит) для доплаты с кошелька, задачи и модели. В форме тарифа: фича «Генерация изображений (Kie.ai)» и квота «Кредитов на генерацию / мес»; при исчерпании квоты списание идёт с кошелька маркетплейса по курсу.
 6. **Кабинет**: страница `/dashboard/generate/image` — выбор задачи → модели → промпт (и при необходимости изображения из «Мои файлы») → отправка → опрос статуса → результат (картинка, стоимость в кредитах, ссылка на файл на диске).
 
 ## Как проверить
@@ -26,6 +26,9 @@ docker exec -i dropbox-ru-db-1 psql -U postgres -d dropbox_ru < prisma/migration
 
 # Прайс Kie и поле variant у задач
 docker exec -i dropbox-ru-db-1 psql -U postgres -d dropbox_ru < prisma/migrations/20260317200000_add_kie_pricing_and_task_variant/migration.sql
+
+# Квота генерации в тарифах и billed_credits
+docker exec -i dropbox-ru-db-1 psql -U postgres -d dropbox_ru < prisma/migrations/20260318120000_add_generation_quota_and_billing/migration.sql
 
 # или локально
 npx prisma migrate deploy

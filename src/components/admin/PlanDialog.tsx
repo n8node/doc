@@ -25,6 +25,7 @@ interface PlanData {
   searchTokensQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   ragDocumentsQuota?: number | null;
+  imageGenerationCreditsQuota?: number | null;
   freePlanDurationDays?: number | null;
   transcriptionMinutesQuota?: number | null;
   maxTranscriptionVideoMinutes?: number;
@@ -93,6 +94,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
   const [chatTokensQuota, setChatTokensQuota] = useState("");
   const [searchTokensQuota, setSearchTokensQuota] = useState("");
+  const [imageGenerationCreditsQuota, setImageGenerationCreditsQuota] = useState("");
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState("");
   const [maxTranscriptionVideoMinutes, setMaxTranscriptionVideoMinutes] = useState("60");
   const [maxTranscriptionAudioMinutes, setMaxTranscriptionAudioMinutes] = useState("120");
@@ -134,6 +136,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setSearchTokensQuota(
         plan.searchTokensQuota != null ? String(plan.searchTokensQuota) : "",
       );
+      setImageGenerationCreditsQuota(
+        plan.imageGenerationCreditsQuota != null ? String(plan.imageGenerationCreditsQuota) : "",
+      );
       setAiAnalysisDocumentsQuota(
         plan.aiAnalysisDocumentsQuota != null ? String(plan.aiAnalysisDocumentsQuota) : "",
       );
@@ -166,6 +171,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setEmbeddingTokensQuota("");
       setChatTokensQuota("");
       setSearchTokensQuota("");
+      setImageGenerationCreditsQuota("");
       setAiAnalysisDocumentsQuota("");
       setRagDocumentsQuota("");
       setFreePlanDurationDays("");
@@ -214,6 +220,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         : null,
       searchTokensQuota: searchTokensQuota.trim()
         ? Math.max(0, parseInt(searchTokensQuota, 10) || 0) || null
+        : null,
+      imageGenerationCreditsQuota: imageGenerationCreditsQuota.trim()
+        ? Math.max(0, parseInt(imageGenerationCreditsQuota, 10) || 0) || null
         : null,
       aiAnalysisDocumentsQuota: aiAnalysisDocumentsQuota.trim()
         ? Math.max(0, parseInt(aiAnalysisDocumentsQuota, 10) || 0) || null
@@ -384,6 +393,18 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
                   min={0}
                   value={searchTokensQuota}
                   onChange={(e) => setSearchTokensQuota(e.target.value)}
+                  placeholder="Без лимита"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Кредитов на генерацию (изобр.) / мес
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={imageGenerationCreditsQuota}
+                  onChange={(e) => setImageGenerationCreditsQuota(e.target.value)}
                   placeholder="Без лимита"
                 />
               </div>

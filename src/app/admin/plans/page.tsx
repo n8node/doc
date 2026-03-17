@@ -35,6 +35,7 @@ interface PlanItem {
   embeddingTokensQuota: number | null;
   chatTokensQuota?: number | null;
   searchTokensQuota?: number | null;
+  imageGenerationCreditsQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   ragDocumentsQuota?: number | null;
   freePlanDurationDays?: number | null;
@@ -133,10 +134,11 @@ function PlanCard({
             <div className="flex items-center gap-2 text-sm">
               <BrainCircuit className="h-4 w-4 text-muted-foreground" />
               <span>
-                Чат/Поиск:{" "}
+                Чат/Поиск/Генерация:{" "}
                 {[
                   plan.chatTokensQuota,
                   plan.searchTokensQuota,
+                  plan.imageGenerationCreditsQuota,
                 ]
                   .map((v) => (v != null ? `${v.toLocaleString()}` : "∞"))
                   .join(" / ")}

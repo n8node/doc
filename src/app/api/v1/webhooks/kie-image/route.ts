@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { saveGeneratedImageToUserStorage } from "@/lib/generation/save-generated-image";
 import { parseKieResultJson } from "@/lib/generation/kie-image-client";
 import { getPriceCreditsForModel } from "@/lib/generation/kie-pricing-lookup";
+import { getGenerationMarginPercent, applyGenerationMargin } from "@/lib/generation/config";
+import { applyGenerationBilling } from "@/lib/generation/billing";
 
 /**
  * POST /api/v1/webhooks/kie-image
@@ -77,6 +79,9 @@ export async function POST(request: NextRequest) {
   }
 
   const costCredits = await getPriceCreditsForModel(task.modelId, task.variant ?? null);
+  const marginPercent = await getGenerationMarginPercent();
+  const billedCredits =
+    costCredits !== null ? applyGenerationMargin(costCredits, marginPercent) : null;
 
   let fileId: string | null = null;
   try {
@@ -95,6 +100,7 @@ export async function POST(request: NextRequest) {
         resultUrl,
         errorMessage: err instanceof Error ? err.message : "Failed to save to storage",
         ...(costCredits !== null && { costCredits }),
+        ...(billedCredits !== null && { billedCredits }),
       },
     });
     return NextResponse.json({ ok: true });
@@ -107,8 +113,16 @@ export async function POST(request: NextRequest) {
       resultUrl,
       fileId,
       ...(costCredits !== null && { costCredits }),
+      ...(billedCredits !== null && { billedCredits }),
     },
   });
+
+  if (billedCredits != null && billedCredits > 0) {
+    const billing = await applyGenerationBilling(task.userId, task.id, billedCredits);
+    if (!billing.ok) {
+      console.warn("[kie-image webhook] Billing failed:", billing.error, "taskId:", task.id);
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }

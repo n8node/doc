@@ -11,6 +11,8 @@ import {
   setImageModelsConfig,
   getGenerationMarginPercent,
   setGenerationMarginPercent,
+  getGenerationKopecksPerCredit,
+  setGenerationKopecksPerCredit,
   type ImageTaskConfig,
   type ImageModelConfig,
 } from "@/lib/generation/config";
@@ -27,11 +29,12 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [imageEnabled, imageTasks, imageModels, marginPercent] = await Promise.all([
+  const [imageEnabled, imageTasks, imageModels, marginPercent, kopecksPerCredit] = await Promise.all([
     getImageGenerationEnabled(),
     getImageTasksConfig(),
     getImageModelsConfig(),
     getGenerationMarginPercent(),
+    getGenerationKopecksPerCredit(),
   ]);
 
   return NextResponse.json({
@@ -39,13 +42,14 @@ export async function GET() {
     imageTasks,
     imageModels,
     marginPercent,
+    kopecksPerCredit,
   });
 }
 
 /**
  * PUT /api/v1/admin/generation/config
  * Обновить конфиг генерации.
- * Body: { imageEnabled?, imageTasks?, imageModels?, marginPercent? }
+ * Body: { imageEnabled?, imageTasks?, imageModels?, marginPercent?, kopecksPerCredit? }
  */
 export async function PUT(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -60,6 +64,7 @@ export async function PUT(request: NextRequest) {
     imageTasks?: ImageTaskConfig[];
     imageModels?: ImageModelConfig[];
     marginPercent?: number;
+    kopecksPerCredit?: number;
   };
   try {
     body = await request.json();
@@ -78,6 +83,9 @@ export async function PUT(request: NextRequest) {
   }
   if (typeof body.marginPercent === "number") {
     await setGenerationMarginPercent(body.marginPercent);
+  }
+  if (typeof body.kopecksPerCredit === "number") {
+    await setGenerationKopecksPerCredit(body.kopecksPerCredit);
   }
 
   return NextResponse.json({ ok: true });

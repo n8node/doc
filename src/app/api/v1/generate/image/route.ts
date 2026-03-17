@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
-import { hasFeature } from "@/lib/plan-service";
+import { hasFeature, getUserPlan } from "@/lib/plan-service";
 import { getImageGenerationEnabled, getImageTasksConfig, getImageModelsConfig } from "@/lib/generation/config";
+import { getImageGenerationCreditsUsedThisMonth } from "@/lib/generation/billing";
 import { getKieApiKey } from "@/lib/generation/kie-api-key";
 import { create4oImageTask, createFluxImageTask, createMarketTask } from "@/lib/generation/kie-image-client";
 import { isMarketModel, getKieModelForMarket, buildMarketInput } from "@/lib/generation/kie-market-models";
@@ -36,6 +37,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Сервис генерации не настроен. Обратитесь к администратору." },
       { status: 503 }
+    );
+  }
+
+  const [plan, usedCreditsThisMonth, user] = await Promise.all([
+    getUserPlan(userId),
+    getImageGenerationCreditsUsedThisMonth(userId),
+    prisma.user.findUnique({ where: { id: userId }, select: { llmWalletBalanceCents: true } }),
+  ]);
+  const quota = plan?.imageGenerationCreditsQuota;
+  const remainingQuota = quota != null ? Math.max(0, quota - usedCreditsThisMonth) : null;
+  const balanceCents = user?.llmWalletBalanceCents ?? 0;
+  const canUseQuota = remainingQuota === null || remainingQuota > 0;
+  if (!canUseQuota && balanceCents <= 0) {
+    return NextResponse.json(
+      { error: "Исчерпана квота генерации по тарифу. Пополните кошелёк для доплаты или смените тариф." },
+      { status: 403 }
     );
   }
 

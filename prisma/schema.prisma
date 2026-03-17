@@ -359,6 +359,7 @@ model Plan {
   maxTranscriptionAudioMinutes Int         @default(120) @map("max_transcription_audio_minutes") // макс. длительность аудио в одном файле
   transcriptionProviderId      String?     @map("transcription_provider_id") // премиум-провайдер, null = Docling/Whisper
   transcriptionProvider        AiProvider? @relation("PlanTranscriptionProvider", fields: [transcriptionProviderId], references: [id])
+  imageGenerationCreditsQuota   Int?        @map("image_generation_credits_quota") // кредитов на генерацию в месяц по тарифу, null = без лимита/отключено
   priceMonthly                 Int?        @map("price_monthly")
   priceYearly                  Int?        @map("price_yearly")
   sortOrder                    Int         @default(0) @map("sort_order")
@@ -409,6 +410,7 @@ model ImageGenerationTask {
   taskType     String    @map("task_type") // text_to_image | edit_image | variations
   status       String    @map("status") // pending | processing | success | failed
   costCredits  Int?      @map("cost_credits")
+  billedCredits Int?     @map("billed_credits") // с наценкой, для учёта квоты и биллинга
   resultUrl    String?   @map("result_url")
   fileId       String?   @map("file_id") // после автосохранения на диск
   errorMessage String?   @map("error_message")

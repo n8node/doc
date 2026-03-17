@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (task.status === "success") {
-    const marginPercent = await getGenerationMarginPercent();
-    const billedCredits = task.costCredits != null ? applyGenerationMargin(task.costCredits, marginPercent) : null;
+    const billedCredits =
+      task.billedCredits ?? (task.costCredits != null ? applyGenerationMargin(task.costCredits, await getGenerationMarginPercent()) : null);
     return NextResponse.json({
       taskId: task.id,
       status: task.status,
@@ -61,16 +61,17 @@ export async function GET(request: NextRequest) {
         const resultUrl = parsed.resultUrls?.[0] ?? parsed.resultImageUrl;
         if (resultUrl) {
           const costCredits = await getPriceCreditsForModel(task.modelId, task.variant ?? null);
+          const marginPercent = await getGenerationMarginPercent();
+          const billedCredits = costCredits != null ? applyGenerationMargin(costCredits, marginPercent) : null;
           await prisma.imageGenerationTask.update({
             where: { id: task.id },
             data: {
               status: "success",
               resultUrl,
               ...(costCredits !== null && { costCredits }),
+              ...(billedCredits !== null && { billedCredits }),
             },
           });
-          const marginPercent = await getGenerationMarginPercent();
-          const billedCredits = costCredits != null ? applyGenerationMargin(costCredits, marginPercent) : null;
           return NextResponse.json({
             taskId: task.id,
             status: "success",

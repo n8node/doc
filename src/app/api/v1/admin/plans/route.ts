@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
-    chatTokensQuota, searchTokensQuota,
+    chatTokensQuota, searchTokensQuota, imageGenerationCreditsQuota,
     aiAnalysisDocumentsQuota,
     ragDocumentsQuota,
     freePlanDurationDays,
@@ -108,6 +108,10 @@ export async function POST(req: NextRequest) {
         searchTokensQuota === undefined || searchTokensQuota === null || searchTokensQuota === ""
           ? null
           : Math.max(0, parseInt(String(searchTokensQuota), 10) || 0) || null,
+      imageGenerationCreditsQuota:
+        imageGenerationCreditsQuota === undefined || imageGenerationCreditsQuota === null || imageGenerationCreditsQuota === ""
+          ? null
+          : Math.max(0, parseInt(String(imageGenerationCreditsQuota), 10) || 0) || null,
       aiAnalysisDocumentsQuota: analysisDocsQuota,
       ragDocumentsQuota:
         ragDocumentsQuota === undefined || ragDocumentsQuota === null || ragDocumentsQuota === ""

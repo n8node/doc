@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const body = await req.json();
   const {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
-    chatTokensQuota, searchTokensQuota,
+    chatTokensQuota, searchTokensQuota, imageGenerationCreditsQuota,
     aiAnalysisDocumentsQuota,
     ragDocumentsQuota,
     freePlanDurationDays,
@@ -51,6 +51,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       searchTokensQuota === null || searchTokensQuota === ""
         ? null
         : Math.max(0, parseInt(String(searchTokensQuota), 10) || 0) || null;
+  }
+  if (imageGenerationCreditsQuota !== undefined) {
+    data.imageGenerationCreditsQuota =
+      imageGenerationCreditsQuota === null || imageGenerationCreditsQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(imageGenerationCreditsQuota), 10) || 0) || null;
   }
   if (aiAnalysisDocumentsQuota !== undefined) {
     data.aiAnalysisDocumentsQuota =
@@ -102,6 +108,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     embeddingTokensQuota: plan.embeddingTokensQuota,
     chatTokensQuota: plan.chatTokensQuota,
     searchTokensQuota: plan.searchTokensQuota,
+    imageGenerationCreditsQuota: plan.imageGenerationCreditsQuota,
     aiAnalysisDocumentsQuota: plan.aiAnalysisDocumentsQuota,
     ragDocumentsQuota: plan.ragDocumentsQuota,
     freePlanDurationDays: plan.freePlanDurationDays,

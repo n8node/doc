@@ -56,6 +56,7 @@ export default function AdminGenerationPage() {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [imageEnabled, setImageEnabled] = useState(true);
   const [marginPercent, setMarginPercent] = useState(0);
+  const [kopecksPerCredit, setKopecksPerCredit] = useState(10);
   const [tasks, setTasks] = useState<ImageTaskConfig[]>([]);
   const [models, setModels] = useState<ImageModelConfig[]>([]);
   const [pricingItems, setPricingItems] = useState<{ id: string; modelId: string; variant: string | null; priceCredits: number; priceUsd: number | null; fetchedAt: string }[]>([]);
@@ -79,6 +80,7 @@ export default function AdminGenerationPage() {
       if (configRes.ok) {
         setImageEnabled(config.imageEnabled ?? true);
         setMarginPercent(config.marginPercent ?? 0);
+        setKopecksPerCredit(typeof config.kopecksPerCredit === "number" ? config.kopecksPerCredit : 10);
         setTasks(Array.isArray(config.imageTasks) && config.imageTasks.length > 0 ? config.imageTasks : TASK_OPTIONS.map((t, i) => ({ ...t, enabled: true, order: i + 1 })));
         setModels(Array.isArray(config.imageModels) && config.imageModels.length > 0 ? config.imageModels : MODEL_OPTIONS.map((m, i) => ({ ...m, displayName: m.name, enabled: true, taskIds: m.id === "kie-4o-image" ? ["text_to_image", "edit_image", "variations"] : ["text_to_image", "edit_image"], order: i + 1 })));
       }
@@ -247,6 +249,7 @@ export default function AdminGenerationPage() {
         body: JSON.stringify({
           imageEnabled,
           marginPercent: Math.max(0, Math.min(95, Math.round(marginPercent))),
+          kopecksPerCredit: Math.max(0, Math.round(kopecksPerCredit)),
           imageTasks: tasks,
           imageModels: models,
         }),
@@ -374,6 +377,17 @@ export default function AdminGenerationPage() {
                 className="mt-1 w-24"
               />
               <p className="mt-1 text-xs text-muted-foreground">0–95%. Отдельно от маркетплейса LLM.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Курс: копеек за 1 кредит генерации (докупка с кошелька)</label>
+              <Input
+                type="number"
+                min={0}
+                value={kopecksPerCredit}
+                onChange={(e) => setKopecksPerCredit(parseInt(e.target.value, 10) || 0)}
+                className="mt-1 w-32"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">При исчерпании квоты по тарифу списание с кошелька: кредиты × это значение = копейки.</p>
             </div>
           </div>
         </CardContent>
