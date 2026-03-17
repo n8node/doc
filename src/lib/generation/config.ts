@@ -133,14 +133,12 @@ export async function setGenerationMarginPercent(percent: number): Promise<void>
 }
 
 /**
- * Применить наценку к количеству кредитов (для отображения пользователю).
- * marginPercent 50 → billedCredits = rawCredits * 100 / (100 - 50) = 2×.
+ * Применить наценку к количеству кредитов (наценка на себестоимость).
+ * marginPercent 90 → billedCredits = rawCredits * (100 + 90) / 100 = 1.9× (12 → 23).
  */
 export function applyGenerationMargin(rawCredits: number, marginPercent: number): number {
   if (marginPercent <= 0) return rawCredits;
-  const divisor = 100 - marginPercent;
-  if (divisor <= 0) return rawCredits;
-  return Math.max(rawCredits, Math.round((rawCredits * 100) / divisor));
+  return Math.max(rawCredits, Math.round((rawCredits * (100 + marginPercent)) / 100));
 }
 
 export const GENERATION_MARGIN_CONFIG_KEY = KEYS.marginPercent;
