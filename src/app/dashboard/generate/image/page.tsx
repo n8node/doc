@@ -220,7 +220,9 @@ export default function GenerateImagePage() {
       URL.revokeObjectURL(uploadPreviewUrl);
       setUploadPreviewUrl(null);
     }
-    fileInputRef.current?.value && (fileInputRef.current.value = "");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleReset = () => {
