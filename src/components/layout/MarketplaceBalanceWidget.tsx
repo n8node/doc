@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -110,11 +110,13 @@ export function MarketplaceBalanceWidget() {
                 {topupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Пополнить
               </Button>
-              <Button variant="outline" asChild>
-                <Link href="/dashboard/marketplace" onClick={() => setOpen(false)}>
-                  Перейти в API маркетплейс
-                </Link>
-              </Button>
+              <Link
+                href="/dashboard/marketplace"
+                onClick={() => setOpen(false)}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Перейти в API маркетплейс
+              </Link>
             </div>
           </div>
         </DialogContent>
