@@ -6,8 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { getBrandingConfig } from "@/lib/branding";
 import { getSeoConfig } from "@/lib/seo";
-import { getYandexMetrikaConfig } from "@/lib/yandex-metrika";
-import { YandexMetrikaInjector } from "@/components/YandexMetrikaInjector";
+import { getYandexMetrikaConfig, buildYandexMetrikaScriptInline } from "@/lib/yandex-metrika";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +33,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const yandexMetrikaConfig = await getYandexMetrikaConfig();
+  const ymConfig = await getYandexMetrikaConfig();
+  const ymScript = buildYandexMetrikaScriptInline(ymConfig);
+  const ymCounterId = ymConfig.counterId?.trim();
+  const hasYm = ymCounterId && /^\d+$/.test(ymCounterId);
 
   return (
     <html lang="ru" suppressHydrationWarning>
@@ -47,7 +49,23 @@ export default async function RootLayout({
             </TooltipProvider>
           </SessionProvider>
         </ThemeProvider>
-        <YandexMetrikaInjector config={yandexMetrikaConfig} />
+        {hasYm && ymScript ? (
+          <>
+            <script
+              type="text/javascript"
+              dangerouslySetInnerHTML={{ __html: ymScript }}
+            />
+            <noscript>
+              <div>
+                <img
+                  src={`https://mc.yandex.ru/watch/${ymCounterId}`}
+                  style={{ position: "absolute", left: -9999 }}
+                  alt=""
+                />
+              </div>
+            </noscript>
+          </>
+        ) : null}
       </body>
     </html>
   );
