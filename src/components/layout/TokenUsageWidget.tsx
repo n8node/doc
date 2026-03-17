@@ -51,7 +51,16 @@ interface TokenUsageResponse {
     quota: number | null;
     used: number;
     count: number;
+    sinceAnchorUsed: number;
   };
+  /** Последние списания по генерации картинок (для объединения с recentEvents). */
+  recentImageGenerationEvents?: Array<{
+    id: string;
+    category: "IMAGE_GENERATION";
+    title: string;
+    tokensTotal: number;
+    createdAt: string | Date;
+  }>;
 }
 
 const CATEGORY_LABELS: Record<CategoryKey, string> = {
@@ -302,30 +311,51 @@ export function TokenUsageWidget() {
                       <span>{formatNumber(data.sinceAnchor.byCategory[key] ?? 0)}</span>
                     </div>
                   ))}
+                  {data.imageGeneration != null && (
+                    <div className="flex items-center justify-between">
+                      <span>Генерация картинок</span>
+                      <span>{formatNumber(data.imageGeneration.sinceAnchorUsed)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="rounded-xl border border-border p-4">
                 <p className="text-sm font-medium">Последние списания</p>
-                {data.recentEvents.length === 0 ? (
-                  <p className="mt-2 text-xs text-muted-foreground">Нет списаний в текущем периоде</p>
-                ) : (
-                  <div className="mt-2 space-y-1.5 text-xs">
-                    {data.recentEvents.slice(0, 10).map((event) => (
-                      <div key={event.id} className="flex items-center justify-between rounded-md bg-surface2/40 px-2 py-1.5">
-                        <div>
-                          <p>{event.title}</p>
-                          <p className="text-muted-foreground">
-                            {new Date(event.createdAt).toLocaleString("ru-RU")}
-                          </p>
+                {(() => {
+                  const imageEvents = (data.recentImageGenerationEvents ?? []).map((e) => ({
+                    id: e.id,
+                    title: e.title,
+                    tokensTotal: e.tokensTotal,
+                    createdAt: typeof e.createdAt === "string" ? e.createdAt : e.createdAt.toISOString(),
+                  }));
+                  const tokenEvents = data.recentEvents.map((e) => ({
+                    id: e.id,
+                    title: e.title,
+                    tokensTotal: e.tokensTotal,
+                    createdAt: typeof e.createdAt === "string" ? e.createdAt : new Date(e.createdAt).toISOString(),
+                  }));
+                  const merged = [...tokenEvents, ...imageEvents]
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .slice(0, 10);
+                  return merged.length === 0 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">Нет списаний в текущем периоде</p>
+                  ) : (
+                    <div className="mt-2 space-y-1.5 text-xs">
+                      {merged.map((event) => (
+                        <div key={event.id} className="flex items-center justify-between rounded-md bg-surface2/40 px-2 py-1.5">
+                          <div>
+                            <p>{event.title}</p>
+                            <p className="text-muted-foreground">
+                              {new Date(event.createdAt).toLocaleString("ru-RU")}
+                            </p>
+                          </div>
+                          <p className="font-medium">{formatNumber(event.tokensTotal)}</p>
                         </div>
-                        <p className="font-medium">
-                          {formatNumber(event.tokensTotal)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}

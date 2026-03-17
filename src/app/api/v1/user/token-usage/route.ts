@@ -7,7 +7,11 @@ import {
   getUserBillingContext,
 } from "@/lib/ai/token-usage";
 import { hasFeature, getUserPlan } from "@/lib/plan-service";
-import { getImageGenerationStatsThisMonth } from "@/lib/generation/billing";
+import {
+  getImageGenerationStatsThisMonth,
+  getImageGenerationSinceAnchor,
+  getRecentImageGenerationEvents,
+} from "@/lib/generation/billing";
 import { prisma } from "@/lib/prisma";
 
 type CategoryKey = "CHAT_DOCUMENT" | "SEARCH" | "EMBEDDING" | "TRANSCRIPTION";
@@ -44,7 +48,16 @@ export async function GET(request: NextRequest) {
     hasFeature(userId, "content_generation"),
   ]);
 
-  const [current, sinceRegistration, recent, currentEvents, firstSucceededPayment, allBillableEvents, imageGenStats] = await Promise.all([
+  const [
+    current,
+    sinceRegistration,
+    recent,
+    currentEvents,
+    firstSucceededPayment,
+    allBillableEvents,
+    imageGenStats,
+    imageGenSinceAnchorResult,
+  ] = await Promise.all([
     getTokenUsageSummary(userId, { since: billing.cycleStart }),
     getTokenUsageSummary(userId, { since: billing.anchorType === "registration" ? billing.anchorDate : undefined }),
     prisma.tokenUsageEvent.findMany({
@@ -92,6 +105,12 @@ export async function GET(request: NextRequest) {
       select: { tokensTotal: true, createdAt: true },
     }),
     canGenerateImages ? getImageGenerationStatsThisMonth(userId) : Promise.resolve(null),
+    canGenerateImages
+      ? Promise.all([
+          getImageGenerationSinceAnchor(userId, billing.anchorDate),
+          getRecentImageGenerationEvents(userId, 20),
+        ])
+      : Promise.resolve([0, []] as const),
   ]);
 
   const fileIds = Array.from(
@@ -215,14 +234,25 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const [imageGenSinceAnchor = 0, recentImageGenEvents = []] = imageGenSinceAnchorResult;
   const imageGeneration =
     canGenerateImages && imageGenStats
       ? {
           quota: plan?.imageGenerationCreditsQuota ?? null,
           used: imageGenStats.usedCredits,
           count: imageGenStats.count,
+          sinceAnchorUsed: imageGenSinceAnchor,
         }
       : undefined;
+  const recentImageGenerationEvents = canGenerateImages
+    ? recentImageGenEvents.map((e) => ({
+        id: `img:${e.id}`,
+        category: "IMAGE_GENERATION" as const,
+        title: "Генерация картинок",
+        tokensTotal: e.tokensTotal,
+        createdAt: e.createdAt,
+      }))
+    : [];
 
   return NextResponse.json({
     plan: billing.plan,
@@ -246,5 +276,6 @@ export async function GET(request: NextRequest) {
       firstPaidAt,
     },
     imageGeneration,
+    recentImageGenerationEvents,
   });
 }

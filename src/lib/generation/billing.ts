@@ -46,6 +46,33 @@ export async function getImageGenerationStatsThisMonth(userId: string): Promise<
   return { usedCredits, count: tasks.length };
 }
 
+/** Сумма кредитов генерации (с наценкой) с даты since. */
+export async function getImageGenerationSinceAnchor(userId: string, since: Date): Promise<number> {
+  const tasks = await prisma.imageGenerationTask.findMany({
+    where: { userId, status: "success", createdAt: { gte: since } },
+    select: { costCredits: true, billedCredits: true },
+  });
+  return tasks.reduce((sum, t) => sum + (t.billedCredits ?? t.costCredits ?? 0), 0);
+}
+
+/** Последние успешные генерации для списка списаний. */
+export async function getRecentImageGenerationEvents(
+  userId: string,
+  limit: number
+): Promise<Array<{ id: string; tokensTotal: number; createdAt: Date }>> {
+  const tasks = await prisma.imageGenerationTask.findMany({
+    where: { userId, status: "success" },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { id: true, costCredits: true, billedCredits: true, createdAt: true },
+  });
+  return tasks.map((t) => ({
+    id: t.id,
+    tokensTotal: t.billedCredits ?? t.costCredits ?? 0,
+    createdAt: t.createdAt,
+  }));
+}
+
 export interface ApplyGenerationBillingResult {
   ok: boolean;
   error?: string;
