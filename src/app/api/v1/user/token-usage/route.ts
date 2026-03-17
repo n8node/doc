@@ -6,6 +6,8 @@ import {
   getTotalQuota,
   getUserBillingContext,
 } from "@/lib/ai/token-usage";
+import { hasFeature, getUserPlan } from "@/lib/plan-service";
+import { getImageGenerationStatsThisMonth } from "@/lib/generation/billing";
 import { prisma } from "@/lib/prisma";
 
 type CategoryKey = "CHAT_DOCUMENT" | "SEARCH" | "EMBEDDING" | "TRANSCRIPTION";
@@ -37,7 +39,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const [current, sinceRegistration, recent, currentEvents, firstSucceededPayment, allBillableEvents] = await Promise.all([
+  const [plan, canGenerateImages] = await Promise.all([
+    getUserPlan(userId),
+    hasFeature(userId, "content_generation"),
+  ]);
+
+  const [current, sinceRegistration, recent, currentEvents, firstSucceededPayment, allBillableEvents, imageGenStats] = await Promise.all([
     getTokenUsageSummary(userId, { since: billing.cycleStart }),
     getTokenUsageSummary(userId, { since: billing.anchorType === "registration" ? billing.anchorDate : undefined }),
     prisma.tokenUsageEvent.findMany({
@@ -84,6 +91,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
       select: { tokensTotal: true, createdAt: true },
     }),
+    canGenerateImages ? getImageGenerationStatsThisMonth(userId) : Promise.resolve(null),
   ]);
 
   const fileIds = Array.from(
@@ -207,6 +215,15 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const imageGeneration =
+    canGenerateImages && imageGenStats
+      ? {
+          quota: plan?.imageGenerationCreditsQuota ?? null,
+          used: imageGenStats.usedCredits,
+          count: imageGenStats.count,
+        }
+      : undefined;
+
   return NextResponse.json({
     plan: billing.plan,
     anchorType: billing.anchorType,
@@ -228,5 +245,6 @@ export async function GET(request: NextRequest) {
       paidTokens,
       firstPaidAt,
     },
+    imageGeneration,
   });
 }

@@ -3,7 +3,7 @@ import { getUserPlan } from "@/lib/plan-service";
 import { getGenerationKopecksPerCredit } from "@/lib/generation/config";
 
 /** Текущий месяц UTC (начало и конец). */
-function currentMonthUtc(now: Date = new Date()) {
+export function currentMonthUtc(now: Date = new Date()) {
   const y = now.getUTCFullYear();
   const m = now.getUTCMonth();
   const start = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
@@ -33,6 +33,17 @@ export async function getImageGenerationCreditsUsedThisMonth(
     const credits = t.billedCredits ?? t.costCredits ?? 0;
     return sum + credits;
   }, 0);
+}
+
+/** Использовано кредитов (с наценкой) и число успешных генераций за текущий месяц. */
+export async function getImageGenerationStatsThisMonth(userId: string): Promise<{ usedCredits: number; count: number }> {
+  const { start, end } = currentMonthUtc();
+  const tasks = await prisma.imageGenerationTask.findMany({
+    where: { userId, status: "success", createdAt: { gte: start, lte: end } },
+    select: { costCredits: true, billedCredits: true },
+  });
+  const usedCredits = tasks.reduce((sum, t) => sum + (t.billedCredits ?? t.costCredits ?? 0), 0);
+  return { usedCredits, count: tasks.length };
 }
 
 export interface ApplyGenerationBillingResult {

@@ -46,6 +46,12 @@ interface TokenUsageResponse {
     paidTokens: number;
     firstPaidAt: string | null;
   };
+  /** Квота и использование генерации изображений за текущий месяц (цифры с наценкой). */
+  imageGeneration?: {
+    quota: number | null;
+    used: number;
+    count: number;
+  };
 }
 
 const CATEGORY_LABELS: Record<CategoryKey, string> = {
@@ -261,6 +267,26 @@ export function TokenUsageWidget() {
                     </div>
                   );
                 })}
+                {data.imageGeneration != null && (
+                  <div className="rounded-xl border border-border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium">Генерация изображений</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatNumber(data.imageGeneration.used)} / {formatNumber(data.imageGeneration.quota)}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Осталось:{" "}
+                      {formatNumber(
+                        data.imageGeneration.quota != null
+                          ? Math.max(0, data.imageGeneration.quota - data.imageGeneration.used)
+                          : null
+                      )}{" "}
+                      · Запросов: {data.imageGeneration.count}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground/80">За текущий месяц, с наценкой по тарифу</p>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-xl border border-border bg-surface2/20 p-4">
