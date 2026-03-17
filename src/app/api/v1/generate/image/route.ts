@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { hasFeature } from "@/lib/plan-service";
 import { getImageGenerationEnabled, getImageTasksConfig, getImageModelsConfig } from "@/lib/generation/config";
 import { getKieApiKey } from "@/lib/generation/kie-api-key";
-import { create4oImageTask, createFluxImageTask } from "@/lib/generation/kie-image-client";
+import { create4oImageTask, createFluxImageTask, createMarketTask } from "@/lib/generation/kie-image-client";
+import { isMarketModel, getKieModelForMarket, buildMarketInput } from "@/lib/generation/kie-market-models";
 import { getPublicBaseUrl } from "@/lib/app-url";
 import { getPresignedDownloadUrl } from "@/lib/s3-download";
 
@@ -45,9 +46,11 @@ export async function POST(request: NextRequest) {
     fileIds?: string[];
     maskFileId?: string;
     size?: "1:1" | "3:2" | "2:3";
-    aspectRatio?: "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16";
+    aspectRatio?: string;
     outputFormat?: "jpeg" | "png";
     fluxModel?: "flux-kontext-pro" | "flux-kontext-max";
+    resolution?: string;
+    quality?: string;
   };
   try {
     body = await request.json();
@@ -126,11 +129,43 @@ export async function POST(request: NextRequest) {
     const result = await createFluxImageTask(apiKey, {
       prompt,
       inputImage,
-      aspectRatio: body.aspectRatio ?? "16:9",
+      aspectRatio: (body.aspectRatio as "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16") ?? "16:9",
       outputFormat: body.outputFormat ?? "jpeg",
       model: body.fluxModel ?? "flux-kontext-pro",
       callBackUrl,
       enableTranslation: true,
+    });
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 502 });
+    }
+    kieTaskId = result.taskId;
+  } else if (isMarketModel(modelId)) {
+    const kieModel = getKieModelForMarket(modelId);
+    if (!kieModel) {
+      return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
+    }
+    let fileUrls: string[] = [];
+    if (fileIds.length > 0) {
+      fileUrls = await Promise.all(fileIds.map(getFileUrl));
+    }
+    const inputOrError = buildMarketInput({
+      modelId,
+      taskType,
+      prompt,
+      fileUrls,
+      aspectRatio: body.aspectRatio ?? "1:1",
+      resolution: body.resolution ?? "1K",
+      outputFormat: body.outputFormat ?? "png",
+      size: body.size ?? "1:1",
+      quality: body.quality ?? "medium",
+    });
+    if ("error" in inputOrError) {
+      return NextResponse.json({ error: inputOrError.error }, { status: 400 });
+    }
+    const result = await createMarketTask(apiKey, {
+      model: kieModel,
+      input: inputOrError,
+      callBackUrl,
     });
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 502 });

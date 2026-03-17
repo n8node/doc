@@ -36,6 +36,18 @@ const DEFAULT_TASKS: ImageTaskConfig[] = [
 const DEFAULT_MODELS: ImageModelConfig[] = [
   { id: "kie-4o-image", name: "4o Image", description: "Фотореализм, работа с текстом", enabled: true, taskIds: ["text_to_image", "edit_image", "variations"], order: 1 },
   { id: "kie-flux-kontext", name: "Flux Kontext", description: "Стилизованные сцены", enabled: true, taskIds: ["text_to_image", "edit_image"], order: 2 },
+  { id: "kie-nano-banana-pro", name: "Nano Banana Pro", description: "Google Pro Image to Image", enabled: true, taskIds: ["edit_image"], order: 3 },
+  { id: "kie-nano-banana-2", name: "Nano Banana 2", description: "Google, текст или изображения", enabled: true, taskIds: ["text_to_image", "edit_image"], order: 4 },
+  { id: "kie-nano-banana", name: "Nano Banana", description: "Google текст → изображение", enabled: true, taskIds: ["text_to_image"], order: 5 },
+  { id: "kie-nano-banana-edit", name: "Nano Banana Edit", description: "Google редактирование по промпту", enabled: true, taskIds: ["edit_image"], order: 6 },
+  { id: "kie-qwen-text-to-image", name: "Qwen Text to Image", description: "Qwen текст → изображение", enabled: true, taskIds: ["text_to_image"], order: 7 },
+  { id: "kie-qwen-image-to-image", name: "Qwen Image to Image", description: "Qwen изображение → изображение", enabled: true, taskIds: ["edit_image"], order: 8 },
+  { id: "kie-gpt-image-15-text", name: "GPT Image 1.5 Text", description: "GPT Image 1.5 текст → изображение", enabled: true, taskIds: ["text_to_image"], order: 9 },
+  { id: "kie-gpt-image-15-image", name: "GPT Image 1.5 Image", description: "GPT Image 1.5 редактирование", enabled: true, taskIds: ["edit_image"], order: 10 },
+  { id: "kie-flux2-pro-text", name: "Flux-2 Pro Text", description: "Flux-2 Pro текст → изображение", enabled: true, taskIds: ["text_to_image"], order: 11 },
+  { id: "kie-flux2-pro-image", name: "Flux-2 Pro Image", description: "Flux-2 Pro изображение → изображение", enabled: true, taskIds: ["edit_image"], order: 12 },
+  { id: "kie-flux2-flex-text", name: "Flux-2 Flex Text", description: "Flux-2 Flex текст → изображение", enabled: true, taskIds: ["text_to_image"], order: 13 },
+  { id: "kie-flux2-flex-image", name: "Flux-2 Flex Image", description: "Flux-2 Flex изображение → изображение", enabled: true, taskIds: ["edit_image"], order: 14 },
 ];
 
 export async function getImageGenerationEnabled(): Promise<boolean> {

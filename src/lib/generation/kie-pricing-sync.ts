@@ -15,6 +15,18 @@ const DEFAULT_PRICES: KiePriceRow[] = [
   { modelId: "kie-flux-kontext", variant: null, priceCredits: 15, priceUsd: null },
   { modelId: "kie-flux-kontext", variant: "flux-kontext-pro", priceCredits: 15, priceUsd: null },
   { modelId: "kie-flux-kontext", variant: "flux-kontext-max", priceCredits: 25, priceUsd: null },
+  { modelId: "kie-nano-banana-pro", variant: null, priceCredits: 10, priceUsd: null },
+  { modelId: "kie-nano-banana-2", variant: null, priceCredits: 10, priceUsd: null },
+  { modelId: "kie-nano-banana", variant: null, priceCredits: 8, priceUsd: null },
+  { modelId: "kie-nano-banana-edit", variant: null, priceCredits: 10, priceUsd: null },
+  { modelId: "kie-qwen-text-to-image", variant: null, priceCredits: 8, priceUsd: null },
+  { modelId: "kie-qwen-image-to-image", variant: null, priceCredits: 10, priceUsd: null },
+  { modelId: "kie-gpt-image-15-text", variant: null, priceCredits: 12, priceUsd: null },
+  { modelId: "kie-gpt-image-15-image", variant: null, priceCredits: 12, priceUsd: null },
+  { modelId: "kie-flux2-pro-text", variant: null, priceCredits: 15, priceUsd: null },
+  { modelId: "kie-flux2-pro-image", variant: null, priceCredits: 15, priceUsd: null },
+  { modelId: "kie-flux2-flex-text", variant: null, priceCredits: 10, priceUsd: null },
+  { modelId: "kie-flux2-flex-image", variant: null, priceCredits: 10, priceUsd: null },
 ];
 
 /**

@@ -108,6 +108,29 @@ export async function createFluxImageTask(
 }
 
 /**
+ * Создать задачу через Kie Market API (единый endpoint для моделей nano-banana, qwen, gpt-image, flux-2 и др.).
+ * POST /api/v1/jobs/createTask, body: { model, callBackUrl?, input }.
+ */
+export async function createMarketTask(
+  apiKey: string,
+  params: { model: string; input: Record<string, unknown>; callBackUrl?: string }
+): Promise<{ taskId: string } | { error: string }> {
+  const body: Record<string, unknown> = {
+    model: params.model,
+    input: params.input,
+  };
+  if (params.callBackUrl) body.callBackUrl = params.callBackUrl;
+
+  const out = await kieFetch(apiKey, "/api/v1/jobs/createTask", { method: "POST", body });
+  if (out.code !== 200 || !out.data || typeof out.data !== "object") {
+    return { error: (out.msg as string) || "Ошибка Kie Market API" };
+  }
+  const taskId = (out.data as { taskId?: string }).taskId;
+  if (!taskId) return { error: "Нет taskId в ответе Kie" };
+  return { taskId };
+}
+
+/**
  * Получить статус и результат задачи (единый endpoint для всех моделей Kie).
  */
 export async function getKieTaskRecord(

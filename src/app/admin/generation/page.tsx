@@ -32,6 +32,18 @@ const TASK_OPTIONS: { id: string; label: string }[] = [
 const MODEL_OPTIONS: { id: string; name: string; description: string }[] = [
   { id: "kie-4o-image", name: "4o Image", description: "Фотореализм, работа с текстом" },
   { id: "kie-flux-kontext", name: "Flux Kontext", description: "Стилизованные сцены" },
+  { id: "kie-nano-banana-pro", name: "Nano Banana Pro", description: "Google Pro Image to Image" },
+  { id: "kie-nano-banana-2", name: "Nano Banana 2", description: "Google, текст или изображения" },
+  { id: "kie-nano-banana", name: "Nano Banana", description: "Google текст → изображение" },
+  { id: "kie-nano-banana-edit", name: "Nano Banana Edit", description: "Google редактирование" },
+  { id: "kie-qwen-text-to-image", name: "Qwen Text to Image", description: "Qwen текст → изображение" },
+  { id: "kie-qwen-image-to-image", name: "Qwen Image to Image", description: "Qwen изображение → изображение" },
+  { id: "kie-gpt-image-15-text", name: "GPT Image 1.5 Text", description: "GPT Image 1.5 текст → изображение" },
+  { id: "kie-gpt-image-15-image", name: "GPT Image 1.5 Image", description: "GPT Image 1.5 редактирование" },
+  { id: "kie-flux2-pro-text", name: "Flux-2 Pro Text", description: "Flux-2 Pro текст → изображение" },
+  { id: "kie-flux2-pro-image", name: "Flux-2 Pro Image", description: "Flux-2 Pro изображение → изображение" },
+  { id: "kie-flux2-flex-text", name: "Flux-2 Flex Text", description: "Flux-2 Flex текст → изображение" },
+  { id: "kie-flux2-flex-image", name: "Flux-2 Flex Image", description: "Flux-2 Flex изображение → изображение" },
 ];
 
 export default function AdminGenerationPage() {

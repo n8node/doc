@@ -147,7 +147,8 @@ export default function GenerateImagePage() {
         prompt: prompt.trim() || undefined,
         fileIds: fileIds.length > 0 ? fileIds : undefined,
         size: selectedModelId === "kie-4o-image" ? size : undefined,
-        aspectRatio: selectedModelId === "kie-flux-kontext" ? aspectRatio : undefined,
+        aspectRatio: aspectRatio || undefined,
+        outputFormat: "png",
       };
       const res = await fetch("/api/v1/generate/image", {
         method: "POST",
