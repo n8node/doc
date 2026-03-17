@@ -1,0 +1,101 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getUserIdFromRequest } from "@/lib/api-key-auth";
+import { prisma } from "@/lib/prisma";
+import { getKieApiKey } from "@/lib/generation/kie-api-key";
+import { getKieTaskRecord, parseKieResultJson } from "@/lib/generation/kie-image-client";
+import { getGenerationMarginPercent, applyGenerationMargin } from "@/lib/generation/config";
+
+/**
+ * GET /api/v1/generate/image/status?taskId=...
+ * Статус задачи генерации. При status=processing опционально опрашивает Kie.
+ */
+export async function GET(request: NextRequest) {
+  const userId = await getUserIdFromRequest(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const taskId = searchParams.get("taskId");
+  if (!taskId) {
+    return NextResponse.json({ error: "taskId required" }, { status: 400 });
+  }
+
+  const task = await prisma.imageGenerationTask.findFirst({
+    where: { id: taskId, userId },
+  });
+
+  if (!task) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  if (task.status === "success") {
+    const marginPercent = await getGenerationMarginPercent();
+    const billedCredits = task.costCredits != null ? applyGenerationMargin(task.costCredits, marginPercent) : null;
+    return NextResponse.json({
+      taskId: task.id,
+      status: task.status,
+      resultUrl: task.resultUrl,
+      fileId: task.fileId,
+      costCredits: task.costCredits,
+      billedCredits,
+    });
+  }
+
+  if (task.status === "failed") {
+    return NextResponse.json({
+      taskId: task.id,
+      status: task.status,
+      errorMessage: task.errorMessage,
+    });
+  }
+
+  // processing / pending: опционально опросить Kie
+  const apiKey = await getKieApiKey();
+  if (apiKey) {
+    const record = await getKieTaskRecord(apiKey, task.kieTaskId);
+    if (record) {
+      if (record.state === "success" && record.resultJson) {
+        const parsed = parseKieResultJson(record.resultJson);
+        const resultUrl = parsed.resultUrls?.[0] ?? parsed.resultImageUrl;
+        if (resultUrl) {
+          await prisma.imageGenerationTask.update({
+            where: { id: task.id },
+            data: {
+              status: "success",
+              resultUrl,
+              costCredits: null,
+            },
+          });
+          const marginPercent = await getGenerationMarginPercent();
+          return NextResponse.json({
+            taskId: task.id,
+            status: "success",
+            resultUrl,
+            fileId: task.fileId,
+            costCredits: null,
+            billedCredits: null,
+          });
+        }
+      } else if (record.state === "fail") {
+        await prisma.imageGenerationTask.update({
+          where: { id: task.id },
+          data: {
+            status: "failed",
+            errorMessage: record.failMsg ?? "Generation failed",
+          },
+        });
+        return NextResponse.json({
+          taskId: task.id,
+          status: "failed",
+          errorMessage: record.failMsg ?? "Generation failed",
+        });
+      }
+    }
+  }
+
+  return NextResponse.json({
+    taskId: task.id,
+    status: task.status,
+  });
+}
