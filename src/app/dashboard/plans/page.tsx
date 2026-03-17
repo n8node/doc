@@ -57,6 +57,7 @@ const featureLabels: Record<string, string> = {
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
   own_ai_keys: "Свой API-ключ (токены не списываются)",
+  content_generation: "Генерация изображений (Kie.ai)",
 };
 
 export default function DashboardPlansPage() {

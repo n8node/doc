@@ -56,6 +56,7 @@ const featureLabels: Record<string, string> = {
   sheets: "Таблицы",
   transcription: "Транскрибация",
   own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
+  content_generation: "Генерация изображений (Kie.ai)",
 };
 
 const bytesToGb = (bytes: number) => +(bytes / (1024 * 1024 * 1024)).toFixed(2);
@@ -83,6 +84,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     n8n_connection: false,
     sheets: false,
     own_ai_keys: false,
+    content_generation: false,
   });
   const [trashDays, setTrashDays] = useState("0");
   const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState("");
