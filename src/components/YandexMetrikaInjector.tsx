@@ -45,7 +45,8 @@ export function YandexMetrikaInjector({ config }: Props) {
 
     // Не подключать скрипт повторно
     for (let j = 0; j < document.scripts.length; j++) {
-      if ((document.scripts[j] as HTMLScriptElement).src === TAG_SCRIPT_URL) {
+      const src = (document.scripts[j] as HTMLScriptElement).src;
+      if (src === TAG_SCRIPT_URL || src.startsWith(`${TAG_SCRIPT_URL}?`)) {
         (window.ym as NonNullable<Window["ym"]>)(id, "init", initParams);
         return;
       }
@@ -53,7 +54,7 @@ export function YandexMetrikaInjector({ config }: Props) {
 
     const script = document.createElement("script");
     script.async = true;
-    script.src = TAG_SCRIPT_URL;
+    script.src = `${TAG_SCRIPT_URL}?id=${id}`;
     const firstScript = document.getElementsByTagName("script")[0];
     firstScript?.parentNode?.insertBefore(script, firstScript);
     (window.ym as NonNullable<Window["ym"]>)(id, "init", initParams);
