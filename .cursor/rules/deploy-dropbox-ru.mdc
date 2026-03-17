@@ -40,14 +40,6 @@ docker compose build docling app && docker compose up -d
 docker compose build app && docker compose up -d
 ```
 
-Если добавляли или меняли WordPress/nginx:
-```bash
-docker compose up -d
-```
-(образы wordpress и wordpress-db подтягиваются с Docker Hub, не собираются локально.)
-
 ---
 
 **Порядок**: сначала `git pull`, затем миграция (если есть), затем `build` и `up -d`.
-
-**WordPress:** первый запуск и настройка — см. правило `wordpress-dropbox-ru`.
