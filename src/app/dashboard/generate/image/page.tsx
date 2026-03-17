@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ImageIcon, ArrowRight, FileImage, AlertCircle, Sparkles } from "lucide-react";
+import { Loader2, ImageIcon, ArrowRight, AlertCircle, Sparkles, Upload, X, Coins } from "lucide-react";
 import { toast } from "sonner";
+
+/* TODO: вернуть выбор исходного изображения из «Мои файлы» (подгрузка с диска).
+   См. .cursor/rules/generation-image-todo.mdc */
 
 interface TaskItem {
   id: string;
@@ -19,12 +22,6 @@ interface ModelItem {
   description?: string;
 }
 
-interface FileItem {
-  id: string;
-  name: string;
-  mimeType: string;
-}
-
 export default function GenerateImagePage() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [models, setModels] = useState<ModelItem[]>([]);
@@ -34,7 +31,9 @@ export default function GenerateImagePage() {
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [prompt, setPrompt] = useState("");
   const [fileIds, setFileIds] = useState<string[]>([]);
-  const [myImages, setMyImages] = useState<FileItem[]>([]);
+  const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [size, setSize] = useState<"1:1" | "3:2" | "2:3">("1:1");
   const [aspectRatio, setAspectRatio] = useState<string>("16:9");
   const [submitting, setSubmitting] = useState(false);
@@ -85,15 +84,12 @@ export default function GenerateImagePage() {
       .finally(() => setLoadingModels(false));
   }, [selectedTaskId]);
 
+  // Выбор из «Мои файлы» временно отключён — только загрузка с компьютера. См. generation-image-todo.mdc
   useEffect(() => {
-    if (selectedTaskId === "edit_image" || selectedTaskId === "variations") {
-      fetch("/api/v1/files?scope=all&type=image")
-        .then((r) => r.json())
-        .then((data) => setMyImages(data.files ?? []))
-        .catch(() => setMyImages([]));
-    } else {
-      setMyImages([]);
+    if (selectedTaskId !== "edit_image" && selectedTaskId !== "variations") {
       setFileIds([]);
+      if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
+      setUploadPreviewUrl(null);
     }
   }, [selectedTaskId]);
 
@@ -172,13 +168,71 @@ export default function GenerateImagePage() {
     }
   };
 
-  const addFileId = (id: string) => {
-    if (selectedModelId === "kie-flux-kontext") {
-      setFileIds([id]);
-    } else {
-      if (fileIds.includes(id)) setFileIds((prev) => prev.filter((f) => f !== id));
-      else setFileIds((prev) => (prev.length < 5 ? [...prev, id] : prev));
+  const handleUploadFromComputer = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Выберите файл изображения");
+      return;
     }
+    setUploading(true);
+    try {
+      const initRes = await fetch("/api/v1/files/upload/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          mimeType: file.type,
+          folderId: null,
+        }),
+      });
+      const initData = await initRes.json();
+      if (!initRes.ok) throw new Error(initData.error ?? "Ошибка инициализации загрузки");
+      const { uploadUrl, uploadHeaders, uploadSessionToken } = initData;
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": uploadHeaders?.["Content-Type"] ?? file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error("Ошибка загрузки файла");
+      const completeRes = await fetch("/api/v1/files/upload/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uploadSessionToken }),
+      });
+      const completeData = await completeRes.json();
+      if (!completeRes.ok) throw new Error(completeData.error ?? "Ошибка завершения загрузки");
+      const id = completeData.id;
+      setFileIds([id]);
+      setUploadPreviewUrl(URL.createObjectURL(file));
+      toast.success("Файл загружен");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка загрузки");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveUploadedImage = () => {
+    setFileIds([]);
+    if (uploadPreviewUrl) {
+      URL.revokeObjectURL(uploadPreviewUrl);
+      setUploadPreviewUrl(null);
+    }
+    fileInputRef.current?.value && (fileInputRef.current.value = "");
+  };
+
+  const handleReset = () => {
+    setPrompt("");
+    handleRemoveUploadedImage();
+    setStatus(null);
+    setTaskId(null);
+    setResultUrl(null);
+    setFileId(null);
+    setCostCredits(null);
+    setBilledCredits(null);
+    setErrorMessage(null);
   };
 
   if (tasks.length === 0 && !loadingTasks) {
@@ -202,7 +256,7 @@ export default function GenerateImagePage() {
   }
 
   return (
-    <div className="w-full py-6 px-4">
+    <div className="w-full max-w-full py-6 px-4">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <ImageIcon className="h-7 w-7" />
@@ -214,67 +268,68 @@ export default function GenerateImagePage() {
       </div>
 
       <div className="flex gap-8 items-start">
-        {/* Блок настройки генерации — слева */}
-        <form onSubmit={handleSubmit} className="w-full max-w-md shrink-0 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">1. Задача</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingTasks ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Загрузка...
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {tasks.map((t) => (
-                    <Button
-                      key={t.id}
-                      type="button"
-                      variant={selectedTaskId === t.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedTaskId(t.id)}
-                    >
-                      {t.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Левая колонка: настройки (~38% ширины), правая — весь остаток */}
+        <form onSubmit={handleSubmit} className="flex-[0_0_38%] min-w-[320px] max-w-[520px] space-y-4">
+          {/* Сегментированный выбор задачи */}
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Задача</label>
+            {loadingTasks ? (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Загрузка...
+              </div>
+            ) : (
+              <div className="inline-flex rounded-lg border border-input bg-muted/30 p-0.5">
+                {tasks.map((t, i) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSelectedTaskId(t.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                      selectedTaskId === t.id
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    } ${i === 0 ? "rounded-l-md" : ""} ${i === tasks.length - 1 ? "rounded-r-md" : ""}`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">2. Модель</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingModels ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Загрузка...
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {models.map((m) => (
-                    <Button
-                      key={m.id}
-                      type="button"
-                      variant={selectedModelId === m.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedModelId(m.id)}
-                    >
-                      {m.name}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Сегментированный выбор модели */}
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Модель</label>
+            {loadingModels ? (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Загрузка...
+              </div>
+            ) : (
+              <div className="inline-flex rounded-lg border border-input bg-muted/30 p-0.5">
+                {models.map((m, i) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setSelectedModelId(m.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                      selectedModelId === m.id
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    } ${i === 0 ? "rounded-l-md" : ""} ${i === models.length - 1 ? "rounded-r-md" : ""}`}
+                  >
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
+          {/* Один блок «Ввод»: промпт, загрузка с компьютера, соотношение сторон */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">3. Промпт и изображения</CardTitle>
+              <CardTitle className="text-base">Ввод</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -284,51 +339,63 @@ export default function GenerateImagePage() {
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Опишите изображение или правки на английском или русском"
                   rows={4}
-                  className="resize-none"
+                  className="resize-none rounded-lg border-input"
                 />
               </div>
               {(selectedTaskId === "edit_image" || selectedTaskId === "variations") && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Исходное изображение (из «Мои файлы»)</label>
-                  {myImages.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Нет загруженных изображений. Загрузите фото в разделе «Мои файлы».</p>
+                  <label className="block text-sm font-medium mb-1">Исходное изображение (загрузка с компьютера)</label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleUploadFromComputer}
+                    className="hidden"
+                  />
+                  {!uploadPreviewUrl ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-dashed"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                      {uploading ? "Загрузка…" : "Выбрать файл"}
+                    </Button>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {myImages.slice(0, 20).map((f) => (
-                        <Button
-                          key={f.id}
-                          type="button"
-                          variant={fileIds.includes(f.id) ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => addFileId(f.id)}
-                        >
-                          <FileImage className="h-4 w-4 mr-1" />
-                          {f.name.length > 20 ? f.name.slice(0, 20) + "…" : f.name}
-                        </Button>
-                      ))}
+                    <div className="relative rounded-lg border overflow-hidden inline-block">
+                      <img src={uploadPreviewUrl} alt="Превью" className="max-h-32 object-contain" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-7 w-7"
+                        onClick={handleRemoveUploadedImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   )}
                 </div>
               )}
-              {selectedModelId === "kie-4o-image" && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Соотношение сторон</label>
-                  <div className="flex gap-2">
-                    {(["1:1", "3:2", "2:3"] as const).map((s) => (
-                      <Button key={s} type="button" variant={size === s ? "default" : "outline"} size="sm" onClick={() => setSize(s)}>
-                        {s}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {selectedModelId === "kie-flux-kontext" && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Соотношение сторон</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">Соотношение сторон</label>
+                {selectedModelId === "kie-4o-image" ? (
+                  <select
+                    value={size}
+                    onChange={(e) => setSize(e.target.value as "1:1" | "3:2" | "2:3")}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="1:1">1:1</option>
+                    <option value="3:2">3:2</option>
+                    <option value="2:3">2:3</option>
+                  </select>
+                ) : (
                   <select
                     value={aspectRatio}
                     onChange={(e) => setAspectRatio(e.target.value)}
-                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
                   >
                     <option value="21:9">21:9</option>
                     <option value="16:9">16:9</option>
@@ -337,12 +404,15 @@ export default function GenerateImagePage() {
                     <option value="3:4">3:4</option>
                     <option value="9:16">9:16</option>
                   </select>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
 
           <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={handleReset}>
+              Сбросить
+            </Button>
             <Button type="submit" disabled={submitting || !selectedTaskId || !selectedModelId}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
               Сгенерировать
@@ -350,10 +420,9 @@ export default function GenerateImagePage() {
           </div>
         </form>
 
-        {/* Область результата — справа, с пунктирной рамкой */}
+        {/* Область результата — на весь оставшийся экран, пунктирная рамка */}
         <div
-          className="flex-1 min-h-[420px] rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex items-center justify-center p-6"
-          style={{ minWidth: 0 }}
+          className="flex-1 min-w-0 min-h-[420px] rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex items-center justify-center p-6"
         >
           {!status && (
             <p className="text-muted-foreground text-center text-sm">
@@ -373,14 +442,23 @@ export default function GenerateImagePage() {
             </div>
           )}
           {status === "success" && (resultUrl || fileId) && (
-            <div className="w-full max-w-lg space-y-3 flex flex-col items-center">
+            <div className="w-full max-w-2xl space-y-4 flex flex-col items-center">
               {resultUrl && (
-                <img src={resultUrl} alt="Результат" className="max-w-full rounded-lg border object-contain max-h-80" />
+                <img src={resultUrl} alt="Результат" className="max-w-full rounded-lg border object-contain max-h-[70vh]" />
               )}
+              {/* Стоимость генерации: с учётом наценки из админки (billedCredits уже включает margin) */}
               {(billedCredits != null || costCredits != null) && (
-                <p className="text-sm text-muted-foreground">
-                  Стоимость: <strong>{billedCredits ?? costCredits ?? 0}</strong> кредитов
-                </p>
+                <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-4 py-3 border border-border">
+                  <Coins className="h-5 w-5 text-muted-foreground" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium">
+                      Стоимость генерации: <strong>{billedCredits ?? costCredits ?? 0}</strong> кредитов
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      С учётом наценки из настроек админки
+                    </p>
+                  </div>
+                </div>
               )}
               {fileId && (
                 <Link href="/dashboard/files?section=my-files">
