@@ -412,14 +412,22 @@ export default function GenerateImagePage() {
             </CardContent>
           </Card>
 
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={handleReset}>
-              Сбросить
-            </Button>
-            <Button type="submit" disabled={submitting || !selectedTaskId || !selectedModelId}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-              Сгенерировать
-            </Button>
+          <div className="flex gap-2 items-center justify-between w-full flex-wrap">
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={handleReset}>
+                Сбросить
+              </Button>
+              <Button type="submit" disabled={submitting || !selectedTaskId || !selectedModelId}>
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                Сгенерировать
+              </Button>
+            </div>
+            {(billedCredits != null || costCredits != null) && (
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Coins className="h-4 w-4 text-muted-foreground" />
+                <span>{billedCredits ?? costCredits ?? 0} кредитов</span>
+              </div>
+            )}
           </div>
         </form>
 
@@ -448,20 +456,6 @@ export default function GenerateImagePage() {
             <div className="w-full max-w-2xl space-y-4 flex flex-col items-center">
               {resultUrl && (
                 <img src={resultUrl} alt="Результат" className="max-w-full rounded-lg border object-contain max-h-[70vh]" />
-              )}
-              {/* Стоимость генерации: из прайса kie_pricing, с учётом наценки из админки */}
-              {(billedCredits != null || costCredits != null) && (
-                <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-4 py-3 border border-border">
-                  <Coins className="h-5 w-5 text-muted-foreground" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium">
-                      Стоимость генерации: <strong>{billedCredits ?? costCredits ?? 0}</strong> кредитов
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      С учётом наценки из настроек админки
-                    </p>
-                  </div>
-                </div>
               )}
               {fileId && (
                 <Link href="/dashboard/files?section=my-files">

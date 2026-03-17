@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Key, Wifi, CheckCircle, ImageIcon, Percent, ListOrdered, RefreshCw, Coins } from "lucide-react";
+import { Loader2, Key, Wifi, CheckCircle, ImageIcon, Percent, ListOrdered, RefreshCw, Coins, BarChart3 } from "lucide-react";
 
 interface ImageTaskConfig {
   id: string;
@@ -58,10 +58,15 @@ export default function AdminGenerationPage() {
   const [marginPercent, setMarginPercent] = useState(0);
   const [tasks, setTasks] = useState<ImageTaskConfig[]>([]);
   const [models, setModels] = useState<ImageModelConfig[]>([]);
-  const [pricingItems, setPricingItems] = useState<{ modelId: string; variant: string | null; priceCredits: number; priceUsd: number | null; fetchedAt: string }[]>([]);
+  const [pricingItems, setPricingItems] = useState<{ id: string; modelId: string; variant: string | null; priceCredits: number; priceUsd: number | null; fetchedAt: string }[]>([]);
   const [pricingFetchedAt, setPricingFetchedAt] = useState<string | null>(null);
   const [pricingSyncing, setPricingSyncing] = useState(false);
+  const [pricingEdits, setPricingEdits] = useState<Record<string, number>>({});
+  const [pricingSaving, setPricingSaving] = useState(false);
   const [resettingTasksModels, setResettingTasksModels] = useState(false);
+  const [statsItems, setStatsItems] = useState<{ id: string; userEmail: string; userName: string | null; createdAt: string; modelId: string; variant: string | null; taskType: string; resultUrl: string | null; fileId: string | null; costCredits: number | null; billedCredits: number | null }[]>([]);
+  const [statsTotal, setStatsTotal] = useState(0);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const loadConfig = useCallback(async () => {
     try {
@@ -109,6 +114,27 @@ export default function AdminGenerationPage() {
     loadPricing();
   }, [loadPricing]);
 
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const res = await fetch("/api/v1/admin/generation/stats?limit=100");
+      const data = await res.json();
+      if (res.ok) {
+        setStatsItems(data.items ?? []);
+        setStatsTotal(data.total ?? 0);
+      }
+    } catch {
+      setStatsItems([]);
+      setStatsTotal(0);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
   const handleSyncPricing = async () => {
     setPricingSyncing(true);
     try {
@@ -116,6 +142,7 @@ export default function AdminGenerationPage() {
       const data = await res.json();
       if (res.ok) {
         await loadPricing();
+        setPricingEdits({});
         toast.success(data.usedDefaults ? "Прайс обновлён (использованы значения по умолчанию)" : "Прайс синхронизирован");
       } else {
         toast.error("Ошибка синхронизации прайса");
@@ -124,6 +151,36 @@ export default function AdminGenerationPage() {
       toast.error("Ошибка запроса");
     } finally {
       setPricingSyncing(false);
+    }
+  };
+
+  const setPricingCredit = (id: string, value: number) => {
+    setPricingEdits((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSavePricingEdits = async () => {
+    const ids = Object.keys(pricingEdits);
+    if (ids.length === 0) {
+      toast.info("Нет изменений для сохранения");
+      return;
+    }
+    setPricingSaving(true);
+    try {
+      for (const id of ids) {
+        const res = await fetch("/api/v1/admin/generation/pricing", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, priceCredits: pricingEdits[id] }),
+        });
+        if (!res.ok) throw new Error("PATCH failed");
+      }
+      await loadPricing();
+      setPricingEdits({});
+      toast.success("Стоимость сохранена");
+    } catch {
+      toast.error("Ошибка сохранения");
+    } finally {
+      setPricingSaving(false);
     }
   };
 
@@ -350,11 +407,19 @@ export default function AdminGenerationPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pricingItems.map((row, i) => (
-                    <tr key={i} className="border-b last:border-0">
+                  {pricingItems.map((row) => (
+                    <tr key={row.id} className="border-b last:border-0">
                       <td className="p-2">{row.modelId}</td>
                       <td className="p-2 text-muted-foreground">{row.variant ?? "—"}</td>
-                      <td className="p-2 text-right">{row.priceCredits}</td>
+                      <td className="p-2 text-right">
+                        <Input
+                          type="number"
+                          min={0}
+                          className="h-8 w-20 text-right"
+                          value={pricingEdits[row.id] ?? row.priceCredits}
+                          onChange={(e) => setPricingCredit(row.id, parseInt(e.target.value, 10) || 0)}
+                        />
+                      </td>
                       <td className="p-2 text-right">{row.priceUsd != null ? row.priceUsd.toFixed(4) : "—"}</td>
                     </tr>
                   ))}
@@ -364,10 +429,81 @@ export default function AdminGenerationPage() {
           ) : (
             <p className="text-sm text-muted-foreground">Прайс пуст. Нажмите «Обновить прайс», чтобы загрузить цены (или подставить значения по умолчанию).</p>
           )}
-          <Button variant="outline" onClick={handleSyncPricing} disabled={pricingSyncing}>
-            {pricingSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Обновить прайс
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleSyncPricing} disabled={pricingSyncing}>
+              {pricingSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Обновить прайс
+            </Button>
+            {pricingItems.length > 0 && (
+              <Button variant="secondary" onClick={handleSavePricingEdits} disabled={pricingSaving || Object.keys(pricingEdits).length === 0}>
+                {pricingSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Сохранить вручную
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <BarChart3 className="h-5 w-5" />
+            Статистика генераций
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Кто, когда, какая модель, результат и стоимость (факт и с наценкой). Показаны последние 100 успешных генераций.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {statsLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Загрузка...
+            </div>
+          ) : statsItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Нет данных о генерациях.</p>
+          ) : (
+            <div className="overflow-x-auto rounded border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="p-2 text-left font-medium">Пользователь</th>
+                    <th className="p-2 text-left font-medium">Когда</th>
+                    <th className="p-2 text-left font-medium">Модель</th>
+                    <th className="p-2 text-left font-medium">Задача</th>
+                    <th className="p-2 text-left font-medium">Результат</th>
+                    <th className="p-2 text-right font-medium">Стоимость (факт)</th>
+                    <th className="p-2 text-right font-medium">С наценкой</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statsItems.map((row) => (
+                    <tr key={row.id} className="border-b last:border-0">
+                      <td className="p-2">
+                        <span className="font-medium">{row.userEmail}</span>
+                        {row.userName && <span className="text-muted-foreground ml-1">({row.userName})</span>}
+                      </td>
+                      <td className="p-2 text-muted-foreground">{new Date(row.createdAt).toLocaleString()}</td>
+                      <td className="p-2">{row.modelId}{row.variant ? ` / ${row.variant}` : ""}</td>
+                      <td className="p-2 text-muted-foreground">{row.taskType}</td>
+                      <td className="p-2">
+                        {row.resultUrl ? (
+                          <a href={row.resultUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline truncate max-w-[120px] inline-block">Ссылка</a>
+                        ) : row.fileId ? (
+                          <span className="text-muted-foreground">Файл {row.fileId}</span>
+                        ) : "—"}
+                      </td>
+                      <td className="p-2 text-right">{row.costCredits ?? "—"}</td>
+                      <td className="p-2 text-right">{row.billedCredits ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {statsTotal > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">Всего успешных генераций: {statsTotal}</p>
+          )}
         </CardContent>
       </Card>
 
