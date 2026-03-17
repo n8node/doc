@@ -284,7 +284,7 @@ export function TokenUsageWidget() {
                       )}{" "}
                       · Запросов: {data.imageGeneration.count}
                     </p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground/80">За текущий месяц, с наценкой по тарифу</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground/80">За отчётный период</p>
                   </div>
                 )}
               </div>
