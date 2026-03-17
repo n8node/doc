@@ -76,9 +76,10 @@ export async function POST(request: NextRequest) {
   const baseUrl = getPublicBaseUrl();
   const callBackUrl = `${baseUrl}/api/v1/webhooks/kie-image`;
 
+  const uid: string = userId;
   async function getFileUrl(fileId: string): Promise<string> {
     const file = await prisma.file.findFirst({
-      where: { id: fileId, userId, deletedAt: null },
+      where: { id: fileId, userId: uid, deletedAt: null },
       select: { s3Key: true },
     });
     if (!file) throw new Error("File not found");
