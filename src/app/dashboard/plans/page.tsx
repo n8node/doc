@@ -34,6 +34,7 @@ interface PlanItem {
   searchTokensQuota?: number | null;
   transcriptionMinutesQuota?: number | null;
   ragDocumentsQuota?: number | null;
+  imageGenerationCreditsQuota?: number | null;
   priceMonthly: number | null;
   priceYearly: number | null;
   trashRetentionDays: number;
@@ -57,7 +58,7 @@ const featureLabels: Record<string, string> = {
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
   own_ai_keys: "Свой API-ключ (токены не списываются)",
-  content_generation: "Генерация изображений (Kie.ai)",
+  content_generation: "Генерация изображений",
 };
 
 export default function DashboardPlansPage() {
@@ -313,6 +314,14 @@ export default function DashboardPlansPage() {
                             <span className="text-muted-foreground">
                               {" "}
                               ({plan.ragDocumentsQuota != null ? `${plan.ragDocumentsQuota} док.` : "безлимит"})
+                            </span>
+                          )}
+                          {key === "content_generation" && enabled && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              ({plan.imageGenerationCreditsQuota != null
+                                ? `${plan.imageGenerationCreditsQuota.toLocaleString()} изобр./мес`
+                                : "безлимит"})
                             </span>
                           )}
                         </span>

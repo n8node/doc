@@ -57,7 +57,7 @@ const featureLabels: Record<string, string> = {
   sheets: "Таблицы",
   transcription: "Транскрибация",
   own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
-  content_generation: "Генерация изображений (Kie.ai)",
+  content_generation: "Генерация изображений",
 };
 
 const bytesToGb = (bytes: number) => +(bytes / (1024 * 1024 * 1024)).toFixed(2);
