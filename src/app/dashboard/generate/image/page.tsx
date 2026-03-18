@@ -57,8 +57,23 @@ export default function GenerateImagePage() {
   const [costCredits, setCostCredits] = useState<number | null>(null);
   const [billedCredits, setBilledCredits] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  /** Последние 4 генерации (новая справа, левая вытесняется). */
+  /** Последние 4 генерации (новая справа, левая вытесняется). Хранятся на сервере, при загрузке подтягиваются. */
   const [recentGenerations, setRecentGenerations] = useState<Array<{ resultUrl: string; fileId?: string | null }>>([]);
+
+  const loadRecentGenerations = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/generate/image/recent");
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data.items)) return;
+      const mapped = (data.items as { fileId: string; url: string }[]).map((i) => ({
+        resultUrl: i.url,
+        fileId: i.fileId,
+      }));
+      setRecentGenerations(mapped.reverse());
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -81,6 +96,10 @@ export default function GenerateImagePage() {
   useEffect(() => {
     loadTasks();
   }, []);
+
+  useEffect(() => {
+    loadRecentGenerations();
+  }, [loadRecentGenerations]);
 
   useEffect(() => {
     if (!selectedTaskId) {
