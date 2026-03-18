@@ -320,7 +320,7 @@ export default function DashboardPlansPage() {
                             <span className="text-muted-foreground">
                               {" "}
                               ({plan.imageGenerationCreditsQuota != null
-                                ? `${plan.imageGenerationCreditsQuota.toLocaleString()} изобр./мес`
+                                ? `${plan.imageGenerationCreditsQuota.toLocaleString()} ток./мес`
                                 : "безлимит"})
                             </span>
                           )}
