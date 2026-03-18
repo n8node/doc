@@ -11,6 +11,19 @@ import { toast } from "sonner";
 /* TODO: вернуть выбор исходного изображения из «Мои файлы» (подгрузка с диска).
    См. .cursor/rules/generation-image-todo.mdc */
 
+const PENDING_GEN_STORAGE_KEY = "dropbox-ru-image-gen-pending";
+
+interface PendingGenState {
+  taskId: string;
+  status: string;
+  prompt: string;
+  selectedTaskId: string;
+  selectedModelId: string;
+  size: "1:1" | "3:2" | "2:3";
+  aspectRatio: string;
+  fileIds: string[];
+}
+
 interface TaskItem {
   id: string;
   label: string;
@@ -77,8 +90,12 @@ export default function GenerateImagePage() {
     fetch(`/api/v1/generate/image/models?taskId=${encodeURIComponent(selectedTaskId)}`)
       .then((r) => r.json())
       .then((data) => {
-        setModels(data.models ?? []);
-        setSelectedModelId((data.models ?? [])[0]?.id ?? "");
+        const list = data.models ?? [];
+        setModels(list);
+        setSelectedModelId((prev) => {
+          if (prev && list.some((m: ModelItem) => m.id === prev)) return prev;
+          return list[0]?.id ?? "";
+        });
       })
       .catch(() => setModels([]))
       .finally(() => setLoadingModels(false));
@@ -93,18 +110,34 @@ export default function GenerateImagePage() {
     }
   }, [selectedTaskId]);
 
-  const pollStatus = useCallback(async (id: string) => {
-    const res = await fetch(`/api/v1/generate/image/status?taskId=${encodeURIComponent(id)}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Ошибка");
-    setStatus(data.status);
-    if (data.resultUrl) setResultUrl(data.resultUrl);
-    if (data.fileId) setFileId(data.fileId);
-    if (data.costCredits != null) setCostCredits(data.costCredits);
-    if (data.billedCredits != null) setBilledCredits(data.billedCredits);
-    if (data.errorMessage) setErrorMessage(data.errorMessage);
-    return data.status;
+  const clearPendingStorage = useCallback(() => {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(PENDING_GEN_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
   }, []);
+
+  const pollStatus = useCallback(
+    async (id: string) => {
+      const res = await fetch(`/api/v1/generate/image/status?taskId=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Ошибка");
+      setStatus(data.status);
+      if (data.resultUrl) setResultUrl(data.resultUrl);
+      if (data.fileId) setFileId(data.fileId);
+      if (data.costCredits != null) setCostCredits(data.costCredits);
+      if (data.billedCredits != null) setBilledCredits(data.billedCredits);
+      if (data.errorMessage) setErrorMessage(data.errorMessage);
+      if (data.status === "success" || data.status === "failed") {
+        clearPendingStorage();
+      }
+      return data.status;
+    },
+    [clearPendingStorage]
+  );
 
   useEffect(() => {
     if (!taskId || status === "success" || status === "failed") return;
@@ -118,6 +151,52 @@ export default function GenerateImagePage() {
     }, 2500);
     return () => clearInterval(t);
   }, [taskId, status, pollStatus]);
+
+  // Восстановление незавершённой генерации при возврате на страницу
+  const restoreChecked = useRef(false);
+  useEffect(() => {
+    if (restoreChecked.current) return;
+    restoreChecked.current = true;
+    let raw: string | null = null;
+    try {
+      raw = window.localStorage.getItem(PENDING_GEN_STORAGE_KEY);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    let saved: PendingGenState;
+    try {
+      saved = JSON.parse(raw) as PendingGenState;
+    } catch {
+      return;
+    }
+    if (!saved?.taskId) return;
+    fetch(`/api/v1/generate/image/status?taskId=${encodeURIComponent(saved.taskId)}`)
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json();
+        const s = data.status as string | undefined;
+        setPrompt(saved.prompt ?? "");
+        setSelectedTaskId(saved.selectedTaskId ?? "");
+        setSelectedModelId(saved.selectedModelId ?? "");
+        setSize(saved.size ?? "1:1");
+        setAspectRatio(saved.aspectRatio ?? "16:9");
+        setFileIds(Array.isArray(saved.fileIds) ? saved.fileIds : []);
+        setTaskId(saved.taskId);
+        setStatus(s ?? null);
+        if (s === "success") {
+          if (data.resultUrl) setResultUrl(data.resultUrl);
+          if (data.fileId) setFileId(data.fileId);
+          if (data.costCredits != null) setCostCredits(data.costCredits);
+          if (data.billedCredits != null) setBilledCredits(data.billedCredits);
+          clearPendingStorage();
+        } else if (s === "failed") {
+          if (data.errorMessage) setErrorMessage(data.errorMessage);
+          clearPendingStorage();
+        }
+      })
+      .catch(() => {});
+  }, [clearPendingStorage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,7 +237,23 @@ export default function GenerateImagePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Ошибка запуска");
       setTaskId(data.taskId);
-      setStatus(data.status ?? "processing");
+      const nextStatus = data.status ?? "processing";
+      setStatus(nextStatus);
+      try {
+        const pending: PendingGenState = {
+          taskId: data.taskId,
+          status: nextStatus,
+          prompt,
+          selectedTaskId,
+          selectedModelId,
+          size,
+          aspectRatio,
+          fileIds: [...fileIds],
+        };
+        window.localStorage.setItem(PENDING_GEN_STORAGE_KEY, JSON.stringify(pending));
+      } catch {
+        // ignore
+      }
       if (data.status === "queued" && data.message) {
         toast.info(data.message);
       } else {
@@ -240,6 +335,7 @@ export default function GenerateImagePage() {
     setCostCredits(null);
     setBilledCredits(null);
     setErrorMessage(null);
+    clearPendingStorage();
   };
 
   if (tasks.length === 0 && !loadingTasks) {

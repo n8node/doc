@@ -5,6 +5,7 @@ import { parseKieResultJson } from "@/lib/generation/kie-image-client";
 import { getPriceCreditsForModel } from "@/lib/generation/kie-pricing-lookup";
 import { getGenerationMarginPercent, applyGenerationMargin } from "@/lib/generation/config";
 import { applyGenerationBilling } from "@/lib/generation/billing";
+import { createNotificationIfEnabled } from "@/lib/notification-service";
 
 /**
  * POST /api/v1/webhooks/kie-image
@@ -123,6 +124,15 @@ export async function POST(request: NextRequest) {
       console.warn("[kie-image webhook] Billing failed:", billing.error, "taskId:", task.id);
     }
   }
+
+  await createNotificationIfEnabled({
+    userId: task.userId,
+    type: "AI_TASK",
+    category: "success",
+    title: "Генерация изображения готова",
+    body: "Изображение сохранено в «Мои файлы».",
+    payload: { fileId, taskId: task.id, resultUrl },
+  });
 
   return NextResponse.json({ ok: true });
 }
