@@ -6,6 +6,7 @@ import { createNotificationIfEnabled } from "../notification-service";
 import { prisma } from "../prisma";
 import { getTranscriptionProviderForUser } from "../ai/get-transcription-provider";
 import { transcribeWithOpenAiWhisper } from "../ai/openai-whisper";
+import { transcribeWithOpenRouter } from "../ai/openrouter-transcribe";
 import { recordTokenUsageEvent } from "../ai/token-usage";
 import type { ProcessingStatus } from "./types";
 
@@ -85,8 +86,25 @@ export async function transcribeFile(
     const useOpenAi =
       provider &&
       (provider.name === "openai_whisper" || provider.baseUrl.includes("api.openai.com"));
+    const useOpenRouter =
+      provider &&
+      (provider.name === "openrouter" || provider.baseUrl.includes("openrouter.ai"));
 
-    if (useOpenAi && provider) {
+    if (useOpenRouter && provider) {
+      const openRouterResult = await transcribeWithOpenRouter(
+        buffer,
+        filename,
+        mimeType,
+        provider.apiKey,
+        provider.baseUrl,
+        provider.modelName,
+      );
+      result = {
+        text: openRouterResult.text,
+        content_hash: openRouterResult.contentHash,
+        format: openRouterResult.format,
+      };
+    } else if (useOpenAi && provider) {
       const openAiResult = await transcribeWithOpenAiWhisper(
         buffer,
         filename,
@@ -110,6 +128,16 @@ export async function transcribeFile(
       };
     }
 
+    const providerKey = useOpenRouter ? "openrouter" : useOpenAi ? "openai_whisper" : "docling";
+    const modelDisplay =
+      useOpenRouter && provider?.modelName
+        ? provider.modelName
+        : useOpenAi && provider?.modelName
+          ? provider.modelName
+          : useOpenAi
+            ? "OpenAI"
+            : "QoQon";
+
     await prisma.aiTask.update({
       where: { id: task.id },
       data: {
@@ -119,8 +147,8 @@ export async function transcribeFile(
           contentHash: result.content_hash,
           format: result.format,
           minutesUsed: durationMinutes,
-          provider: useOpenAi ? "openai_whisper" : "docling",
-          modelName: useOpenAi && provider?.modelName ? provider.modelName : (useOpenAi ? "OpenAI" : "QoQon"),
+          provider: providerKey,
+          modelName: modelDisplay,
         },
         completedAt: new Date(),
       },
@@ -142,7 +170,7 @@ export async function transcribeFile(
           transcriptContentHash: result.content_hash,
           transcriptFormat: result.format,
           transcriptProcessedAt: new Date().toISOString(),
-          transcriptProvider: useOpenAi ? "openai_whisper" : "docling",
+          transcriptProvider: providerKey,
         },
       },
     });
@@ -164,8 +192,8 @@ export async function transcribeFile(
       sourceId: fileId,
       tokensIn: transcriptionTokens,
       tokensTotal: transcriptionTokens,
-      provider: useOpenAi ? "openai_whisper" : "docling",
-      model: useOpenAi && provider?.modelName ? provider.modelName : (useOpenAi ? "OpenAI" : "QoQon"),
+      provider: providerKey,
+      model: modelDisplay,
       metadata: {
         estimated: true,
         durationMinutes,

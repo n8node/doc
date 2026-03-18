@@ -3479,7 +3479,7 @@ export function FileManager() {
                                     const estMin = transcribeEstimateMinutes.get(file.id);
                                     const startedAt = transcribeStartedAt.get(file.id);
                                     const prov = transcribingProvider.get(file.id);
-                                    const provDisplay = prov === "OpenAI" || prov === "openai_whisper" ? "OpenAI" : prov === "QoQon" || prov === "Docling" || prov === "docling" ? "QoQon" : prov || "";
+                                    const provDisplay = prov === "OpenAI" || prov === "openai_whisper" ? "OpenAI" : prov === "openrouter" || prov === "OpenRouter" ? "OpenRouter" : prov === "QoQon" || prov === "Docling" || prov === "docling" ? "QoQon" : prov || "";
                                     if (estMin != null && estMin > 0 && startedAt != null) {
                                       return (
                                         <span key={file.id} className="flex items-center gap-1">
@@ -3540,7 +3540,7 @@ export function FileManager() {
                                       className="flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-500/20"
                                       title={(() => {
                                         const p = (file.aiMetadata as { transcriptProvider?: string })?.transcriptProvider;
-                                        const d = p === "openai_whisper" ? "OpenAI" : p === "docling" ? "QoQon" : p || "";
+                                        const d = p === "openai_whisper" ? "OpenAI" : p === "openrouter" ? "OpenRouter" : p === "docling" ? "QoQon" : p || "";
                                         return `Транскрипт${d ? ` — ${d}` : ""}`;
                                       })()}
                                     >

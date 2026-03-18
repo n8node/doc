@@ -78,6 +78,13 @@ const TRANSCRIPTION_PROVIDER_PRESETS: Record<
   string,
   { label: string; type: string; baseUrl: string; modelName: string; needsFolderId: boolean }
 > = {
+  openrouter: {
+    label: "OpenRouter",
+    type: "CLOUD",
+    baseUrl: "https://openrouter.ai/api/v1",
+    modelName: "google/gemini-2.0-flash-exp",
+    needsFolderId: false,
+  },
   yandex_speechkit: {
     label: "Yandex SpeechKit",
     type: "CLOUD",

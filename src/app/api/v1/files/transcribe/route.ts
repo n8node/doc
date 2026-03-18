@@ -38,8 +38,9 @@ export async function POST(request: NextRequest) {
 
   const provider = await getTranscriptionProviderForUser(userId);
   const useOpenAi = provider && (provider.name === "openai_whisper" || provider.baseUrl.includes("api.openai.com"));
+  const useOpenRouter = provider && (provider.name === "openrouter" || provider.baseUrl.includes("openrouter.ai"));
 
-  if (!useOpenAi) {
+  if (!useOpenAi && !useOpenRouter) {
     const docling = getDoclingClient();
     const available = await docling.isAvailable();
     if (!available) {
@@ -73,11 +74,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (useOpenAi && Number(file.size) > 25 * 1024 * 1024) {
+  const maxSizeCloud = 25 * 1024 * 1024; // 25 MB for OpenAI Whisper / OpenRouter
+  if ((useOpenAi || useOpenRouter) && Number(file.size) > maxSizeCloud) {
     return NextResponse.json(
       {
-        error: "Файл слишком большой для OpenAI Whisper (макс. 25 МБ). Используйте файл меньше или другой тариф.",
-        code: "OPENAI_FILE_TOO_LARGE",
+        error: "Файл слишком большой (макс. 25 МБ для облачного провайдера). Используйте файл меньше или тариф с QoQon.",
+        code: "FILE_TOO_LARGE",
       },
       { status: 413 },
     );
