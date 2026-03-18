@@ -27,6 +27,9 @@ const DEFAULT_PRICES: KiePriceRow[] = [
   { modelId: "kie-flux2-pro-image", variant: null, priceCredits: 15, priceUsd: null },
   { modelId: "kie-flux2-flex-text", variant: null, priceCredits: 10, priceUsd: null },
   { modelId: "kie-flux2-flex-image", variant: null, priceCredits: 10, priceUsd: null },
+  { modelId: "kie-qwen-image-edit", variant: null, priceCredits: 10, priceUsd: null },
+  { modelId: "kie-qwen2-text-to-image", variant: null, priceCredits: 8, priceUsd: null },
+  { modelId: "kie-qwen2-image-edit", variant: null, priceCredits: 8, priceUsd: null },
 ];
 
 /**

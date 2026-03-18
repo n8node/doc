@@ -52,6 +52,9 @@ const DEFAULT_MODELS: ImageModelConfig[] = [
   { id: "kie-flux2-pro-image", name: "Flux-2 Pro Image", description: "Flux-2 Pro изображение → изображение", enabled: true, taskIds: ["edit_image"], order: 12 },
   { id: "kie-flux2-flex-text", name: "Flux-2 Flex Text", description: "Flux-2 Flex текст → изображение", enabled: true, taskIds: ["text_to_image"], order: 13 },
   { id: "kie-flux2-flex-image", name: "Flux-2 Flex Image", description: "Flux-2 Flex изображение → изображение", enabled: true, taskIds: ["edit_image"], order: 14 },
+  { id: "kie-qwen-image-edit", name: "Qwen Image Edit", description: "Qwen редактирование (image_size, num_images)", enabled: true, taskIds: ["edit_image"], order: 15 },
+  { id: "kie-qwen2-text-to-image", name: "Qwen 2 Text to Image", description: "Qwen Image 2.0 текст → изображение", enabled: true, taskIds: ["text_to_image"], order: 16 },
+  { id: "kie-qwen2-image-edit", name: "Qwen 2 Image Edit", description: "Qwen Image 2.0 редактирование (до 3 фото)", enabled: true, taskIds: ["edit_image"], order: 17 },
 ];
 
 export async function getImageGenerationEnabled(): Promise<boolean> {

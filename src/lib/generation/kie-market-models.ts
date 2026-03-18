@@ -10,6 +10,9 @@ export const KIE_MARKET_MODEL_IDS = new Set<string>([
   "kie-nano-banana-edit",
   "kie-qwen-text-to-image",
   "kie-qwen-image-to-image",
+  "kie-qwen-image-edit",
+  "kie-qwen2-text-to-image",
+  "kie-qwen2-image-edit",
   "kie-gpt-image-15-text",
   "kie-gpt-image-15-image",
   "kie-flux2-pro-image",
@@ -25,6 +28,9 @@ const KIE_MODEL_BY_ID: Record<string, string> = {
   "kie-nano-banana-edit": "google/nano-banana-edit",
   "kie-qwen-text-to-image": "qwen/text-to-image",
   "kie-qwen-image-to-image": "qwen/image-to-image",
+  "kie-qwen-image-edit": "qwen/image-edit",
+  "kie-qwen2-text-to-image": "qwen2/text-to-image",
+  "kie-qwen2-image-edit": "qwen2/image-edit",
   "kie-gpt-image-15-text": "gpt-image/1.5-text-to-image",
   "kie-gpt-image-15-image": "gpt-image/1.5-image-to-image",
   "kie-flux2-pro-image": "flux-2/pro-image-to-image",
@@ -106,6 +112,28 @@ export function buildMarketInput(params: BuildInputParams): Record<string, unkno
         image_url: fileUrls[0],
         output_format: format === "jpg" ? "jpeg" : "png",
       };
+    case "kie-qwen-image-edit":
+      if (!fileUrls[0]) return { error: "Для редактирования нужно загрузить изображение" };
+      return {
+        prompt: prompt || " ",
+        image_url: fileUrls[0],
+        image_size: mapAspectToQwenImageEditSize(aspect),
+        output_format: format === "jpg" ? "jpeg" : "png",
+      };
+    case "kie-qwen2-text-to-image":
+      return {
+        prompt: prompt || " ",
+        image_size: mapAspectToQwen2TextSize(aspect),
+        output_format: format === "jpg" ? "jpeg" : "png",
+      };
+    case "kie-qwen2-image-edit":
+      if (!fileUrls.length) return { error: "Для редактирования нужно загрузить изображение" };
+      return {
+        prompt: prompt || " ",
+        image_url: fileUrls.slice(0, 3),
+        image_size: mapAspectToQwen2EditSize(aspect),
+        output_format: format === "jpg" ? "jpeg" : "png",
+      };
     case "kie-gpt-image-15-text":
       return {
         prompt: prompt || " ",
@@ -150,6 +178,23 @@ function mapAspectToQwenSize(aspect: string): string {
     "16:9": "landscape_16_9",
   };
   return m[aspect] ?? "square_hd";
+}
+
+/** qwen/image-edit: image_size = square | square_hd | portrait_4_3 | portrait_16_9 | landscape_4_3 | landscape_16_9 */
+function mapAspectToQwenImageEditSize(aspect: string): string {
+  return mapAspectToQwenSize(aspect);
+}
+
+/** qwen2/text-to-image: image_size = 1:1 | 4:3 | 3:4 | 16:9 | 9:16 */
+function mapAspectToQwen2TextSize(aspect: string): string {
+  const allowed = new Set(["1:1", "4:3", "3:4", "16:9", "9:16"]);
+  return allowed.has(aspect) ? aspect : "1:1";
+}
+
+/** qwen2/image-edit: image_size = 1:1 | 2:3 | 3:2 | 3:4 | 4:3 | 9:16 | 16:9 | 21:9 */
+function mapAspectToQwen2EditSize(aspect: string): string {
+  const allowed = new Set(["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]);
+  return allowed.has(aspect) ? aspect : "1:1";
 }
 
 function mapAspectToGpt(aspect: string): "1:1" | "2:3" | "3:2" {
