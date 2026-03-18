@@ -67,12 +67,17 @@ export async function POST(request: NextRequest) {
     prompt?: string;
     fileIds?: string[];
     maskFileId?: string;
-    size?: "1:1" | "3:2" | "2:3";
+    size?: string;
     aspectRatio?: string;
     outputFormat?: "jpeg" | "png";
     fluxModel?: "flux-kontext-pro" | "flux-kontext-max";
     resolution?: string;
     quality?: string;
+    strength?: number;
+    negativePrompt?: string;
+    seed?: number;
+    numImages?: number;
+    acceleration?: string;
   };
   try {
     body = await request.json();
@@ -114,7 +119,7 @@ export async function POST(request: NextRequest) {
   /** При 429 ставим задачу в очередь и возвращаем taskId со статусом queued. */
   function enqueueAndReturn(
     kind: "4o" | "flux" | "market",
-    queuePayload: { taskType: string; modelId: string; prompt?: string; fileIds?: string[]; maskFileId?: string | null; size?: string; aspectRatio?: string; outputFormat?: string; fluxModel?: string; resolution?: string; quality?: string }
+    queuePayload: { taskType: string; modelId: string; prompt?: string; fileIds?: string[]; maskFileId?: string | null; size?: string; aspectRatio?: string; outputFormat?: string; fluxModel?: string; resolution?: string; quality?: string; strength?: number; negativePrompt?: string; seed?: number; numImages?: number; acceleration?: string }
   ) {
     return (async () => {
       const variant = modelId === "kie-flux-kontext" ? (body.fluxModel ?? null) : null;
@@ -147,7 +152,8 @@ export async function POST(request: NextRequest) {
   let kieTaskId: string | null = null;
 
   if (modelId === "kie-4o-image") {
-    const size = body.size ?? "1:1";
+    const size4o: "1:1" | "3:2" | "2:3" =
+      body.size === "3:2" || body.size === "2:3" ? body.size : "1:1";
     let filesUrl: string[] | undefined;
     if (fileIds.length > 0) {
       filesUrl = await Promise.all(fileIds.map(getFileUrl));
@@ -165,13 +171,13 @@ export async function POST(request: NextRequest) {
     const result = await create4oImageTask(apiKey, {
       prompt: prompt || undefined,
       filesUrl,
-      size,
+      size: size4o,
       maskUrl,
       callBackUrl,
     });
     if ("error" in result) {
       if (result.rateLimit) {
-        return enqueueAndReturn("4o", { taskType, modelId, prompt, fileIds, maskFileId, size, aspectRatio: body.aspectRatio, outputFormat: body.outputFormat, fluxModel: body.fluxModel, resolution: body.resolution, quality: body.quality });
+        return enqueueAndReturn("4o", { taskType, modelId, prompt, fileIds, maskFileId, size: body.size, aspectRatio: body.aspectRatio, outputFormat: body.outputFormat, fluxModel: body.fluxModel, resolution: body.resolution, quality: body.quality, strength: body.strength, negativePrompt: body.negativePrompt, seed: body.seed, numImages: body.numImages, acceleration: body.acceleration });
       }
       return NextResponse.json({ error: result.error }, { status: 502 });
     }
@@ -195,7 +201,7 @@ export async function POST(request: NextRequest) {
     });
     if ("error" in result) {
       if (result.rateLimit) {
-        return enqueueAndReturn("flux", { taskType, modelId, prompt, fileIds, maskFileId, size: body.size, aspectRatio: body.aspectRatio, outputFormat: body.outputFormat, fluxModel: body.fluxModel, resolution: body.resolution, quality: body.quality });
+        return enqueueAndReturn("flux", { taskType, modelId, prompt, fileIds, maskFileId, size: body.size, aspectRatio: body.aspectRatio, outputFormat: body.outputFormat, fluxModel: body.fluxModel, resolution: body.resolution, quality: body.quality, strength: body.strength, negativePrompt: body.negativePrompt, seed: body.seed, numImages: body.numImages, acceleration: body.acceleration });
       }
       return NextResponse.json({ error: result.error }, { status: 502 });
     }
@@ -219,6 +225,11 @@ export async function POST(request: NextRequest) {
       outputFormat: body.outputFormat ?? "png",
       size: body.size ?? "1:1",
       quality: body.quality ?? "medium",
+      strength: body.strength,
+      negativePrompt: body.negativePrompt,
+      seed: body.seed,
+      numImages: body.numImages,
+      acceleration: body.acceleration,
     });
     if ("error" in inputOrError) {
       return NextResponse.json({ error: inputOrError.error }, { status: 400 });
@@ -230,7 +241,7 @@ export async function POST(request: NextRequest) {
     });
     if ("error" in result) {
       if (result.rateLimit) {
-        return enqueueAndReturn("market", { taskType, modelId, prompt, fileIds, maskFileId, size: body.size, aspectRatio: body.aspectRatio, outputFormat: body.outputFormat, fluxModel: body.fluxModel, resolution: body.resolution, quality: body.quality });
+        return enqueueAndReturn("market", { taskType, modelId, prompt, fileIds, maskFileId, size: body.size, aspectRatio: body.aspectRatio, outputFormat: body.outputFormat, fluxModel: body.fluxModel, resolution: body.resolution, quality: body.quality, strength: body.strength, negativePrompt: body.negativePrompt, seed: body.seed, numImages: body.numImages, acceleration: body.acceleration });
       }
       return NextResponse.json({ error: result.error }, { status: 502 });
     }

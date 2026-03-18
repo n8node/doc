@@ -5,9 +5,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Loader2, ImageIcon, ArrowRight, AlertCircle, Sparkles, Upload, X, Coins } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { getModelFieldsConfig } from "@/lib/generation/model-fields-config";
 
 /* TODO: вернуть выбор исходного изображения из «Мои файлы» (подгрузка с диска).
    См. .cursor/rules/generation-image-todo.mdc */
@@ -20,9 +23,18 @@ interface PendingGenState {
   prompt: string;
   selectedTaskId: string;
   selectedModelId: string;
-  size: "1:1" | "3:2" | "2:3";
+  size: string;
   aspectRatio: string;
   fileIds: string[];
+  resolution?: string;
+  quality?: string;
+  outputFormat?: string;
+  strength?: number;
+  negativePrompt?: string;
+  seed?: number;
+  numImages?: number;
+  acceleration?: string;
+  fluxModel?: string;
 }
 
 interface TaskItem {
@@ -48,8 +60,17 @@ export default function GenerateImagePage() {
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [size, setSize] = useState<"1:1" | "3:2" | "2:3">("1:1");
+  const [size, setSize] = useState<string>("1:1");
   const [aspectRatio, setAspectRatio] = useState<string>("16:9");
+  const [resolution, setResolution] = useState<string>("1K");
+  const [quality, setQuality] = useState<string>("medium");
+  const [outputFormat, setOutputFormat] = useState<string>("png");
+  const [strength, setStrength] = useState<number>(0.8);
+  const [negativePrompt, setNegativePrompt] = useState("");
+  const [seed, setSeed] = useState<number | "">("");
+  const [numImages, setNumImages] = useState<number>(1);
+  const [acceleration, setAcceleration] = useState<string>("none");
+  const [fluxModel, setFluxModel] = useState<string>("flux-kontext-pro");
   const [submitting, setSubmitting] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -124,6 +145,18 @@ export default function GenerateImagePage() {
       .catch(() => setModels([]))
       .finally(() => setLoadingModels(false));
   }, [selectedTaskId]);
+
+  // При смене модели подставляем допустимое значение соотношения/размера
+  useEffect(() => {
+    if (!selectedModelId) return;
+    const cfg = getModelFieldsConfig(selectedModelId);
+    if (cfg.sizeOptions && !cfg.sizeOptions.some((o) => o.value === size)) {
+      setSize(cfg.sizeOptions[0]?.value ?? "1:1");
+    }
+    if (cfg.aspectOptions && !cfg.aspectOptions.some((o) => o.value === aspectRatio)) {
+      setAspectRatio(cfg.aspectOptions[0]?.value ?? "1:1");
+    }
+  }, [selectedModelId, size, aspectRatio]);
 
   // Выбор из «Мои файлы» временно отключён — только загрузка с компьютера. См. generation-image-todo.mdc
   useEffect(() => {
@@ -209,6 +242,15 @@ export default function GenerateImagePage() {
         setSize(saved.size ?? "1:1");
         setAspectRatio(saved.aspectRatio ?? "16:9");
         setFileIds(Array.isArray(saved.fileIds) ? saved.fileIds : []);
+        if (saved.resolution) setResolution(saved.resolution);
+        if (saved.quality) setQuality(saved.quality);
+        if (saved.outputFormat) setOutputFormat(saved.outputFormat);
+        if (saved.strength != null) setStrength(saved.strength);
+        if (saved.negativePrompt != null) setNegativePrompt(saved.negativePrompt);
+        if (saved.seed != null) setSeed(saved.seed);
+        if (saved.numImages != null) setNumImages(saved.numImages);
+        if (saved.acceleration) setAcceleration(saved.acceleration);
+        if (saved.fluxModel) setFluxModel(saved.fluxModel);
         setTaskId(saved.taskId);
         setStatus(s ?? null);
         if (s === "success") {
@@ -250,14 +292,23 @@ export default function GenerateImagePage() {
     setBilledCredits(null);
     setErrorMessage(null);
     try {
+      const cfg = getModelFieldsConfig(selectedModelId);
       const body: Record<string, unknown> = {
         taskType: selectedTaskId,
         modelId: selectedModelId,
         prompt: prompt.trim() || undefined,
         fileIds: fileIds.length > 0 ? fileIds : undefined,
-        size: selectedModelId === "kie-4o-image" ? size : undefined,
-        aspectRatio: aspectRatio || undefined,
-        outputFormat: "png",
+        size: cfg.sizeOptions ? size : undefined,
+        aspectRatio: cfg.aspectOptions ? aspectRatio : undefined,
+        outputFormat: cfg.showOutputFormat !== false ? outputFormat : undefined,
+        resolution: cfg.showResolution ? resolution : undefined,
+        quality: cfg.showQuality ? quality : undefined,
+        strength: cfg.showStrength ? strength : undefined,
+        negativePrompt: cfg.showNegativePrompt && negativePrompt.trim() ? negativePrompt.trim() : undefined,
+        seed: (cfg.showSeed && seed !== "") ? Number(seed) : undefined,
+        numImages: cfg.showNumImages ? numImages : undefined,
+        acceleration: cfg.showAcceleration ? acceleration : undefined,
+        fluxModel: cfg.showFluxModel ? fluxModel : undefined,
       };
       const res = await fetch("/api/v1/generate/image", {
         method: "POST",
@@ -279,6 +330,15 @@ export default function GenerateImagePage() {
           size,
           aspectRatio,
           fileIds: [...fileIds],
+          resolution,
+          quality,
+          outputFormat,
+          strength,
+          negativePrompt: negativePrompt || undefined,
+          seed: seed !== "" ? seed : undefined,
+          numImages,
+          acceleration,
+          fluxModel,
         };
         window.localStorage.setItem(PENDING_GEN_STORAGE_KEY, JSON.stringify(pending));
       } catch {
@@ -358,6 +418,17 @@ export default function GenerateImagePage() {
   const handleReset = () => {
     setPrompt("");
     handleRemoveUploadedImage();
+    setSize("1:1");
+    setAspectRatio("16:9");
+    setResolution("1K");
+    setQuality("medium");
+    setOutputFormat("png");
+    setStrength(0.8);
+    setNegativePrompt("");
+    setSeed("");
+    setNumImages(1);
+    setAcceleration("none");
+    setFluxModel("flux-kontext-pro");
     setStatus(null);
     setTaskId(null);
     setResultUrl(null);
@@ -459,25 +530,25 @@ export default function GenerateImagePage() {
             )}
           </div>
 
-          {/* Один блок «Ввод»: промпт, загрузка с компьютера, соотношение сторон */}
+          {/* Блок «Ввод»: промпт, загрузка, модель-специфичные поля */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Ввод</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Промпт</label>
+                <Label className="mb-1">Промпт</Label>
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Опишите изображение или правки на английском или русском"
                   rows={4}
-                  className="resize-none rounded-lg border-input"
+                  className="resize-none rounded-lg border-input mt-1"
                 />
               </div>
               {(selectedTaskId === "edit_image" || selectedTaskId === "variations") && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Исходное изображение (загрузка с компьютера)</label>
+                  <Label className="mb-1">Исходное изображение (загрузка с компьютера)</Label>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -489,7 +560,7 @@ export default function GenerateImagePage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full border-dashed"
+                      className="w-full border-dashed mt-1"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                     >
@@ -497,7 +568,7 @@ export default function GenerateImagePage() {
                       {uploading ? "Загрузка…" : "Выбрать файл"}
                     </Button>
                   ) : (
-                    <div className="relative rounded-lg border overflow-hidden inline-block">
+                    <div className="relative rounded-lg border overflow-hidden inline-block mt-1">
                       <img src={uploadPreviewUrl} alt="Превью" className="max-h-32 object-contain" />
                       <Button
                         type="button"
@@ -512,33 +583,173 @@ export default function GenerateImagePage() {
                   )}
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-medium mb-1">Соотношение сторон</label>
-                {selectedModelId === "kie-4o-image" ? (
-                  <select
-                    value={size}
-                    onChange={(e) => setSize(e.target.value as "1:1" | "3:2" | "2:3")}
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="1:1">1:1</option>
-                    <option value="3:2">3:2</option>
-                    <option value="2:3">2:3</option>
-                  </select>
-                ) : (
-                  <select
-                    value={aspectRatio}
-                    onChange={(e) => setAspectRatio(e.target.value)}
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="21:9">21:9</option>
-                    <option value="16:9">16:9</option>
-                    <option value="4:3">4:3</option>
-                    <option value="1:1">1:1</option>
-                    <option value="3:4">3:4</option>
-                    <option value="9:16">9:16</option>
-                  </select>
-                )}
-              </div>
+              {selectedModelId && (() => {
+                const cfg = getModelFieldsConfig(selectedModelId);
+                return (
+                  <>
+                    {cfg.sizeOptions && (
+                      <div>
+                        <Label className="mb-1">Соотношение сторон</Label>
+                        <select
+                          value={size}
+                          onChange={(e) => setSize(e.target.value)}
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm mt-1"
+                        >
+                          {cfg.sizeOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {cfg.aspectOptions && (
+                      <div>
+                        <Label className="mb-1">Соотношение сторон</Label>
+                        <select
+                          value={aspectRatio}
+                          onChange={(e) => setAspectRatio(e.target.value)}
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm mt-1"
+                        >
+                          {cfg.aspectOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {cfg.showResolution && (
+                      <div>
+                        <Label className="mb-1">Разрешение</Label>
+                        <div className="flex gap-2 mt-1">
+                          {(["1K", "2K", "4K"] as const).map((r) => (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => setResolution(r)}
+                              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                                resolution === r ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background hover:bg-muted/50"
+                              }`}
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {cfg.showQuality && (
+                      <div>
+                        <Label className="mb-1">Качество</Label>
+                        <select
+                          value={quality}
+                          onChange={(e) => setQuality(e.target.value)}
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm mt-1"
+                        >
+                          <option value="medium">Среднее (быстрее)</option>
+                          <option value="high">Высокое (детальнее)</option>
+                        </select>
+                      </div>
+                    )}
+                    {cfg.showOutputFormat && (
+                      <div>
+                        <Label className="mb-1">Формат вывода</Label>
+                        <div className="flex gap-2 mt-1">
+                          {(["png", "jpeg"] as const).map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => setOutputFormat(f)}
+                              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                                outputFormat === f ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background hover:bg-muted/50"
+                              }`}
+                            >
+                              {f.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {cfg.showStrength && (
+                      <div>
+                        <Label className="mb-1">Сила изменения (strength): {strength.toFixed(1)} — 1.0 = перерисовать, 0.0 = сохранить оригинал</Label>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.1}
+                          value={strength}
+                          onChange={(e) => setStrength(parseFloat(e.target.value))}
+                          className="w-full mt-1"
+                        />
+                      </div>
+                    )}
+                    {cfg.showNegativePrompt && (
+                      <div>
+                        <Label className="mb-1">Негативный промпт (чего избегать)</Label>
+                        <Input
+                          value={negativePrompt}
+                          onChange={(e) => setNegativePrompt(e.target.value)}
+                          placeholder="напр. blurry, ugly"
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                    {cfg.showSeed && (
+                      <div>
+                        <Label className="mb-1">Seed (для воспроизводимости, опционально)</Label>
+                        <Input
+                          type="number"
+                          value={seed === "" ? "" : seed}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setSeed(v === "" ? "" : parseInt(v, 10) || 0);
+                          }}
+                          placeholder="пусто = случайный"
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                    {cfg.showNumImages && (
+                      <div>
+                        <Label className="mb-1">Количество изображений</Label>
+                        <select
+                          value={numImages}
+                          onChange={(e) => setNumImages(parseInt(e.target.value, 10))}
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm mt-1"
+                        >
+                          {[1, 2, 3, 4].map((n) => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {cfg.showAcceleration && (
+                      <div>
+                        <Label className="mb-1">Ускорение</Label>
+                        <select
+                          value={acceleration}
+                          onChange={(e) => setAcceleration(e.target.value)}
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm mt-1"
+                        >
+                          <option value="none">Нет</option>
+                          <option value="regular">Regular (баланс)</option>
+                          <option value="high">High (быстрее, без текста)</option>
+                        </select>
+                      </div>
+                    )}
+                    {cfg.showFluxModel && (
+                      <div>
+                        <Label className="mb-1">Вариант Flux Kontext</Label>
+                        <select
+                          value={fluxModel}
+                          onChange={(e) => setFluxModel(e.target.value)}
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm mt-1"
+                        >
+                          <option value="flux-kontext-pro">Pro</option>
+                          <option value="flux-kontext-max">Max</option>
+                        </select>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
 

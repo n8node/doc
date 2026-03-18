@@ -24,6 +24,11 @@ type QueuePayload = {
   fluxModel?: string;
   resolution?: string;
   quality?: string;
+  strength?: number;
+  negativePrompt?: string;
+  seed?: number;
+  numImages?: number;
+  acceleration?: string;
 };
 
 /**
@@ -135,6 +140,11 @@ export async function POST(req: NextRequest) {
             outputFormat: payload.outputFormat ?? "png",
             size: payload.size ?? "1:1",
             quality: payload.quality ?? "medium",
+            strength: payload.strength,
+            negativePrompt: payload.negativePrompt,
+            seed: payload.seed,
+            numImages: payload.numImages,
+            acceleration: payload.acceleration,
           });
           if ("error" in inputOrError) {
             result = { error: String(inputOrError.error) };
