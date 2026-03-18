@@ -57,7 +57,8 @@ export default function GenerateImagePage() {
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [prompt, setPrompt] = useState("");
   const [fileIds, setFileIds] = useState<string[]>([]);
-  const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
+  /** Превью загруженных файлов: fileId → object URL (для отображения и revoke). */
+  const [uploadPreviews, setUploadPreviews] = useState<Array<{ fileId: string; url: string }>>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [size, setSize] = useState<string>("1:1");
@@ -162,10 +163,29 @@ export default function GenerateImagePage() {
   useEffect(() => {
     if (selectedTaskId !== "edit_image" && selectedTaskId !== "variations") {
       setFileIds([]);
-      if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
-      setUploadPreviewUrl(null);
+      setUploadPreviews((prev) => {
+        prev.forEach((p) => URL.revokeObjectURL(p.url));
+        return [];
+      });
     }
   }, [selectedTaskId]);
+
+  // При смене модели обрезаем список фото до лимита новой модели
+  useEffect(() => {
+    if (!selectedModelId || fileIds.length === 0) return;
+    const cfg = getModelFieldsConfig(selectedModelId);
+    const max = cfg.maxInputImages ?? 1;
+    if (fileIds.length <= max) return;
+    const keep = fileIds.slice(0, max);
+    setFileIds(keep);
+    setUploadPreviews((prev) => {
+      const keepSet = new Set(keep);
+      prev.forEach((p) => {
+        if (!keepSet.has(p.fileId)) URL.revokeObjectURL(p.url);
+      });
+      return prev.filter((p) => keepSet.has(p.fileId));
+    });
+  }, [selectedModelId, fileIds.length]);
 
   const clearPendingStorage = useCallback(() => {
     if (typeof window !== "undefined") {
@@ -359,44 +379,57 @@ export default function GenerateImagePage() {
   };
 
   const handleUploadFromComputer = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) {
-      toast.error("Выберите файл изображения");
+    const files = e.target.files;
+    if (!files?.length) return;
+    const cfg = getModelFieldsConfig(selectedModelId);
+    const max = cfg.maxInputImages ?? 1;
+    const canAdd = Math.max(0, max - fileIds.length);
+    if (canAdd === 0) {
+      toast.error(`Максимум ${max} изображений для этой модели`);
+      e.target.value = "";
+      return;
+    }
+    const toUpload = Array.from(files).filter((f) => f.type.startsWith("image/")).slice(0, canAdd);
+    if (!toUpload.length) {
+      toast.error("Выберите файлы изображений");
+      e.target.value = "";
       return;
     }
     setUploading(true);
+    const newIds: string[] = [];
+    const newPreviews: Array<{ fileId: string; url: string }> = [];
     try {
-      const initRes = await fetch("/api/v1/files/upload/init", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: file.name,
-          size: file.size,
-          mimeType: file.type,
-          folderId: null,
-        }),
-      });
-      const initData = await initRes.json();
-      if (!initRes.ok) throw new Error(initData.error ?? "Ошибка инициализации загрузки");
-      const { uploadUrl, uploadHeaders, uploadSessionToken } = initData;
-      const putRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": uploadHeaders?.["Content-Type"] ?? file.type },
-        body: file,
-      });
-      if (!putRes.ok) throw new Error("Ошибка загрузки файла");
-      const completeRes = await fetch("/api/v1/files/upload/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uploadSessionToken }),
-      });
-      const completeData = await completeRes.json();
-      if (!completeRes.ok) throw new Error(completeData.error ?? "Ошибка завершения загрузки");
-      const id = completeData.id;
-      setFileIds([id]);
-      setUploadPreviewUrl(URL.createObjectURL(file));
-      toast.success("Файл загружен");
+      for (const file of toUpload) {
+        const initRes = await fetch("/api/v1/files/upload/init", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: file.name, size: file.size, mimeType: file.type, folderId: null }),
+        });
+        const initData = await initRes.json();
+        if (!initRes.ok) throw new Error(initData.error ?? "Ошибка инициализации загрузки");
+        const { uploadUrl, uploadHeaders, uploadSessionToken } = initData;
+        const putRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": uploadHeaders?.["Content-Type"] ?? file.type },
+          body: file,
+        });
+        if (!putRes.ok) throw new Error("Ошибка загрузки файла");
+        const completeRes = await fetch("/api/v1/files/upload/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uploadSessionToken }),
+        });
+        const completeData = await completeRes.json();
+        if (!completeRes.ok) throw new Error(completeData.error ?? "Ошибка завершения загрузки");
+        const id = completeData.id;
+        newIds.push(id);
+        newPreviews.push({ fileId: id, url: URL.createObjectURL(file) });
+      }
+      setFileIds((prev) => [...prev, ...newIds]);
+      setUploadPreviews((prev) => [...prev, ...newPreviews]);
+      toast.success(toUpload.length === 1 ? "Файл загружен" : `Загружено ${toUpload.length} файлов`);
     } catch (err) {
+      newPreviews.forEach((p) => URL.revokeObjectURL(p.url));
       toast.error(err instanceof Error ? err.message : "Ошибка загрузки");
     } finally {
       setUploading(false);
@@ -404,15 +437,22 @@ export default function GenerateImagePage() {
     }
   };
 
-  const handleRemoveUploadedImage = () => {
-    setFileIds([]);
-    if (uploadPreviewUrl) {
-      URL.revokeObjectURL(uploadPreviewUrl);
-      setUploadPreviewUrl(null);
+  const handleRemoveUploadedImage = (fileIdToRemove?: string) => {
+    if (fileIdToRemove != null) {
+      setFileIds((prev) => prev.filter((id) => id !== fileIdToRemove));
+      setUploadPreviews((prev) => {
+        const p = prev.find((x) => x.fileId === fileIdToRemove);
+        if (p) URL.revokeObjectURL(p.url);
+        return prev.filter((x) => x.fileId !== fileIdToRemove);
+      });
+    } else {
+      setFileIds([]);
+      setUploadPreviews((prev) => {
+        prev.forEach((p) => URL.revokeObjectURL(p.url));
+        return [];
+      });
     }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleReset = () => {
@@ -548,39 +588,59 @@ export default function GenerateImagePage() {
               </div>
               {(selectedTaskId === "edit_image" || selectedTaskId === "variations") && (
                 <div>
-                  <Label className="mb-1">Исходное изображение (загрузка с компьютера)</Label>
+                  <Label className="mb-1">
+                    Исходные изображения (загрузка с компьютера)
+                    {selectedModelId && (() => {
+                      const max = getModelFieldsConfig(selectedModelId).maxInputImages ?? 1;
+                      return max > 1 ? ` — до ${max} фото` : null;
+                    })()}
+                  </Label>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleUploadFromComputer}
                     className="hidden"
                   />
-                  {!uploadPreviewUrl ? (
+                  {uploadPreviews.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {uploadPreviews.map((p) => (
+                        <div key={p.fileId} className="relative rounded-lg border overflow-hidden bg-muted/30">
+                          <img src={p.url} alt="" className="h-20 w-20 object-cover" />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-0.5 right-0.5 h-6 w-6"
+                            onClick={() => handleRemoveUploadedImage(p.fileId)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-2">
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full border-dashed mt-1"
+                      className="border-dashed"
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
+                      disabled={uploading || (() => {
+                        const max = getModelFieldsConfig(selectedModelId).maxInputImages ?? 1;
+                        return fileIds.length >= max;
+                      })()}
                     >
                       {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-                      {uploading ? "Загрузка…" : "Выбрать файл"}
+                      {uploading ? "Загрузка…" : uploadPreviews.length === 0 ? "Выбрать файл(ы)" : `Добавить ещё (${fileIds.length}/${getModelFieldsConfig(selectedModelId).maxInputImages ?? 1})`}
                     </Button>
-                  ) : (
-                    <div className="relative rounded-lg border overflow-hidden inline-block mt-1">
-                      <img src={uploadPreviewUrl} alt="Превью" className="max-h-32 object-contain" />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 h-7 w-7"
-                        onClick={handleRemoveUploadedImage}
-                      >
-                        <X className="h-4 w-4" />
+                    {uploadPreviews.length > 0 && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveUploadedImage()}>
+                        Удалить все
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
               {selectedModelId && (() => {

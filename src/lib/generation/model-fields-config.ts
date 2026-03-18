@@ -16,6 +16,7 @@ const COMMON_ASPECT: AspectOption[] = [
   { value: "21:9", label: "21:9" },
 ];
 
+/** Макс. число входных изображений для задач edit_image / variations (1 = одно фото). */
 export const MODEL_FIELDS_CONFIG: Record<
   string,
   {
@@ -30,6 +31,8 @@ export const MODEL_FIELDS_CONFIG: Record<
     showNumImages?: boolean;
     showAcceleration?: boolean;
     showFluxModel?: boolean;
+    /** Макс. кол-во загружаемых изображений (для edit_image / variations). По умолчанию 1. */
+    maxInputImages?: number;
   }
 > = {
   "kie-4o-image": {
@@ -56,6 +59,7 @@ export const MODEL_FIELDS_CONFIG: Record<
     aspectOptions: [...COMMON_ASPECT],
     showResolution: true,
     showOutputFormat: true,
+    maxInputImages: 8,
   },
   "kie-nano-banana-2": {
     aspectOptions: [
@@ -64,6 +68,7 @@ export const MODEL_FIELDS_CONFIG: Record<
     ],
     showResolution: true,
     showOutputFormat: true,
+    maxInputImages: 14,
   },
   "kie-nano-banana": {
     sizeOptions: [
@@ -96,6 +101,7 @@ export const MODEL_FIELDS_CONFIG: Record<
       { value: "auto", label: "Auto" },
     ],
     showOutputFormat: true,
+    maxInputImages: 10,
   },
   "kie-qwen-text-to-image": {
     aspectOptions: [
@@ -153,6 +159,7 @@ export const MODEL_FIELDS_CONFIG: Record<
     ],
     showOutputFormat: true,
     showSeed: true,
+    maxInputImages: 3,
   },
   "kie-gpt-image-15-text": {
     aspectOptions: [
@@ -169,6 +176,7 @@ export const MODEL_FIELDS_CONFIG: Record<
       { value: "3:2", label: "3:2" },
     ],
     showQuality: true,
+    maxInputImages: 16,
   },
   "kie-flux2-pro-text": {
     aspectOptions: [...COMMON_ASPECT],
@@ -179,6 +187,7 @@ export const MODEL_FIELDS_CONFIG: Record<
     aspectOptions: [...COMMON_ASPECT],
     showResolution: true,
     showOutputFormat: true,
+    maxInputImages: 8,
   },
   "kie-flux2-flex-text": {
     aspectOptions: [...COMMON_ASPECT],
@@ -189,6 +198,7 @@ export const MODEL_FIELDS_CONFIG: Record<
     aspectOptions: [...COMMON_ASPECT],
     showResolution: true,
     showOutputFormat: true,
+    maxInputImages: 8,
   },
 };
 
