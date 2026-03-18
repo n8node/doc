@@ -272,7 +272,7 @@ export function FileManager() {
   const [documentChatAllowed, setDocumentChatAllowed] = useState(false);
 
   const [mediaModal, setMediaModal] = useState<{
-    type: "video" | "audio";
+    type: "video" | "audio" | "image";
     id: string;
     name: string;
   } | null>(null);
@@ -3323,7 +3323,15 @@ export function FileManager() {
                                 </button>
                               )}
 
-                              <div className="relative aspect-square overflow-hidden bg-surface2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMediaModal({ type: "image", id: file.id, name: file.name });
+                                }}
+                                className="relative aspect-square overflow-hidden bg-surface2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset"
+                                aria-label="Открыть в полном размере"
+                              >
                                 <Image
                                   src={streamUrl(file.id)}
                                   alt={file.name}
@@ -3332,7 +3340,7 @@ export function FileManager() {
                                   unoptimized
                                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
                                 />
-                              </div>
+                              </button>
 
                               <div className="space-y-2 p-3">
                                 <p className="truncate text-sm font-medium text-foreground" title={file.name}>
@@ -3897,12 +3905,21 @@ export function FileManager() {
       {/* Media modal */}
       {mediaModal && (
         <Dialog open onOpenChange={() => setMediaModal(null)}>
-          <DialogContent className="max-w-3xl" aria-describedby={undefined}>
+          <DialogContent className={mediaModal.type === "image" ? "max-w-[90vw] max-h-[90vh] overflow-auto" : "max-w-3xl"} aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>{mediaModal.name}</DialogTitle>
             </DialogHeader>
             {mediaModal.type === "video" && <VideoPlayer src={streamUrl(mediaModal.id)} />}
             {mediaModal.type === "audio" && <AudioPlayer src={streamUrl(mediaModal.id)} />}
+            {mediaModal.type === "image" && (
+              <div className="flex justify-center bg-muted/30 rounded-lg overflow-auto max-h-[85vh]">
+                <img
+                  src={streamUrl(mediaModal.id)}
+                  alt={mediaModal.name}
+                  className="max-w-full h-auto object-contain"
+                />
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       )}
