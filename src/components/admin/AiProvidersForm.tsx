@@ -145,6 +145,7 @@ function TranscriptionProviderCard({
         throw new Error(data.error ?? "Ошибка");
       }
       toast.success(`${preset?.label ?? provider.name} обновлён`);
+      if (form.apiKey.trim()) toast.success("Ключ сохранён");
       setEditing(false);
       setForm((f) => ({ ...f, apiKey: "" }));
       onUpdate();
@@ -253,7 +254,12 @@ function TranscriptionProviderCard({
 
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              API-ключ {provider.hasApiKey && <span className="text-emerald-500">(установлен)</span>}
+              API-ключ{" "}
+              {provider.hasApiKey && (
+                <span className="text-emerald-500">
+                  (установлен{provider.apiKeyMasked ? `: ${provider.apiKeyMasked}` : ""})
+                </span>
+              )}
             </label>
             <div className="relative">
               <Input
@@ -261,6 +267,7 @@ function TranscriptionProviderCard({
                 value={form.apiKey}
                 onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
                 placeholder={provider.hasApiKey ? "Оставьте пустым, чтобы не менять" : "sk-..."}
+                autoComplete="off"
               />
               <button
                 type="button"
@@ -522,6 +529,7 @@ function ProviderCard({
                 value={form.apiKey}
                 onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
                 placeholder={provider.hasApiKey ? "Оставьте пустым, чтобы не менять" : "sk-..."}
+                autoComplete="off"
               />
               <button
                 type="button"
