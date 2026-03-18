@@ -295,7 +295,9 @@ export function FileCard({
 
   const transcriptProviderDisplay =
     isTranscribing ? formatTranscriptProvider(transcribingProvider) : formatTranscriptProvider(aiMetadata?.transcriptProvider);
-  const transcriptProviderSuffix = transcriptProviderDisplay ? ` — ${transcriptProviderDisplay}` : "";
+  // Для OpenRouter не показываем суффикс — только «Транскрипт»
+  const transcriptProviderSuffix =
+    transcriptProviderDisplay && transcriptProviderDisplay !== "OpenRouter" ? ` — ${transcriptProviderDisplay}` : "";
 
   return (
     <TooltipProvider delayDuration={300}>

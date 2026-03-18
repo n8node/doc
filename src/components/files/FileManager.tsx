@@ -3540,8 +3540,8 @@ export function FileManager() {
                                       className="flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-500/20"
                                       title={(() => {
                                         const p = (file.aiMetadata as { transcriptProvider?: string })?.transcriptProvider;
-                                        const d = p === "openai_whisper" ? "OpenAI" : p === "openrouter" || p === "openrouter_transcription" ? "OpenRouter" : p === "docling" ? "QoQon" : p || "";
-                                        return `Транскрипт${d ? ` — ${d}` : ""}`;
+                                        const d = p === "openai_whisper" ? "OpenAI" : p === "openrouter" || p === "openrouter_transcription" ? "" : p === "docling" ? "QoQon" : p || "";
+                                        return d ? `Транскрипт — ${d}` : "Транскрипт";
                                       })()}
                                     >
                                       <Mic2 className="h-3.5 w-3.5" />
