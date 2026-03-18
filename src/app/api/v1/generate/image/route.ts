@@ -15,6 +15,18 @@ import { isMarketModel, getKieModelForMarket, buildMarketInput } from "@/lib/gen
 import { getPublicBaseUrl } from "@/lib/app-url";
 import { getPresignedDownloadUrl } from "@/lib/s3-download";
 
+/** Модели с ценой по разрешению (1K/2K/4K). variant задачи = выбранное разрешение. */
+const RESOLUTION_VARIANT_MODELS = new Set([
+  "kie-nano-banana-pro", "kie-nano-banana-2",
+  "kie-flux2-pro-text", "kie-flux2-pro-image", "kie-flux2-flex-text", "kie-flux2-flex-image",
+]);
+
+function taskVariantForModel(modelId: string, fluxModel: string | null | undefined, resolution: string | null | undefined): string | null {
+  if (modelId === "kie-flux-kontext") return fluxModel ?? null;
+  if (RESOLUTION_VARIANT_MODELS.has(modelId)) return resolution ?? null;
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   const userId = await getUserIdFromRequest(request);
   if (!userId) {
@@ -122,7 +134,7 @@ export async function POST(request: NextRequest) {
     queuePayload: { taskType: string; modelId: string; prompt?: string; fileIds?: string[]; maskFileId?: string | null; size?: string; aspectRatio?: string; outputFormat?: string; fluxModel?: string; resolution?: string; quality?: string; strength?: number; negativePrompt?: string; seed?: number; numImages?: number; acceleration?: string }
   ) {
     return (async () => {
-      const variant = modelId === "kie-flux-kontext" ? (body.fluxModel ?? null) : null;
+      const variant = taskVariantForModel(modelId, body.fluxModel, body.resolution);
       const task = await prisma.imageGenerationTask.create({
         data: {
           userId: uid,
@@ -250,8 +262,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
   }
 
-  const variant =
-    modelId === "kie-flux-kontext" ? (body.fluxModel ?? null) : null;
+  const variant = taskVariantForModel(modelId, body.fluxModel, body.resolution);
 
   const task = await prisma.imageGenerationTask.create({
     data: {

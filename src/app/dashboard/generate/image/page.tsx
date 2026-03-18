@@ -147,7 +147,7 @@ export default function GenerateImagePage() {
       .finally(() => setLoadingModels(false));
   }, [selectedTaskId]);
 
-  // При смене модели подставляем допустимое значение соотношения/размера
+  // При смене модели подставляем допустимое значение соотношения/размера и разрешения
   useEffect(() => {
     if (!selectedModelId) return;
     const cfg = getModelFieldsConfig(selectedModelId);
@@ -157,7 +157,11 @@ export default function GenerateImagePage() {
     if (cfg.aspectOptions && !cfg.aspectOptions.some((o) => o.value === aspectRatio)) {
       setAspectRatio(cfg.aspectOptions[0]?.value ?? "1:1");
     }
-  }, [selectedModelId, size, aspectRatio]);
+    // Flux2 только 1K/2K; при переключении с Nano (4K) сбрасываем на 2K
+    if (cfg.showResolution && resolution === "4K" && selectedModelId !== "kie-nano-banana-pro" && selectedModelId !== "kie-nano-banana-2") {
+      setResolution("2K");
+    }
+  }, [selectedModelId, size, aspectRatio, resolution]);
 
   // Выбор из «Мои файлы» временно отключён — только загрузка с компьютера. См. generation-image-todo.mdc
   useEffect(() => {
@@ -679,7 +683,10 @@ export default function GenerateImagePage() {
                       <div>
                         <Label className="mb-1">Разрешение</Label>
                         <div className="flex gap-2 mt-1">
-                          {(["1K", "2K", "4K"] as const).map((r) => (
+                          {(selectedModelId === "kie-nano-banana-pro" || selectedModelId === "kie-nano-banana-2"
+                            ? (["1K", "2K", "4K"] as const)
+                            : (["1K", "2K"] as const)
+                          ).map((r) => (
                             <button
                               key={r}
                               type="button"
