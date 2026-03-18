@@ -523,7 +523,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
                   <option value="">QoQon (Whisper) по умолчанию</option>
                   {transcriptionProviders.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                      {p.name === "openrouter_transcription" ? "Транскрипт" : p.name}
                     </option>
                   ))}
                 </select>

@@ -79,7 +79,7 @@ const TRANSCRIPTION_PROVIDER_PRESETS: Record<
   { label: string; type: string; baseUrl: string; modelName: string; needsFolderId: boolean }
 > = {
   openrouter_transcription: {
-    label: "OpenRouter",
+    label: "Транскрипт",
     type: "CLOUD",
     baseUrl: "https://openrouter.ai/api/v1",
     modelName: "google/gemini-2.0-flash-exp",
