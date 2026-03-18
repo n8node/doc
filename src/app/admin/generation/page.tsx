@@ -400,7 +400,7 @@ export default function AdminGenerationPage() {
             Прайс Kie (стоимость в кредитах по моделям)
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Синхронизация с <a href="https://kie.ai/pricing" target="_blank" rel="noopener noreferrer" className="underline">kie.ai/pricing</a>. Рекомендуется запускать раз в сутки. При неудачном парсинге подставляются значения по умолчанию.
+            Список дополняется актуальными моделями и вариантами (Flux Kontext: Pro/Max). Синхронизация с <a href="https://kie.ai/pricing" target="_blank" rel="noopener noreferrer" className="underline">kie.ai/pricing</a> — кнопка «Обновить прайс». Проставьте кредиты для недостающих строк и нажмите «Сохранить вручную».
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

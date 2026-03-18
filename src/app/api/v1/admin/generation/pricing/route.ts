@@ -3,10 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
+import { ensureCanonicalPricingRows } from "@/lib/generation/kie-pricing-sync";
 
 /**
  * GET /api/v1/admin/generation/pricing
- * Список цен из таблицы kie_pricing (последний fetchedAt по каждой паре modelId+variant).
+ * Список цен из таблицы kie_pricing. Перед отдачей дополняет таблицу каноническими моделями и вариантами,
+ * чтобы в разделе «Прайс» всегда отображались все актуальные модели и можно было проставить цены для недостающих.
  */
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -15,6 +17,8 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  await ensureCanonicalPricingRows();
 
   const rows = await prisma.kiePricing.findMany({
     orderBy: [{ modelId: "asc" }, { variant: "asc" }],

@@ -194,3 +194,32 @@ async function upsertPrices(rows: KiePriceRow[]): Promise<void> {
     }
   }
 }
+
+/**
+ * Дополняет таблицу kie_pricing строками для всех канонических моделей и вариантов (DEFAULT_PRICES).
+ * Если записи для пары (modelId, variant) ещё нет — создаётся с дефолтной ценой.
+ * Вызывать при загрузке раздела «Прайс» в админке, чтобы можно было проставить цены для недостающих.
+ */
+export async function ensureCanonicalPricingRows(): Promise<{ added: number }> {
+  let added = 0;
+  const now = new Date();
+  for (const row of DEFAULT_PRICES) {
+    const variant = row.variant ?? null;
+    const existing = await prisma.kiePricing.findFirst({
+      where: { modelId: row.modelId, variant },
+    });
+    if (!existing) {
+      await prisma.kiePricing.create({
+        data: {
+          modelId: row.modelId,
+          variant,
+          priceCredits: row.priceCredits,
+          priceUsd: row.priceUsd,
+          fetchedAt: now,
+        },
+      });
+      added++;
+    }
+  }
+  return { added };
+}
