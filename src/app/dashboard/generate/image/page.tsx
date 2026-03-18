@@ -57,6 +57,8 @@ export default function GenerateImagePage() {
   const [costCredits, setCostCredits] = useState<number | null>(null);
   const [billedCredits, setBilledCredits] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  /** Последние 4 генерации (новая справа, левая вытесняется). */
+  const [recentGenerations, setRecentGenerations] = useState<Array<{ resultUrl: string; fileId?: string | null }>>([]);
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -131,6 +133,9 @@ export default function GenerateImagePage() {
       if (data.costCredits != null) setCostCredits(data.costCredits);
       if (data.billedCredits != null) setBilledCredits(data.billedCredits);
       if (data.errorMessage) setErrorMessage(data.errorMessage);
+      if (data.status === "success" && data.resultUrl) {
+        setRecentGenerations((prev) => [...prev.slice(-3), { resultUrl: data.resultUrl!, fileId: data.fileId ?? null }].slice(-4));
+      }
       if (data.status === "success" || data.status === "failed") {
         clearPendingStorage();
       }
@@ -189,6 +194,9 @@ export default function GenerateImagePage() {
           if (data.fileId) setFileId(data.fileId);
           if (data.costCredits != null) setCostCredits(data.costCredits);
           if (data.billedCredits != null) setBilledCredits(data.billedCredits);
+          if (data.resultUrl) {
+            setRecentGenerations((prev) => [...prev.slice(-3), { resultUrl: data.resultUrl, fileId: data.fileId ?? null }].slice(-4));
+          }
           clearPendingStorage();
         } else if (s === "failed") {
           if (data.errorMessage) setErrorMessage(data.errorMessage);
@@ -531,48 +539,72 @@ export default function GenerateImagePage() {
           </div>
         </form>
 
-        {/* Область результата — на весь оставшийся экран, пунктирная рамка */}
-        <div
-          className="flex-1 min-w-0 max-w-[520px] min-h-[420px] rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex items-center justify-center p-6"
-        >
-          {!status && (
-            <p className="text-muted-foreground text-center text-sm">
-              Здесь появится результат генерации
-            </p>
-          )}
-          {status === "queued" && (
-            <div className="flex flex-col items-center gap-3 text-center">
-              <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-              <p className="text-muted-foreground text-sm">Задача в очереди. Скоро начнётся генерация, результат сохранится в «Мои файлы».</p>
-            </div>
-          )}
-          {status === "processing" && (
-            <div className="flex flex-col items-center gap-3 text-center">
-              <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-              <p className="text-muted-foreground text-sm">Генерация занимает до минуты. Результат сохранится в «Мои файлы».</p>
-            </div>
-          )}
-          {status === "failed" && (
-            <div className="flex flex-col items-center gap-2 text-center text-destructive">
-              <AlertCircle className="h-10 w-10 shrink-0" />
-              <p className="text-sm font-medium">{errorMessage ?? "Ошибка генерации"}</p>
-            </div>
-          )}
-          {status === "success" && (resultUrl || fileId) && (
-            <div className="w-full max-w-2xl space-y-4 flex flex-col items-center">
-              {resultUrl && (
-                <img src={resultUrl} alt="Результат" className="max-w-full rounded-lg border object-contain max-h-[70vh]" />
-              )}
-              {fileId && (
-                <Link href="/dashboard/files?section=my-files">
-                  <Button variant="outline" size="sm">
-                    <ArrowRight className="h-4 w-4 mr-1" />
-                    Открыть в «Мои файлы»
-                  </Button>
-                </Link>
-              )}
-            </div>
-          )}
+        {/* Область результата и последние 4 генерации */}
+        <div className="flex flex-col gap-3 flex-1 min-w-0 max-w-[520px]">
+          <div
+            className="min-h-[420px] rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex items-center justify-center p-6"
+          >
+            {!status && (
+              <p className="text-muted-foreground text-center text-sm">
+                Здесь появится результат генерации
+              </p>
+            )}
+            {status === "queued" && (
+              <div className="flex flex-col items-center gap-3 text-center">
+                <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+                <p className="text-muted-foreground text-sm">Задача в очереди. Скоро начнётся генерация, результат сохранится в «Мои файлы».</p>
+              </div>
+            )}
+            {status === "processing" && (
+              <div className="flex flex-col items-center gap-3 text-center">
+                <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+                <p className="text-muted-foreground text-sm">Генерация занимает до минуты. Результат сохранится в «Мои файлы».</p>
+              </div>
+            )}
+            {status === "failed" && (
+              <div className="flex flex-col items-center gap-2 text-center text-destructive">
+                <AlertCircle className="h-10 w-10 shrink-0" />
+                <p className="text-sm font-medium">{errorMessage ?? "Ошибка генерации"}</p>
+              </div>
+            )}
+            {status === "success" && (resultUrl || fileId) && (
+              <div className="w-full max-w-2xl space-y-4 flex flex-col items-center">
+                {resultUrl && (
+                  <img src={resultUrl} alt="Результат" className="max-w-full rounded-lg border object-contain max-h-[70vh]" />
+                )}
+                {fileId && (
+                  <Link href="/dashboard/files?section=my-files">
+                    <Button variant="outline" size="sm">
+                      <ArrowRight className="h-4 w-4 mr-1" />
+                      Открыть в «Мои файлы»
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+          {/* 4 последние генерации: новая справа, левая вытесняется */}
+          <div className="flex gap-2">
+            {[0, 1, 2, 3].map((i) => {
+              const item = recentGenerations[i];
+              return (
+                <div
+                  key={i}
+                  className="flex-1 min-w-0 aspect-square max-h-24 rounded-lg border border-muted-foreground/20 bg-muted/30 overflow-hidden flex items-center justify-center"
+                >
+                  {item ? (
+                    <img
+                      src={item.resultUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-muted-foreground/50 text-xs">—</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
