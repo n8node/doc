@@ -7,8 +7,7 @@ import {
   createFileRecordFromS3Object,
   type CreateFileRecordInput,
 } from "@/lib/file-service";
-
-const MAX_IMAGE_SIZE = 25 * 1024 * 1024; // 25 MB
+import { getMaxFileSizeBytesForCategory } from "@/lib/storage-file-limits";
 
 /**
  * Скачать изображение по URL, загрузить в S3 и создать запись File в хранилище пользователя.
@@ -32,7 +31,8 @@ export async function saveGeneratedImageToUserStorage(params: {
   const size = buffer.length;
 
   if (size === 0) throw new Error("Пустой файл изображения");
-  if (size > MAX_IMAGE_SIZE) throw new Error("Файл изображения слишком большой");
+  const maxImageBytes = await getMaxFileSizeBytesForCategory("image");
+  if (BigInt(size) > maxImageBytes) throw new Error("Файл изображения слишком большой");
 
   const ext = contentType.includes("png") ? "png" : contentType.includes("jpeg") || contentType.includes("jpg") ? "jpg" : "png";
   const baseName = params.fileName?.replace(/\.[^/.]+$/, "") || "generated";

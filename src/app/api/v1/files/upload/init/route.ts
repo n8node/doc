@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
-import { getMaxFileSize } from "@/lib/plan-service";
+import { getEffectiveMaxFileSize } from "@/lib/plan-service";
 import { formatBytes } from "@/lib/utils";
 import { buildS3Key } from "@/lib/file-service";
 import { getPresignedUploadUrl } from "@/lib/s3-upload";
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Некорректный размер файла" }, { status: 400 });
   }
 
-  const maxSize = await getMaxFileSize(userId);
+  const maxSize = await getEffectiveMaxFileSize(userId, mimeType, name);
   if (BigInt(size) > maxSize) {
     return NextResponse.json(
       { error: `Файл слишком большой. Максимум: ${formatBytes(Number(maxSize))}` },

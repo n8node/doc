@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { getMaxFileSizeBytesForCategory, fileCategoryFromMime } from "./storage-file-limits";
 
 const ABSOLUTE_MAX_FILE_SIZE = BigInt(5 * 1024 * 1024 * 1024); // 5 GB — жёсткий потолок
 
@@ -73,6 +74,19 @@ export async function getMaxFileSize(userId: string): Promise<bigint> {
   if (!user) return FREE_PLAN_DEFAULTS.maxFileSize;
   const limit = user.plan ? user.plan.maxFileSize : user.maxFileSize;
   return limit > ABSOLUTE_MAX_FILE_SIZE ? ABSOLUTE_MAX_FILE_SIZE : limit;
+}
+
+/** Лимит с учётом тарифа и админских лимитов по категории (картинки, видео, архивы, остальное). */
+export async function getEffectiveMaxFileSize(
+  userId: string,
+  mimeType: string,
+  fileName?: string
+): Promise<bigint> {
+  const [planMax, categoryMax] = await Promise.all([
+    getMaxFileSize(userId),
+    getMaxFileSizeBytesForCategory(fileCategoryFromMime(mimeType, fileName)),
+  ]);
+  return planMax < categoryMax ? planMax : categoryMax;
 }
 
 export async function hasFeature(

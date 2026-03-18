@@ -3,7 +3,7 @@ import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { createNotificationIfEnabled, createStorage90WarningIfNeeded } from "@/lib/notification-service";
 import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/file-service";
-import { getMaxFileSize } from "@/lib/plan-service";
+import { getEffectiveMaxFileSize } from "@/lib/plan-service";
 import { formatBytes } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const maxSize = await getMaxFileSize(userId);
+  const maxSize = await getEffectiveMaxFileSize(userId, file.type || "application/octet-stream", file.name);
   if (BigInt(file.size) > maxSize) {
     return NextResponse.json(
       { error: `Файл слишком большой. Максимум: ${formatBytes(Number(maxSize))}` },

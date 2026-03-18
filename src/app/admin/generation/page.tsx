@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Key, Wifi, CheckCircle, ImageIcon, Percent, ListOrdered, RefreshCw, Coins, BarChart3 } from "lucide-react";
+import { Loader2, Key, Wifi, CheckCircle, ImageIcon, Percent, ListOrdered, RefreshCw, Coins, BarChart3, HardDrive } from "lucide-react";
 
 interface ImageTaskConfig {
   id: string;
@@ -68,15 +68,22 @@ export default function AdminGenerationPage() {
   const [statsItems, setStatsItems] = useState<{ id: string; userEmail: string; userName: string | null; createdAt: string; modelId: string; variant: string | null; taskType: string; resultUrl: string | null; fileId: string | null; costCredits: number | null; billedCredits: number | null }[]>([]);
   const [statsTotal, setStatsTotal] = useState(0);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [fileSizeLimitImageMb, setFileSizeLimitImageMb] = useState(150);
+  const [fileSizeLimitVideoMb, setFileSizeLimitVideoMb] = useState(500);
+  const [fileSizeLimitArchiveMb, setFileSizeLimitArchiveMb] = useState(200);
+  const [fileSizeLimitOtherMb, setFileSizeLimitOtherMb] = useState(512);
+  const [storageLimitsSaving, setStorageLimitsSaving] = useState(false);
 
   const loadConfig = useCallback(async () => {
     try {
-      const [configRes, keyRes] = await Promise.all([
+      const [configRes, keyRes, limitsRes] = await Promise.all([
         fetch("/api/v1/admin/generation/config"),
         fetch("/api/v1/admin/kie/api-key"),
+        fetch("/api/v1/admin/storage-limits"),
       ]);
       const config = await configRes.json();
       const keyData = await keyRes.json();
+      const limitsData = await limitsRes.json();
       if (configRes.ok) {
         setImageEnabled(config.imageEnabled ?? true);
         setMarginPercent(config.marginPercent ?? 0);
@@ -87,6 +94,12 @@ export default function AdminGenerationPage() {
       if (keyRes.ok && keyData.apiKeySet) {
         setApiKeySet(true);
         setApiKey("••••••••");
+      }
+      if (limitsRes.ok && limitsData) {
+        if (typeof limitsData.image === "number") setFileSizeLimitImageMb(limitsData.image);
+        if (typeof limitsData.video === "number") setFileSizeLimitVideoMb(limitsData.video);
+        if (typeof limitsData.archive === "number") setFileSizeLimitArchiveMb(limitsData.archive);
+        if (typeof limitsData.other === "number") setFileSizeLimitOtherMb(limitsData.other);
       }
     } catch {
       toast.error("Не удалось загрузить настройки");
@@ -153,6 +166,28 @@ export default function AdminGenerationPage() {
       toast.error("Ошибка запроса");
     } finally {
       setPricingSyncing(false);
+    }
+  };
+
+  const handleSaveStorageLimits = async () => {
+    setStorageLimitsSaving(true);
+    try {
+      const res = await fetch("/api/v1/admin/storage-limits", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: Math.max(0, Math.round(fileSizeLimitImageMb)),
+          video: Math.max(0, Math.round(fileSizeLimitVideoMb)),
+          archive: Math.max(0, Math.round(fileSizeLimitArchiveMb)),
+          other: Math.max(0, Math.round(fileSizeLimitOtherMb)),
+        }),
+      });
+      if (!res.ok) throw new Error("Ошибка сохранения");
+      toast.success("Лимиты размера файлов сохранены");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setStorageLimitsSaving(false);
     }
   };
 
@@ -390,6 +425,66 @@ export default function AdminGenerationPage() {
               <p className="mt-1 text-xs text-muted-foreground">При исчерпании квоты по тарифу списание с кошелька: кредиты × это значение = копейки.</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <HardDrive className="h-5 w-5" />
+            Лимиты размера файлов (МБ)
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Максимальный размер при загрузке и при сохранении сгенерированных изображений/видео. Учитывается категория файла; итоговый лимит не превышает лимит тарифа пользователя.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label className="block text-sm font-medium">Изображения</label>
+              <Input
+                type="number"
+                min={1}
+                value={fileSizeLimitImageMb}
+                onChange={(e) => setFileSizeLimitImageMb(parseInt(e.target.value, 10) || 0)}
+                className="mt-1 w-24"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Видео</label>
+              <Input
+                type="number"
+                min={1}
+                value={fileSizeLimitVideoMb}
+                onChange={(e) => setFileSizeLimitVideoMb(parseInt(e.target.value, 10) || 0)}
+                className="mt-1 w-24"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Архивы</label>
+              <Input
+                type="number"
+                min={1}
+                value={fileSizeLimitArchiveMb}
+                onChange={(e) => setFileSizeLimitArchiveMb(parseInt(e.target.value, 10) || 0)}
+                className="mt-1 w-24"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Остальные файлы</label>
+              <Input
+                type="number"
+                min={1}
+                value={fileSizeLimitOtherMb}
+                onChange={(e) => setFileSizeLimitOtherMb(parseInt(e.target.value, 10) || 0)}
+                className="mt-1 w-24"
+              />
+            </div>
+          </div>
+          <Button onClick={handleSaveStorageLimits} disabled={storageLimitsSaving}>
+            {storageLimitsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Сохранить лимиты
+          </Button>
         </CardContent>
       </Card>
 
