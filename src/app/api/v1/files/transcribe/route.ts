@@ -38,7 +38,11 @@ export async function POST(request: NextRequest) {
 
   const provider = await getTranscriptionProviderForUser(userId);
   const useOpenAi = provider && (provider.name === "openai_whisper" || provider.baseUrl.includes("api.openai.com"));
-  const useOpenRouter = provider && (provider.name === "openrouter" || provider.baseUrl.includes("openrouter.ai"));
+  const useOpenRouter =
+    provider &&
+    (provider.name === "openrouter" ||
+      provider.name === "openrouter_transcription" ||
+      provider.baseUrl.includes("openrouter.ai"));
 
   if (!useOpenAi && !useOpenRouter) {
     const docling = getDoclingClient();

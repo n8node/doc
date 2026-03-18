@@ -88,7 +88,9 @@ export async function transcribeFile(
       (provider.name === "openai_whisper" || provider.baseUrl.includes("api.openai.com"));
     const useOpenRouter =
       provider &&
-      (provider.name === "openrouter" || provider.baseUrl.includes("openrouter.ai"));
+      (provider.name === "openrouter" ||
+        provider.name === "openrouter_transcription" ||
+        provider.baseUrl.includes("openrouter.ai"));
 
     if (useOpenRouter && provider) {
       const openRouterResult = await transcribeWithOpenRouter(

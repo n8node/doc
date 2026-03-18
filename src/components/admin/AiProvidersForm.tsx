@@ -78,7 +78,7 @@ const TRANSCRIPTION_PROVIDER_PRESETS: Record<
   string,
   { label: string; type: string; baseUrl: string; modelName: string; needsFolderId: boolean }
 > = {
-  openrouter: {
+  openrouter_transcription: {
     label: "OpenRouter",
     type: "CLOUD",
     baseUrl: "https://openrouter.ai/api/v1",

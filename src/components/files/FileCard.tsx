@@ -288,7 +288,7 @@ export function FileCard({
   const formatTranscriptProvider = (p: string | undefined): string => {
     if (!p) return "";
     if (p === "openai_whisper" || p === "OpenAI") return "OpenAI";
-    if (p === "openrouter" || p === "OpenRouter") return "OpenRouter";
+    if (p === "openrouter" || p === "openrouter_transcription" || p === "OpenRouter") return "OpenRouter";
     if (p === "docling" || p === "Docling" || p === "QoQon") return "QoQon";
     return p;
   };
