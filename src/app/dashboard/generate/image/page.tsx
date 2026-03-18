@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ImageIcon, ArrowRight, AlertCircle, Sparkles, Upload, X, Coins } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 /* TODO: вернуть выбор исходного изображения из «Мои файлы» (подгрузка с диска).
    См. .cursor/rules/generation-image-todo.mdc */
@@ -59,6 +60,8 @@ export default function GenerateImagePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   /** Последние 4 генерации (новая справа, левая вытесняется). Хранятся на сервере, при загрузке подтягиваются. */
   const [recentGenerations, setRecentGenerations] = useState<Array<{ resultUrl: string; fileId?: string | null }>>([]);
+  /** URL картинки для модалки в полный размер (null = модалка закрыта). */
+  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
 
   const loadRecentGenerations = useCallback(async () => {
     try {
@@ -589,7 +592,13 @@ export default function GenerateImagePage() {
             {status === "success" && (resultUrl || fileId) && (
               <div className="w-full max-w-2xl space-y-4 flex flex-col items-center">
                 {resultUrl && (
-                  <img src={resultUrl} alt="Результат" className="max-w-full rounded-lg border object-contain max-h-[70vh]" />
+                  <button
+                    type="button"
+                    onClick={() => setImageModalUrl(resultUrl)}
+                    className="block w-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg"
+                  >
+                    <img src={resultUrl} alt="Результат" className="max-w-full rounded-lg border object-contain max-h-[70vh] cursor-pointer" />
+                  </button>
                 )}
                 {fileId && (
                   <Link href="/dashboard/files?section=my-files">
@@ -612,11 +621,17 @@ export default function GenerateImagePage() {
                   className="flex-1 min-w-0 aspect-square max-h-24 rounded-lg border border-muted-foreground/20 bg-muted/30 overflow-hidden flex items-center justify-center"
                 >
                   {item ? (
-                    <img
-                      src={item.resultUrl}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setImageModalUrl(item.resultUrl)}
+                      className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                    >
+                      <img
+                        src={item.resultUrl}
+                        alt=""
+                        className="w-full h-full object-cover cursor-pointer"
+                      />
+                    </button>
                   ) : (
                     <span className="text-muted-foreground/50 text-xs">—</span>
                   )}
@@ -626,6 +641,18 @@ export default function GenerateImagePage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={!!imageModalUrl} onOpenChange={(open) => !open && setImageModalUrl(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-2 border-0 bg-transparent shadow-none">
+          {imageModalUrl && (
+            <img
+              src={imageModalUrl}
+              alt="Увеличенное изображение"
+              className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
