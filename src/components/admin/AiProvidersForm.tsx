@@ -702,11 +702,12 @@ export function AiProvidersForm() {
   );
 
   const existingNames = new Set(providers.map((p) => p.name));
+  const transcriptionNames = new Set(transcriptionProviders.map((p) => p.name));
   const availablePresets = Object.entries(PROVIDER_PRESETS).filter(
     ([key]) => !existingNames.has(key),
   );
   const availableTranscriptionPresets = Object.entries(TRANSCRIPTION_PROVIDER_PRESETS).filter(
-    ([key]) => !existingNames.has(key),
+    ([key]) => !transcriptionNames.has(key),
   );
 
   const handleAdd = async (name: string) => {
