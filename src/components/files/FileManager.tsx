@@ -3323,11 +3323,19 @@ export function FileManager() {
                                 </button>
                               )}
 
-                              <button
-                                type="button"
+                              <div
+                                role="button"
+                                tabIndex={0}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setMediaModal({ type: "image", id: file.id, name: file.name });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setMediaModal({ type: "image", id: file.id, name: file.name });
+                                  }
                                 }}
                                 className="relative aspect-square overflow-hidden bg-surface2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset"
                                 aria-label="Открыть в полном размере"
@@ -3340,7 +3348,7 @@ export function FileManager() {
                                   unoptimized
                                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
                                 />
-                              </button>
+                              </div>
 
                               <div className="space-y-2 p-3">
                                 <p className="truncate text-sm font-medium text-foreground" title={file.name}>
