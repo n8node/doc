@@ -533,7 +533,7 @@ export default function GenerateImagePage() {
 
         {/* Область результата — на весь оставшийся экран, пунктирная рамка */}
         <div
-          className="flex-1 min-w-0 min-h-[420px] rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex items-center justify-center p-6"
+          className="flex-1 min-w-0 max-w-[520px] min-h-[420px] rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex items-center justify-center p-6"
         >
           {!status && (
             <p className="text-muted-foreground text-center text-sm">
