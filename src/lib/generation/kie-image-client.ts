@@ -33,6 +33,7 @@ export interface KieTaskResult {
   resultImageUrl?: string;
 }
 
+/** Ответ Kie API; при HTTP 429 code будет 429. */
 async function kieFetch(
   apiKey: string,
   path: string,
@@ -48,21 +49,28 @@ async function kieFetch(
     ...(options.method === "POST" && { body: JSON.stringify(options.body) }),
   });
   const json = (await res.json().catch(() => ({}))) as { code?: number; msg?: string; data?: unknown };
+  const code = res.status === 429 ? 429 : (json.code ?? (res.ok ? 200 : res.status));
   return {
-    code: json.code ?? (res.ok ? 200 : res.status),
+    code,
     msg: json.msg,
     data: json.data,
   };
 }
 
+/** Сообщение для пользователя при лимите запросов Kie (429). */
+export const KIE_RATE_LIMIT_MESSAGE =
+  "Слишком много запросов к сервису генерации. Задача поставлена в очередь, результат придёт позже.";
+
+export type CreateKieTaskResult = { taskId: string } | { error: string; rateLimit?: boolean };
+
 /**
  * Создать задачу генерации 4o Image.
- * Возвращает taskId при code 200.
+ * Возвращает taskId при code 200; при 429 — error с rateLimit: true.
  */
 export async function create4oImageTask(
   apiKey: string,
   params: Create4oImageParams
-): Promise<{ taskId: string } | { error: string }> {
+): Promise<CreateKieTaskResult> {
   const body: Record<string, unknown> = {
     size: params.size,
   };
@@ -73,6 +81,9 @@ export async function create4oImageTask(
   if (params.isEnhance != null) body.isEnhance = params.isEnhance;
 
   const out = await kieFetch(apiKey, "/api/v1/gpt4o-image/generate", { method: "POST", body });
+  if (out.code === 429) {
+    return { error: (out.msg as string) || "Rate limit", rateLimit: true };
+  }
   if (out.code !== 200 || !out.data || typeof out.data !== "object") {
     return { error: (out.msg as string) || "Ошибка Kie 4o Image" };
   }
@@ -87,7 +98,7 @@ export async function create4oImageTask(
 export async function createFluxImageTask(
   apiKey: string,
   params: CreateFluxImageParams
-): Promise<{ taskId: string } | { error: string }> {
+): Promise<CreateKieTaskResult> {
   const body: Record<string, unknown> = {
     prompt: params.prompt,
     enableTranslation: params.enableTranslation ?? true,
@@ -99,6 +110,9 @@ export async function createFluxImageTask(
   if (params.callBackUrl) body.callBackUrl = params.callBackUrl;
 
   const out = await kieFetch(apiKey, "/api/v1/flux/kontext/generate", { method: "POST", body });
+  if (out.code === 429) {
+    return { error: (out.msg as string) || "Rate limit", rateLimit: true };
+  }
   if (out.code !== 200 || !out.data || typeof out.data !== "object") {
     return { error: (out.msg as string) || "Ошибка Kie Flux Kontext" };
   }
@@ -114,7 +128,7 @@ export async function createFluxImageTask(
 export async function createMarketTask(
   apiKey: string,
   params: { model: string; input: Record<string, unknown>; callBackUrl?: string }
-): Promise<{ taskId: string } | { error: string }> {
+): Promise<CreateKieTaskResult> {
   const body: Record<string, unknown> = {
     model: params.model,
     input: params.input,
@@ -122,6 +136,9 @@ export async function createMarketTask(
   if (params.callBackUrl) body.callBackUrl = params.callBackUrl;
 
   const out = await kieFetch(apiKey, "/api/v1/jobs/createTask", { method: "POST", body });
+  if (out.code === 429) {
+    return { error: (out.msg as string) || "Rate limit", rateLimit: true };
+  }
   if (out.code !== 200 || !out.data || typeof out.data !== "object") {
     return { error: (out.msg as string) || "Ошибка Kie Market API" };
   }

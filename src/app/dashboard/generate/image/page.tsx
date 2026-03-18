@@ -159,7 +159,11 @@ export default function GenerateImagePage() {
       if (!res.ok) throw new Error(data.error ?? "Ошибка запуска");
       setTaskId(data.taskId);
       setStatus(data.status ?? "processing");
-      toast.success("Генерация запущена");
+      if (data.status === "queued" && data.message) {
+        toast.info(data.message);
+      } else {
+        toast.success("Генерация запущена");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка");
       setStatus(null);
@@ -439,6 +443,12 @@ export default function GenerateImagePage() {
             <p className="text-muted-foreground text-center text-sm">
               Здесь появится результат генерации
             </p>
+          )}
+          {status === "queued" && (
+            <div className="flex flex-col items-center gap-3 text-center">
+              <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground text-sm">Задача в очереди. Скоро начнётся генерация, результат сохранится в «Мои файлы».</p>
+            </div>
           )}
           {status === "processing" && (
             <div className="flex flex-col items-center gap-3 text-center">

@@ -5,7 +5,12 @@ import { hasFeature, getUserPlan } from "@/lib/plan-service";
 import { getImageGenerationEnabled, getImageTasksConfig, getImageModelsConfig } from "@/lib/generation/config";
 import { getImageGenerationCreditsUsedThisMonth } from "@/lib/generation/billing";
 import { getKieApiKey } from "@/lib/generation/kie-api-key";
-import { create4oImageTask, createFluxImageTask, createMarketTask } from "@/lib/generation/kie-image-client";
+import {
+  create4oImageTask,
+  createFluxImageTask,
+  createMarketTask,
+  KIE_RATE_LIMIT_MESSAGE,
+} from "@/lib/generation/kie-image-client";
 import { isMarketModel, getKieModelForMarket, buildMarketInput } from "@/lib/generation/kie-market-models";
 import { getPublicBaseUrl } from "@/lib/app-url";
 import { getPresignedDownloadUrl } from "@/lib/s3-download";
@@ -106,7 +111,40 @@ export async function POST(request: NextRequest) {
     return getPresignedDownloadUrl(file.s3Key, 3600);
   }
 
-  let kieTaskId: string;
+  /** При 429 ставим задачу в очередь и возвращаем taskId со статусом queued. */
+  function enqueueAndReturn(
+    kind: "4o" | "flux" | "market",
+    queuePayload: { taskType: string; modelId: string; prompt?: string; fileIds?: string[]; maskFileId?: string | null; size?: string; aspectRatio?: string; outputFormat?: string; fluxModel?: string; resolution?: string; quality?: string }
+  ) {
+    return (async () => {
+      const variant = modelId === "kie-flux-kontext" ? (body.fluxModel ?? null) : null;
+      const task = await prisma.imageGenerationTask.create({
+        data: {
+          userId: uid,
+          kieTaskId: null,
+          modelId,
+          variant,
+          taskType,
+          status: "queued",
+        },
+      });
+      await prisma.imageGenerationQueue.create({
+        data: {
+          taskId: task.id,
+          kind,
+          payload: queuePayload as unknown as object,
+          status: "pending",
+        },
+      });
+      return NextResponse.json({
+        taskId: task.id,
+        status: "queued",
+        message: KIE_RATE_LIMIT_MESSAGE,
+      });
+    })();
+  }
+
+  let kieTaskId: string | null = null;
 
   if (modelId === "kie-4o-image") {
     const size = body.size ?? "1:1";
@@ -132,6 +170,9 @@ export async function POST(request: NextRequest) {
       callBackUrl,
     });
     if ("error" in result) {
+      if (result.rateLimit) {
+        return enqueueAndReturn("4o", { taskType, modelId, prompt, fileIds, maskFileId, size, aspectRatio: body.aspectRatio, outputFormat: body.outputFormat, fluxModel: body.fluxModel, resolution: body.resolution, quality: body.quality });
+      }
       return NextResponse.json({ error: result.error }, { status: 502 });
     }
     kieTaskId = result.taskId;
@@ -153,6 +194,9 @@ export async function POST(request: NextRequest) {
       enableTranslation: true,
     });
     if ("error" in result) {
+      if (result.rateLimit) {
+        return enqueueAndReturn("flux", { taskType, modelId, prompt, fileIds, maskFileId, size: body.size, aspectRatio: body.aspectRatio, outputFormat: body.outputFormat, fluxModel: body.fluxModel, resolution: body.resolution, quality: body.quality });
+      }
       return NextResponse.json({ error: result.error }, { status: 502 });
     }
     kieTaskId = result.taskId;
@@ -185,6 +229,9 @@ export async function POST(request: NextRequest) {
       callBackUrl,
     });
     if ("error" in result) {
+      if (result.rateLimit) {
+        return enqueueAndReturn("market", { taskType, modelId, prompt, fileIds, maskFileId, size: body.size, aspectRatio: body.aspectRatio, outputFormat: body.outputFormat, fluxModel: body.fluxModel, resolution: body.resolution, quality: body.quality });
+      }
       return NextResponse.json({ error: result.error }, { status: 502 });
     }
     kieTaskId = result.taskId;

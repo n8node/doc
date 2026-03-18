@@ -404,11 +404,11 @@ model ImageGenerationTask {
   id           String    @id @default(cuid()) @map("id")
   userId       String    @map("user_id")
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kieTaskId    String    @map("kie_task_id")
+  kieTaskId    String?   @map("kie_task_id") // null пока задача в очереди
   modelId      String    @map("model_id")
   variant      String?   @map("variant") // напр. flux-kontext-pro, flux-kontext-max
   taskType     String    @map("task_type") // text_to_image | edit_image | variations
-  status       String    @map("status") // pending | processing | success | failed
+  status       String    @map("status") // queued | processing | success | failed
   costCredits  Int?      @map("cost_credits")
   billedCredits Int?     @map("billed_credits") // с наценкой, для учёта квоты и биллинга
   resultUrl    String?   @map("result_url")
@@ -420,6 +420,18 @@ model ImageGenerationTask {
   @@index([userId, createdAt(sort: Desc)])
   @@index([kieTaskId])
   @@map("image_generation_tasks")
+}
+
+model ImageGenerationQueue {
+  id        String   @id @default(cuid()) @map("id")
+  taskId    String   @unique @map("task_id") // FK ImageGenerationTask
+  kind      String   @map("kind") // 4o | flux | market
+  payload   Json     @map("payload") // тело запроса для повторной отправки в Kie
+  status    String   @map("status") // pending | sent
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([status, createdAt(sort: Asc)])
+  @@map("image_generation_queue")
 }
 
 model KiePricing {

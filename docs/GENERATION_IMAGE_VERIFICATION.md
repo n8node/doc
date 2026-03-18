@@ -30,6 +30,9 @@ docker exec -i dropbox-ru-db-1 psql -U postgres -d dropbox_ru < prisma/migration
 # Квота генерации в тарифах и billed_credits
 docker exec -i dropbox-ru-db-1 psql -U postgres -d dropbox_ru < prisma/migrations/20260318120000_add_generation_quota_and_billing/migration.sql
 
+# Очередь при 429 от Kie (kie_task_id nullable, таблица image_generation_queue)
+docker exec -i dropbox-ru-db-1 psql -U postgres -d dropbox_ru < prisma/migrations/20260319120000_add_image_generation_queue/migration.sql
+
 # или локально
 npx prisma migrate deploy
 ```
@@ -67,6 +70,13 @@ npx prisma migrate deploy
 
 - `CONFIG_ENCRYPTION_KEY` — для хранения зашифрованного ключа Kie (как для других ключей в AdminConfig).
 - `APP_URL` или `NEXTAUTH_URL` — базовый URL приложения для формирования `callBackUrl` при вызове Kie.
+
+## Лимит запросов Kie (429) и очередь
+
+- У Kie: **20 новых запросов на генерацию за 10 секунд** на аккаунт; при превышении — HTTP 429.
+- При 429 запрос **не отклоняется**: задача создаётся со статусом `queued`, кладётся в таблицу `image_generation_queue`, пользователь получает `taskId` и сообщение о постановке в очередь.
+- **Крон** должен вызывать `POST /api/v1/cron/process-image-generation-queue` примерно каждые 10 секунд (заголовок `Authorization: Bearer CRON_SECRET`). Обработчик за один запуск отправляет в Kie до 20 задач из очереди; при повторном 429 останавливается, остальное дообработается следующим запуском.
+- Пример (cron на сервере): `*/10 * * * * *` или каждые 10 с: `curl -s -X POST https://your-domain.com/api/v1/cron/process-image-generation-queue -H "Authorization: Bearer $CRON_SECRET"`.
 
 ## Ограничения
 

@@ -30,6 +30,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
+  if (task.status === "queued" || task.kieTaskId == null) {
+    return NextResponse.json({
+      taskId: task.id,
+      status: "queued",
+    });
+  }
+
   if (task.status === "success") {
     const billedCredits =
       task.billedCredits ?? (task.costCredits != null ? applyGenerationMargin(task.costCredits, await getGenerationMarginPercent()) : null);
@@ -53,7 +60,7 @@ export async function GET(request: NextRequest) {
 
   // processing / pending: опционально опросить Kie
   const apiKey = await getKieApiKey();
-  if (apiKey) {
+  if (apiKey && task.kieTaskId) {
     const record = await getKieTaskRecord(apiKey, task.kieTaskId);
     if (record) {
       if (record.state === "success" && record.resultJson) {
