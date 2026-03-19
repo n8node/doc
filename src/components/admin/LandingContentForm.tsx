@@ -11,12 +11,11 @@ import type { LandingContent, LandingFeature } from "@/lib/landing-content";
 function normalizeLandingContent(data: unknown): LandingContent {
   const c = data as Record<string, unknown>;
   const df = c?.documentFormats as { title?: string; iconKeys?: unknown[] } | undefined;
-  const iconKeys = Array.isArray(df?.iconKeys)
-    ? Array.from({ length: 7 }, (_, i) => {
-        const k = df.iconKeys[i];
-        return typeof k === "string" && /^doc_format_[0-6]$/.test(k) ? k : "";
-      })
-    : ["", "", "", "", "", "", ""];
+  const rawKeys = Array.isArray(df?.iconKeys) ? df.iconKeys : [];
+  const iconKeys = Array.from({ length: 7 }, (_, i) => {
+    const k = rawKeys[i];
+    return typeof k === "string" && /^doc_format_[0-6]$/.test(k) ? k : "";
+  });
   return {
     ...(c as LandingContent),
     documentFormats: {
