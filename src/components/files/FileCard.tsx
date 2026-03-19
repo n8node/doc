@@ -30,6 +30,7 @@ import {
   Database,
   Lock,
   Table2,
+  MoreVertical,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -38,6 +39,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn, formatBytes } from "@/lib/utils";
 import { TranscriptionProgressBar } from "./TranscriptionProgressBar";
 
@@ -375,12 +382,12 @@ export function FileCard({
               </>
             )}
             <span>•</span>
-            <span className="flex items-center gap-1">
+            <span className="flex shrink-0 items-center gap-1">
               <Clock className="h-3 w-3" />
               {formatRelativeDate(createdAt)}
             </span>
             {isProcessable && isAnalyzing && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 {analyzeEstimateMinutes != null && analyzeEstimateMinutes > 0 && analyzeStartedAt != null ? (
                   <TranscriptionProgressBar
@@ -397,28 +404,28 @@ export function FileCard({
                     Анализ...
                   </span>
                 )}
-              </>
+              </span>
             )}
             {isProcessable && analyzeError && !isAnalyzing && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <span className="flex items-center gap-1 text-red-500" title={analyzeError}>
                   <BrainCircuit className="h-3 w-3" />
                   Ошибка
                 </span>
-              </>
+              </span>
             )}
             {((isProcessable && isProcessed) || (isTranscribable && !!hasEmbedding)) && !isAnalyzing && !isEmbeddingTranscript && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600 font-medium" title="Документ обработан AI">
                   <BrainCircuit className="h-3 w-3" />
                   AI
                 </span>
-              </>
+              </span>
             )}
             {importingToTable && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-2">
                 <span>•</span>
                 <span
                   className="flex items-center gap-2 text-emerald-500"
@@ -433,10 +440,10 @@ export function FileCard({
                     />
                   </div>
                 </span>
-              </>
+              </span>
             )}
             {isTranscribable && isTranscribing && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1.5">
                 <span>•</span>
                 {transcribeEstimateMinutes != null && transcribeEstimateMinutes > 0 && transcribeStartedAt != null ? (
                   <span className="flex items-center gap-1.5">
@@ -458,28 +465,28 @@ export function FileCard({
                     )}
                   </span>
                 )}
-              </>
+              </span>
             )}
             {isTranscribable && transcribeError && !isTranscribing && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <span className="flex items-center gap-1 text-red-500" title={transcribeError}>
                   <Mic2 className="h-3 w-3" />
                   Ошибка
                 </span>
-              </>
+              </span>
             )}
             {isTranscribable && embedTranscriptError && !isEmbeddingTranscript && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <span className="flex items-center gap-1 text-red-500" title={embedTranscriptError}>
                   <BrainCircuit className="h-3 w-3" />
                   Ошибка индексации
                 </span>
-              </>
+              </span>
             )}
             {isTranscribable && isTranscribed && !isTranscribing && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 {onViewTranscript ? (
                   <button
@@ -500,10 +507,10 @@ export function FileCard({
                     Транскрипт{transcriptProviderSuffix}
                   </span>
                 )}
-              </>
+              </span>
             )}
             {hasShareLink && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <button
                   type="button"
@@ -516,10 +523,10 @@ export function FileCard({
                   <Link2 className="h-3 w-3" />
                   Ссылка{shareLinksCount > 1 ? ` (${shareLinksCount})` : ""}
                 </button>
-              </>
+              </span>
             )}
             {onChat && (isProcessed || (isTranscribable && !!hasEmbedding)) && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <button
                   type="button"
@@ -533,10 +540,10 @@ export function FileCard({
                   <MessageCircle className="h-3 w-3" />
                   Чат
                 </button>
-              </>
+              </span>
             )}
             {(isProcessed || (isTranscribable && !!hasEmbedding)) && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <Link
                   href={`/dashboard/embeddings/${id}`}
@@ -547,10 +554,10 @@ export function FileCard({
                   <Database className="h-3 w-3" />
                   Эмбеддинг
                 </Link>
-              </>
+              </span>
             )}
             {importedSheetId && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <Link
                   href={`/dashboard/sheets/${importedSheetId}`}
@@ -561,13 +568,90 @@ export function FileCard({
                   <Table2 className="h-3 w-3" />
                   Таблица
                 </Link>
-              </>
+              </span>
             )}
           </div>
         </div>
 
-        {/* Inline actions */}
-        <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+        {/* Actions: kebab menu on mobile, inline on desktop */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground sm:hidden"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Действия"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56" onClick={(e) => e.stopPropagation()}>
+            {isMedia && onPlay && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPlay?.(); }}>
+                <Play className="mr-2 h-4 w-4" />
+                {isVideo ? "Смотреть видео" : "Слушать аудио"}
+              </DropdownMenuItem>
+            )}
+            {isExcelFile && onImportToTable && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onImportToTable?.(); }} disabled={importingToTable}>
+                <Table2 className="mr-2 h-4 w-4" />
+                Импорт в таблицу
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownload(); }}>
+              <Download className="mr-2 h-4 w-4" />
+              Скачать
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Поделиться
+            </DropdownMenuItem>
+            {onMove && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove(); }}>
+                <FolderInput className="mr-2 h-4 w-4" />
+                Переместить
+              </DropdownMenuItem>
+            )}
+            {onCopy && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCopy(); }}>
+                <Copy className="mr-2 h-4 w-4" />
+                Копировать
+              </DropdownMenuItem>
+            )}
+            {onRename && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(); }}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Переименовать
+              </DropdownMenuItem>
+            )}
+            {(onProcess || (processLocked && isProcessable)) && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onProcess?.(); }} disabled={!!processLocked}>
+                <ScanSearch className="mr-2 h-4 w-4" />
+                Анализ документа
+              </DropdownMenuItem>
+            )}
+            {(onTranscribe || (transcribeLocked && isTranscribable)) && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onTranscribe?.(); }} disabled={!!transcribeLocked}>
+                <Mic2 className="mr-2 h-4 w-4" />
+                Транскрибировать
+              </DropdownMenuItem>
+            )}
+            {(onEmbedTranscript || (embedTranscriptLocked && isTranscribable && isTranscribed)) && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEmbedTranscript?.(); }} disabled={!!embedTranscriptLocked || isEmbeddingTranscript}>
+                <BrainCircuit className="mr-2 h-4 w-4" />
+                AI-обработка транскрипта
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="text-error focus:text-error"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Удалить
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <div className="hidden items-center gap-1 sm:flex sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
           {isMedia && onPlay && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -873,12 +957,12 @@ export function FolderCard({
               </>
             )}
             <span>•</span>
-            <span className="flex items-center gap-1">
+            <span className="flex shrink-0 items-center gap-1">
               <Clock className="h-3 w-3" />
               {formatRelativeDate(createdAt)}
             </span>
             {hasShareLink && (
-              <>
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <button
                   type="button"
@@ -891,13 +975,56 @@ export function FolderCard({
                   <Link2 className="h-3 w-3" />
                   {shareLinksCount > 1 ? `Ссылок: ${shareLinksCount}` : "Ссылка"}
                 </button>
-              </>
+              </span>
             )}
           </div>
         </div>
 
-        {/* Inline actions */}
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {/* Actions: kebab menu on mobile, inline on desktop */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground sm:hidden"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Действия"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Поделиться
+            </DropdownMenuItem>
+            {onMove && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove(); }}>
+                <FolderInput className="mr-2 h-4 w-4" />
+                Переместить
+              </DropdownMenuItem>
+            )}
+            {onCopy && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCopy(); }}>
+                <Copy className="mr-2 h-4 w-4" />
+                Копировать
+              </DropdownMenuItem>
+            )}
+            {onRename && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(); }}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Переименовать
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="text-error focus:text-error"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Удалить
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <div className="hidden items-center gap-1 sm:flex sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
