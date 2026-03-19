@@ -7,7 +7,7 @@ function FeatureIcon({ iconKey }: { iconKey?: string | null }) {
   if (key) {
     return (
       <img
-        src={`${getLandingAssetUrl(key)}?v=${Date.now()}`}
+        src={getLandingAssetUrl(key)}
         alt=""
         className="mb-4 h-10 w-10 object-contain"
         onError={(e) => {

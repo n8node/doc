@@ -26,7 +26,7 @@ function normalizeLandingContent(data: unknown): LandingContent {
 }
 
 function getImageUrl(imageId: string): string {
-  return `/api/public/landing-asset/${imageId}?v=${Date.now()}`;
+  return `/api/public/landing-asset/${imageId}`;
 }
 
 export function LandingContentForm() {

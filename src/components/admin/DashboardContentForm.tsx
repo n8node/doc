@@ -19,7 +19,7 @@ const IMAGE_LABELS: Record<string, string> = {
 };
 
 function getImageUrl(imageId: string): string {
-  return `/api/public/dashboard-asset/${imageId}?v=${Date.now()}`;
+  return `/api/public/dashboard-asset/${imageId}`;
 }
 
 export function DashboardContentForm() {

@@ -6,7 +6,7 @@ function StepIcon({ step, iconKey }: { step: { num: number }; iconKey?: string |
   if (key) {
     return (
       <img
-        src={`${getLandingAssetUrl(key)}?v=${Date.now()}`}
+        src={getLandingAssetUrl(key)}
         alt=""
         className="h-12 w-12 shrink-0 rounded-full object-contain"
         onError={(e) => {
