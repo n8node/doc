@@ -1,0 +1,20 @@
+---
+description: Seed базы данных dropbox-ru — выполнение в отдельном контейнере
+alwaysApply: true
+---
+
+# Seed базы данных на сервере dropbox-ru
+
+На сервере порт PostgreSQL не проброшен на хост, и в production-образе app нет Prisma CLI. Seed нужно выполнять в отдельном контейнере в той же сети, что и db.
+
+## Команда seed (Termius)
+
+```bash
+cd /opt/dropbox-ru
+docker run --rm \
+  --network dropbox-ru_default \
+  -e DATABASE_URL="postgresql://postgres:postgres@db:5432/dropbox_ru?schema=public" \
+  -v /opt/dropbox-ru:/app -w /app \
+  node:20-alpine \
+  sh -c "npm ci && npx prisma db seed"
+```
