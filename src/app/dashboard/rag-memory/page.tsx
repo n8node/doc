@@ -17,6 +17,7 @@ import {
   Database,
   Crown,
   Settings2,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,6 +129,7 @@ export default function RagMemoryPage() {
   const [n8nUpgradeOpen, setN8nUpgradeOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [embeddingConfigCollection, setEmbeddingConfigCollection] = useState<Collection | null>(null);
+  const [syncingCollectionId, setSyncingCollectionId] = useState<string | null>(null);
 
   const shortenId = (id: string, maxLen = 24) => {
     if (id.length <= maxLen) return id;
@@ -458,6 +460,56 @@ export default function RagMemoryPage() {
     }
   };
 
+  const handleSyncWithFolder = async (collection: Collection) => {
+    if (!collection.folderId) {
+      toast.error("Коллекция не привязана к папке");
+      return;
+    }
+    setSyncingCollectionId(collection.id);
+    try {
+      const filesRes = await fetch(
+        `/api/v1/files?folderId=${encodeURIComponent(collection.folderId)}`,
+        { credentials: "include" },
+      );
+      const filesData = await filesRes.json();
+      if (!filesRes.ok) {
+        toast.error(filesData.error || "Ошибка загрузки файлов папки");
+        return;
+      }
+      const folderFiles = filesData.files ?? [];
+      const fileIds = folderFiles.map((f: { id: string }) => f.id);
+      if (fileIds.length === 0) {
+        toast.info("В папке нет файлов");
+        loadCollections();
+        return;
+      }
+      const patchRes = await fetch(`/api/v1/rag/collections/${collection.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ fileIds }),
+      });
+      const patchData = await patchRes.json();
+      if (!patchRes.ok) {
+        toast.error(patchData.error || "Ошибка синхронизации");
+        return;
+      }
+      const added = fileIds.length - collection.filesCount;
+      if (added > 0) {
+        toast.success(`Добавлено ${added} файлов. Нажмите «Векторизовать» для новых.`);
+      } else if (added < 0) {
+        toast.success(`Удалено ${-added} файлов из коллекции`);
+      } else {
+        toast.success("Состав коллекции актуален");
+      }
+      loadCollections();
+    } catch {
+      toast.error("Ошибка синхронизации с папкой");
+    } finally {
+      setSyncingCollectionId(null);
+    }
+  };
+
   const toggleFile = (id: string) => {
     setCreateFileIds((prev) => {
       const n = new Set(prev);
@@ -739,7 +791,7 @@ export default function RagMemoryPage() {
                           className="h-8 w-8 p-0"
                           disabled={deletingCollectionId !== null}
                         >
-                          {deletingCollectionId === c.id ? (
+                          {deletingCollectionId === c.id || syncingCollectionId === c.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <MoreVertical className="h-4 w-4" />
@@ -747,6 +799,22 @@ export default function RagMemoryPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {c.folderId && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleSyncWithFolder(c);
+                            }}
+                            disabled={syncingCollectionId === c.id}
+                          >
+                            {syncingCollectionId === c.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                            Синхронизировать с папкой
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.preventDefault();
