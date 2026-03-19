@@ -246,7 +246,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
-                  Файлы (18 методов)
+                  Файлы (19 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -254,7 +254,7 @@ export default function ApiDocsPage() {
             <Section
               method="GET"
               path="/api/v1/files"
-              desc="Список файлов"
+              desc="Список файлов. Ответ: files[].hasEmbedding, files[].aiMetadata"
               params={[
                 { name: "folderId", type: "string", desc: "ID папки (опционально)" },
                 { name: "scope", type: "all | \"\"", desc: "all — все подпапки" },
@@ -370,7 +370,13 @@ export default function ApiDocsPage() {
             <Section
               method="GET"
               path="/api/v1/files/{id}/transcript"
-              desc="Транскрипт аудиофайла"
+              desc="Скачать транскрипт аудио (txt или docx)"
+              params={[{ name: "format", type: "txt | docx", desc: "Формат выгрузки (по умолчанию txt)" }]}
+            />
+            <Section
+              method="POST"
+              path="/api/v1/files/{id}/embed-transcript"
+              desc="Векторизация транскрипта аудио для чата и RAG. После транскрибации — индексация для поиска и чата"
             />
                 </div>
               </AccordionContent>
@@ -386,7 +392,7 @@ export default function ApiDocsPage() {
               <AccordionContent>
                 <div className="space-y-4 pt-2">
                   <p className="text-xs text-muted-foreground">
-                    <strong>RAG-поиск:</strong> используйте <code className="rounded bg-surface2 px-1">GET /api/v1/files/search?q=...&collectionId=...</code> — возвращает <code className="rounded bg-surface2 px-1">results[].chunkText</code>. Эндпоинт <code className="rounded bg-surface2 px-1">rag/collections</code> — только список коллекций, не семантический поиск.{" "}
+                    <strong>RAG-поиск:</strong> используйте <code className="rounded bg-surface2 px-1">GET /api/v1/files/search?q=...&collectionId=...</code> — возвращает <code className="rounded bg-surface2 px-1">results[].chunkText</code>. <strong>Синхронизация с папкой:</strong> <code className="rounded bg-surface2 px-1">GET /api/v1/files?folderId=...</code> → <code className="rounded bg-surface2 px-1">PATCH /api/v1/rag/collections/{`{id}`}</code> с <code className="rounded bg-surface2 px-1">fileIds</code> → <code className="rounded bg-surface2 px-1">POST vectorize</code> (обрабатывает только новые файлы).{" "}
                     <a href="/dashboard/n8n-guide" className="text-primary hover:underline">Гайд по интеграции</a>
                   </p>
                   <Section
@@ -408,8 +414,8 @@ export default function ApiDocsPage() {
                   <Section
                     method="PATCH"
                     path="/api/v1/rag/collections/{id}"
-                    desc="Обновить коллекцию"
-                    body={{ name: "string (optional)", folderId: "string | null (optional)", fileIds: "string[] (optional)" }}
+                    desc="Обновить коллекцию. fileIds — полная замена состава (для синхронизации с папкой)"
+                    body={{ name: "string (optional)", folderId: "string | null (optional)", fileIds: "string[] (optional)", embeddingConfig: "object (optional)" }}
                   />
                   <Section
                     method="DELETE"
@@ -419,12 +425,13 @@ export default function ApiDocsPage() {
                   <Section
                     method="POST"
                     path="/api/v1/rag/collections/{id}/validate"
-                    desc="Проверка: какие файлы можно векторизовать"
+                    desc="Проверка: какие файлы можно векторизовать. Аудио с транскриптом — пригодны"
                   />
                   <Section
                     method="POST"
                     path="/api/v1/rag/collections/{id}/vectorize"
-                    desc="Массовая векторизация (возвращает taskId, фоновая задача). Статус — polling vectorize/status"
+                    desc="Массовая векторизация. Уже векторизованные файлы пропускаются, обрабатываются только новые. Body: { skipFirst?: number }"
+                    body={{ skipFirst: "number (optional)" }}
                   />
                   <Section
                     method="GET"
@@ -543,7 +550,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-muted-foreground" />
-                  Обработка и транскрипция (6 методов)
+                  Обработка и транскрипция (7 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -577,6 +584,11 @@ export default function ApiDocsPage() {
                     path="/api/v1/files/transcribe/estimate"
                     desc="Оценка времени транскрипции"
                     params={[{ name: "fileId", type: "string", desc: "ID файла" }]}
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/files/{id}/embed-transcript"
+                    desc="Векторизация транскрипта аудио (после транскрибации) — для чата и RAG"
                   />
                 </div>
               </AccordionContent>
