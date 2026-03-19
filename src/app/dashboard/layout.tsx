@@ -1,12 +1,10 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { SidebarV2 } from "@/components/layout/SidebarV2";
-import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { DashboardShell } from "@/components/layout/DashboardShell";
+import { DashboardHeaderWidgets } from "@/components/layout/DashboardHeaderWidgets";
 import { NotificationBanner } from "@/components/dashboard/NotificationBanner";
 import { FreePlanAccessGuard } from "@/components/layout/FreePlanAccessGuard";
-import { sidebarV2Enabled } from "@/lib/feature-flags";
 
 export default async function DashboardLayout({
   children,
@@ -17,21 +15,18 @@ export default async function DashboardLayout({
   if (!session) redirect("/login");
 
   return (
-    <div className="min-h-screen bg-background">
-      {sidebarV2Enabled ? <SidebarV2 /> : <Sidebar />}
-      <div className="pl-[291px]">
-        <FreePlanAccessGuard />
-        <DashboardHeader
-          title="Личный кабинет"
-          subtitle="Управление файлами и настройками"
-        />
-        <main className="min-h-[calc(100vh-4.5rem)] p-6">
-          <div className="mb-4">
-            <NotificationBanner />
-          </div>
-          {children}
-        </main>
-      </div>
-    </div>
+    <DashboardShell
+      title="Личный кабинет"
+      subtitle="Управление файлами и настройками"
+      headerWidgets={<DashboardHeaderWidgets />}
+    >
+      <FreePlanAccessGuard />
+      <main className="min-h-[calc(100vh-4.5rem)] p-4 sm:p-6">
+        <div className="mb-4">
+          <NotificationBanner />
+        </div>
+        {children}
+      </main>
+    </DashboardShell>
   );
 }

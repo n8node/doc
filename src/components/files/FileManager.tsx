@@ -2748,7 +2748,7 @@ export function FileManager() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6 p-6">
+        <CardContent className="space-y-6 p-4 sm:p-6">
           {!isHistorySection && !isTrashSection && (
             <>
               {/* Filters */}

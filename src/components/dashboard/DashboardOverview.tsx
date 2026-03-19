@@ -129,7 +129,7 @@ export function DashboardOverview() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-surface2/80 to-surface/80 p-8 shadow-lg"
+        className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-surface2/80 to-surface/80 p-4 shadow-lg sm:p-6 lg:p-8"
       >
         {content.heroImageKey && (
           <div className="pointer-events-none absolute inset-0 opacity-15">
@@ -162,7 +162,7 @@ export function DashboardOverview() {
             {content.steps.map((step, i) => (
               <div
                 key={i}
-                className="relative flex min-w-[200px] flex-1 basis-[200px] flex-col rounded-2xl border border-border bg-surface2/50 p-5"
+                className="relative flex min-w-0 flex-1 basis-full flex-col rounded-2xl border border-border bg-surface2/50 p-5 sm:basis-[200px]"
               >
                 <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-lg font-bold text-primary">
                   {i + 1}
