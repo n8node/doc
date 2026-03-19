@@ -24,7 +24,7 @@ export function LandingFileCards({ content }: { content: LandingContent }) {
                 className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-border bg-white shadow-md sm:h-20 sm:w-20"
               >
                 <img
-                  src={`${getLandingAssetUrl(iconKey)}?v=${Date.now()}`}
+                  src={getLandingAssetUrl(iconKey)}
                   alt=""
                   className="h-10 w-10 object-contain sm:h-12 sm:w-12"
                   onError={(e) => {
