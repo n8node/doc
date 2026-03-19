@@ -342,6 +342,53 @@ async function main() {
 
 <p>Если обе функции отключены, раздел покажет сообщение о необходимости смены тарифа.</p>`;
 
+  const apiContent = `<p><strong>REST API</strong> позволяет подключать внешние системы: n8n, скрипты, мобильные приложения и другие интеграции. Полная документация с эндпоинтами — в разделе <a href="/dashboard/api-docs">API настройки</a> (Интеграции → API настройки).</p>
+
+<h2>API-ключи</h2>
+
+<p>Для доступа к API создайте ключ в <a href="/dashboard/api-docs">API настройках</a>. Укажите имя (например, «n8n интеграция») и нажмите «Создать». <strong>Сохраните ключ сразу</strong> — полное значение показывается только один раз.</p>
+
+<p>Ключ передаётся в заголовке:</p>
+<pre><code>Authorization: Bearer &lt;ваш_ключ&gt;</code></pre>
+
+<p>Пример запроса:</p>
+<pre><code>curl -X GET "https://qoqon.ru/api/v1/files" \\
+  -H "Authorization: Bearer qk_xxxxxxxx__yyyyyyyy"</code></pre>
+
+<h2>Основные группы эндпоинтов</h2>
+
+<ul>
+<li><strong>Файлы</strong> — список, загрузка, скачивание, поиск, чат по документу, транскрипция</li>
+<li><strong>Папки</strong> — создание, переименование, перемещение, удаление</li>
+<li><strong>Общий доступ</strong> — создание и отзыв публичных ссылок</li>
+<li><strong>RAG-память</strong> — коллекции, векторизация, семантический поиск по <code>collectionId</code></li>
+<li><strong>Векторная база</strong> — список файлов с эмбеддингами, чанки</li>
+<li><strong>API Маркетплейс</strong> — OpenAI-совместимый Chat и Embeddings для n8n</li>
+<li><strong>Обработка и транскрипция</strong> — запуск обработки документов, транскрибация аудио</li>
+<li><strong>Генерация изображений</strong> — задачи, модели, запуск генерации, статус</li>
+<li><strong>Корзина</strong> — восстановление и удаление</li>
+<li><strong>Уведомления</strong> — список и отметка прочитанными</li>
+<li><strong>Пользователь</strong> — профиль, хранилище, настройки, AI-конфиг</li>
+<li><strong>Тарифы</strong> — список планов, текущий тариф</li>
+</ul>
+
+<h2>Интеграция с n8n</h2>
+
+<p>Для n8n доступны:</p>
+<ul>
+<li><strong>Семантический поиск</strong> — <code>GET /api/v1/files/search?q=запрос&amp;collectionId=ID</code>. Возвращает <code>results[].chunkText</code></li>
+<li><strong>API Маркетплейс</strong> — Chat Completions и Embeddings (OpenAI-совместимый формат)</li>
+<li><strong>PGVector-подключения</strong> — для RAG-коллекций (требуется тариф с «Подключение n8n»)</li>
+</ul>
+
+<p>Подробнее — в <a href="/dashboard/n8n-guide">руководстве по интеграции с n8n</a>.</p>
+
+<h2>Базовый URL</h2>
+
+<p>Базовый URL API отображается в разделе API настройки после входа. Обычно это <code>https://qoqon.ru/api/v1</code> или ваш домен.</p>
+
+<p>Часть операций (смена пароля, подписка на тариф, удаление аккаунта) доступна только через веб-интерфейс с сессией (cookie), не по API-ключу.</p>`;
+
   const defaultDocPages = [
     { slug: "getting-started", title: "Начало работы", sortOrder: 0, content: gettingStartedContent },
     { slug: "files", title: "Файлы и хранилище", sortOrder: 1, content: filesContent },
@@ -349,7 +396,7 @@ async function main() {
     { slug: "document-chats", title: "AI-чаты по документам", sortOrder: 3, content: documentChatsContent },
     { slug: "rag-memory", title: "RAG-память", sortOrder: 4, content: ragMemoryContent },
     { slug: "embeddings", title: "Векторная база", sortOrder: 5, content: embeddingsContent },
-    { slug: "api", title: "API и интеграции", sortOrder: 6, content: "<p>Подключайте внешние системы через REST API. Создайте API-ключ в настройках.</p>" },
+    { slug: "api", title: "API и интеграции", sortOrder: 6, content: apiContent },
     { slug: "plans", title: "Тарифы", sortOrder: 7, content: "<p>Информация о тарифных планах и лимитах.</p>" },
     { slug: "settings", title: "Настройки", sortOrder: 8, content: "<p>Профиль, уведомления, привязка Telegram и другие настройки.</p>" },
   ];
