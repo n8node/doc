@@ -556,6 +556,42 @@ async function main() {
 
 <p>Подробнее — в <a href="/dashboard/n8n-guide#tables">руководстве по n8n</a> (раздел «Таблицы»).</p>`;
 
+  const sheetsContent = `<p>Раздел <strong>Таблицы</strong> — создание и редактирование таблиц, импорт Excel, экспорт в JSON и подключение к n8n. Доступен в группе «Интеграции» боковой панели или по адресу <a href="/dashboard/sheets">/dashboard/sheets</a>.</p>
+
+<h2>Доступность</h2>
+
+<p>Таблицы доступны только на тарифах с включённой функцией «Таблицы». Если раздел недоступен, перейдите в <a href="/dashboard/plans">Тарифы</a> и подключите подходящий план.</p>
+
+<h2>Список таблиц</h2>
+
+<p>На странице списка отображаются все ваши таблицы: название, число колонок и ячеек. Доступны действия:</p>
+
+<ul>
+<li><strong>Создать</strong> — введите название (или оставьте «Новая таблица») и нажмите кнопку. После создания откроется редактор</li>
+<li><strong>Импорт Excel</strong> — загрузка файла .xlsx или .xls. Создаётся новая таблица с данными из первого листа</li>
+<li><strong>Удалить</strong> — удаление таблицы (на карточке)</li>
+</ul>
+
+<h2>Редактор таблицы</h2>
+
+<p>Откройте таблицу кликом по карточке. В редакторе:</p>
+
+<ul>
+<li><strong>Название</strong> — двойной клик по заголовку для переименования</li>
+<li><strong>Колонка</strong> — добавление колонки. Укажите имя и тип данных: текст, число, да/нет, дата, дата и время, список</li>
+<li><strong>Строка</strong> — добавление новой строки</li>
+<li><strong>Ячейки</strong> — ввод и редактирование. Сохранение при уходе с поля (blur)</li>
+<li><strong>Сортировка и фильтр</strong> — по колонкам</li>
+<li><strong>Выделение диапазона</strong> — Shift+клик для выбора, заливка значения</li>
+<li><strong>Экспорт JSON</strong> — скачивание таблицы в формате JSON</li>
+</ul>
+
+<h2>Подключение к n8n</h2>
+
+<p>Таблицы можно подключать к n8n через ноду <strong>PostgreSQL</strong>. Данные синхронизируются в обе стороны. Подробная инструкция — в статье <a href="/docs/n8n-sheets">Подключение таблиц (Sheets) к n8n</a>.</p>
+
+<p>В редакторе таблицы нажмите <strong>«Подключения n8n (PostgreSQL)»</strong>, создайте подключение и скопируйте параметры (Host, Port, Database, User, Password, Table Name) для настройки в n8n.</p>`;
+
   const defaultDocPages = [
     { slug: "getting-started", title: "Начало работы", sortOrder: 0, content: gettingStartedContent },
     { slug: "files", title: "Файлы и хранилище", sortOrder: 1, content: filesContent },
@@ -565,10 +601,11 @@ async function main() {
     { slug: "rag-memory", title: "RAG-память", sortOrder: 5, content: ragMemoryContent },
     { slug: "embeddings", title: "Векторная база", sortOrder: 6, content: embeddingsContent },
     { slug: "api", title: "API и интеграции", sortOrder: 7, content: apiContent },
-    { slug: "plans", title: "Тарифы", sortOrder: 8, content: plansContent },
-    { slug: "settings", title: "Настройки", sortOrder: 9, content: settingsContent },
-    { slug: "n8n-rag", title: "Интеграция Qoqon RAG с n8n (Postgres PGVector Store и HTTP Request)", sortOrder: 10, content: n8nRagContent },
-    { slug: "n8n-sheets", title: "Подключение таблиц (Sheets) к n8n", sortOrder: 11, content: n8nSheetsContent },
+    { slug: "sheets", title: "Таблицы", sortOrder: 8, content: sheetsContent },
+    { slug: "plans", title: "Тарифы", sortOrder: 9, content: plansContent },
+    { slug: "settings", title: "Настройки", sortOrder: 10, content: settingsContent },
+    { slug: "n8n-rag", title: "Интеграция Qoqon RAG с n8n (Postgres PGVector Store и HTTP Request)", sortOrder: 11, content: n8nRagContent },
+    { slug: "n8n-sheets", title: "Подключение таблиц (Sheets) к n8n", sortOrder: 12, content: n8nSheetsContent },
   ];
 
   for (const p of defaultDocPages) {
