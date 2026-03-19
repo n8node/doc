@@ -2,6 +2,7 @@ export const FILES_SECTIONS = [
   "my-files",
   "recent",
   "photos",
+  "videos",
   "shared",
   "history",
   "trash",

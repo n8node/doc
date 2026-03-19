@@ -69,6 +69,7 @@ export const navGroups: NavGroup[] = [
       { href: buildDashboardFilesUrl({ section: "my-files" }), icon: FolderOpen, label: "Мои файлы", section: "my-files" },
       { href: buildDashboardFilesUrl({ section: "recent" }), icon: Clock3, label: "Недавние", section: "recent" },
       { href: buildDashboardFilesUrl({ section: "photos" }), icon: ImageIcon, label: "Фото", section: "photos" },
+      { href: buildDashboardFilesUrl({ section: "videos" }), icon: Video, label: "Видео", section: "videos" },
       { href: buildDashboardFilesUrl({ section: "shared" }), icon: Share2, label: "Общий доступ", section: "shared" },
       { href: buildDashboardFilesUrl({ section: "history" }), icon: History, label: "История", section: "history" },
       { href: buildDashboardFilesUrl({ section: "trash" }), icon: Trash2, label: "Корзина", section: "trash" },

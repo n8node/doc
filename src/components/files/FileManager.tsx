@@ -30,6 +30,7 @@ import {
   ChevronRight,
   Copy,
   Pencil,
+  Play,
   ScanSearch,
   BrainCircuit,
   CheckSquare,
@@ -232,10 +233,11 @@ export function FileManager() {
   const activeSection = parseFilesSection(searchParams.get("section"));
   const isRecentSection = activeSection === "recent";
   const isPhotosSection = activeSection === "photos";
+  const isVideosSection = activeSection === "videos";
   const isSharedSection = activeSection === "shared";
   const isHistorySection = activeSection === "history";
   const isTrashSection = activeSection === "trash";
-  const normalizedViewMode = parseViewMode(viewParam, isPhotosSection ? "grid" : "list");
+  const normalizedViewMode = parseViewMode(viewParam, isPhotosSection || isVideosSection ? "grid" : "list");
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const handleUploadRef = useRef<(files: File[]) => void>(() => {});
 
@@ -380,7 +382,7 @@ export function FileManager() {
   }, [normalizedViewMode, viewMode]);
 
   useEffect(() => {
-    if (isPhotosSection) return;
+    if (isPhotosSection || isVideosSection) return;
     const currentView = searchParams.get("view");
     if (!currentView) return;
 
@@ -388,7 +390,7 @@ export function FileManager() {
     nextParams.set("section", activeSection);
     nextParams.delete("view");
     router.replace(`/dashboard/files?${nextParams.toString()}`);
-  }, [isPhotosSection, activeSection, router, searchParams]);
+  }, [isPhotosSection, isVideosSection, activeSection, router, searchParams]);
 
   useEffect(() => {
     const handleOpenUploadDialog = () => {
@@ -436,12 +438,12 @@ export function FileManager() {
   }, [loadStorageInfo]);
 
   useEffect(() => {
-    if (isRecentSection || isPhotosSection || isSharedSection || isHistorySection || isTrashSection) {
+    if (isRecentSection || isPhotosSection || isVideosSection || isSharedSection || isHistorySection || isTrashSection) {
       setCurrentFolderId(null);
       return;
     }
     setCurrentFolderId(folderIdParam || null);
-  }, [folderIdParam, isRecentSection, isPhotosSection, isSharedSection, isHistorySection, isTrashSection]);
+  }, [folderIdParam, isRecentSection, isPhotosSection, isVideosSection, isSharedSection, isHistorySection, isTrashSection]);
 
   useEffect(() => {
     if (!selectedCustomDate) return;
@@ -492,13 +494,15 @@ export function FileManager() {
 
   const buildBaseFileFilterParams = useCallback(() => {
     const params = new URLSearchParams();
-    if (isRecentSection || isPhotosSection || isSharedSection || isHistorySection) {
+    if (isRecentSection || isPhotosSection || isVideosSection || isSharedSection || isHistorySection) {
       params.set("scope", "all");
     } else {
       params.set("folderId", currentFolderId || "");
     }
     if (isPhotosSection) {
       params.set("type", "image");
+    } else if (isVideosSection) {
+      params.set("type", "video");
     } else if (filterType !== "all") {
       params.set("type", filterType);
     }
@@ -518,6 +522,7 @@ export function FileManager() {
     currentFolderId,
     isRecentSection,
     isPhotosSection,
+    isVideosSection,
     isSharedSection,
     isHistorySection,
     filterType,
@@ -608,7 +613,7 @@ export function FileManager() {
       let foldersRes: Response | null = null;
       if (isSharedSection) {
         foldersRes = await fetch("/api/v1/folders?scope=all&hasShareLink=true");
-      } else if (!isRecentSection && !isPhotosSection) {
+      } else if (!isRecentSection && !isPhotosSection && !isVideosSection) {
         foldersRes = await fetch(`/api/v1/folders?parentId=${currentFolderId || ""}`);
       }
 
@@ -619,7 +624,7 @@ export function FileManager() {
       if (foldersRes?.ok) {
         const d = await foldersRes.json();
         setFolders(d.folders ?? []);
-      } else if (isRecentSection || isPhotosSection) {
+      } else if (isRecentSection || isPhotosSection || isVideosSection) {
         setFolders([]);
       } else if (isSharedSection) {
         setFolders([]);
@@ -630,6 +635,8 @@ export function FileManager() {
         bc = [{ id: null, name: "Недавние файлы" }];
       } else if (isPhotosSection) {
         bc = [{ id: null, name: "Фото" }];
+      } else if (isVideosSection) {
+        bc = [{ id: null, name: "Видео" }];
       } else if (isSharedSection) {
         bc = [{ id: null, name: "Общий доступ" }];
       } else if (currentFolderId) {
@@ -680,6 +687,7 @@ export function FileManager() {
     currentFolderId,
     isRecentSection,
     isPhotosSection,
+    isVideosSection,
     isSharedSection,
     isHistorySection,
     isTrashSection,
@@ -2498,7 +2506,7 @@ export function FileManager() {
     </div>
   );
 
-  const typeFilterActive = !isPhotosSection && filterType !== "all";
+  const typeFilterActive = !isPhotosSection && !isVideosSection && filterType !== "all";
   const shareFilterActive = !isSharedSection && filterHasShareLink;
   const processedFilterActive = filterProcessed !== "all";
   const transcribedFilterActive = filterTranscribed !== "all";
@@ -2523,7 +2531,9 @@ export function FileManager() {
   const activeTypeLabel =
     isPhotosSection
       ? "Изображения"
-      : TYPE_FILTER_OPTIONS.find((option) => option.value === filterType)?.label ?? "Все типы";
+      : isVideosSection
+        ? "Видео"
+        : TYPE_FILTER_OPTIONS.find((option) => option.value === filterType)?.label ?? "Все типы";
   const activeSizeLabel =
     SIZE_FILTER_OPTIONS.find((option) => option.value === filterSize)?.label ?? "Любой размер";
   const activeDateLabel =
@@ -2576,7 +2586,7 @@ export function FileManager() {
 
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("section", activeSection);
-    if (isPhotosSection) {
+    if (isPhotosSection || isVideosSection) {
       nextParams.set("view", mode);
     } else {
       nextParams.delete("view");
@@ -2585,10 +2595,11 @@ export function FileManager() {
   };
 
   const showFolders =
-    (!isRecentSection && !isPhotosSection && !isHistorySection && !isTrashSection) ||
+    (!isRecentSection && !isPhotosSection && !isVideosSection && !isHistorySection && !isTrashSection) ||
     isSharedSection;
   const showTrashFolders = isTrashSection;
   const showPhotoGrid = isPhotosSection && viewMode === "grid";
+  const showVideoGrid = isVideosSection && viewMode === "grid";
   const hasMoveTargets = currentFolderId !== null || allRootFolders.length > 0;
   const isEmpty = (showFolders || showTrashFolders)
     ? folders.length === 0 && filteredFiles.length === 0
@@ -2690,7 +2701,7 @@ export function FileManager() {
                 </DropdownMenu>
               )}
 
-              {isPhotosSection && (
+              {(isPhotosSection || isVideosSection) && (
                 <div className="flex items-center rounded-lg border border-border p-0.5">
                   <button
                     type="button"
@@ -2810,6 +2821,11 @@ export function FileManager() {
                         <div className={getFilterTriggerClass(true)}>
                           <span className="truncate">{activeTypeLabel}</span>
                           <FileImage className="h-4 w-4 shrink-0 text-primary" />
+                        </div>
+                      ) : isVideosSection ? (
+                        <div className={getFilterTriggerClass(true)}>
+                          <span className="truncate">{activeTypeLabel}</span>
+                          <FileVideo className="h-4 w-4 shrink-0 text-primary" />
                         </div>
                       ) : (
                         <DropdownMenu>
@@ -3609,6 +3625,172 @@ export function FileManager() {
                                       <Mic2 className="h-3.5 w-3.5" />
                                     </button>
                                   )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteFile(file.id)}
+                                    className="rounded-md p-1.5 text-error transition-colors hover:bg-error/10"
+                                    aria-label="Удалить"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : showVideoGrid ? (
+                    <div className="space-y-2">
+                      <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Видео ({filteredFiles.length})
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                        {filteredFiles.map((file, index) => {
+                          const selected = selectedFiles.has(file.id);
+                          const createdLabel = new Date(file.createdAt).toLocaleDateString("ru-RU", {
+                            day: "numeric",
+                            month: "short",
+                          });
+                          return (
+                            <motion.div
+                              key={file.id}
+                              data-file-id={file.id}
+                              initial={{ opacity: 0, y: 12 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.25, delay: index * 0.02 }}
+                              className={cn(
+                                "scroll-mt-28 group relative overflow-hidden rounded-2xl border bg-surface2/35 transition-all",
+                                selected
+                                  ? "border-primary/70 bg-primary/5 shadow-[0_10px_28px_-18px_hsl(var(--primary)/0.9)]"
+                                  : "border-border/70 hover:border-primary/40 hover:bg-surface2/55"
+                              )}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleFileSelect(file.id, !selected)}
+                                className={cn(
+                                  "absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-md border transition-colors",
+                                  selected
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-border/80 bg-background/90 text-muted-foreground"
+                                )}
+                                aria-label="Выбрать файл"
+                              >
+                                {selected ? <Check className="h-3 w-3" /> : null}
+                              </button>
+
+                              {file.hasShareLink && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setShareLinksTarget({ type: "FILE", id: file.id, name: file.name })
+                                  }
+                                  className="absolute right-2 top-2 z-10 rounded-full bg-primary/90 px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
+                                >
+                                  {file.shareLinksCount && file.shareLinksCount > 1
+                                    ? `Ссылок: ${file.shareLinksCount}`
+                                    : "Ссылка"}
+                                </button>
+                              )}
+
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMediaModal({ type: "video", id: file.id, name: file.name });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setMediaModal({ type: "video", id: file.id, name: file.name });
+                                  }
+                                }}
+                                className="relative aspect-video overflow-hidden bg-surface2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset"
+                                aria-label="Смотреть видео"
+                              >
+                                <video
+                                  src={streamUrl(file.id)}
+                                  preload="metadata"
+                                  muted
+                                  playsInline
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 shadow-lg">
+                                    <Play className="h-6 w-6 text-primary ml-0.5" />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2 p-3">
+                                <p className="truncate text-sm font-medium text-foreground" title={file.name}>
+                                  {file.name}
+                                </p>
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                  <span>{formatBytes(file.size)}</span>
+                                  <span>{createdLabel}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-1 border-t border-border/60 pt-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownload(file.id)}
+                                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                    aria-label="Скачать"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setShareTarget({ type: "FILE", id: file.id, name: file.name })
+                                    }
+                                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                    aria-label="Поделиться"
+                                  >
+                                    <Share2 className="h-4 w-4" />
+                                  </button>
+                                  {hasMoveTargets && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSingleMoveTarget({ type: "FILE", id: file.id });
+                                        setMoveDialogOpen(true);
+                                      }}
+                                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                      aria-label="Переместить"
+                                    >
+                                      <FolderInput className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSingleCopyTarget({
+                                        type: "FILE",
+                                        id: file.id,
+                                        name: file.name,
+                                        currentFolderId: currentFolderId,
+                                      });
+                                      setCopyDialogOpen(true);
+                                    }}
+                                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                    aria-label="Копировать"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setRenameTarget({ type: "file", id: file.id, name: file.name })
+                                    }
+                                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground"
+                                    aria-label="Переименовать"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteFile(file.id)}
