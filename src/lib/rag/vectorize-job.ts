@@ -4,10 +4,18 @@ import {
   processDocument,
   isProcessable,
 } from "@/lib/docling/processing-service";
+import { isTranscribable } from "@/lib/docling/transcription-service";
+import { runEmbeddingPipeline } from "@/lib/ai/embedding-pipeline";
 import { createNotificationIfEnabled } from "@/lib/notification-service";
 import { sendUserTelegramNotify } from "@/lib/user-telegram-notify";
 import { resolveEmbeddingConfig } from "@/lib/ai/embedding-config";
 import type { ResolvedEmbeddingConfig } from "@/lib/ai/embedding-config";
+
+function hasTranscriptText(aiMetadata: unknown): boolean {
+  if (!aiMetadata || typeof aiMetadata !== "object") return false;
+  const meta = aiMetadata as { transcriptText?: string };
+  return typeof meta.transcriptText === "string" && meta.transcriptText.trim().length > 0;
+}
 
 export interface VectorizeJobInput {
   collectionId: string;
@@ -100,14 +108,15 @@ export async function processVectorizeJob(taskId: string): Promise<void> {
 
     const allFiles = collection.files;
     const total = allFiles.length;
-    const processableFiles = allFiles.filter((f) =>
-      isProcessable(f.file.mimeType),
-    );
+    const isVectorizable = (f: (typeof allFiles)[0]) =>
+      isProcessable(f.file.mimeType) ||
+      (isTranscribable(f.file.mimeType) && hasTranscriptText(f.file.aiMetadata));
+    const processableFiles = allFiles.filter(isVectorizable);
     const processableCount = processableFiles.length;
 
     const skippedProcessable = allFiles
       .slice(0, skipFirst)
-      .filter((f) => isProcessable(f.file.mimeType)).length;
+      .filter(isVectorizable).length;
     let processableProcessed = skippedProcessable;
 
     const results: FileResult[] = [];
@@ -140,25 +149,26 @@ export async function processVectorizeJob(taskId: string): Promise<void> {
     };
 
     let idx = 0;
-    for (const { file } of allFiles) {
+    for (const item of allFiles) {
+      const { file } = item;
       if (idx < skipFirst) {
         idx++;
         continue;
       }
       idx++;
 
-      if (!isProcessable(file.mimeType)) {
+      if (!isVectorizable(item)) {
+        const reason = isTranscribable(file.mimeType)
+          ? "Сначала транскрибируйте аудиофайл"
+          : "Формат не поддерживается для векторизации";
         results.push({
           fileId: file.id,
           fileName: file.name,
           success: false,
-          error: "Формат не поддерживается",
+          error: reason,
           skipped: true,
         });
-        skippedFiles.push({
-          fileName: file.name,
-          reason: "Формат не поддерживается для векторизации",
-        });
+        skippedFiles.push({ fileName: file.name, reason });
         processed++;
         await updateProgress(file.name);
         continue;
@@ -167,14 +177,39 @@ export async function processVectorizeJob(taskId: string): Promise<void> {
       await updateProgress(file.name);
 
       try {
-        await processDocument(
-          file.id,
-          file.s3Key,
-          file.name,
-          file.mimeType,
-          userId,
-          { embeddingConfig },
-        );
+        if (isProcessable(file.mimeType)) {
+          await processDocument(
+            file.id,
+            file.s3Key,
+            file.name,
+            file.mimeType,
+            userId,
+            { embeddingConfig },
+          );
+        } else {
+          const meta = file.aiMetadata as { transcriptText?: string; transcriptContentHash?: string } | null;
+          const transcriptText = meta?.transcriptText ?? "";
+          const contentHash = meta?.transcriptContentHash ?? `transcript-${Date.now()}`;
+          const result = await runEmbeddingPipeline(
+            file.id,
+            transcriptText,
+            contentHash,
+            userId,
+            embeddingConfig,
+          );
+          if (result.embeddingsCreated > 0) {
+            const existingMeta = (file.aiMetadata ?? {}) as Record<string, unknown>;
+            await prisma.file.update({
+              where: { id: file.id },
+              data: {
+                aiMetadata: {
+                  ...existingMeta,
+                  processedAt: new Date().toISOString(),
+                },
+              },
+            });
+          }
+        }
         processableProcessed++;
         succeeded++;
         results.push({

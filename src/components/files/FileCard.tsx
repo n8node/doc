@@ -71,6 +71,11 @@ interface FileCardProps {
   processLocked?: string;
   transcribeLocked?: string;
   onViewTranscript?: () => void;
+  onEmbedTranscript?: () => void;
+  isEmbeddingTranscript?: boolean;
+  embedTranscriptError?: string;
+  embedTranscriptLocked?: string;
+  hasEmbedding?: boolean;
   onChat?: () => void;
   onDelete: () => void;
   index: number;
@@ -258,6 +263,11 @@ export function FileCard({
   processLocked,
   transcribeLocked,
   onViewTranscript,
+  onEmbedTranscript,
+  isEmbeddingTranscript,
+  embedTranscriptError,
+  embedTranscriptLocked,
+  hasEmbedding,
   onChat,
   onDelete,
   index,
@@ -398,7 +408,7 @@ export function FileCard({
                 </span>
               </>
             )}
-            {isProcessable && isProcessed && !isAnalyzing && (
+            {((isProcessable && isProcessed) || (isTranscribable && !!hasEmbedding)) && !isAnalyzing && !isEmbeddingTranscript && (
               <>
                 <span>•</span>
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600 font-medium" title="Документ обработан AI">
@@ -459,6 +469,15 @@ export function FileCard({
                 </span>
               </>
             )}
+            {isTranscribable && embedTranscriptError && !isEmbeddingTranscript && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 text-red-500" title={embedTranscriptError}>
+                  <BrainCircuit className="h-3 w-3" />
+                  Ошибка индексации
+                </span>
+              </>
+            )}
             {isTranscribable && isTranscribed && !isTranscribing && (
               <>
                 <span>•</span>
@@ -499,7 +518,7 @@ export function FileCard({
                 </button>
               </>
             )}
-            {onChat && isProcessed && (
+            {onChat && (isProcessed || (isTranscribable && !!hasEmbedding)) && (
               <>
                 <span>•</span>
                 <button
@@ -516,7 +535,7 @@ export function FileCard({
                 </button>
               </>
             )}
-            {isProcessed && (
+            {(isProcessed || (isTranscribable && !!hasEmbedding)) && (
               <>
                 <span>•</span>
                 <Link
@@ -725,6 +744,38 @@ export function FileCard({
               </TooltipTrigger>
               <TooltipContent>
                 {transcribeLocked ?? "Транскрибировать"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {(onEmbedTranscript || (embedTranscriptLocked && isTranscribable && isTranscribed)) && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onEmbedTranscript) onEmbedTranscript();
+                  }}
+                  disabled={!!embedTranscriptLocked || isEmbeddingTranscript}
+                  className={cn(
+                    ACTION_BTN,
+                    embedTranscriptLocked
+                      ? "cursor-not-allowed text-muted-foreground opacity-60"
+                      : "text-emerald-500 hover:bg-emerald-500/10"
+                  )}
+                >
+                  {embedTranscriptLocked ? (
+                    <Lock className="h-4 w-4" />
+                  ) : isEmbeddingTranscript ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                  ) : (
+                    <BrainCircuit className="h-4 w-4" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {embedTranscriptLocked ?? (isEmbeddingTranscript ? "Индексация..." : "AI-обработка транскрипта")}
               </TooltipContent>
             </Tooltip>
           )}

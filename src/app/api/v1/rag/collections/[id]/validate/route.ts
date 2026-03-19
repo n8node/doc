@@ -2,13 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { isProcessable } from "@/lib/docling/processing-service";
+import { isTranscribable } from "@/lib/docling/transcription-service";
 import { checkRagMemoryAccess } from "@/lib/rag/access";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+function hasTranscriptText(aiMetadata: unknown): boolean {
+  if (!aiMetadata || typeof aiMetadata !== "object") return false;
+  const meta = aiMetadata as { transcriptText?: string };
+  return typeof meta.transcriptText === "string" && meta.transcriptText.trim().length > 0;
+}
+
 /**
  * POST /api/v1/rag/collections/[id]/validate — check which files can be vectorized.
  * Returns processable and skipped files with reasons.
+ * Аудио с транскриптом считается пригодным к векторизации.
  */
 export async function POST(request: NextRequest, ctx: Ctx) {
   const userId = await getUserIdFromRequest(request);
@@ -31,6 +39,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
               name: true,
               mimeType: true,
               size: true,
+              aiMetadata: true,
             },
           },
         },
@@ -65,6 +74,15 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     };
     if (isProcessable(file.mimeType)) {
       processable.push(item);
+    } else if (isTranscribable(file.mimeType)) {
+      if (hasTranscriptText(file.aiMetadata)) {
+        processable.push(item);
+      } else {
+        skipped.push({
+          ...item,
+          reason: "Сначала транскрибируйте аудиофайл",
+        });
+      }
     } else {
       skipped.push({
         ...item,

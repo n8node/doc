@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
       folderId: true,
       mediaMetadata: true,
       aiMetadata: true,
+      hasEmbedding: true,
       createdAt: true,
       shareLinks: {
         where: {
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
       folderId: f.folderId,
       mediaMetadata: f.mediaMetadata,
       aiMetadata: f.aiMetadata,
+      hasEmbedding: f.hasEmbedding,
       createdAt: f.createdAt,
       hasShareLink: f.shareLinks.length > 0,
       shareLinksCount: f.shareLinks.length,

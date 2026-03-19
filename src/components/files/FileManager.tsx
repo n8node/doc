@@ -96,6 +96,7 @@ interface FileItem {
     transcriptProcessedAt?: string;
     transcriptProvider?: string;
   } | null;
+  hasEmbedding?: boolean;
   createdAt: string;
   hasShareLink?: boolean;
   shareLinksCount?: number;
@@ -262,6 +263,8 @@ export function FileManager() {
   const [transcribeError, setTranscribeError] = useState<Map<string, string>>(new Map());
   const [transcribeEstimateMinutes, setTranscribeEstimateMinutes] = useState<Map<string, number>>(new Map());
   const [transcribeStartedAt, setTranscribeStartedAt] = useState<Map<string, number>>(new Map());
+  const [embedTranscriptingFiles, setEmbedTranscriptingFiles] = useState<Set<string>>(new Set());
+  const [embedTranscriptError, setEmbedTranscriptError] = useState<Map<string, string>>(new Map());
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState<number | null>(null);
   const [embeddingTokensUsedThisMonth, setEmbeddingTokensUsedThisMonth] = useState<number>(0);
   const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState<number | null>(null);
@@ -1335,6 +1338,41 @@ export function FileManager() {
     }
   };
 
+  const handleEmbedTranscript = async (id: string) => {
+    setEmbedTranscriptingFiles((s) => new Set(s).add(id));
+    setEmbedTranscriptError((m) => {
+      const n = new Map(m);
+      n.delete(id);
+      return n;
+    });
+    const toastId = toast.loading("Индексация транскрипта...");
+    try {
+      const res = await fetch(`/api/v1/files/${id}/embed-transcript`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data.error || "Ошибка индексации";
+        toast.error(msg, { id: toastId });
+        setEmbedTranscriptError((m) => new Map(m).set(id, msg));
+        if (res.status === 403 && data.code === "EMBEDDING_QUOTA_EXCEEDED") loadData();
+        return;
+      }
+      toast.success("Транскрипт проиндексирован. Можно вести чат.", { id: toastId });
+      window.dispatchEvent(new CustomEvent("notifications:refresh"));
+      loadData();
+    } catch {
+      toast.error("Не удалось проиндексировать транскрипт", { id: toastId });
+      setEmbedTranscriptError((m) => new Map(m).set(id, "Сетевая ошибка"));
+    } finally {
+      setEmbedTranscriptingFiles((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
+    }
+  };
+
   const pollProcessStatus = async (fileId: string, toastId: string | number): Promise<"ok" | "err"> => {
     const maxAttempts = 600;
     for (let i = 0; i < maxAttempts; i++) {
@@ -2395,9 +2433,33 @@ export function FileManager() {
       }
       onChat={
         documentChatAllowed &&
-        PROCESSABLE_MIMES.has(file.mimeType) &&
-        !!file.aiMetadata?.processedAt
+        ((PROCESSABLE_MIMES.has(file.mimeType) && !!file.aiMetadata?.processedAt) ||
+          (TRANSCRIBABLE_MIMES.has(file.mimeType) &&
+            !!file.aiMetadata?.transcriptProcessedAt &&
+            !!file.hasEmbedding))
           ? () => setChatFile({ id: file.id, name: file.name })
+          : undefined
+      }
+      onEmbedTranscript={
+        TRANSCRIBABLE_MIMES.has(file.mimeType) &&
+        !!file.aiMetadata?.transcriptProcessedAt &&
+        !file.hasEmbedding &&
+        !embedTranscriptingFiles.has(file.id)
+          ? () => handleEmbedTranscript(file.id)
+          : undefined
+      }
+      isEmbeddingTranscript={embedTranscriptingFiles.has(file.id)}
+      embedTranscriptError={embedTranscriptError.get(file.id)}
+      hasEmbedding={file.hasEmbedding}
+      embedTranscriptLocked={
+        TRANSCRIBABLE_MIMES.has(file.mimeType) &&
+        !!file.aiMetadata?.transcriptProcessedAt &&
+        !file.hasEmbedding
+          ? !documentAnalysisAllowed
+            ? "Доступно с платного тарифа. Обновите тариф →"
+            : embeddingQuotaExceeded || analysisDocumentsQuotaExceeded
+              ? "Лимит анализа исчерпан. Обновите тариф →"
+              : undefined
           : undefined
       }
       onViewTranscript={

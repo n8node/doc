@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { isProcessable } from "@/lib/docling/processing-service";
+import { isTranscribable } from "@/lib/docling/transcription-service";
 import { getDoclingClient } from "@/lib/docling/client";
 import { checkDocumentAnalysisAccess } from "@/lib/docling/process-access";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
@@ -62,8 +63,15 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     );
   }
 
-  const processableCount = collection.files.filter((f) =>
-    isProcessable(f.file.mimeType),
+  const hasTranscript = (meta: unknown) =>
+    meta &&
+    typeof meta === "object" &&
+    typeof (meta as { transcriptText?: string }).transcriptText === "string" &&
+    ((meta as { transcriptText: string }).transcriptText as string).trim().length > 0;
+  const processableCount = collection.files.filter(
+    (f) =>
+      isProcessable(f.file.mimeType) ||
+      (isTranscribable(f.file.mimeType) && hasTranscript(f.file.aiMetadata)),
   ).length;
 
   const docAnalysisError = await checkDocumentAnalysisAccess(
