@@ -117,6 +117,15 @@ export async function getLandingContent(): Promise<LandingContent> {
   }
 }
 
+async function safeConfigGet(key: string): Promise<string | null> {
+  try {
+    return await configStore.get(key);
+  } catch (err) {
+    console.error(`[landing-content] configStore.get("${key}") failed:`, err);
+    return null;
+  }
+}
+
 async function getLandingContentInternal(): Promise<LandingContent> {
   const [
     tagline,
@@ -134,20 +143,20 @@ async function getLandingContentInternal(): Promise<LandingContent> {
     stepsTitleRaw,
     stepsRaw,
   ] = await Promise.all([
-    configStore.get(`${PREFIX}tagline`),
-    configStore.get(`${PREFIX}hero_title`),
-    configStore.get(`${PREFIX}hero_title_highlight`),
-    configStore.get(`${PREFIX}hero_description`),
-    configStore.get(`${PREFIX}cta_primary`),
-    configStore.get(`${PREFIX}cta_primary_href`),
-    configStore.get(`${PREFIX}cta_secondary`),
-    configStore.get(`${PREFIX}cta_secondary_href`),
-    configStore.get(BENEFITS_KEY),
-    configStore.get(DOCUMENT_FORMATS_KEY),
-    configStore.get(`${PREFIX}features_title`),
-    configStore.get(FEATURES_KEY),
-    configStore.get(`${PREFIX}steps_title`),
-    configStore.get(STEPS_KEY),
+    safeConfigGet(`${PREFIX}tagline`),
+    safeConfigGet(`${PREFIX}hero_title`),
+    safeConfigGet(`${PREFIX}hero_title_highlight`),
+    safeConfigGet(`${PREFIX}hero_description`),
+    safeConfigGet(`${PREFIX}cta_primary`),
+    safeConfigGet(`${PREFIX}cta_primary_href`),
+    safeConfigGet(`${PREFIX}cta_secondary`),
+    safeConfigGet(`${PREFIX}cta_secondary_href`),
+    safeConfigGet(BENEFITS_KEY),
+    safeConfigGet(DOCUMENT_FORMATS_KEY),
+    safeConfigGet(`${PREFIX}features_title`),
+    safeConfigGet(FEATURES_KEY),
+    safeConfigGet(`${PREFIX}steps_title`),
+    safeConfigGet(STEPS_KEY),
   ]);
 
   const benefits = parseJson<LandingBenefit[]>(benefitsRaw, DEFAULT_BENEFITS);
