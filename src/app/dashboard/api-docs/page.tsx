@@ -5,7 +5,7 @@ import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit, Bell, Store } from "lucide-react";
+import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit, Bell, Store, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -589,6 +589,54 @@ export default function ApiDocsPage() {
                     method="POST"
                     path="/api/v1/files/{id}/embed-transcript"
                     desc="Векторизация транскрипта аудио (после транскрибации) — для чата и RAG"
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="generate" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-muted-foreground" />
+                  Генерация изображений (4 метода)
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Генерация и редактирование изображений по описанию. Требуется тариф с фичей «Генерация изображений». Результат сохраняется в «Мои файлы».
+                  </p>
+                  <Section
+                    method="GET"
+                    path="/api/v1/generate/image/tasks"
+                    desc="Список доступных типов задач (text_to_image, edit_image, variations)"
+                  />
+                  <Section
+                    method="GET"
+                    path="/api/v1/generate/image/models"
+                    desc="Список моделей для выбранного типа задачи"
+                    params={[{ name: "taskId", type: "string", desc: "Тип задачи из /tasks (text_to_image, edit_image, variations)" }]}
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/generate/image"
+                    desc="Запуск генерации. Возвращает taskId — опрашивайте /status для получения результата"
+                    body={{
+                      taskType: "string",
+                      modelId: "string",
+                      prompt: "string",
+                      fileIds: "string[] (опц., для edit_image/variations)",
+                      maskFileId: "string (опц.)",
+                      size: "1:1 | 3:2 | 2:3 (опц.)",
+                      aspectRatio: "string (опц.)",
+                      outputFormat: "jpeg | png (опц.)",
+                    }}
+                  />
+                  <Section
+                    method="GET"
+                    path="/api/v1/generate/image/status"
+                    desc="Статус задачи. При success — resultUrl, fileId, billedCredits"
+                    params={[{ name: "taskId", type: "string", desc: "ID задачи из POST /generate/image" }]}
                   />
                 </div>
               </AccordionContent>
