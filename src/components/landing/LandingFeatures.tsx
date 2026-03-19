@@ -1,18 +1,16 @@
 import Link from "next/link";
 import type { LandingContent } from "@/lib/landing-content";
 import { getLandingAssetUrl } from "@/lib/landing-content";
+import { LandingAssetImg } from "@/components/landing/LandingAssetImg";
 
 function FeatureIcon({ iconKey }: { iconKey?: string | null }) {
   const key = iconKey?.trim();
   if (key) {
     return (
-      <img
+      <LandingAssetImg
         src={getLandingAssetUrl(key)}
         alt=""
         className="mb-4 h-10 w-10 object-contain"
-        onError={(e) => {
-          (e.target as HTMLImageElement).style.display = "none";
-        }}
       />
     );
   }

@@ -1,17 +1,15 @@
 import type { LandingContent } from "@/lib/landing-content";
 import { getLandingAssetUrl } from "@/lib/landing-content";
+import { LandingAssetImg } from "@/components/landing/LandingAssetImg";
 
 function StepIcon({ step, iconKey }: { step: { num: number }; iconKey?: string | null }) {
   const key = iconKey?.trim();
   if (key) {
     return (
-      <img
+      <LandingAssetImg
         src={getLandingAssetUrl(key)}
         alt=""
         className="h-12 w-12 shrink-0 rounded-full object-contain"
-        onError={(e) => {
-          (e.target as HTMLImageElement).style.display = "none";
-        }}
       />
     );
   }
