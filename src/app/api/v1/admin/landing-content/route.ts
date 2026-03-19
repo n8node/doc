@@ -22,8 +22,9 @@ function isValidBenefit(x: unknown): x is LandingBenefit {
 
 function isValidDocumentFormats(x: unknown): x is LandingDocumentFormats {
   if (typeof x !== "object" || x === null) return false;
-  const o = x as { title?: unknown; iconKeys?: unknown };
+  const o = x as { title?: unknown; subtitle?: unknown; iconKeys?: unknown };
   if (typeof o.title !== "string") return false;
+  if (o.subtitle !== undefined && typeof o.subtitle !== "string") return false;
   if (!Array.isArray(o.iconKeys)) return false;
   if (o.iconKeys.length > 7) return false;
   return o.iconKeys.every((k) => typeof k === "string");
@@ -111,11 +112,17 @@ export async function POST(request: NextRequest) {
       const k = body.documentFormats.iconKeys[i];
       return typeof k === "string" && /^doc_format_[0-6]$/.test(k) ? k : "";
     });
+    const subtitle =
+      typeof body.documentFormats.subtitle === "string" ? body.documentFormats.subtitle : "";
     updates.push(
-      configStore.set(`${PREFIX}document_formats_json`, JSON.stringify({ title: body.documentFormats.title, iconKeys }), {
-        category: CATEGORY,
-        description: "Блок Форматы документов",
-      })
+      configStore.set(
+        `${PREFIX}document_formats_json`,
+        JSON.stringify({ title: body.documentFormats.title, subtitle, iconKeys }),
+        {
+          category: CATEGORY,
+          description: "Блок Форматы документов",
+        }
+      )
     );
   }
 

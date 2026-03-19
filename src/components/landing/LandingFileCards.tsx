@@ -5,11 +5,12 @@ import { LandingAssetImg } from "@/components/landing/LandingAssetImg";
 export function LandingFileCards({ content }: { content: LandingContent }) {
   const docFormats = content?.documentFormats;
   const title = typeof docFormats?.title === "string" ? docFormats.title : "Форматы документов";
+  const subtitle = typeof docFormats?.subtitle === "string" ? docFormats.subtitle.trim() : "";
   const iconKeys = Array.isArray(docFormats?.iconKeys) ? docFormats.iconKeys : [];
   const icons = iconKeys.filter((k): k is string => typeof k === "string" && k.length > 0);
 
   return (
-    <section className="px-4 py-12">
+    <section className="px-4 pt-6 pb-12">
       <div className="container mx-auto max-w-5xl">
         <div
           className="rounded-2xl border border-border bg-[#F8FAFF]/80 px-6 py-8 shadow-lg shadow-foreground/5"
@@ -32,6 +33,9 @@ export function LandingFileCards({ content }: { content: LandingContent }) {
               </div>
             ))}
           </div>
+          {subtitle ? (
+            <p className="mt-6 text-center text-sm text-muted-foreground sm:text-base">{subtitle}</p>
+          ) : null}
         </div>
       </div>
     </section>

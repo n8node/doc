@@ -5,9 +5,11 @@ export type LandingBenefit = {
   color?: "green" | "blue" | "purple" | "default";
 };
 
-/** Блок «Форматы документов»: заголовок + до 7 иконок в ряд */
+/** Блок «Форматы документов»: заголовок + до 7 иконок в ряд + текст под блоком */
 export type LandingDocumentFormats = {
   title: string;
+  /** Строка под иконками (форматы загрузки и т.п.); пусто — не показывать */
+  subtitle: string;
   iconKeys: string[]; // doc_format_0, doc_format_1, ... — до 7 иконок
 };
 
@@ -54,6 +56,7 @@ const MAX_FORMAT_ICONS = 7;
 
 const DEFAULT_DOCUMENT_FORMATS: LandingDocumentFormats = {
   title: "Форматы документов",
+  subtitle: "",
   iconKeys: ["", "", "", "", "", "", ""],
 };
 
@@ -100,7 +103,9 @@ function parseDocumentFormats(raw: string | null): LandingDocumentFormats {
         const k = rawKeys[i];
         return typeof k === "string" && /^doc_format_[0-6]$/.test(k) ? k : "";
       });
-      return { title: (parsed as { title: string }).title, iconKeys };
+      const sub = (parsed as { subtitle?: unknown }).subtitle;
+      const subtitle = typeof sub === "string" ? sub : "";
+      return { title: (parsed as { title: string }).title, subtitle, iconKeys };
     }
   } catch {
     /* ignore */

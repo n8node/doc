@@ -10,7 +10,7 @@ import type { LandingContent, LandingFeature } from "@/lib/landing-content";
 
 function normalizeLandingContent(data: unknown): LandingContent {
   const c = data as Record<string, unknown>;
-  const df = c?.documentFormats as { title?: string; iconKeys?: unknown[] } | undefined;
+  const df = c?.documentFormats as { title?: string; subtitle?: string; iconKeys?: unknown[] } | undefined;
   const rawKeys = Array.isArray(df?.iconKeys) ? df.iconKeys : [];
   const iconKeys = Array.from({ length: 7 }, (_, i) => {
     const k = rawKeys[i];
@@ -20,6 +20,7 @@ function normalizeLandingContent(data: unknown): LandingContent {
     ...(c as LandingContent),
     documentFormats: {
       title: typeof df?.title === "string" ? df.title : "Форматы документов",
+      subtitle: typeof df?.subtitle === "string" ? df.subtitle : "",
       iconKeys,
     },
   };
@@ -122,7 +123,7 @@ export function LandingContentForm() {
     setContent({ ...content, benefits });
   };
 
-  const updateDocumentFormats = (field: "title", value: string) => {
+  const updateDocumentFormats = (field: "title" | "subtitle", value: string) => {
     if (!content) return;
     setContent({
       ...content,
@@ -347,6 +348,16 @@ export function LandingContentForm() {
             value={content.documentFormats.title}
             onChange={(e) => updateDocumentFormats("title", e.target.value)}
             placeholder="Форматы документов"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <label className="text-sm text-muted-foreground">Текст под иконками (про загрузку форматов и т.д.)</label>
+          <Textarea
+            value={content.documentFormats.subtitle ?? ""}
+            onChange={(e) => updateDocumentFormats("subtitle", e.target.value)}
+            placeholder="Например: Загружайте документы в форматах PDF, Office, изображения, архивы и другие популярные типы файлов."
+            rows={3}
             className="mt-1"
           />
         </div>
