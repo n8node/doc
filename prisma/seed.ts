@@ -470,6 +470,92 @@ async function main() {
 
 <p>Удаление аккаунта — необратимая операция. Все файлы, папки и данные будут удалены. Требуется ввод пароля и написание «УДАЛИТЬ» для подтверждения.</p>`;
 
+  const n8nRagContent = `<p><strong>Интеграция Qoqon RAG с n8n</strong> — использование векторной базы Qoqon в качестве RAG-памяти для AI-агентов. Подробное руководство — на странице <a href="/dashboard/n8n-guide">Интеграция с n8n</a>. Здесь краткий обзор двух способов.</p>
+
+<h2>Два способа подключения</h2>
+
+<p><strong>Postgres PGVector Store</strong> (рекомендуется) — прямое подключение к БД. Эмбеддинги генерируются в n8n. Агент автоматически обращается к базе как инструменту.</p>
+<p><strong>HTTP Request</strong> — REST API, эмбеддинги на стороне Qoqon. Подходит когда нужен один источник без настройки моделей.</p>
+
+<h2>Подготовка</h2>
+
+<ol>
+<li>Создайте <a href="/docs/rag-memory">RAG-коллекцию</a>, выберите папку или файлы, нажмите «Векторизовать»</li>
+<li>Создайте API-ключ в <a href="/dashboard/api-docs">API настройках</a></li>
+<li>Получите ID коллекции: <code>GET /api/v1/rag/collections</code> с заголовком <code>Authorization: Bearer &lt;ключ&gt;</code></li>
+</ol>
+
+<h2>Способ 1: Postgres PGVector Store</h2>
+
+<p>В <a href="/docs/rag-memory">RAG-память</a> откройте коллекцию → кнопка «n8n» → «Создать подключение». Скопируйте Host, Port, Database, User, Password и Table Name (viewName).</p>
+
+<p>В n8n:</p>
+<ul>
+<li>Создайте credential <strong>Postgres</strong> (n8n 2.0) с этими данными</li>
+<li>Добавьте ноду <strong>Postgres PGVector Store</strong>, Operation: Retrieve Documents (As Tool for AI Agent)</li>
+<li>Table Name — из Qoqon. <strong>Use Collection</strong> — выключить</li>
+<li>Column Names (Options): content, embedding, id, metadata</li>
+<li>Embeddings — модель должна совпадать с Qoqon (например, text-embedding-3-small)</li>
+</ul>
+
+<p>Chat Model — можно использовать <strong>Qoqon API Маркетплейс</strong> (Base URL: <code>https://qoqon.ru/api/v1/marketplace</code>, API Key: <code>QoQon_LLM_xxx</code>).</p>
+
+<h2>Способ 2: HTTP Request</h2>
+
+<p>Нода <strong>HTTP Request</strong>:</p>
+<ul>
+<li>Method: GET</li>
+<li>URL: <code>https://qoqon.ru/api/v1/files/search</code></li>
+<li>Query: <code>q</code> — запрос, <code>collectionId</code> — ID коллекции</li>
+<li>Auth: Header <code>Authorization: Bearer &lt;ключ&gt;</code></li>
+</ul>
+
+<p>Ответ содержит <code>results[].chunkText</code> — релевантные фрагменты. Соберите их в контекст и передайте в промпт LLM.</p>
+
+<h2>Требования</h2>
+
+<p>Тариф с <a href="/docs/plans">RAG-память</a>. Для PGVector Store — дополнительно функция «Подключение к n8n».</p>`;
+
+  const n8nSheetsContent = `<p><strong>Подключение таблиц (Sheets) к n8n</strong> — таблицы из раздела <a href="/dashboard/sheets">Таблицы</a> можно подключать к n8n через обычную ноду <strong>PostgreSQL</strong> (не PGVector Store). Данные синхронизируются в обе стороны.</p>
+
+<h2>Создание подключения в Qoqon</h2>
+
+<ol>
+<li>Откройте нужную таблицу в разделе <strong>Таблицы</strong></li>
+<li>Нажмите <strong>«Подключения n8n (PostgreSQL)»</strong></li>
+<li>Нажмите <strong>«Создать подключение»</strong></li>
+<li>Скопируйте и сохраните: Host, Port, Database, User, Password и Table Name — пароль больше не будет показан</li>
+</ol>
+
+<h2>Нода PostgreSQL в n8n</h2>
+
+<p>Создайте credential типа <strong>Postgres</strong> (n8n 2.0):</p>
+<ul>
+<li><strong>Host</strong>, <strong>Port</strong>, <strong>Database</strong>, <strong>User</strong>, <strong>Password</strong> — из полей, полученных в Qoqon</li>
+<li><strong>SSL</strong> — включить, если требуется</li>
+</ul>
+
+<h2>Операции с таблицей</h2>
+
+<p>В ноде <strong>Postgres</strong> выберите операцию (Execute Query, Insert, Select и т.д.):</p>
+<ul>
+<li><strong>Schema:</strong> <code>n8n</code></li>
+<li><strong>Table:</strong> значение из поля «Table Name» (например, <code>sheet_xxxxxxxx</code>)</li>
+</ul>
+
+<h2>Колонки</h2>
+
+<ul>
+<li><code>row_index</code> (INTEGER) — индекс строки</li>
+<li>Остальные колонки — по названиям колонок таблицы в Qoqon, тип TEXT</li>
+</ul>
+
+<h2>Синхронизация</h2>
+
+<p>После изменений в n8n нажмите <strong>«Синхронизировать»</strong> в диалоге подключений в Qoqon, чтобы подтянуть данные в интерфейс.</p>
+
+<p>Подробнее — в <a href="/dashboard/n8n-guide#tables">руководстве по n8n</a> (раздел «Таблицы»).</p>`;
+
   const defaultDocPages = [
     { slug: "getting-started", title: "Начало работы", sortOrder: 0, content: gettingStartedContent },
     { slug: "files", title: "Файлы и хранилище", sortOrder: 1, content: filesContent },
@@ -481,6 +567,8 @@ async function main() {
     { slug: "api", title: "API и интеграции", sortOrder: 7, content: apiContent },
     { slug: "plans", title: "Тарифы", sortOrder: 8, content: plansContent },
     { slug: "settings", title: "Настройки", sortOrder: 9, content: settingsContent },
+    { slug: "n8n-rag", title: "Интеграция Qoqon RAG с n8n (Postgres PGVector Store и HTTP Request)", sortOrder: 10, content: n8nRagContent },
+    { slug: "n8n-sheets", title: "Подключение таблиц (Sheets) к n8n", sortOrder: 11, content: n8nSheetsContent },
   ];
 
   for (const p of defaultDocPages) {
