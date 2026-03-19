@@ -8,6 +8,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Upload, Trash2, Save, Plus } from "lucide-react";
 import type { LandingContent, LandingFeature } from "@/lib/landing-content";
 
+function normalizeLandingContent(data: unknown): LandingContent {
+  const c = data as Record<string, unknown>;
+  const df = c?.documentFormats as { title?: string; iconKeys?: unknown[] } | undefined;
+  const iconKeys = Array.isArray(df?.iconKeys)
+    ? Array.from({ length: 7 }, (_, i) => {
+        const k = df.iconKeys[i];
+        return typeof k === "string" && /^doc_format_[0-6]$/.test(k) ? k : "";
+      })
+    : ["", "", "", "", "", "", ""];
+  return {
+    ...(c as LandingContent),
+    documentFormats: {
+      title: typeof df?.title === "string" ? df.title : "Форматы документов",
+      iconKeys,
+    },
+  };
+}
+
 function getImageUrl(imageId: string): string {
   return `/api/public/landing-asset/${imageId}?v=${Date.now()}`;
 }
@@ -25,7 +43,7 @@ export function LandingContentForm() {
       const res = await fetch("/api/v1/admin/landing-content");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Не удалось загрузить");
-      setContent(data);
+      setContent(normalizeLandingContent(data));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка загрузки");
     } finally {

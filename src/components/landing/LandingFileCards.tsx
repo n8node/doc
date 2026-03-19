@@ -2,8 +2,10 @@ import type { LandingContent } from "@/lib/landing-content";
 import { getLandingAssetUrl } from "@/lib/landing-content";
 
 export function LandingFileCards({ content }: { content: LandingContent }) {
-  const { title, iconKeys } = content.documentFormats;
-  const icons = iconKeys.filter(Boolean);
+  const docFormats = content?.documentFormats;
+  const title = typeof docFormats?.title === "string" ? docFormats.title : "Форматы документов";
+  const iconKeys = Array.isArray(docFormats?.iconKeys) ? docFormats.iconKeys : [];
+  const icons = iconKeys.filter((k): k is string => typeof k === "string" && k.length > 0);
 
   return (
     <section className="px-4 py-12">
@@ -13,7 +15,7 @@ export function LandingFileCards({ content }: { content: LandingContent }) {
           style={{ backgroundColor: "#F8FAFF" }}
         >
           <h2 className="mb-6 text-center text-xl font-semibold text-foreground sm:text-2xl">
-            {title || "Форматы документов"}
+            {title}
           </h2>
           <div className="flex flex-wrap justify-center gap-6 sm:gap-8">
             {icons.map((iconKey, i) => (

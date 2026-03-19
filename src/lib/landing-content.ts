@@ -109,6 +109,15 @@ function parseDocumentFormats(raw: string | null): LandingDocumentFormats {
 }
 
 export async function getLandingContent(): Promise<LandingContent> {
+  try {
+    return await getLandingContentInternal();
+  } catch (err) {
+    console.error("[getLandingContent] error:", err);
+    return getLandingContentFallback();
+  }
+}
+
+async function getLandingContentInternal(): Promise<LandingContent> {
   const [
     tagline,
     heroTitle,
@@ -161,6 +170,25 @@ export async function getLandingContent(): Promise<LandingContent> {
     features: Array.isArray(features) ? features : DEFAULT_FEATURES,
     stepsTitle: (stepsTitleRaw ?? "").trim() || "Как это работает",
     steps: Array.isArray(steps) ? steps : DEFAULT_STEPS,
+  };
+}
+
+function getLandingContentFallback(): LandingContent {
+  return {
+    tagline: "Облачное хранилище нового поколения",
+    heroTitle: "Облачное хранилище + API‑маркетплейс для RAG, поиска и чатов по документам",
+    heroTitleHighlight: "API‑маркетплейс",
+    heroDescription: "Храните файлы, находите нужное за секунды и общайтесь с документами с помощью искусственного интеллекта.",
+    ctaPrimary: "Начать бесплатно",
+    ctaPrimaryHref: "/login",
+    ctaSecondary: "Смотреть демо",
+    ctaSecondaryHref: "/docs",
+    benefits: DEFAULT_BENEFITS,
+    documentFormats: DEFAULT_DOCUMENT_FORMATS,
+    featuresTitle: "Возможности",
+    features: DEFAULT_FEATURES,
+    stepsTitle: "Как это работает",
+    steps: DEFAULT_STEPS,
   };
 }
 
