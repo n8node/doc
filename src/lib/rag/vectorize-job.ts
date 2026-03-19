@@ -174,6 +174,19 @@ export async function processVectorizeJob(taskId: string): Promise<void> {
         continue;
       }
 
+      if (file.hasEmbedding) {
+        processableProcessed++;
+        succeeded++;
+        results.push({
+          fileId: file.id,
+          fileName: file.name,
+          success: true,
+        });
+        processed++;
+        await updateProgress(file.name);
+        continue;
+      }
+
       await updateProgress(file.name);
 
       try {
