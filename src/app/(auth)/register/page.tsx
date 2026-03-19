@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Loader2, HardDrive, UserPlus } from "lucide-react";
+import { Eye, EyeOff, Loader2, HardDrive, UserPlus, Check } from "lucide-react";
 import { TelegramLoginBlock } from "@/components/auth/TelegramLoginBlock";
 
 function getPasswordStrength(pw: string) {
@@ -31,6 +31,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [inviteCodeInput, setInviteCodeInput] = useState("");
   const [inviteVerifiedCode, setInviteVerifiedCode] = useState("");
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   const [checkingInvite, setCheckingInvite] = useState(false);
   const [authMethods, setAuthMethods] = useState<{
     emailRegistrationEnabled: boolean;
@@ -76,6 +77,10 @@ export default function RegisterPage() {
     }
     if (password !== confirmPassword) {
       setError("Пароли не совпадают");
+      return;
+    }
+    if (!privacyConsent) {
+      setError("Необходимо согласие с Правилами обработки персональных данных");
       return;
     }
 
@@ -340,6 +345,35 @@ export default function RegisterPage() {
                 <p className="mt-1 text-xs text-error">Пароли не совпадают</p>
               )}
             </div>
+
+            {/* Privacy consent */}
+            <label className="mt-4 flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={privacyConsent}
+                onChange={(e) => setPrivacyConsent(e.target.checked)}
+                className="sr-only"
+              />
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                  privacyConsent ? "border-primary bg-primary" : "border-border bg-background"
+                }`}
+              >
+                {privacyConsent && <Check className="h-3 w-3 text-white" />}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                Согласен с{" "}
+                <a
+                  href="https://qoqon.ru/pages/privacy-policy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-medium text-primary hover:underline"
+                >
+                  Правилами обработки персональных данных
+                </a>
+              </span>
+            </label>
           </div>
 
           <button
