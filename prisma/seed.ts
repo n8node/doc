@@ -475,11 +475,12 @@ async function main() {
     { slug: "files", title: "Файлы и хранилище", sortOrder: 1, content: filesContent },
     { slug: "search", title: "Поиск", sortOrder: 2, content: searchContent },
     { slug: "document-chats", title: "AI-чаты по документам", sortOrder: 3, content: documentChatsContent },
-    { slug: "rag-memory", title: "RAG-память", sortOrder: 4, content: ragMemoryContent },
-    { slug: "embeddings", title: "Векторная база", sortOrder: 5, content: embeddingsContent },
-    { slug: "api", title: "API и интеграции", sortOrder: 6, content: apiContent },
-    { slug: "plans", title: "Тарифы", sortOrder: 7, content: plansContent },
-    { slug: "settings", title: "Настройки", sortOrder: 8, content: settingsContent },
+    { slug: "ai-chats", title: "AI чаты по документам", sortOrder: 4, content: documentChatsContent },
+    { slug: "rag-memory", title: "RAG-память", sortOrder: 5, content: ragMemoryContent },
+    { slug: "embeddings", title: "Векторная база", sortOrder: 6, content: embeddingsContent },
+    { slug: "api", title: "API и интеграции", sortOrder: 7, content: apiContent },
+    { slug: "plans", title: "Тарифы", sortOrder: 8, content: plansContent },
+    { slug: "settings", title: "Настройки", sortOrder: 9, content: settingsContent },
   ];
 
   for (const p of defaultDocPages) {
