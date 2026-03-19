@@ -5,11 +5,10 @@ export type LandingBenefit = {
   color?: "green" | "blue" | "purple" | "default";
 };
 
-export type LandingFileCard = {
+/** Блок «Форматы документов»: заголовок + до 7 иконок в ряд */
+export type LandingDocumentFormats = {
   title: string;
-  size: string;
-  color?: "red" | "blue" | "green" | "default";
-  iconKey?: string | null; // file_card_0, file_card_1, ... — PNG иконка вместо цветного квадрата
+  iconKeys: string[]; // doc_format_0, doc_format_1, ... — до 7 иконок
 };
 
 export type LandingFeature = {
@@ -37,7 +36,7 @@ export type LandingContent = {
   ctaSecondary: string;
   ctaSecondaryHref: string;
   benefits: LandingBenefit[];
-  fileCards: LandingFileCard[];
+  documentFormats: LandingDocumentFormats;
   featuresTitle: string;
   features: LandingFeature[];
   stepsTitle: string;
@@ -51,11 +50,12 @@ const DEFAULT_BENEFITS: LandingBenefit[] = [
   { text: "API-маркетплейс LLM", color: "default" },
 ];
 
-const DEFAULT_FILE_CARDS: LandingFileCard[] = [
-  { title: "Презентация Q1.pdf", size: "2.4 MB", color: "red" },
-  { title: "Договор_2024.docx", size: "156 KB", color: "blue" },
-  { title: "Отчёт_март.xlsx", size: "890 KB", color: "green" },
-];
+const MAX_FORMAT_ICONS = 7;
+
+const DEFAULT_DOCUMENT_FORMATS: LandingDocumentFormats = {
+  title: "Форматы документов",
+  iconKeys: ["", "", "", "", "", "", ""],
+};
 
 const DEFAULT_FEATURES: LandingFeature[] = [
   { id: "f1", title: "Облачное хранилище", description: "Файлы, папки, версии. Документы, фото, видео в одном месте.", href: "/dashboard/files" },
@@ -72,7 +72,7 @@ const DEFAULT_STEPS: LandingStep[] = [
 
 const PREFIX = "landing.";
 const BENEFITS_KEY = `${PREFIX}benefits_json`;
-const FILE_CARDS_KEY = `${PREFIX}file_cards_json`;
+const DOCUMENT_FORMATS_KEY = `${PREFIX}document_formats_json`;
 const FEATURES_KEY = `${PREFIX}features_json`;
 const STEPS_KEY = `${PREFIX}steps_json`;
 const IMAGE_KEY_SUFFIX = "_key";
@@ -82,10 +82,30 @@ function parseJson<T>(raw: string | null, fallback: T): T {
   if (!raw || !raw.trim()) return fallback;
   try {
     const parsed = JSON.parse(raw) as T;
-    return Array.isArray(parsed) ? parsed : fallback;
+    return parsed ?? fallback;
   } catch {
     return fallback;
   }
+}
+
+function parseDocumentFormats(raw: string | null): LandingDocumentFormats {
+  if (!raw || !raw.trim()) return DEFAULT_DOCUMENT_FORMATS;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object" && typeof (parsed as { title?: unknown }).title === "string") {
+      const rawKeys = Array.isArray((parsed as { iconKeys?: unknown }).iconKeys)
+        ? (parsed as { iconKeys: unknown[] }).iconKeys
+        : [];
+      const iconKeys = Array.from({ length: MAX_FORMAT_ICONS }, (_, i) => {
+        const k = rawKeys[i];
+        return typeof k === "string" && /^doc_format_[0-6]$/.test(k) ? k : "";
+      });
+      return { title: (parsed as { title: string }).title, iconKeys };
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_DOCUMENT_FORMATS;
 }
 
 export async function getLandingContent(): Promise<LandingContent> {
@@ -99,7 +119,7 @@ export async function getLandingContent(): Promise<LandingContent> {
     ctaSecondary,
     ctaSecondaryHref,
     benefitsRaw,
-    fileCardsRaw,
+    documentFormatsRaw,
     featuresTitleRaw,
     featuresRaw,
     stepsTitleRaw,
@@ -114,7 +134,7 @@ export async function getLandingContent(): Promise<LandingContent> {
     configStore.get(`${PREFIX}cta_secondary`),
     configStore.get(`${PREFIX}cta_secondary_href`),
     configStore.get(BENEFITS_KEY),
-    configStore.get(FILE_CARDS_KEY),
+    configStore.get(DOCUMENT_FORMATS_KEY),
     configStore.get(`${PREFIX}features_title`),
     configStore.get(FEATURES_KEY),
     configStore.get(`${PREFIX}steps_title`),
@@ -122,7 +142,7 @@ export async function getLandingContent(): Promise<LandingContent> {
   ]);
 
   const benefits = parseJson<LandingBenefit[]>(benefitsRaw, DEFAULT_BENEFITS);
-  const fileCards = parseJson<LandingFileCard[]>(fileCardsRaw, DEFAULT_FILE_CARDS);
+  const documentFormats = parseDocumentFormats(documentFormatsRaw);
   const features = parseJson<LandingFeature[]>(featuresRaw, DEFAULT_FEATURES);
   const steps = parseJson<LandingStep[]>(stepsRaw, DEFAULT_STEPS);
 
@@ -136,7 +156,7 @@ export async function getLandingContent(): Promise<LandingContent> {
     ctaSecondary: (ctaSecondary ?? "").trim() || "Смотреть демо",
     ctaSecondaryHref: (ctaSecondaryHref ?? "").trim() || "/docs",
     benefits: Array.isArray(benefits) ? benefits : DEFAULT_BENEFITS,
-    fileCards: Array.isArray(fileCards) ? fileCards : DEFAULT_FILE_CARDS,
+    documentFormats,
     featuresTitle: (featuresTitleRaw ?? "").trim() || "Возможности",
     features: Array.isArray(features) ? features : DEFAULT_FEATURES,
     stepsTitle: (stepsTitleRaw ?? "").trim() || "Как это работает",
@@ -148,10 +168,10 @@ export function getLandingAssetUrl(imageId: string): string {
   return `/api/public/landing-asset/${imageId}`;
 }
 
-/** Допустимые imageId: file_card_N, feature_N, step_N */
+/** Допустимые imageId: doc_format_N (0..6), feature_N, step_N */
 export function isValidLandingImageId(imageId: string): boolean {
   if (typeof imageId !== "string") return false;
-  if (/^file_card_\d+$/.test(imageId)) return true;
+  if (/^doc_format_[0-6]$/.test(imageId)) return true;
   if (/^feature_\d+$/.test(imageId)) return true;
   if (/^step_\d+$/.test(imageId)) return true;
   return false;

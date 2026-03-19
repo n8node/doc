@@ -8,7 +8,7 @@ import {
   isValidLandingImageId,
   getLandingImageConfigKeys,
   type LandingBenefit,
-  type LandingFileCard,
+  type LandingDocumentFormats,
   type LandingFeature,
   type LandingStep,
 } from "@/lib/landing-content";
@@ -20,13 +20,13 @@ function isValidBenefit(x: unknown): x is LandingBenefit {
   return typeof x === "object" && x !== null && typeof (x as { text?: unknown }).text === "string";
 }
 
-function isValidFileCard(x: unknown): x is LandingFileCard {
-  return (
-    typeof x === "object" &&
-    x !== null &&
-    typeof (x as { title?: unknown }).title === "string" &&
-    typeof (x as { size?: unknown }).size === "string"
-  );
+function isValidDocumentFormats(x: unknown): x is LandingDocumentFormats {
+  if (typeof x !== "object" || x === null) return false;
+  const o = x as { title?: unknown; iconKeys?: unknown };
+  if (typeof o.title !== "string") return false;
+  if (!Array.isArray(o.iconKeys)) return false;
+  if (o.iconKeys.length > 7) return false;
+  return o.iconKeys.every((k) => typeof k === "string");
 }
 
 function isValidFeature(x: unknown): x is LandingFeature {
@@ -106,12 +106,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (Array.isArray(body.fileCards)) {
-    const fileCards = body.fileCards.filter(isValidFileCard);
+  if (body.documentFormats && isValidDocumentFormats(body.documentFormats)) {
+    const iconKeys = Array.from({ length: 7 }, (_, i) => {
+      const k = body.documentFormats.iconKeys[i];
+      return typeof k === "string" && /^doc_format_[0-6]$/.test(k) ? k : "";
+    });
     updates.push(
-      configStore.set(`${PREFIX}file_cards_json`, JSON.stringify(fileCards), {
+      configStore.set(`${PREFIX}document_formats_json`, JSON.stringify({ title: body.documentFormats.title, iconKeys }), {
         category: CATEGORY,
-        description: "Карточки примеров файлов",
+        description: "Блок Форматы документов",
       })
     );
   }
@@ -160,7 +163,7 @@ export async function POST(request: NextRequest) {
     `${PREFIX}cta_secondary`,
     `${PREFIX}cta_secondary_href`,
     `${PREFIX}benefits_json`,
-    `${PREFIX}file_cards_json`,
+    `${PREFIX}document_formats_json`,
     `${PREFIX}features_title`,
     `${PREFIX}features_json`,
     `${PREFIX}steps_title`,

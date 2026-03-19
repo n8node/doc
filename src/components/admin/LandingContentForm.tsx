@@ -105,11 +105,22 @@ export function LandingContentForm() {
     setContent({ ...content, benefits });
   };
 
-  const updateFileCard = (index: number, field: "title" | "size" | "color" | "iconKey", value: string) => {
+  const updateDocumentFormats = (field: "title", value: string) => {
     if (!content) return;
-    const fileCards = [...content.fileCards];
-    fileCards[index] = { ...fileCards[index], [field]: value };
-    setContent({ ...content, fileCards });
+    setContent({
+      ...content,
+      documentFormats: { ...content.documentFormats, [field]: value },
+    });
+  };
+
+  const updateFormatIcon = (index: number, iconKey: string) => {
+    if (!content) return;
+    const iconKeys = [...content.documentFormats.iconKeys];
+    iconKeys[index] = iconKey;
+    setContent({
+      ...content,
+      documentFormats: { ...content.documentFormats, iconKeys },
+    });
   };
 
   const updateFeature = (index: number, field: keyof LandingFeature, value: string) => {
@@ -138,20 +149,6 @@ export function LandingContentForm() {
     if (!content || content.benefits.length <= 1) return;
     const benefits = content.benefits.filter((_, i) => i !== index);
     setContent({ ...content, benefits });
-  };
-
-  const addFileCard = () => {
-    if (!content) return;
-    setContent({
-      ...content,
-      fileCards: [...content.fileCards, { title: "Файл.pdf", size: "1 MB", color: "default" }],
-    });
-  };
-
-  const removeFileCard = (index: number) => {
-    if (!content || content.fileCards.length <= 1) return;
-    const fileCards = content.fileCards.filter((_, i) => i !== index);
-    setContent({ ...content, fileCards });
   };
 
   const addFeature = () => {
@@ -324,102 +321,73 @@ export function LandingContentForm() {
         </div>
       </div>
 
-      {/* File cards */}
+      {/* Форматы документов */}
       <div className="space-y-4 rounded-xl border border-border p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Карточки примеров файлов (PNG-иконка или цвет)</h3>
-          <Button type="button" variant="outline" size="sm" onClick={addFileCard}>
-            <Plus className="mr-2 h-4 w-4" />
-            Добавить
-          </Button>
+        <h3 className="text-sm font-semibold text-foreground">Блок «Форматы документов»</h3>
+        <div>
+          <label className="text-sm text-muted-foreground">Заголовок</label>
+          <Input
+            value={content.documentFormats.title}
+            onChange={(e) => updateDocumentFormats("title", e.target.value)}
+            placeholder="Форматы документов"
+            className="mt-1"
+          />
         </div>
-        <div className="space-y-3">
-          {content.fileCards.map((c, i) => {
-            const iconId = `file_card_${i}`;
-            const hasIcon = c.iconKey === iconId;
-            return (
-              <div key={i} className="space-y-2 rounded-lg border border-border/70 bg-surface2/30 p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    value={c.title}
-                    onChange={(e) => updateFileCard(i, "title", e.target.value)}
-                    placeholder="Название файла"
-                    className="min-w-[180px]"
-                  />
-                  <Input
-                    value={c.size}
-                    onChange={(e) => updateFileCard(i, "size", e.target.value)}
-                    placeholder="Размер"
-                    className="w-24"
-                  />
-                  <select
-                    value={c.color ?? "default"}
-                    onChange={(e) => updateFileCard(i, "color", e.target.value)}
-                    className="rounded border border-border bg-surface px-2 py-1.5 text-sm"
-                  >
-                    <option value="red">Квадрат красный</option>
-                    <option value="blue">Квадрат синий</option>
-                    <option value="green">Квадрат зелёный</option>
-                    <option value="default">Квадрат акцент</option>
-                  </select>
-                  <span className="text-xs text-muted-foreground">или PNG-иконка:</span>
-                  <input
-                    ref={(el) => { fileInputRefs.current[iconId] = el; }}
-                    type="file"
-                    accept="image/png"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        void uploadImage(iconId, file, { skipReload: true }).then(() => {
-                          updateFileCard(i, "iconKey", iconId);
-                        });
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRefs.current[iconId]?.click()}
-                    disabled={uploadingId !== null}
-                  >
-                    {uploadingId === iconId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  </Button>
+        <div>
+          <label className="text-sm text-muted-foreground">Иконки (до 7 шт., PNG/JPEG/WebP/SVG)</label>
+          <div className="mt-2 flex flex-wrap gap-4">
+            {[0, 1, 2, 3, 4, 5, 6].map((i) => {
+              const iconId = `doc_format_${i}`;
+              const hasIcon = content.documentFormats.iconKeys[i] === iconId;
+              return (
+                <div key={i} className="flex flex-col items-center gap-2 rounded-lg border border-border/70 bg-surface2/30 p-3">
+                  <span className="text-xs text-muted-foreground">Иконка {i + 1}</span>
                   {hasIcon && (
+                    <img src={getImageUrl(iconId)} alt="" className="h-12 w-12 rounded border object-contain" />
+                  )}
+                  <div className="flex gap-1">
+                    <input
+                      ref={(el) => { fileInputRefs.current[iconId] = el; }}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          void uploadImage(iconId, file, { skipReload: true }).then(() => {
+                            updateFormatIcon(i, iconId);
+                          });
+                        }
+                      }}
+                    />
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      onClick={() => {
-                        updateFileCard(i, "iconKey", "");
-                        void removeImage(iconId, { skipReload: true });
-                      }}
-                      disabled={saving}
+                      onClick={() => fileInputRefs.current[iconId]?.click()}
+                      disabled={uploadingId !== null}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {uploadingId === iconId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFileCard(i)}
-                    disabled={content.fileCards.length <= 1}
-                  >
-                    Удалить карточку
-                  </Button>
+                    {hasIcon && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          updateFormatIcon(i, "");
+                          void removeImage(iconId, { skipReload: true });
+                        }}
+                        disabled={saving}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                {hasIcon && (
-                  <img
-                    src={getImageUrl(iconId)}
-                    alt=""
-                    className="h-10 w-10 rounded border object-contain"
-                  />
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
