@@ -146,6 +146,8 @@ export async function GET(request: NextRequest) {
       title = `Транскрибация: ${fileName ?? "документ"}`;
     } else if (e.sourceType === "search") {
       title = "Поиск";
+    } else if (e.sourceType === "web_import_ai") {
+      title = "Операция над сайтом";
     }
 
     return {
