@@ -1,5 +1,12 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    try {
+      const { refreshAuthOptions } = await import("./src/lib/auth");
+      await refreshAuthOptions();
+    } catch (e) {
+      console.warn("[auth] refreshAuthOptions on boot failed:", e);
+    }
+
     setTimeout(async () => {
       try {
         const { configStore } = await import("./src/lib/config-store");

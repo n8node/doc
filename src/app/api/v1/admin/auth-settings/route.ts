@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, refreshAuthOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { configStore } from "@/lib/config-store";
 
@@ -12,7 +12,18 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [emailReg, emailVerify, inviteReg, tgWidget, tgQr, tgDomain, tgBotUsername, vkOAuth] = await Promise.all([
+  const [
+    emailReg,
+    emailVerify,
+    inviteReg,
+    tgWidget,
+    tgQr,
+    tgDomain,
+    tgBotUsername,
+    vkOAuth,
+    vkClientId,
+    vkSecretRow,
+  ] = await Promise.all([
     configStore.get("auth.email_registration_enabled"),
     configStore.get("auth.email_verification_required"),
     configStore.get("auth.invite_registration_enabled"),
@@ -21,7 +32,11 @@ export async function GET() {
     configStore.get("auth.telegram_domain"),
     configStore.get("auth.telegram_bot_username"),
     configStore.get("auth.vk_oauth_enabled"),
+    configStore.get("auth.vk_client_id"),
+    configStore.get("auth.vk_client_secret"),
   ]);
+
+  const vkSecretSet = Boolean(vkSecretRow?.trim() || process.env.VK_CLIENT_SECRET?.trim() || "");
 
   return NextResponse.json({
     emailRegistrationEnabled: emailReg !== "false",
@@ -32,6 +47,8 @@ export async function GET() {
     telegramDomain: tgDomain || "qoqon.ru",
     telegramBotUsername: tgBotUsername || "",
     vkOAuthEnabled: vkOAuth !== "false",
+    vkClientId: vkClientId?.trim() || process.env.VK_CLIENT_ID?.trim() || "",
+    vkSecretSet,
   });
 }
 
@@ -53,6 +70,8 @@ export async function POST(request: NextRequest) {
     telegramDomain,
     telegramBotUsername,
     vkOAuthEnabled,
+    vkClientId,
+    vkClientSecret,
   } = body;
 
   const updates: Promise<void>[] = [];
@@ -122,6 +141,32 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (typeof vkClientId === "string") {
+    updates.push(
+      configStore.set("auth.vk_client_id", String(vkClientId).trim(), {
+        category: "auth",
+        description: "VK OAuth Application ID",
+      })
+    );
+  }
+
+  const secretValid =
+    vkClientSecret &&
+    typeof vkClientSecret === "string" &&
+    vkClientSecret.trim() &&
+    vkClientSecret !== "••••••••" &&
+    vkClientSecret !== "********";
+
+  if (secretValid) {
+    updates.push(
+      configStore.set("auth.vk_client_secret", String(vkClientSecret).trim(), {
+        isEncrypted: true,
+        category: "auth",
+        description: "VK OAuth защищённый ключ",
+      })
+    );
+  }
+
   await Promise.all(updates);
 
   [
@@ -133,9 +178,11 @@ export async function POST(request: NextRequest) {
     "auth.telegram_domain",
     "auth.telegram_bot_username",
     "auth.vk_oauth_enabled",
-  ].forEach((k) =>
-    configStore.invalidate(k)
-  );
+    "auth.vk_client_id",
+    "auth.vk_client_secret",
+  ].forEach((k) => configStore.invalidate(k));
+
+  await refreshAuthOptions().catch((e) => console.warn("[auth] refreshAuthOptions after admin save:", e));
 
   return NextResponse.json({ ok: true });
 }

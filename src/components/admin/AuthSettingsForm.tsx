@@ -20,6 +20,9 @@ export function AuthSettingsForm() {
     telegramDomain: "qoqon.ru",
     telegramBotUsername: "",
     vkOAuthEnabled: true,
+    vkClientId: "",
+    vkClientSecret: "",
+    vkSecretSet: false,
   });
 
   useEffect(() => {
@@ -36,6 +39,9 @@ export function AuthSettingsForm() {
           telegramDomain: data.telegramDomain || "qoqon.ru",
           telegramBotUsername: data.telegramBotUsername || "",
           vkOAuthEnabled: data.vkOAuthEnabled !== false,
+          vkClientId: data.vkClientId || "",
+          vkClientSecret: "",
+          vkSecretSet: data.vkSecretSet === true,
         }));
       })
       .catch(() => toast.error("Не удалось загрузить настройки"))
@@ -45,12 +51,15 @@ export function AuthSettingsForm() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const { vkClientSecret, vkSecretSet: _sk, ...rest } = values;
       const res = await fetch("/api/v1/admin/auth-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...values,
+          ...rest,
           telegramBotUsername: values.telegramBotUsername || undefined,
+          vkClientId: values.vkClientId.trim(),
+          ...(vkClientSecret.trim() ? { vkClientSecret: vkClientSecret.trim() } : {}),
         }),
       });
       const data = await res.json();
@@ -180,9 +189,9 @@ export function AuthSettingsForm() {
           </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Вход через ВКонтакте (OAuth)
+        <div className="rounded-xl border border-border bg-surface2/50 p-4 space-y-4">
+          <label className="block text-sm font-medium text-foreground">
+            ВКонтакте (OAuth)
           </label>
           <label className="flex cursor-pointer items-center gap-3">
             <input
@@ -193,12 +202,41 @@ export function AuthSettingsForm() {
             />
             <span className="text-sm">Разрешить вход и регистрацию через VK</span>
           </label>
-          <p className="mt-1 text-xs text-muted-foreground">
-            В .env или в секретах деплоя должны быть заданы VK_CLIENT_ID и VK_CLIENT_SECRET. Redirect URI в
-            настройках приложения VK:{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">ID приложения (client_id)</label>
+            <Input
+              type="text"
+              value={values.vkClientId}
+              onChange={(e) => setValues((v) => ({ ...v, vkClientId: e.target.value }))}
+              placeholder="Например 12345678"
+              className="max-w-md font-mono text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Защищённый ключ (client_secret)
+              {values.vkSecretSet && (
+                <span className="ml-2 text-emerald-600 dark:text-emerald-400">· сохранён</span>
+              )}
+            </label>
+            <Input
+              type="password"
+              value={values.vkClientSecret}
+              onChange={(e) => setValues((v) => ({ ...v, vkClientSecret: e.target.value }))}
+              placeholder={values.vkSecretSet ? "Введите новый ключ, чтобы заменить" : "Секретный ключ из кабинета VK"}
+              className="max-w-md font-mono text-sm"
+              autoComplete="off"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Хранится в БД в зашифрованном виде. Можно дублировать в переменных окружения VK_CLIENT_ID / VK_CLIENT_SECRET.
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            В настройках приложения VK укажите Redirect URI:{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
               {"{NEXTAUTH_URL}"}/api/auth/callback/vk
-            </code>
+            </code>{" "}
+            (подставьте ваш домен из NEXTAUTH_URL).
           </p>
         </div>
 

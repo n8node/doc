@@ -4,7 +4,7 @@
 
 import { createHmac, createHash } from "crypto";
 import { configStore } from "./config-store";
-import { isVkOAuthEnvConfigured } from "./vk-oauth";
+import { resolveVkOAuthCredentials } from "./vk-oauth";
 
 export interface AuthSettings {
   emailRegistrationEnabled: boolean;
@@ -19,7 +19,7 @@ export interface AuthSettings {
 }
 
 export async function getAuthSettings(): Promise<AuthSettings> {
-  const [emailReg, emailVerify, inviteReg, tgWidget, tgQr, tgDomain, vkFlag] = await Promise.all([
+  const [emailReg, emailVerify, inviteReg, tgWidget, tgQr, tgDomain, vkFlag, vkCreds] = await Promise.all([
     configStore.get("auth.email_registration_enabled"),
     configStore.get("auth.email_verification_required"),
     configStore.get("auth.invite_registration_enabled"),
@@ -27,6 +27,7 @@ export async function getAuthSettings(): Promise<AuthSettings> {
     configStore.get("auth.telegram_qr_enabled"),
     configStore.get("auth.telegram_domain"),
     configStore.get("auth.vk_oauth_enabled"),
+    resolveVkOAuthCredentials(),
   ]);
 
   return {
@@ -36,7 +37,7 @@ export async function getAuthSettings(): Promise<AuthSettings> {
     telegramWidgetEnabled: tgWidget === "true",
     telegramQrEnabled: tgQr === "true",
     telegramDomain: tgDomain || "qoqon.ru",
-    vkOAuthEnabled: isVkOAuthEnvConfigured() && vkFlag !== "false",
+    vkOAuthEnabled: vkFlag !== "false" && vkCreds !== null,
   };
 }
 

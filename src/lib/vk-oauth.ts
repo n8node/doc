@@ -1,6 +1,7 @@
 import { hash } from "bcryptjs";
 import { randomBytes } from "crypto";
 import type { Profile } from "next-auth";
+import { configStore } from "./config-store";
 
 /** Email из VK OAuth или плейсхолдер (как у Telegram). */
 export function deriveVkUserEmail(profile: Profile & { screen_name?: string | null }, vkId: bigint): {
@@ -28,6 +29,16 @@ export async function randomPasswordHash(): Promise<string> {
   return hash(randomPassword, 12);
 }
 
-export function isVkOAuthEnvConfigured(): boolean {
-  return Boolean(process.env.VK_CLIENT_ID?.trim() && process.env.VK_CLIENT_SECRET?.trim());
+/**
+ * Client ID и Secret: сначала AdminConfig (auth.vk_client_*), иначе VK_CLIENT_ID / VK_CLIENT_SECRET из окружения.
+ */
+export async function resolveVkOAuthCredentials(): Promise<{ clientId: string; clientSecret: string } | null> {
+  const [cid, sec] = await Promise.all([
+    configStore.get("auth.vk_client_id"),
+    configStore.get("auth.vk_client_secret"),
+  ]);
+  const clientId = (cid?.trim() || process.env.VK_CLIENT_ID?.trim() || "") || "";
+  const clientSecret = (sec?.trim() || process.env.VK_CLIENT_SECRET?.trim() || "") || "";
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
 }
