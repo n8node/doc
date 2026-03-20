@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { planId: true },
+    select: { planId: true, email: true },
   });
 
   if (user?.planId === planId) {
@@ -73,6 +73,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (!user?.email?.trim()) {
+    return NextResponse.json(
+      { error: "Укажите email в профиле — он нужен для фискального чека по 54‑ФЗ." },
+      { status: 400 },
+    );
+  }
+
   const description =
     period === "yearly"
       ? `Тариф ${plan.name} — 1 год`
@@ -97,6 +104,7 @@ export async function POST(req: NextRequest) {
     metadata: { paymentId: payment.id },
     config: yookassaConfig,
     idempotenceKey,
+    customerEmail: user.email.trim(),
   });
 
   if ("error" in result) {

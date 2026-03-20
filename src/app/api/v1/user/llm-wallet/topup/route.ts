@@ -46,6 +46,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const payer = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true },
+  });
+  if (!payer?.email?.trim()) {
+    return NextResponse.json(
+      { error: "Укажите email в профиле — он нужен для фискального чека по 54‑ФЗ." },
+      { status: 400 },
+    );
+  }
+
   const topup = await prisma.llmWalletTopup.create({
     data: {
       userId: session.user.id,
@@ -63,6 +74,7 @@ export async function POST(request: NextRequest) {
     metadata: { llmTopupId: topup.id },
     config: yookassaConfig,
     idempotenceKey,
+    customerEmail: payer.email.trim(),
   });
 
   if ("error" in result) {
