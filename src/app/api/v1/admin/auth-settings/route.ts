@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, refreshAuthOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { configStore } from "@/lib/config-store";
+import { getNextAuthBaseUrl } from "@/lib/app-url";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -38,7 +39,10 @@ export async function GET() {
 
   const vkSecretSet = Boolean(vkSecretRow?.trim() || process.env.VK_CLIENT_SECRET?.trim() || "");
 
+  const vkOAuthRedirectUri = `${getNextAuthBaseUrl()}/api/auth/callback/vk`;
+
   return NextResponse.json({
+    vkOAuthRedirectUri,
     emailRegistrationEnabled: emailReg !== "false",
     emailVerificationRequired: emailVerify !== "false",
     inviteRegistrationEnabled: inviteReg === "true",

@@ -8,3 +8,13 @@ export function getPublicBaseUrl(): string {
   if (fromEnv && !fromEnv.includes("localhost")) return fromEnv.replace(/\/$/, "");
   return "https://qoqon.ru";
 }
+
+/**
+ * База для OAuth callback — совпадает с тем, как NextAuth строит redirect_uri (NEXTAUTH_URL).
+ * Не путать с getPublicBaseUrl(), где APP_URL может иметь приоритет.
+ */
+export function getNextAuthBaseUrl(): string {
+  const fromNextAuth = (process.env.NEXTAUTH_URL || "").trim().replace(/\/$/, "");
+  if (fromNextAuth && !fromNextAuth.includes("localhost")) return fromNextAuth;
+  return getPublicBaseUrl();
+}

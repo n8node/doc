@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Shield } from "lucide-react";
+import { Copy, Loader2, Shield } from "lucide-react";
 
 export function AuthSettingsForm() {
   const [loading, setLoading] = useState(true);
@@ -23,6 +23,7 @@ export function AuthSettingsForm() {
     vkClientId: "",
     vkClientSecret: "",
     vkSecretSet: false,
+    vkOAuthRedirectUri: "",
   });
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export function AuthSettingsForm() {
           vkClientId: data.vkClientId || "",
           vkClientSecret: "",
           vkSecretSet: data.vkSecretSet === true,
+          vkOAuthRedirectUri: typeof data.vkOAuthRedirectUri === "string" ? data.vkOAuthRedirectUri : "",
         }));
       })
       .catch(() => toast.error("Не удалось загрузить настройки"))
@@ -55,6 +57,7 @@ export function AuthSettingsForm() {
       const payload: Record<string, unknown> = { ...values };
       delete payload.vkClientSecret;
       delete payload.vkSecretSet;
+      delete payload.vkOAuthRedirectUri;
       const res = await fetch("/api/v1/admin/auth-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -234,13 +237,54 @@ export function AuthSettingsForm() {
               Хранится в БД в зашифрованном виде. Можно дублировать в переменных окружения VK_CLIENT_ID / VK_CLIENT_SECRET.
             </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            В настройках приложения VK укажите Redirect URI:{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
-              {"{NEXTAUTH_URL}"}/api/auth/callback/vk
-            </code>{" "}
-            (подставьте ваш домен из NEXTAUTH_URL).
-          </p>
+          <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+            <p className="text-xs font-medium text-foreground">Redirect URI для VK (скопируйте в кабинет разработчика)</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="break-all rounded bg-muted px-2 py-1 text-[11px] leading-relaxed">
+                {values.vkOAuthRedirectUri || "…"}
+              </code>
+              {values.vkOAuthRedirectUri ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 h-8"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(values.vkOAuthRedirectUri).then(
+                      () => toast.success("Скопировано"),
+                      () => toast.error("Не удалось скопировать")
+                    );
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5 mr-1" />
+                  Копировать
+                </Button>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              В{" "}
+              <a
+                href="https://dev.vk.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                dev.vk.com
+              </a>{" "}
+              откройте приложение → настройки OAuth: добавьте этот адрес в список доверенных redirect URI{" "}
+              <span className="text-foreground">без изменений</span> (протокол https, путь{" "}
+              <code className="text-[11px]">/api/auth/callback/vk</code>).
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
+              Если VK показывает страницу с ошибкой до входа: чаще всего тип приложения «Standalone» — для сайта
+              нужно приложение типа «Веб-сайт» (или отдельное приложение под сайт). У Standalone разрешён только
+              redirect <code className="text-[11px]">https://oauth.vk.com/blank.html</code>, не наш callback.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              На сервере должен быть задан <code className="text-[11px]">NEXTAUTH_URL</code> с тем же доменом, что и
+              в адресе выше (в Docker — в <code className="text-[11px]">.env</code>).
+            </p>
+          </div>
         </div>
 
         <div>
