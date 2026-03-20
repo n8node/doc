@@ -243,7 +243,7 @@ export default function WebImportPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-foreground">Импорт с сайта</h2>
+        <h2 className="text-xl font-semibold text-foreground">Парсинг</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Загрузка страниц по ссылке в markdown. Обход только в пределах одного домена. Уважайте правила сайтов и
           роботов.

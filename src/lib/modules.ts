@@ -58,7 +58,7 @@ export const MODULE_DESCRIPTIONS: Record<ModuleId, string> = {
   ai_tools: "RAG-память, векторная база, AI чаты",
   generation: "Генерация текста, изображений, видео",
   integrations: "API-ключи и маркетплейс провайдеров",
-  tools: "Поиск по файлам, таблицы, импорт с сайтов",
+  tools: "Поиск по файлам, таблицы, парсинг сайтов",
 };
 
 export const navGroups: NavGroup[] = [
@@ -109,7 +109,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/dashboard/search", icon: Search, label: "Поиск по файлам" },
       { href: "/dashboard/sheets", icon: Table2, label: "Таблицы" },
-      { href: "/dashboard/web-import", icon: Globe, label: "Импорт с сайта" },
+      { href: "/dashboard/web-import", icon: Globe, label: "Парсинг" },
     ],
   },
 ];
