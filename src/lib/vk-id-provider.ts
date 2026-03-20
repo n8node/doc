@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers/oauth";
 
 /** Ответ user_info VK ID (часть полей). */
@@ -35,6 +36,14 @@ export function VkProviderVkId(
         const codeVerifier = (checks as { code_verifier?: string }).code_verifier;
         if (!codeVerifier) throw new Error("VK ID: отсутствует PKCE code_verifier");
 
+        const h = await headers();
+        const deviceId = h.get("x-vk-device-id") ?? (params as { device_id?: string }).device_id;
+        if (!deviceId || !String(deviceId).trim()) {
+          throw new Error(
+            "VK ID: нет device_id в callback. openid-client отбрасывает device_id из query; middleware должен передать заголовок x-vk-device-id."
+          );
+        }
+
         const body = new URLSearchParams({
           grant_type: "authorization_code",
           client_id: provider.clientId!,
@@ -42,9 +51,8 @@ export function VkProviderVkId(
           code_verifier: codeVerifier,
           redirect_uri: provider.callbackUrl,
           state: (params.state as string) ?? "",
+          device_id: String(deviceId).trim(),
         });
-        const deviceId = params.device_id as string | undefined;
-        if (deviceId) body.set("device_id", deviceId);
         if (provider.clientSecret?.trim()) body.set("client_secret", provider.clientSecret.trim());
 
         const res = await fetch("https://id.vk.ru/oauth2/auth", {
