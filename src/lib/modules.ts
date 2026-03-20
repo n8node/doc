@@ -16,6 +16,7 @@ import {
   Table2,
   FileText,
   Video,
+  Globe,
 } from "lucide-react";
 import {
   buildDashboardFilesUrl,
@@ -57,7 +58,7 @@ export const MODULE_DESCRIPTIONS: Record<ModuleId, string> = {
   ai_tools: "RAG-память, векторная база, AI чаты",
   generation: "Генерация текста, изображений, видео",
   integrations: "API-ключи и маркетплейс провайдеров",
-  tools: "Поиск по файлам, таблицы",
+  tools: "Поиск по файлам, таблицы, импорт с сайтов",
 };
 
 export const navGroups: NavGroup[] = [
@@ -108,6 +109,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/dashboard/search", icon: Search, label: "Поиск по файлам" },
       { href: "/dashboard/sheets", icon: Table2, label: "Таблицы" },
+      { href: "/dashboard/web-import", icon: Globe, label: "Импорт с сайта" },
     ],
   },
 ];

@@ -57,6 +57,7 @@ model User {
   spamAlerts           SpamAlertEvent[]
   supportTickets       SupportTicket[]
   imageGenerationTasks ImageGenerationTask[]
+  webImportJobs        WebImportJob[]
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
 
@@ -820,6 +821,25 @@ model SupportTicketMessage {
 
   @@index([ticketId])
   @@map("support_ticket_messages")
+}
+
+/// Импорт страниц с веб-сайтов (скрейп, обход, список ссылок)
+model WebImportJob {
+  id                String   @id @default(cuid()) @map("id")
+  userId            String   @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mode              String   @map("mode") // single | crawl | batch | links_only
+  status            String   @map("status") // pending | running | completed | cancelled | failed
+  cancelRequested   Boolean  @default(false) @map("cancel_requested")
+  input             Json     @map("input") // { startUrl?, maxPages?, urls?, sameDomainOnly? }
+  state             Json?    @map("state") // crawlQueue, visited, batchIndex — служебное
+  pages             Json     @default("[]") @map("pages") // массив страниц/результатов
+  errorMessage      String?  @map("error_message") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("web_import_jobs")
 }
 
 model Notification {
