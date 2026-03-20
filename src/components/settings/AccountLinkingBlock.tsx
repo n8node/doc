@@ -5,15 +5,19 @@ import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Link2, Mail, MessageCircle, Unlink } from "lucide-react";
+import { VkLoginButton } from "@/components/auth/VkLoginButton";
 import { toast } from "sonner";
 
 interface AccountLinking {
   canLinkTelegram: boolean;
   canLinkEmail: boolean;
+  canLinkVk: boolean;
   hasTelegram: boolean;
+  hasVk: boolean;
   isPlaceholderEmail: boolean;
   telegramUserId?: string | null;
   telegramUsername?: string | null;
+  vkScreenName?: string | null;
   pendingEmailVerification?: {
     email: string | null;
     expiresAt: string;
@@ -24,6 +28,7 @@ interface AuthMethods {
   telegramWidgetEnabled: boolean;
   telegramQrEnabled: boolean;
   telegramBotUsername: string;
+  vkOAuthEnabled: boolean;
 }
 
 interface AccountLinkingBlockProps {
@@ -39,6 +44,7 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
   const [qrToken, setQrToken] = useState<string | null>(null);
   const [qrStatus, setQrStatus] = useState<"idle" | "pending" | "linked" | "expired">("idle");
   const [unlinkingTelegram, setUnlinkingTelegram] = useState(false);
+  const [unlinkingVk, setUnlinkingVk] = useState(false);
   const qrTokenRef = useRef<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
@@ -51,6 +57,7 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
           telegramWidgetEnabled: data.telegramWidgetEnabled === true,
           telegramQrEnabled: data.telegramQrEnabled === true,
           telegramBotUsername: data.telegramBotUsername || "",
+          vkOAuthEnabled: data.vkOAuthEnabled === true,
         })
       )
       .catch(() => setAuthMethods(null));
@@ -158,6 +165,25 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
     }
   };
 
+  const handleUnlinkVk = async () => {
+    if (!confirm("Отвязать ВКонтакте? После этого вы сможете привязать другой аккаунт.")) return;
+    setUnlinkingVk(true);
+    try {
+      const res = await fetch("/api/v1/user/unlink-vk", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("ВКонтакте отвязан");
+        onLinked();
+      } else {
+        toast.error(data.error || "Ошибка отвязки");
+      }
+    } catch {
+      toast.error("Ошибка соединения");
+    } finally {
+      setUnlinkingVk(false);
+    }
+  };
+
   const handleUnlinkTelegram = async () => {
     if (!confirm("Отвязать Telegram? После этого вы сможете привязать другой аккаунт.")) return;
     setUnlinkingTelegram(true);
@@ -177,7 +203,10 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
     }
   };
 
-  const nothingToShow = !accountLinking.canLinkTelegram && !accountLinking.canLinkEmail;
+  const nothingToShow =
+    !accountLinking.canLinkTelegram &&
+    !accountLinking.canLinkEmail &&
+    !accountLinking.canLinkVk;
   const bothLinked = accountLinking.hasTelegram && !accountLinking.isPlaceholderEmail;
 
   const subtitle =
@@ -189,7 +218,7 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
           ? "Привяжите email для входа по паролю"
           : "Привяжите Telegram для входа по QR и кнопке";
 
-  if (nothingToShow && !bothLinked) return null;
+  if (nothingToShow && !bothLinked && !accountLinking.hasVk) return null;
 
   return (
     <div className="rounded-2xl modal-glass overflow-hidden">
@@ -207,6 +236,40 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
           <p className="rounded-lg bg-emerald-500/10 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-400">
             ✓ Email и Telegram привязаны. Вход доступен обоими способами.
           </p>
+        )}
+
+        {accountLinking.hasVk && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium">ВКонтакте</p>
+            <div className="flex items-center gap-3">
+              {accountLinking.vkScreenName ? (
+                <a
+                  href={`https://vk.com/${accountLinking.vkScreenName}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  vk.com/{accountLinking.vkScreenName}
+                </a>
+              ) : (
+                <span className="text-muted-foreground">Привязан</span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUnlinkVk}
+                disabled={unlinkingVk || accountLinking.isPlaceholderEmail}
+              >
+                {unlinkingVk ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
+                Отвязать
+              </Button>
+            </div>
+            {accountLinking.isPlaceholderEmail && (
+              <p className="text-xs text-muted-foreground">
+                Сначала привяжите email, чтобы отвязать VK.
+              </p>
+            )}
+          </div>
         )}
 
         {accountLinking.hasTelegram && !accountLinking.isPlaceholderEmail && (
@@ -250,6 +313,16 @@ export function AccountLinkingBlock({ accountLinking, onLinked }: AccountLinking
           <p className="rounded-lg bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-400">
             Сначала привяжите email ниже, чтобы потом иметь возможность отвязать Telegram и привязать другой.
           </p>
+        )}
+
+        {accountLinking.canLinkVk && authMethods?.vkOAuthEnabled && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Привязать ВКонтакте</p>
+            <p className="text-xs text-muted-foreground">
+              Вход через VK без VPN.
+            </p>
+            <VkLoginButton mode="link" callbackUrl="/dashboard/settings?linked=vk" />
+          </div>
         )}
 
         {accountLinking.canLinkTelegram && (

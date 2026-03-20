@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
+import { getAuthSettings } from "@/lib/telegram-auth";
 
 export async function GET(req: NextRequest) {
   const userId = await getUserIdFromRequest(req);
@@ -19,6 +20,8 @@ export async function GET(req: NextRequest) {
       preferences: true,
       telegramUserId: true,
       telegramUsername: true,
+      vkUserId: true,
+      vkScreenName: true,
     },
   });
 
@@ -29,8 +32,11 @@ export async function GET(req: NextRequest) {
   const prefs = user.preferences as Record<string, unknown> | null;
   const isPlaceholderEmail = user.email.endsWith("@qoqon.placeholder");
   const hasTelegram = user.telegramUserId != null;
+  const hasVk = user.vkUserId != null;
+  const authSettings = await getAuthSettings();
   const canLinkTelegram = !isPlaceholderEmail && !hasTelegram;
-  const canLinkEmail = isPlaceholderEmail && hasTelegram;
+  const canLinkEmail = isPlaceholderEmail && (hasTelegram || hasVk);
+  const canLinkVk = authSettings.vkOAuthEnabled && !hasVk && !isPlaceholderEmail;
   const pendingEmailVerification = await prisma.emailVerificationToken.findFirst({
     where: {
       userId: user.id,
@@ -55,10 +61,14 @@ export async function GET(req: NextRequest) {
     preferences: prefs ?? {},
     telegramUserId: user.telegramUserId?.toString() ?? null,
     telegramUsername: user.telegramUsername ?? null,
+    vkUserId: user.vkUserId?.toString() ?? null,
+    vkScreenName: user.vkScreenName ?? null,
     accountLinking: {
       canLinkTelegram,
       canLinkEmail,
+      canLinkVk,
       hasTelegram,
+      hasVk,
       isPlaceholderEmail,
       telegramUserId: user.telegramUserId?.toString() ?? null,
       telegramUsername: user.telegramUsername ?? null,

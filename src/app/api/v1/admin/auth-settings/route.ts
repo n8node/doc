@@ -12,7 +12,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [emailReg, emailVerify, inviteReg, tgWidget, tgQr, tgDomain, tgBotUsername] = await Promise.all([
+  const [emailReg, emailVerify, inviteReg, tgWidget, tgQr, tgDomain, tgBotUsername, vkOAuth] = await Promise.all([
     configStore.get("auth.email_registration_enabled"),
     configStore.get("auth.email_verification_required"),
     configStore.get("auth.invite_registration_enabled"),
@@ -20,6 +20,7 @@ export async function GET() {
     configStore.get("auth.telegram_qr_enabled"),
     configStore.get("auth.telegram_domain"),
     configStore.get("auth.telegram_bot_username"),
+    configStore.get("auth.vk_oauth_enabled"),
   ]);
 
   return NextResponse.json({
@@ -30,6 +31,7 @@ export async function GET() {
     telegramQrEnabled: tgQr === "true",
     telegramDomain: tgDomain || "qoqon.ru",
     telegramBotUsername: tgBotUsername || "",
+    vkOAuthEnabled: vkOAuth !== "false",
   });
 }
 
@@ -50,6 +52,7 @@ export async function POST(request: NextRequest) {
     telegramQrEnabled,
     telegramDomain,
     telegramBotUsername,
+    vkOAuthEnabled,
   } = body;
 
   const updates: Promise<void>[] = [];
@@ -110,10 +113,27 @@ export async function POST(request: NextRequest) {
       })
     );
   }
+  if (typeof vkOAuthEnabled === "boolean") {
+    updates.push(
+      configStore.set("auth.vk_oauth_enabled", vkOAuthEnabled ? "true" : "false", {
+        category: "auth",
+        description: "Вход и регистрация через ВКонтакте (OAuth)",
+      })
+    );
+  }
 
   await Promise.all(updates);
 
-  ["auth.email_registration_enabled", "auth.email_verification_required", "auth.invite_registration_enabled", "auth.telegram_widget_enabled", "auth.telegram_qr_enabled", "auth.telegram_domain", "auth.telegram_bot_username"].forEach((k) =>
+  [
+    "auth.email_registration_enabled",
+    "auth.email_verification_required",
+    "auth.invite_registration_enabled",
+    "auth.telegram_widget_enabled",
+    "auth.telegram_qr_enabled",
+    "auth.telegram_domain",
+    "auth.telegram_bot_username",
+    "auth.vk_oauth_enabled",
+  ].forEach((k) =>
     configStore.invalidate(k)
   );
 

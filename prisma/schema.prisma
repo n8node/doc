@@ -50,6 +50,8 @@ model User {
   preferences          Json?                 @map("preferences") // { theme?: string, notifications?: { storage, trash, payment, ... } }
   telegramUserId       BigInt?               @unique @map("telegram_user_id")
   telegramUsername     String?               @map("telegram_username")
+  vkUserId             BigInt?               @unique @map("vk_user_id")
+  vkScreenName         String?               @map("vk_screen_name")
   registeredViaInviteId String?              @map("registered_via_invite_id")
   registeredViaInvite  Invite?               @relation("UserRegisteredViaInvite", fields: [registeredViaInviteId], references: [id], onDelete: SetNull)
   emailVerificationTokens EmailVerificationToken[]

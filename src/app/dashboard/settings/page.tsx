@@ -32,10 +32,13 @@ interface ProfileData {
   accountLinking?: {
     canLinkTelegram: boolean;
     canLinkEmail: boolean;
+    canLinkVk: boolean;
     hasTelegram: boolean;
+    hasVk: boolean;
     isPlaceholderEmail: boolean;
     telegramUserId?: string | null;
     telegramUsername?: string | null;
+    vkScreenName?: string | null;
     pendingEmailVerification?: {
       email: string | null;
       expiresAt: string;
@@ -118,6 +121,10 @@ export default function DashboardSettingsPage() {
   useEffect(() => {
     if (searchParams.get("linked") === "telegram") {
       toast.success("Telegram успешно привязан");
+      window.history.replaceState({}, "", "/dashboard/settings");
+    }
+    if (searchParams.get("linked") === "vk") {
+      toast.success("ВКонтакте успешно привязан");
       window.history.replaceState({}, "", "/dashboard/settings");
     }
   }, [searchParams]);

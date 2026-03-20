@@ -20,6 +20,7 @@ export async function GET() {
     telegramQrEnabled: settings.telegramQrEnabled,
     telegramDomain: settings.telegramDomain,
     telegramBotUsername: botUsername || "",
+    vkOAuthEnabled: settings.vkOAuthEnabled,
     siteName: branding.siteName,
     logoUrl: branding.logoUrl,
     faviconUrl: branding.faviconUrl,

@@ -65,6 +65,14 @@ export function NotificationBanner() {
             linkText: "Настроить",
           });
         }
+        if (al?.canLinkVk) {
+          items.push({
+            id: "link_vk",
+            message: "Привяжите ВКонтакте для входа без VPN",
+            link: "/dashboard/settings",
+            linkText: "Настроить",
+          });
+        }
         setNotifications(items);
 
         const reloadCount = getReloadCount();

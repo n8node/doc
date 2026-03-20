@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, HardDrive, UserPlus, Check } from "lucide-react";
 import { TelegramLoginBlock } from "@/components/auth/TelegramLoginBlock";
+import { VkLoginButton } from "@/components/auth/VkLoginButton";
 
 function getPasswordStrength(pw: string) {
   let score = 0;
@@ -38,6 +39,7 @@ export default function RegisterPage() {
     inviteRegistrationEnabled: boolean;
     telegramWidgetEnabled: boolean;
     telegramQrEnabled: boolean;
+    vkOAuthEnabled: boolean;
     telegramDomain: string;
     telegramBotUsername: string;
     siteName: string;
@@ -53,6 +55,7 @@ export default function RegisterPage() {
         inviteRegistrationEnabled: false,
         telegramWidgetEnabled: false,
         telegramQrEnabled: false,
+        vkOAuthEnabled: false,
         telegramDomain: "qoqon.ru",
         telegramBotUsername: "",
         siteName: "qoqon.ru",
@@ -162,9 +165,25 @@ export default function RegisterPage() {
 
         <div className="rounded-2xl border border-border bg-surface p-8 shadow-soft">
           {authMethods && !authMethods.inviteRegistrationEnabled && (authMethods.telegramWidgetEnabled || authMethods.telegramQrEnabled) && (
-            <div className={`flex flex-col items-center gap-4 text-center ${authMethods.emailRegistrationEnabled !== false ? "mb-6 border-b border-border pb-6" : ""}`}>
+            <div className={`flex flex-col items-center gap-4 text-center ${authMethods.emailRegistrationEnabled !== false || authMethods.vkOAuthEnabled ? "mb-6 border-b border-border pb-6" : ""}`}>
               <p className="text-sm text-muted-foreground">Зарегистрируйтесь через Telegram</p>
               <TelegramLoginBlock methods={authMethods} callbackUrl="/dashboard" />
+            </div>
+          )}
+          {authMethods?.vkOAuthEnabled && (!authMethods.inviteRegistrationEnabled || !!inviteVerifiedCode) && (
+            <div
+              className={`flex flex-col gap-2 ${
+                authMethods?.emailRegistrationEnabled !== false || authMethods?.inviteRegistrationEnabled
+                  ? "mb-6 border-b border-border pb-6"
+                  : "mb-6"
+              }`}
+            >
+              <p className="text-center text-sm text-muted-foreground">Регистрация через ВКонтакте</p>
+              <VkLoginButton
+                mode="register"
+                inviteCode={inviteVerifiedCode || undefined}
+                callbackUrl="/dashboard"
+              />
             </div>
           )}
           {authMethods?.emailRegistrationEnabled !== false && authMethods?.inviteRegistrationEnabled && !inviteVerifiedCode && (

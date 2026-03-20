@@ -19,6 +19,7 @@ export function AuthSettingsForm() {
     telegramQrEnabled: false,
     telegramDomain: "qoqon.ru",
     telegramBotUsername: "",
+    vkOAuthEnabled: true,
   });
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function AuthSettingsForm() {
           telegramQrEnabled: data.telegramQrEnabled === true,
           telegramDomain: data.telegramDomain || "qoqon.ru",
           telegramBotUsername: data.telegramBotUsername || "",
+          vkOAuthEnabled: data.vkOAuthEnabled !== false,
         }));
       })
       .catch(() => toast.error("Не удалось загрузить настройки"))
@@ -175,6 +177,28 @@ export function AuthSettingsForm() {
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             Новые ключи автоматически попадут в конец публичного списка инвайтов.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Вход через ВКонтакте (OAuth)
+          </label>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={values.vkOAuthEnabled}
+              onChange={(e) => setValues((v) => ({ ...v, vkOAuthEnabled: e.target.checked }))}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm">Разрешить вход и регистрацию через VK</span>
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            В .env или в секретах деплоя должны быть заданы VK_CLIENT_ID и VK_CLIENT_SECRET. Redirect URI в
+            настройках приложения VK:{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">
+              {"{NEXTAUTH_URL}"}/api/auth/callback/vk
+            </code>
           </p>
         </div>
 

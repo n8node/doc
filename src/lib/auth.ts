@@ -4,6 +4,19 @@ import { compare } from "bcryptjs";
 import { prisma } from "./prisma";
 import { getPublicBaseUrl } from "./app-url";
 import { verifyTelegramSessionToken } from "./telegram-session";
+import { VkProviderWithEmail } from "./vk-provider";
+import { isVkOAuthEnvConfigured } from "./vk-oauth";
+import { validateVkSignIn, handleVkJwt } from "./auth-vk";
+
+const vkProviders =
+  isVkOAuthEnvConfigured() && process.env.VK_CLIENT_ID && process.env.VK_CLIENT_SECRET
+    ? [
+        VkProviderWithEmail({
+          clientId: process.env.VK_CLIENT_ID,
+          clientSecret: process.env.VK_CLIENT_SECRET,
+        }),
+      ]
+    : [];
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -57,6 +70,7 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    ...vkProviders,
   ],
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   callbacks: {
@@ -71,10 +85,26 @@ export const authOptions: NextAuthOptions = {
       }
       return base;
     },
-    jwt: async ({ token, user, trigger }) => {
+    signIn: async ({ account, profile }) => {
+      if (account?.provider === "vk" && profile) {
+        return validateVkSignIn({ account, profile });
+      }
+      return true;
+    },
+    jwt: async ({ token, user, account, profile, trigger }) => {
+      if (account?.provider === "vk" && profile) {
+        return handleVkJwt({
+          token,
+          account,
+          profile: profile as typeof profile & { screen_name?: string | null },
+        });
+      }
+
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: "USER" | "ADMIN" }).role;
+        const u = user as { email?: string | null };
+        if (typeof u.email === "string") token.email = u.email;
       }
       if (trigger === "update" || !token.checkedAt || Date.now() - (token.checkedAt as number) > 5 * 60 * 1000) {
         const dbUser = await prisma.user.findUnique({
@@ -93,6 +123,9 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as "USER" | "ADMIN";
+        if (typeof token.email === "string") {
+          session.user.email = token.email;
+        }
       }
       return session;
     },

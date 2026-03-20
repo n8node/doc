@@ -7,6 +7,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, HardDrive, LogIn } from "lucide-react";
 import { TelegramLoginBlock } from "@/components/auth/TelegramLoginBlock";
+import { VkLoginButton } from "@/components/auth/VkLoginButton";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -21,6 +22,7 @@ function LoginForm() {
     inviteRegistrationEnabled: boolean;
     telegramWidgetEnabled: boolean;
     telegramQrEnabled: boolean;
+    vkOAuthEnabled: boolean;
     telegramDomain: string;
     telegramBotUsername: string;
     siteName: string;
@@ -36,6 +38,7 @@ function LoginForm() {
         inviteRegistrationEnabled: false,
         telegramWidgetEnabled: false,
         telegramQrEnabled: false,
+        vkOAuthEnabled: false,
         telegramDomain: "qoqon.ru",
         telegramBotUsername: "",
         siteName: "qoqon.ru",
@@ -98,6 +101,17 @@ function LoginForm() {
           {authMethods && (authMethods.telegramWidgetEnabled || authMethods.telegramQrEnabled) && (
             <div className="mb-6 flex flex-col gap-4 border-b border-border pb-6">
               <TelegramLoginBlock methods={authMethods} callbackUrl={callbackUrl} />
+            </div>
+          )}
+          {authMethods?.vkOAuthEnabled && (
+            <div
+              className={
+                authMethods?.emailRegistrationEnabled !== false
+                  ? "mb-6 flex flex-col gap-2 border-b border-border pb-6"
+                  : "mb-6 flex flex-col gap-2"
+              }
+            >
+              <VkLoginButton mode="login" callbackUrl={callbackUrl} />
             </div>
           )}
           {authMethods?.emailRegistrationEnabled !== false && (
