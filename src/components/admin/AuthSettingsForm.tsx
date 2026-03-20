@@ -24,6 +24,8 @@ export function AuthSettingsForm() {
     vkClientSecret: "",
     vkSecretSet: false,
     vkOAuthRedirectUri: "",
+    vkOAuthProtocol: "classic" as "classic" | "vkid",
+    vkOAuthProtocolEnv: null as string | null,
   });
 
   useEffect(() => {
@@ -44,6 +46,8 @@ export function AuthSettingsForm() {
           vkClientSecret: "",
           vkSecretSet: data.vkSecretSet === true,
           vkOAuthRedirectUri: typeof data.vkOAuthRedirectUri === "string" ? data.vkOAuthRedirectUri : "",
+          vkOAuthProtocol: data.vkOAuthProtocol === "vkid" ? "vkid" : "classic",
+          vkOAuthProtocolEnv: typeof data.vkOAuthProtocolEnv === "string" && data.vkOAuthProtocolEnv ? data.vkOAuthProtocolEnv : null,
         }));
       })
       .catch(() => toast.error("Не удалось загрузить настройки"))
@@ -58,6 +62,7 @@ export function AuthSettingsForm() {
       delete payload.vkClientSecret;
       delete payload.vkSecretSet;
       delete payload.vkOAuthRedirectUri;
+      delete payload.vkOAuthProtocolEnv;
       const res = await fetch("/api/v1/admin/auth-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -209,6 +214,30 @@ export function AuthSettingsForm() {
             <span className="text-sm">Разрешить вход и регистрацию через VK</span>
           </label>
           <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Режим OAuth</label>
+            <select
+              value={values.vkOAuthProtocol}
+              disabled={Boolean(values.vkOAuthProtocolEnv)}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, vkOAuthProtocol: e.target.value === "vkid" ? "vkid" : "classic" }))
+              }
+              className="max-w-md w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+            >
+              <option value="classic">Классический (oauth.vk.com) — старые приложения «ВКонтакте»</option>
+              <option value="vkid">VK ID (id.vk.ru + PKCE) — приложения из кабинета VK ID</option>
+            </select>
+            {values.vkOAuthProtocolEnv ? (
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300/90">
+                Режим зафиксирован переменной окружения VK_OAUTH_PROTOCOL={values.vkOAuthProtocolEnv} — снимите её, чтобы
+                менять из админки.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Если при входе JSON с <code className="text-[11px]">Security Error</code> на oauth.vk.com — выберите VK ID.
+              </p>
+            )}
+          </div>
+          <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">ID приложения (client_id)</label>
             <Input
               type="text"
@@ -276,9 +305,9 @@ export function AuthSettingsForm() {
               <code className="text-[11px]">/api/auth/callback/vk</code>).
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
-              Если VK показывает страницу с ошибкой до входа: чаще всего тип приложения «Standalone» — для сайта
-              нужно приложение типа «Веб-сайт» (или отдельное приложение под сайт). У Standalone разрешён только
-              redirect <code className="text-[11px]">https://oauth.vk.com/blank.html</code>, не наш callback.
+              До экрана входа: неверный redirect URI / тип «Standalone» (нужен «Веб-сайт») / для приложений VK ID включите
+              режим «VK ID» выше — классический oauth.vk.com с такими client_id отвечает{" "}
+              <code className="text-[11px]">Security Error</code>.
             </p>
             <p className="text-xs text-muted-foreground">
               На сервере должен быть задан <code className="text-[11px]">NEXTAUTH_URL</code> с тем же доменом, что и

@@ -8,6 +8,7 @@ import { prisma } from "./prisma";
 import { getPublicBaseUrl } from "./app-url";
 import { verifyTelegramSessionToken } from "./telegram-session";
 import { VkProviderWithEmail } from "./vk-provider";
+import { VkProviderVkId } from "./vk-id-provider";
 import { resolveVkOAuthCredentials } from "./vk-oauth";
 import { validateVkSignIn, handleVkJwt } from "./auth-vk";
 import { configStore } from "./config-store";
@@ -134,13 +135,22 @@ function createAuthOptions(vkProviders: AnyOAuth[]): NextAuthOptions {
 /**
  * Собирает NextAuth options: VK-провайдер только если включено в конфиге и заданы id/secret (БД или env).
  */
+/** Эффективный режим VK OAuth: переменная `VK_OAUTH_PROTOCOL` перекрывает значение из БД. */
+export function resolveVkProtocol(raw: string | null | undefined): "classic" | "vkid" {
+  const v = (process.env.VK_OAUTH_PROTOCOL ?? raw ?? "classic").trim().toLowerCase();
+  return v === "vkid" ? "vkid" : "classic";
+}
+
 export async function buildAuthOptions(): Promise<NextAuthOptions> {
   const vkFlag = await configStore.get("auth.vk_oauth_enabled");
   const creds = await resolveVkOAuthCredentials();
   const vkEnabled = vkFlag !== "false" && creds !== null;
+  const vkProtocol = resolveVkProtocol(await configStore.get("auth.vk_oauth_protocol"));
   const vkProviders =
     vkEnabled && creds
-      ? [VkProviderWithEmail({ clientId: creds.clientId, clientSecret: creds.clientSecret })]
+      ? vkProtocol === "vkid"
+        ? [VkProviderVkId({ clientId: creds.clientId, clientSecret: creds.clientSecret })]
+        : [VkProviderWithEmail({ clientId: creds.clientId, clientSecret: creds.clientSecret })]
       : [];
   return createAuthOptions(vkProviders);
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, refreshAuthOptions } from "@/lib/auth";
+import { authOptions, refreshAuthOptions, resolveVkProtocol } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
 import { configStore } from "@/lib/config-store";
 import { getNextAuthBaseUrl } from "@/lib/app-url";
@@ -24,6 +24,7 @@ export async function GET() {
     vkOAuth,
     vkClientId,
     vkSecretRow,
+    vkProtocolRow,
   ] = await Promise.all([
     configStore.get("auth.email_registration_enabled"),
     configStore.get("auth.email_verification_required"),
@@ -35,14 +36,19 @@ export async function GET() {
     configStore.get("auth.vk_oauth_enabled"),
     configStore.get("auth.vk_client_id"),
     configStore.get("auth.vk_client_secret"),
+    configStore.get("auth.vk_oauth_protocol"),
   ]);
 
   const vkSecretSet = Boolean(vkSecretRow?.trim() || process.env.VK_CLIENT_SECRET?.trim() || "");
 
   const vkOAuthRedirectUri = `${getNextAuthBaseUrl()}/api/auth/callback/vk`;
+  const vkOAuthProtocol = resolveVkProtocol(vkProtocolRow);
+  const vkOAuthProtocolEnv = process.env.VK_OAUTH_PROTOCOL?.trim() || null;
 
   return NextResponse.json({
     vkOAuthRedirectUri,
+    vkOAuthProtocol,
+    vkOAuthProtocolEnv,
     emailRegistrationEnabled: emailReg !== "false",
     emailVerificationRequired: emailVerify !== "false",
     inviteRegistrationEnabled: inviteReg === "true",
@@ -76,6 +82,7 @@ export async function POST(request: NextRequest) {
     vkOAuthEnabled,
     vkClientId,
     vkClientSecret,
+    vkOAuthProtocol,
   } = body;
 
   const updates: Promise<void>[] = [];
@@ -154,6 +161,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (vkOAuthProtocol === "classic" || vkOAuthProtocol === "vkid") {
+    updates.push(
+      configStore.set("auth.vk_oauth_protocol", vkOAuthProtocol, {
+        category: "auth",
+        description: "VK OAuth: classic (oauth.vk.com) или vkid (id.vk.ru + PKCE)",
+      })
+    );
+  }
+
   const secretValid =
     vkClientSecret &&
     typeof vkClientSecret === "string" &&
@@ -184,6 +200,7 @@ export async function POST(request: NextRequest) {
     "auth.vk_oauth_enabled",
     "auth.vk_client_id",
     "auth.vk_client_secret",
+    "auth.vk_oauth_protocol",
   ].forEach((k) => configStore.invalidate(k));
 
   await refreshAuthOptions().catch((e) => console.warn("[auth] refreshAuthOptions after admin save:", e));
