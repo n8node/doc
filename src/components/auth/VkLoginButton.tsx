@@ -28,6 +28,15 @@ export function VkLoginButton({
   async function handleClick() {
     setLoading(true);
     try {
+      const provRes = await fetch("/api/auth/providers", { credentials: "include" });
+      const providers = await provRes.json().catch(() => null);
+      if (!providers || typeof providers !== "object" || !("vk" in providers)) {
+        toast.error(
+          "Вход через VK не подключён: в админке (Авторизация) укажите ID и защищённый ключ приложения VK и включите опцию."
+        );
+        return;
+      }
+
       const res = await fetch("/api/auth/oauth-prep", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -39,9 +48,12 @@ export function VkLoginButton({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 401 && mode === "link") {
+          throw new Error("Сессия не найдена. Обновите страницу и войдите снова, затем повторите привязку.");
+        }
         throw new Error((data as { error?: string }).error ?? "Ошибка подготовки входа");
       }
-      await signIn("vk", { callbackUrl });
+      await signIn("vk", { callbackUrl, redirect: true });
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Не удалось начать вход через VK");

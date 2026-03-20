@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserIdFromRequest } from "@/lib/api-key-auth";
+import { getToken } from "next-auth/jwt";
 
 const COOKIE_OPTS = {
   httpOnly: true,
@@ -22,7 +22,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (mode === "link") {
-    const userId = await getUserIdFromRequest(req);
+    /** getServerSession в Route Handler иногда не видит cookie; getToken(req) поддерживает NextRequest. */
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
+    });
+    const userId = typeof token?.id === "string" ? token.id : null;
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
