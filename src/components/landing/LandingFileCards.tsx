@@ -12,18 +12,15 @@ export function LandingFileCards({ content }: { content: LandingContent }) {
   return (
     <section className="px-4 pt-6 pb-12">
       <div className="container mx-auto max-w-5xl">
-        <div
-          className="rounded-2xl border border-border bg-[#F8FAFF]/80 px-6 py-8 shadow-lg shadow-foreground/5"
-          style={{ backgroundColor: "#F8FAFF" }}
-        >
-          <h2 className="mb-6 text-center text-xl font-semibold text-slate-900 sm:text-2xl">
+        <div className="rounded-2xl border border-border bg-surface/95 px-6 py-8 shadow-lg shadow-foreground/5">
+          <h2 className="mb-6 text-center text-xl font-semibold text-foreground sm:text-2xl">
             {title}
           </h2>
           <div className="flex flex-wrap justify-center gap-6 sm:gap-8">
             {icons.map((iconKey, i) => (
               <div
                 key={i}
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-border bg-white shadow-md sm:h-20 sm:w-20"
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-border bg-background/90 shadow-md sm:h-20 sm:w-20"
               >
                 <LandingAssetImg
                   src={getLandingAssetUrl(iconKey)}
@@ -34,7 +31,7 @@ export function LandingFileCards({ content }: { content: LandingContent }) {
             ))}
           </div>
           {subtitle ? (
-            <p className="mt-6 text-center text-sm text-slate-600 sm:text-base">{subtitle}</p>
+            <p className="mt-6 text-center text-sm text-muted-foreground sm:text-base">{subtitle}</p>
           ) : null}
         </div>
       </div>
