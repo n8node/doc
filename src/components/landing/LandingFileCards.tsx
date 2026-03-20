@@ -16,7 +16,7 @@ export function LandingFileCards({ content }: { content: LandingContent }) {
           className="rounded-2xl border border-border bg-[#F8FAFF]/80 px-6 py-8 shadow-lg shadow-foreground/5"
           style={{ backgroundColor: "#F8FAFF" }}
         >
-          <h2 className="mb-6 text-center text-xl font-semibold text-foreground sm:text-2xl">
+          <h2 className="mb-6 text-center text-xl font-semibold text-slate-900 sm:text-2xl">
             {title}
           </h2>
           <div className="flex flex-wrap justify-center gap-6 sm:gap-8">
@@ -34,7 +34,7 @@ export function LandingFileCards({ content }: { content: LandingContent }) {
             ))}
           </div>
           {subtitle ? (
-            <p className="mt-6 text-center text-sm text-muted-foreground sm:text-base">{subtitle}</p>
+            <p className="mt-6 text-center text-sm text-slate-600 sm:text-base">{subtitle}</p>
           ) : null}
         </div>
       </div>
