@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
     chatTokensQuota, searchTokensQuota, imageGenerationCreditsQuota,
     aiAnalysisDocumentsQuota,
+    webImportPagesQuota,
     ragDocumentsQuota,
     freePlanDurationDays,
     transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
@@ -85,6 +86,11 @@ export async function POST(req: NextRequest) {
       ? null
       : Math.max(0, parseInt(String(aiAnalysisDocumentsQuota), 10) || 0) || null;
 
+  const webImportPagesQuotaVal =
+    webImportPagesQuota === undefined || webImportPagesQuota === null || webImportPagesQuota === ""
+      ? null
+      : Math.max(0, parseInt(String(webImportPagesQuota), 10) || 0) || null;
+
   const transQuota =
     transcriptionMinutesQuota === undefined || transcriptionMinutesQuota === null || transcriptionMinutesQuota === ""
       ? null
@@ -113,6 +119,7 @@ export async function POST(req: NextRequest) {
           ? null
           : Math.max(0, parseInt(String(imageGenerationCreditsQuota), 10) || 0) || null,
       aiAnalysisDocumentsQuota: analysisDocsQuota,
+      webImportPagesQuota: webImportPagesQuotaVal,
       ragDocumentsQuota:
         ragDocumentsQuota === undefined || ragDocumentsQuota === null || ragDocumentsQuota === ""
           ? null

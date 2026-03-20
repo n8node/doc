@@ -5,6 +5,7 @@ import { fetchHtmlForImport } from "./fetch-html";
 import { fetchPageMarkdown } from "./fetch-page";
 import { extractLinks } from "./html-to-markdown";
 import { normalizeHttpUrl } from "./ssrf";
+import { assertCanAddWebImportPage } from "./quota-access";
 
 const MAX_CRAWL_PAGES_HARD = 100;
 const MAX_BATCH_HARD = 80;
@@ -53,6 +54,15 @@ export async function processWebImportStep(jobId: string): Promise<void> {
   }
 
   if (job.status === "completed" || job.status === "cancelled" || job.status === "failed") {
+    return;
+  }
+
+  const quotaCheck = await assertCanAddWebImportPage(job.userId);
+  if (!quotaCheck.ok) {
+    await prisma.webImportJob.update({
+      where: { id: jobId },
+      data: { status: "failed", errorMessage: quotaCheck.message },
+    });
     return;
   }
 

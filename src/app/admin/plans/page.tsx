@@ -38,6 +38,7 @@ interface PlanItem {
   imageGenerationCreditsQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   ragDocumentsQuota?: number | null;
+  webImportPagesQuota?: number | null;
   freePlanDurationDays?: number | null;
   features: Record<string, boolean>;
   priceMonthly: number | null;
@@ -162,6 +163,17 @@ function PlanCard({
                   RAG док.:{" "}
                   {plan.ragDocumentsQuota != null
                     ? `${plan.ragDocumentsQuota}/тариф`
+                    : "безлимит"}
+                </span>
+              </div>
+            )}
+            {plan.features?.web_import && (
+              <div className="flex items-center gap-2 text-sm">
+                <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  Парсинг страниц:{" "}
+                  {plan.webImportPagesQuota != null
+                    ? `${plan.webImportPagesQuota}/мес`
                     : "безлимит"}
                 </span>
               </div>

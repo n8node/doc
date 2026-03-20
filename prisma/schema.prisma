@@ -363,6 +363,7 @@ model Plan {
   transcriptionProviderId      String?     @map("transcription_provider_id") // премиум-провайдер, null = Docling/Whisper
   transcriptionProvider        AiProvider? @relation("PlanTranscriptionProvider", fields: [transcriptionProviderId], references: [id])
   imageGenerationCreditsQuota   Int?        @map("image_generation_credits_quota") // кредитов на генерацию в месяц по тарифу, null = без лимита/отключено
+  webImportPagesQuota          Int?        @map("web_import_pages_quota") // страниц парсинга сайтов в месяц, null = без лимита
   priceMonthly                 Int?        @map("price_monthly")
   priceYearly                  Int?        @map("price_yearly")
   sortOrder                    Int         @default(0) @map("sort_order")

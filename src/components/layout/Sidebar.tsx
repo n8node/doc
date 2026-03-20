@@ -172,7 +172,12 @@ export function Sidebar() {
                     transition={{ duration: 0.2, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
-                    {group.items.map((item) => {
+                    {group.items
+                      .filter(
+                        (item) =>
+                          !item.featureGate || planFeatures[item.featureGate],
+                      )
+                      .map((item) => {
                       const isActive =
                         pathname === item.href ||
                         pathname.startsWith(item.href + "/");

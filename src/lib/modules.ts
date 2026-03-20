@@ -35,6 +35,8 @@ export interface NavItem {
   icon: ComponentType<{ className?: string }>;
   label: string;
   section?: FilesSection;
+  /** Если задано, пункт показывается только при plan.features[featureGate] === true */
+  featureGate?: string;
 }
 
 export interface NavGroup {
@@ -109,7 +111,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/dashboard/search", icon: Search, label: "Поиск по файлам" },
       { href: "/dashboard/sheets", icon: Table2, label: "Таблицы" },
-      { href: "/dashboard/web-import", icon: Globe, label: "Парсинг" },
+      { href: "/dashboard/web-import", icon: Globe, label: "Парсинг", featureGate: "web_import" },
     ],
   },
 ];

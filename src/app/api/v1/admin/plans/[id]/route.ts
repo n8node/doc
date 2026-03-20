@@ -19,6 +19,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
     chatTokensQuota, searchTokensQuota, imageGenerationCreditsQuota,
     aiAnalysisDocumentsQuota,
+    webImportPagesQuota,
     ragDocumentsQuota,
     freePlanDurationDays,
     transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
@@ -63,6 +64,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       aiAnalysisDocumentsQuota === null || aiAnalysisDocumentsQuota === ""
         ? null
         : Math.max(0, parseInt(String(aiAnalysisDocumentsQuota), 10) || 0) || null;
+  }
+  if (webImportPagesQuota !== undefined) {
+    data.webImportPagesQuota =
+      webImportPagesQuota === null || webImportPagesQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(webImportPagesQuota), 10) || 0) || null;
   }
   if (ragDocumentsQuota !== undefined) {
     data.ragDocumentsQuota =

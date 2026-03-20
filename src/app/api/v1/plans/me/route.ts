@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
 import { getTranscriptionMinutesUsedThisMonth } from "@/lib/ai/transcription-usage";
 import { getAnalysisDocumentsUsedThisMonth } from "@/lib/ai/analysis-documents-usage";
+import { getWebImportPagesUsedThisMonth } from "@/lib/web-import/web-import-pages-usage";
 import {
   getPlanTokenQuotas,
   getTokenUsageSummary,
@@ -34,6 +35,11 @@ export async function GET(req: NextRequest) {
   const aiAnalysisDocumentsUsedThisMonth =
     plan.aiAnalysisDocumentsQuota != null
       ? await getAnalysisDocumentsUsedThisMonth(userId)
+      : undefined;
+
+  const webImportPagesUsedThisMonth =
+    plan.features?.web_import === true
+      ? await getWebImportPagesUsedThisMonth(userId)
       : undefined;
 
   const billing = await getUserBillingContext(userId);
@@ -86,6 +92,7 @@ export async function GET(req: NextRequest) {
     embeddingTokensUsedThisMonth,
     transcriptionMinutesUsedThisMonth,
     aiAnalysisDocumentsUsedThisMonth,
+    webImportPagesUsedThisMonth,
     tokenQuotas: quotas,
     tokenUsageCurrentCycle: cycleUsage?.byCategory,
     tokenUsageTotalCurrentCycle: totalUsed,

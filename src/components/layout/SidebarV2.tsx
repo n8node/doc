@@ -224,7 +224,12 @@ export function SidebarV2() {
                     transition={{ duration: 0.2, ease: "easeInOut" }}
                     className="overflow-hidden py-1.5"
                   >
-                    {group.items.map((item) => {
+                    {group.items
+                      .filter(
+                        (item) =>
+                          !item.featureGate || planFeatures[item.featureGate],
+                      )
+                      .map((item) => {
                       const isFileSection =
                         item.section &&
                         isFilesPage &&

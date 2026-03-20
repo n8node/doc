@@ -20,6 +20,7 @@ export async function GET() {
       transcriptionMinutesQuota: true,
       ragDocumentsQuota: true,
       imageGenerationCreditsQuota: true,
+      webImportPagesQuota: true,
       freePlanDurationDays: true,
       priceMonthly: true,
       priceYearly: true,

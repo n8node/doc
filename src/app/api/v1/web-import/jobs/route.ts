@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeHttpUrl, SsrfBlockedError } from "@/lib/web-import/ssrf";
+import {
+  assertWebImportJobAllowed,
+  estimateWebImportPagesForJob,
+} from "@/lib/web-import/quota-access";
 
 const MAX_BATCH = 80;
 
@@ -41,6 +45,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Режим: single | crawl | batch | links_only | links_batch" },
         { status: 400 },
+      );
+    }
+
+    const input = b as Record<string, unknown>;
+    const estimate = estimateWebImportPagesForJob(mode, input);
+    const allowed = await assertWebImportJobAllowed(session.user.id, estimate);
+    if (!allowed.ok) {
+      return NextResponse.json(
+        { error: allowed.message, code: "WEB_IMPORT_QUOTA" },
+        { status: 403 },
       );
     }
 

@@ -17,6 +17,7 @@ const FREE_PLAN_DEFAULTS = {
     rag_memory: false,
     n8n_connection: false,
     sheets: false,
+    web_import: false,
   } as Record<string, boolean>,
 };
 
@@ -43,6 +44,7 @@ export async function getUserPlan(userId: string) {
       maxTranscriptionVideoMinutes: user.plan.maxTranscriptionVideoMinutes,
       maxTranscriptionAudioMinutes: user.plan.maxTranscriptionAudioMinutes,
       imageGenerationCreditsQuota: user.plan.imageGenerationCreditsQuota,
+      webImportPagesQuota: user.plan.webImportPagesQuota,
       features: (user.plan.features as Record<string, boolean>) ?? {},
     };
   }
@@ -62,6 +64,7 @@ export async function getUserPlan(userId: string) {
     maxTranscriptionVideoMinutes: 60,
     maxTranscriptionAudioMinutes: 120,
     imageGenerationCreditsQuota: null,
+    webImportPagesQuota: null,
     features: FREE_PLAN_DEFAULTS.features,
   };
 }

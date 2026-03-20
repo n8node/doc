@@ -25,6 +25,7 @@ interface PlanData {
   searchTokensQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   ragDocumentsQuota?: number | null;
+  webImportPagesQuota?: number | null;
   imageGenerationCreditsQuota?: number | null;
   freePlanDurationDays?: number | null;
   transcriptionMinutesQuota?: number | null;
@@ -55,6 +56,7 @@ const featureLabels: Record<string, string> = {
   rag_memory: "RAG-память",
   n8n_connection: "Подключение к n8n",
   sheets: "Таблицы",
+  web_import: "Парсинг сайтов",
   transcription: "Транскрибация",
   own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
   content_generation: "Генерация изображений",
@@ -84,12 +86,14 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     rag_memory: false,
     n8n_connection: false,
     sheets: false,
+    web_import: false,
     own_ai_keys: false,
     content_generation: false,
   });
   const [trashDays, setTrashDays] = useState("0");
   const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState("");
   const [ragDocumentsQuota, setRagDocumentsQuota] = useState("");
+  const [webImportPagesQuota, setWebImportPagesQuota] = useState("");
   const [freePlanDurationDays, setFreePlanDurationDays] = useState("");
   const [embeddingTokensQuota, setEmbeddingTokensQuota] = useState("");
   const [chatTokensQuota, setChatTokensQuota] = useState("");
@@ -145,6 +149,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setRagDocumentsQuota(
         plan.ragDocumentsQuota != null ? String(plan.ragDocumentsQuota) : "",
       );
+      setWebImportPagesQuota(
+        plan.webImportPagesQuota != null ? String(plan.webImportPagesQuota) : "",
+      );
       setFreePlanDurationDays(
         plan.freePlanDurationDays != null ? String(plan.freePlanDurationDays) : "",
       );
@@ -174,6 +181,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setImageGenerationCreditsQuota("");
       setAiAnalysisDocumentsQuota("");
       setRagDocumentsQuota("");
+      setWebImportPagesQuota("");
       setFreePlanDurationDays("");
       setTranscriptionMinutesQuota("");
       setMaxTranscriptionVideoMinutes("60");
@@ -190,6 +198,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         rag_memory: false,
         n8n_connection: false,
         sheets: false,
+        web_import: false,
         transcription: false,
         own_ai_keys: false,
       });
@@ -229,6 +238,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         : null,
       ragDocumentsQuota: ragDocumentsQuota.trim()
         ? Math.max(0, parseInt(ragDocumentsQuota, 10) || 0) || null
+        : null,
+      webImportPagesQuota: webImportPagesQuota.trim()
+        ? Math.max(0, parseInt(webImportPagesQuota, 10) || 0) || null
         : null,
       freePlanDurationDays: freePlanDurationDays.trim()
         ? Math.max(1, parseInt(freePlanDurationDays, 10) || 1)
@@ -442,6 +454,29 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Оставьте пустым для безлимита.
+              </p>
+            </div>
+          </div>
+
+          {/* Парсинг сайтов */}
+          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
+            <h4 className="text-sm font-medium">Парсинг сайтов</h4>
+            <p className="text-xs text-muted-foreground">
+              Включите в блоке «Функции» — «Парсинг сайтов». Квота — успешно обработанных страниц в месяц (UTC).
+            </p>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Страниц в месяц (квота)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={webImportPagesQuota}
+                onChange={(e) => setWebImportPagesQuota(e.target.value)}
+                placeholder="Без лимита"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Пусто — без лимита по страницам (при включённой функции).
               </p>
             </div>
           </div>
