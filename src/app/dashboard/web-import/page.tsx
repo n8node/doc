@@ -310,8 +310,8 @@ export default function WebImportPage() {
       <div>
         <h2 className="text-xl font-semibold text-foreground">Парсинг</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Загрузка страниц по ссылке в markdown. Обход только в пределах одного домена. Уважайте правила сайтов и
-          роботов.
+          Загрузка страниц по ссылке в markdown. Если с сервера приходит «пустая» оболочка (SPA), подставляется
+          headless Chromium. Обход только в пределах одного домена. Уважайте правила сайтов и роботов.
         </p>
       </div>
 

@@ -1,9 +1,10 @@
 import { nanoid } from "nanoid";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { fetchHtmlForImport } from "./fetch-html";
 import { fetchPageMarkdown } from "./fetch-page";
 import { extractLinks } from "./html-to-markdown";
-import { assertUrlAllowed, normalizeHttpUrl } from "./ssrf";
+import { normalizeHttpUrl } from "./ssrf";
 
 const MAX_CRAWL_PAGES_HARD = 100;
 const MAX_BATCH_HARD = 80;
@@ -33,26 +34,7 @@ type BatchState = {
 };
 
 async function fetchHtmlOnly(url: string): Promise<string> {
-  const safe = assertUrlAllowed(url).href;
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 25_000);
-  try {
-    const res = await fetch(safe, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; QoQonWebImport/1.0) AppleWebKit/537.36",
-        Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-      },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength > 2_500_000) throw new Error("Страница слишком большая");
-    return new TextDecoder("utf-8", { fatal: false }).decode(buf);
-  } finally {
-    clearTimeout(t);
-  }
+  return fetchHtmlForImport(url);
 }
 
 /**

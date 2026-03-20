@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  experimental: {
+    /** Playwright — нативный модуль; не бандлить в server chunks */
+    serverComponentsExternalPackages: ["playwright"],
+  },
   async rewrites() {
     return [
       {
