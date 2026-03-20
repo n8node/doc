@@ -25,9 +25,15 @@ export class ConfigStore {
       return process.env[envKey] ?? null;
     }
 
-    const value = row.isEncrypted ? this.decrypt(row.value) : row.value;
-    CACHE.set(key, value);
-    return value;
+    try {
+      const value = row.isEncrypted ? this.decrypt(row.value) : row.value;
+      CACHE.set(key, value);
+      return value;
+    } catch (err) {
+      // Неверный CONFIG_ENCRYPTION_KEY, битые данные или isEncrypted без шифрования — не роняем весь запрос
+      console.error(`[config-store] get("${key}") failed:`, err);
+      return null;
+    }
   }
 
   async set(
