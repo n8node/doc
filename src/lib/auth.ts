@@ -145,9 +145,13 @@ export async function buildAuthOptions(): Promise<NextAuthOptions> {
   return createAuthOptions(vkProviders);
 }
 
-/** Live binding: после refreshAuthOptions() все импорты видят новые провайдеры. */
-export let authOptions: NextAuthOptions = createAuthOptions([]);
+/**
+ * Один и тот же объект на весь процесс — NextAuth(authOptions) держит ссылку из замыкания;
+ * при замене `authOptions = ...` обработчик продолжал бы видеть старые провайдеры без VK.
+ */
+export const authOptions: NextAuthOptions = createAuthOptions([]);
 
 export async function refreshAuthOptions(): Promise<void> {
-  authOptions = await buildAuthOptions();
+  const next = await buildAuthOptions();
+  authOptions.providers = next.providers;
 }
