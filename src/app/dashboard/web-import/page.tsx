@@ -265,7 +265,7 @@ export default function WebImportPage() {
       : !!previewPage?.markdown;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="w-full space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-foreground">Парсинг</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -395,12 +395,12 @@ export default function WebImportPage() {
       </Card>
 
       {job && job.pages.length > 0 && (
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
           <Card className="h-fit min-w-0 w-full max-w-full lg:sticky lg:top-24">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Страницы</CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[min(60vh,520px)] min-w-0 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+            <CardContent className="max-h-[min(60vh,520px)] min-w-0 space-y-2 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
               {job.pages.map((p) => {
                 const checked = selectedIds.includes(p.id);
                 const isPreview = previewId === p.id;
