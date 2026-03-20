@@ -371,12 +371,12 @@ export default function WebImportPage() {
       </Card>
 
       {job && job.pages.length > 0 && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_1fr]">
-          <Card className="h-fit lg:sticky lg:top-24">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+          <Card className="h-fit min-w-0 w-full max-w-full lg:sticky lg:top-24">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Страницы</CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[min(60vh,520px)] space-y-1 overflow-y-auto pr-1">
+            <CardContent className="max-h-[min(60vh,520px)] min-w-0 space-y-1 overflow-y-auto overflow-x-hidden pr-1">
               {job.pages.map((p) => (
                 <button
                   key={p.id}
@@ -386,16 +386,18 @@ export default function WebImportPage() {
                     setAiText(null);
                   }}
                   className={cn(
-                    "w-full rounded-lg border px-2 py-2 text-left text-sm transition-colors",
+                    "block w-full min-w-0 max-w-full overflow-hidden rounded-lg border px-2 py-2 text-left text-sm transition-colors",
                     selectedId === p.id || (!selectedId && p.id === job.pages[0]?.id)
                       ? "border-primary bg-primary/10"
                       : "border-transparent hover:bg-muted/60",
                   )}
                 >
-                  <div className="line-clamp-2 font-medium text-foreground">
+                  <div className="line-clamp-2 break-words font-medium text-foreground">
                     {p.title || p.url}
                   </div>
-                  <div className="mt-0.5 truncate text-xs text-muted-foreground">{p.url}</div>
+                  <div className="mt-0.5 truncate text-xs text-muted-foreground" title={p.url}>
+                    {p.url}
+                  </div>
                   <div className="mt-1 text-xs">
                     {p.status === "fetching" && (
                       <span className="text-amber-600">загрузка…</span>
@@ -413,7 +415,7 @@ export default function WebImportPage() {
             </CardContent>
           </Card>
 
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Экспорт выбранного / всего</CardTitle>
