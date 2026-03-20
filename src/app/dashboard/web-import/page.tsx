@@ -190,7 +190,7 @@ export default function WebImportPage() {
     await fetch(`/api/v1/web-import/jobs/${jobId}/cancel`, { method: "POST" });
   }, [jobId]);
 
-  const downloadExport = async (format: "md" | "json" | "pdf") => {
+  const downloadExport = async (format: "md" | "json") => {
     if (!jobId) return;
     const r = await fetch(
       `/api/v1/web-import/jobs/${jobId}/export?format=${format}${selectedId ? `&pageId=${encodeURIComponent(selectedId)}` : ""}`,
@@ -202,7 +202,7 @@ export default function WebImportPage() {
       return;
     }
     const blob = await r.blob();
-    const ext = format === "md" ? "md" : format === "json" ? "json" : "pdf";
+    const ext = format === "md" ? "md" : "json";
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -386,10 +386,10 @@ export default function WebImportPage() {
                     setAiText(null);
                   }}
                   className={cn(
-                    "block w-full min-w-0 max-w-full overflow-hidden rounded-lg border px-2 py-2 text-left text-sm transition-colors",
+                    "block w-full min-w-0 max-w-full overflow-hidden rounded-md px-2 py-2 text-left text-sm transition-colors",
                     selectedId === p.id || (!selectedId && p.id === job.pages[0]?.id)
-                      ? "border-primary bg-primary/10"
-                      : "border-transparent hover:bg-muted/60",
+                      ? "bg-muted"
+                      : "hover:bg-muted/50",
                   )}
                 >
                   <div className="line-clamp-2 break-words font-medium text-foreground">
@@ -431,10 +431,6 @@ export default function WebImportPage() {
                 <Button type="button" variant="secondary" size="sm" onClick={() => downloadExport("json")}>
                   <FileJson className="mr-2 h-4 w-4" />
                   JSON
-                </Button>
-                <Button type="button" variant="secondary" size="sm" onClick={() => downloadExport("pdf")}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  PDF
                 </Button>
               </CardContent>
             </Card>

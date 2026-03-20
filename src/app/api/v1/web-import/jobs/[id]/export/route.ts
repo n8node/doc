@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { WebImportPageRow } from "@/lib/web-import/process-job";
-import { buildPdfFromText } from "@/lib/web-import/pdf-export";
 
 export async function GET(
   request: NextRequest,
@@ -37,11 +36,6 @@ export async function GET(
     return NextResponse.json({ error: "Нет данных для экспорта" }, { status: 400 });
   }
 
-  const title =
-    selected.length === 1
-      ? selected[0].title ?? "Страница"
-      : `Импорт ${job.mode} (${selected.length} стр.)`;
-
   if (format === "json") {
     const body = JSON.stringify(
       {
@@ -69,19 +63,7 @@ export async function GET(
   }
 
   if (format === "pdf") {
-    const mdParts = selected.map(
-      (p) =>
-        `## ${p.title ?? p.url}\n${p.url}\n\n${p.markdown ?? ""}`,
-    );
-    const text = mdParts.join("\n\n---\n\n");
-    const pdfBytes = await buildPdfFromText(text, title);
-    return new NextResponse(Buffer.from(pdfBytes), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="web-import-${id}.pdf"`,
-      },
-    });
+    return NextResponse.json({ error: "Экспорт в PDF отключён" }, { status: 410 });
   }
 
   // markdown default
