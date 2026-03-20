@@ -1,0 +1,28 @@
+---
+description: Prisma Query Engine и базовый образ Docker (OpenSSL) — обязательно binaryTargets
+alwaysApply: true
+---
+
+# Prisma + Docker: не ломать Query Engine
+
+При смене **`FROM`** в `docker/Dockerfile` (Alpine ↔ Debian, смена major Node/Debian, переход на `bookworm-slim` и т.п.) меняется **OpenSSL** и целевая платформа для нативного бинарника Prisma. Если в `prisma/schema.prisma` в `generator client` не указаны нужные **`binaryTargets`**, в контейнере возможна ошибка:
+
+`Prisma Client could not locate the Query Engine for runtime "debian-openssl-3.0.x"` (или другой target).
+
+## Что делать
+
+1. После правок **Dockerfile** (образ приложения `app`) открыть **`prisma/schema.prisma`** и проверить `generator client`.
+2. Добавить в **`binaryTargets`** все среды, где реально крутится приложение, например:
+   - **`native`** — локальная разработка (Windows/macOS).
+   - **`debian-openssl-3.0.x`** — типичный **Node 20 на DebianBookworm** (`node:20-bookworm-slim`), OpenSSL 3.
+   - Если вернётесь на **Alpine:** нужен **`linux-musl-openssl-3.0.x`** (или актуальная цель из документации Prisma для вашего образа).
+3. Выполнить **`npx prisma generate`** и пересобрать образ **`docker compose build`** (при необходимости **`--no-cache`**).
+
+## Официальная подсказка
+
+В логе ошибки Prisma обычно уже указан точный **runtime** и пример `binaryTargets` — его и использовать.
+
+## Антипаттерн
+
+- Менять только Dockerfile и не трогать `schema.prisma` / не прогонять `prisma generate` в CI/образе.
+- Предполагать, что engine «достаточно одного» для dev — прод в Docker требует **явного** target под образ.
