@@ -8,6 +8,7 @@ import {
   DEFAULT_REGISTER_MESSAGE,
   DEFAULT_REGISTER_EMAIL_VERIFIED_MESSAGE,
   DEFAULT_PAYMENT_MESSAGE,
+  DEFAULT_LLM_WALLET_TOPUP_MESSAGE,
   DEFAULT_SPAM_REGISTRATION_MESSAGE,
 } from "@/lib/telegram";
 
@@ -28,15 +29,18 @@ export async function GET() {
     botTokenSet: !!cfg.botToken,
     notifyRegisterEnabled: cfg.notifyRegisterEnabled,
     notifyPaymentEnabled: cfg.notifyPaymentEnabled,
+    notifyLlmWalletTopupEnabled: cfg.notifyLlmWalletTopupEnabled,
     notifySpamRegistrationEnabled: cfg.notifySpamRegistrationEnabled,
     notifyTicketEnabled: notifyTicket === "true",
     registerMessage: cfg.registerMessage,
     registerEmailVerifiedMessage: cfg.registerEmailVerifiedMessage,
     paymentMessage: cfg.paymentMessage,
+    llmWalletTopupMessage: cfg.llmWalletTopupMessage,
     spamRegistrationMessage: cfg.spamRegistrationMessage,
     defaultRegisterMessage: DEFAULT_REGISTER_MESSAGE,
     defaultRegisterEmailVerifiedMessage: DEFAULT_REGISTER_EMAIL_VERIFIED_MESSAGE,
     defaultPaymentMessage: DEFAULT_PAYMENT_MESSAGE,
+    defaultLlmWalletTopupMessage: DEFAULT_LLM_WALLET_TOPUP_MESSAGE,
     defaultSpamRegistrationMessage: DEFAULT_SPAM_REGISTRATION_MESSAGE,
   });
 }
@@ -55,11 +59,13 @@ export async function POST(request: NextRequest) {
     chatId,
     notifyRegisterEnabled,
     notifyPaymentEnabled,
+    notifyLlmWalletTopupEnabled,
     notifySpamRegistrationEnabled,
     notifyTicketEnabled,
     registerMessage,
     registerEmailVerifiedMessage,
     paymentMessage,
+    llmWalletTopupMessage,
     spamRegistrationMessage,
   } = body;
 
@@ -106,6 +112,19 @@ export async function POST(request: NextRequest) {
       { category: "notifications", description: "Notify on successful payment" }
     )
   );
+
+  if (notifyLlmWalletTopupEnabled !== undefined) {
+    updates.push(
+      configStore.set(
+        "telegram.notify_llm_wallet_topup_enabled",
+        notifyLlmWalletTopupEnabled === true || notifyLlmWalletTopupEnabled === "true" ? "true" : "false",
+        {
+          category: "notifications",
+          description: "Notify admin on LLM wallet top-up",
+        }
+      )
+    );
+  }
 
   updates.push(
     configStore.set(
@@ -158,6 +177,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (llmWalletTopupMessage != null && typeof llmWalletTopupMessage === "string") {
+    updates.push(
+      configStore.set("telegram.llm_wallet_topup_message", llmWalletTopupMessage.trim(), {
+        category: "notifications",
+        description: "Message template for LLM wallet top-up (admin)",
+      })
+    );
+  }
+
   if (spamRegistrationMessage != null && typeof spamRegistrationMessage === "string") {
     updates.push(
       configStore.set(
@@ -177,11 +205,13 @@ export async function POST(request: NextRequest) {
   configStore.invalidate("telegram.chat_id");
   configStore.invalidate("telegram.notify_register_enabled");
   configStore.invalidate("telegram.notify_payment_enabled");
+  configStore.invalidate("telegram.notify_llm_wallet_topup_enabled");
   configStore.invalidate("telegram.notify_spam_registration_enabled");
   configStore.invalidate("telegram.notify_ticket_enabled");
   configStore.invalidate("telegram.register_message");
   configStore.invalidate("telegram.register_email_verified_message");
   configStore.invalidate("telegram.payment_message");
+  configStore.invalidate("telegram.llm_wallet_topup_message");
   configStore.invalidate("telegram.spam_registration_message");
 
   return NextResponse.json({ ok: true });

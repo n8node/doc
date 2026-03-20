@@ -4,6 +4,7 @@ import {
   getTelegramConfig,
   sendTelegramMessage,
   formatPaymentMessage,
+  formatLlmWalletTopupMessage,
 } from "@/lib/telegram";
 import { sendUserTelegramNotify } from "@/lib/user-telegram-notify";
 
@@ -45,13 +46,29 @@ export async function POST(req: NextRequest) {
           try {
             const u = await prisma.user.findUnique({
               where: { id: topup.userId },
-              select: { llmWalletBalanceCents: true },
+              select: {
+                email: true,
+                name: true,
+                llmWalletBalanceCents: true,
+              },
             });
             const balanceRub = u ? Math.round(Number(u.llmWalletBalanceCents) / 100) : 0;
+            const amountRub = Math.round(topup.amountCents / 100);
             await sendUserTelegramNotify(topup.userId, "llm_topup", {
-              amount: Math.round(topup.amountCents / 100),
+              amount: amountRub,
               balance: balanceRub,
             });
+            const tg = await getTelegramConfig();
+            if (tg.notifyLlmWalletTopupEnabled && tg.botToken && tg.chatId && u) {
+              const text = formatLlmWalletTopupMessage(tg.llmWalletTopupMessage, {
+                userEmail: u.email,
+                userName: u.name,
+                amount: amountRub,
+                balance: balanceRub,
+                currency: "RUB",
+              });
+              await sendTelegramMessage(tg.botToken, tg.chatId, text);
+            }
           } catch {
             // ignore
           }

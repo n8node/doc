@@ -1,6 +1,6 @@
 /**
  * Telegram bot notifications for admin.
- * Used for: new user registration, successful payment.
+ * Used for: new user registration, successful payment, LLM wallet top-up, spam alerts, etc.
  */
 
 import { configStore } from "./config-store";
@@ -12,10 +12,13 @@ export interface TelegramConfig {
   chatId: string | null;
   notifyRegisterEnabled: boolean;
   notifyPaymentEnabled: boolean;
+  /** Уведомление админу о пополнении LLM-кошелька (маркетплейс). По умолчанию включено. */
+  notifyLlmWalletTopupEnabled: boolean;
   notifySpamRegistrationEnabled: boolean;
   registerMessage: string;
   registerEmailVerifiedMessage: string;
   paymentMessage: string;
+  llmWalletTopupMessage: string;
   spamRegistrationMessage: string;
 }
 
@@ -34,6 +37,11 @@ export const DEFAULT_PAYMENT_MESSAGE = `💰 Оплата тарифа
 Тариф: {planName}
 Сумма: {amount} {currency}`;
 
+export const DEFAULT_LLM_WALLET_TOPUP_MESSAGE = `💳 Пополнение LLM-кошелька
+Пользователь: {userEmail} ({userName})
+Сумма пополнения: {amount} {currency}
+Текущий баланс: {balance} {currency}`;
+
 export const DEFAULT_SPAM_REGISTRATION_MESSAGE = `🚨 Подозрение на спам-регистрации
 Источник: {rootUserEmail}
 Серьезность: {severity}
@@ -51,10 +59,12 @@ export async function getTelegramConfig(): Promise<TelegramConfig> {
     chatId,
     notifyRegister,
     notifyPayment,
+    notifyLlmWalletTopup,
     notifySpamRegistration,
     registerMsg,
     registerEmailVerifiedMsg,
     paymentMsg,
+    llmWalletTopupMsg,
     spamRegistrationMsg,
   ] =
     await Promise.all([
@@ -62,10 +72,12 @@ export async function getTelegramConfig(): Promise<TelegramConfig> {
       configStore.get("telegram.chat_id"),
       configStore.get("telegram.notify_register_enabled"),
       configStore.get("telegram.notify_payment_enabled"),
+      configStore.get("telegram.notify_llm_wallet_topup_enabled"),
       configStore.get("telegram.notify_spam_registration_enabled"),
       configStore.get("telegram.register_message"),
       configStore.get("telegram.register_email_verified_message"),
       configStore.get("telegram.payment_message"),
+      configStore.get("telegram.llm_wallet_topup_message"),
       configStore.get("telegram.spam_registration_message"),
     ]);
 
@@ -74,10 +86,12 @@ export async function getTelegramConfig(): Promise<TelegramConfig> {
     chatId: chatId || null,
     notifyRegisterEnabled: notifyRegister === "true",
     notifyPaymentEnabled: notifyPayment === "true",
+    notifyLlmWalletTopupEnabled: notifyLlmWalletTopup !== "false",
     notifySpamRegistrationEnabled: notifySpamRegistration !== "false",
     registerMessage: registerMsg || DEFAULT_REGISTER_MESSAGE,
     registerEmailVerifiedMessage: registerEmailVerifiedMsg || DEFAULT_REGISTER_EMAIL_VERIFIED_MESSAGE,
     paymentMessage: paymentMsg || DEFAULT_PAYMENT_MESSAGE,
+    llmWalletTopupMessage: llmWalletTopupMsg || DEFAULT_LLM_WALLET_TOPUP_MESSAGE,
     spamRegistrationMessage:
       spamRegistrationMsg || DEFAULT_SPAM_REGISTRATION_MESSAGE,
   };
@@ -185,6 +199,26 @@ export function formatPaymentMessage(
     .replace(/\{userName\}/g, vars.userName ?? "")
     .replace(/\{planName\}/g, vars.planName || "")
     .replace(/\{amount\}/g, String(vars.amount))
+    .replace(/\{currency\}/g, vars.currency || "RUB");
+}
+
+export function formatLlmWalletTopupMessage(
+  template: string,
+  vars: {
+    userEmail: string;
+    userName?: string | null;
+    /** Сумма пополнения (руб, целое или с копейками по шаблону) */
+    amount: number;
+    /** Баланс после пополнения (руб) */
+    balance: number;
+    currency: string;
+  }
+): string {
+  return template
+    .replace(/\{userEmail\}/g, vars.userEmail || "")
+    .replace(/\{userName\}/g, vars.userName ?? "")
+    .replace(/\{amount\}/g, String(vars.amount))
+    .replace(/\{balance\}/g, String(vars.balance))
     .replace(/\{currency\}/g, vars.currency || "RUB");
 }
 

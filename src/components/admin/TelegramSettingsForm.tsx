@@ -21,11 +21,13 @@ export function TelegramSettingsForm() {
     chatId: "",
     notifyRegisterEnabled: true,
     notifyPaymentEnabled: true,
+    notifyLlmWalletTopupEnabled: true,
     notifySpamRegistrationEnabled: true,
     notifyTicketEnabled: true,
     registerMessage: "",
     registerEmailVerifiedMessage: "",
     paymentMessage: "",
+    llmWalletTopupMessage: "",
     spamRegistrationMessage: "",
   });
   const [userTemplates, setUserTemplates] = useState<Record<string, string>>({});
@@ -58,12 +60,15 @@ export function TelegramSettingsForm() {
           botToken: data.botTokenSet ? "••••••••" : "",
           notifyRegisterEnabled: data.notifyRegisterEnabled !== false,
           notifyPaymentEnabled: data.notifyPaymentEnabled !== false,
+          notifyLlmWalletTopupEnabled: data.notifyLlmWalletTopupEnabled !== false,
           notifySpamRegistrationEnabled: data.notifySpamRegistrationEnabled !== false,
           notifyTicketEnabled: data.notifyTicketEnabled !== false,
           registerMessage: data.registerMessage ?? data.defaultRegisterMessage ?? "",
           registerEmailVerifiedMessage:
             data.registerEmailVerifiedMessage ?? data.defaultRegisterEmailVerifiedMessage ?? "",
           paymentMessage: data.paymentMessage ?? data.defaultPaymentMessage ?? "",
+          llmWalletTopupMessage:
+            data.llmWalletTopupMessage ?? data.defaultLlmWalletTopupMessage ?? "",
           spamRegistrationMessage:
             data.spamRegistrationMessage ??
             data.defaultSpamRegistrationMessage ??
@@ -159,11 +164,13 @@ export function TelegramSettingsForm() {
         chatId: values.chatId.trim(),
         notifyRegisterEnabled: values.notifyRegisterEnabled,
         notifyPaymentEnabled: values.notifyPaymentEnabled,
+        notifyLlmWalletTopupEnabled: values.notifyLlmWalletTopupEnabled,
         notifySpamRegistrationEnabled: values.notifySpamRegistrationEnabled,
         notifyTicketEnabled: values.notifyTicketEnabled,
         registerMessage: values.registerMessage || undefined,
         registerEmailVerifiedMessage: values.registerEmailVerifiedMessage || undefined,
         paymentMessage: values.paymentMessage || undefined,
+        llmWalletTopupMessage: values.llmWalletTopupMessage || undefined,
         spamRegistrationMessage: values.spamRegistrationMessage || undefined,
       };
       if (values.botToken && values.botToken !== "••••••••") {
@@ -319,6 +326,37 @@ export function TelegramSettingsForm() {
               value={values.paymentMessage}
               onChange={(e) => setValues((v) => ({ ...v, paymentMessage: e.target.value }))}
               placeholder="💰 Оплата тарифа\nПользователь: {userEmail}\nТариф: {planName}\nСумма: {amount} {currency}"
+              rows={4}
+              className="mt-1 w-full max-w-2xl rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Уведомлять о пополнении LLM-кошелька
+          </label>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={values.notifyLlmWalletTopupEnabled}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, notifyLlmWalletTopupEnabled: e.target.checked }))
+              }
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span className="text-sm">Отправлять сообщение в админ-чат при успешном пополнении баланса маркетплейса</span>
+          </label>
+          <div className="mt-2">
+            <label className="block text-xs text-muted-foreground mb-1">
+              Шаблон: {`{userEmail} {userName} {amount} {balance} {currency}`}
+            </label>
+            <textarea
+              value={values.llmWalletTopupMessage}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, llmWalletTopupMessage: e.target.value }))
+              }
+              placeholder="💳 Пополнение LLM-кошелька\nПользователь: {userEmail}\nСумма: {amount} {currency}\nБаланс: {balance} {currency}"
               rows={4}
               className="mt-1 w-full max-w-2xl rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
