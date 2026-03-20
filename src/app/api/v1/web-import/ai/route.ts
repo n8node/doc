@@ -29,6 +29,11 @@ export async function POST(request: NextRequest) {
   const b = body as Record<string, unknown>;
   const jobId = typeof b.jobId === "string" ? b.jobId : "";
   const pageId = typeof b.pageId === "string" ? b.pageId : null;
+  const pageIdsRaw = b.pageIds;
+  const pageIds =
+    Array.isArray(pageIdsRaw) && pageIdsRaw.every((x) => typeof x === "string")
+      ? (pageIdsRaw as string[])
+      : null;
   const mode = (typeof b.mode === "string" ? b.mode : "explain") as AiMode;
 
   if (!jobId) {
@@ -45,12 +50,29 @@ export async function POST(request: NextRequest) {
     }
 
     const pages = job.pages as unknown as WebImportPageRow[];
-    const page =
-      pageId && pages.length
-        ? pages.find((p) => p.id === pageId)
-        : pages.find((p) => p.markdown && p.status === "done");
 
-    const text = page?.markdown?.trim() ?? "";
+    const resolvePages = (): WebImportPageRow[] => {
+      if (pageIds && pageIds.length > 0 && pages.length) {
+        const map = new Map(pages.map((p) => [p.id, p]));
+        return pageIds.map((id) => map.get(id)).filter((p): p is WebImportPageRow => !!p);
+      }
+      if (pageId && pages.length) {
+        const p = pages.find((x) => x.id === pageId);
+        return p ? [p] : [];
+      }
+      const firstDone = pages.find((p) => p.markdown && p.status === "done");
+      return firstDone ? [firstDone] : [];
+    };
+
+    const resolved = resolvePages();
+    const page = resolved[0];
+    const text =
+      resolved.length > 1
+        ? resolved
+            .map((p) => (p.markdown?.trim() ? `# ${p.title ?? p.url}\n\n${p.markdown.trim()}` : ""))
+            .filter(Boolean)
+            .join("\n\n---\n\n")
+        : resolved[0]?.markdown?.trim() ?? "";
     if (!text) {
       return NextResponse.json(
         { error: "Нет текста страницы. Дождитесь завершения импорта." },
@@ -127,6 +149,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         content: result.content,
         pageUrl: page?.url,
+        pageUrls: resolved.map((p) => p.url),
         model: result.model,
       });
     } catch (e) {

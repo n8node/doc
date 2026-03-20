@@ -13,6 +13,7 @@ import {
   Sparkles,
   Phone,
   AlertCircle,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,7 +84,10 @@ export default function WebImportPage() {
   const [batchText, setBatchText] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
   const [job, setJob] = useState<JobState | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** Отмеченные строки (экспорт / ИИ); пусто = «все готовые» для экспорта, ИИ по превью или первой готовой */
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  /** Какая страница показана в превью */
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState<"explain" | "contacts" | null>(null);
   const [aiText, setAiText] = useState<string | null>(null);
@@ -91,14 +95,21 @@ export default function WebImportPage() {
 
   useEffect(() => {
     if (!job?.pages?.length) return;
-    const exists = selectedId && job.pages.some((p) => p.id === selectedId);
-    if (!exists) {
-      setSelectedId(job.pages[0].id);
-    }
-  }, [job?.pages, job?.pages?.length, selectedId]);
+    setPreviewId((prev) => {
+      const exists = prev && job.pages.some((p) => p.id === prev);
+      return exists ? prev : job.pages[0].id;
+    });
+    setSelectedIds((prev) => prev.filter((id) => job.pages.some((p) => p.id === id)));
+  }, [job?.pages, job?.pages?.length]);
 
-  const selected =
-    job?.pages?.find((p) => p.id === selectedId) ?? job?.pages?.[0] ?? null;
+  const previewPage =
+    job?.pages?.find((p) => p.id === previewId) ?? job?.pages?.[0] ?? null;
+
+  const togglePageSelected = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
 
   const startJob = async () => {
     setError(null);
@@ -142,7 +153,8 @@ export default function WebImportPage() {
         status: "pending",
         pages: [],
       });
-      setSelectedId(null);
+      setSelectedIds([]);
+      setPreviewId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка сети");
     }
@@ -192,10 +204,13 @@ export default function WebImportPage() {
 
   const downloadExport = async (format: "md" | "json") => {
     if (!jobId) return;
-    const r = await fetch(
-      `/api/v1/web-import/jobs/${jobId}/export?format=${format}${selectedId ? `&pageId=${encodeURIComponent(selectedId)}` : ""}`,
-      { credentials: "include" },
-    );
+    const qs = new URLSearchParams({ format });
+    if (selectedIds.length > 0) {
+      qs.set("pageIds", selectedIds.join(","));
+    }
+    const r = await fetch(`/api/v1/web-import/jobs/${jobId}/export?${qs}`, {
+      credentials: "include",
+    });
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
       setError(typeof j.error === "string" ? j.error : "Ошибка экспорта");
@@ -221,8 +236,12 @@ export default function WebImportPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobId,
-          pageId: selectedId,
           mode: aiMode,
+          ...(selectedIds.length > 0
+            ? { pageIds: selectedIds }
+            : previewId
+              ? { pageId: previewId }
+              : {}),
         }),
       });
       const data = await r.json();
@@ -239,6 +258,11 @@ export default function WebImportPage() {
   };
 
   const running = job && !TERMINAL.has(job.status);
+
+  const aiHasMarkdown =
+    selectedIds.length > 0
+      ? job?.pages.some((p) => selectedIds.includes(p.id) && p.markdown) ?? false
+      : !!previewPage?.markdown;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -376,42 +400,70 @@ export default function WebImportPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Страницы</CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[min(60vh,520px)] min-w-0 space-y-1 overflow-y-auto overflow-x-hidden pr-1">
-              {job.pages.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedId(p.id);
-                    setAiText(null);
-                  }}
-                  className={cn(
-                    "block w-full min-w-0 max-w-full overflow-hidden rounded-md px-2 py-2 text-left text-sm transition-colors",
-                    selectedId === p.id || (!selectedId && p.id === job.pages[0]?.id)
-                      ? "bg-muted"
-                      : "hover:bg-muted/50",
-                  )}
-                >
-                  <div className="line-clamp-2 break-words font-medium text-foreground">
-                    {p.title || p.url}
-                  </div>
-                  <div className="mt-0.5 truncate text-xs text-muted-foreground" title={p.url}>
-                    {p.url}
-                  </div>
-                  <div className="mt-1 text-xs">
-                    {p.status === "fetching" && (
-                      <span className="text-amber-600">загрузка…</span>
+            <CardContent className="max-h-[min(60vh,520px)] min-w-0 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+              {job.pages.map((p) => {
+                const checked = selectedIds.includes(p.id);
+                const isPreview = previewId === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    className={cn(
+                      "group flex items-start gap-3 rounded-xl border px-3 py-2 transition-all duration-200",
+                      checked
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : isPreview
+                          ? "border-border bg-surface2/30"
+                          : "border-transparent bg-surface2/30 hover:bg-surface2/60 hover:shadow-sm",
                     )}
-                    {p.status === "done" && <span className="text-emerald-600">готово</span>}
-                    {p.status === "error" && (
-                      <span className="text-destructive">{p.error ?? "ошибка"}</span>
-                    )}
-                    {p.status === "pending" && (
-                      <span className="text-muted-foreground">ожидание</span>
-                    )}
+                  >
+                    <div
+                      className="relative mt-0.5 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePageSelected(p.id);
+                      }}
+                    >
+                      <div
+                        className={cn(
+                          "flex h-5 w-5 items-center justify-center rounded-md border-2 transition-all duration-200",
+                          checked
+                            ? "border-primary bg-primary"
+                            : "border-border bg-background group-hover:border-primary/50",
+                        )}
+                      >
+                        {checked && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewId(p.id);
+                        setAiText(null);
+                      }}
+                      className="min-w-0 flex-1 overflow-hidden text-left text-sm"
+                    >
+                      <div className="line-clamp-2 break-words font-medium text-foreground">
+                        {p.title || p.url}
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground" title={p.url}>
+                        {p.url}
+                      </div>
+                      <div className="mt-1 text-xs">
+                        {p.status === "fetching" && (
+                          <span className="text-amber-600">загрузка…</span>
+                        )}
+                        {p.status === "done" && <span className="text-emerald-600">готово</span>}
+                        {p.status === "error" && (
+                          <span className="text-destructive">{p.error ?? "ошибка"}</span>
+                        )}
+                        {p.status === "pending" && (
+                          <span className="text-muted-foreground">ожидание</span>
+                        )}
+                      </div>
+                    </button>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -420,7 +472,8 @@ export default function WebImportPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Экспорт выбранного / всего</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Без выбора строки экспортируются все успешно загруженные страницы.
+                  Отметьте страницы слева — в файл попадут только они. Если ничего не отмечено,
+                  экспортируются все успешно загруженные страницы.
                 </p>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
@@ -439,7 +492,8 @@ export default function WebImportPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">ИИ</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Кратко о сути текста или извлечение контактов (по выбранной странице).
+                  Кратко о сути текста или извлечение контактов. Если есть отмеченные страницы — по
+                  ним (тексты склеиваются); иначе по странице в превью.
                 </p>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -448,7 +502,7 @@ export default function WebImportPage() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={!!aiLoading || !selected?.markdown}
+                    disabled={!!aiLoading || !aiHasMarkdown}
                     onClick={() => runAi("explain")}
                   >
                     {aiLoading === "explain" ? (
@@ -462,7 +516,7 @@ export default function WebImportPage() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={!!aiLoading || !selected?.markdown}
+                    disabled={!!aiLoading || !aiHasMarkdown}
                     onClick={() => runAi("contacts")}
                   >
                     {aiLoading === "contacts" ? (
@@ -486,20 +540,22 @@ export default function WebImportPage() {
                 <CardTitle className="text-base">Превью</CardTitle>
               </CardHeader>
               <CardContent>
-                {selected?.links && selected.links.length > 0 && mode === "links_only" && (
+                {previewPage?.links &&
+                  previewPage.links.length > 0 &&
+                  mode === "links_only" && (
                   <div className="mb-4 max-h-48 overflow-y-auto rounded-md border border-border p-2 text-xs font-mono">
-                    {selected.links.slice(0, 200).map((l) => (
+                    {previewPage.links.slice(0, 200).map((l) => (
                       <div key={l} className="truncate py-0.5">
                         {l}
                       </div>
                     ))}
-                    {selected.links.length > 200 && (
-                      <p className="text-muted-foreground">… и ещё {selected.links.length - 200}</p>
+                    {previewPage.links.length > 200 && (
+                      <p className="text-muted-foreground">… и ещё {previewPage.links.length - 200}</p>
                     )}
                   </div>
                 )}
                 <pre className="max-h-[min(50vh,480px)] overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-muted/20 p-4 text-sm text-foreground">
-                  {selected?.markdown || "Нет текста"}
+                  {previewPage?.markdown || "Нет текста"}
                 </pre>
               </CardContent>
             </Card>

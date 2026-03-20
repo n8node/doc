@@ -25,12 +25,21 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const format = (searchParams.get("format") ?? "md").toLowerCase();
   const pageId = searchParams.get("pageId");
+  const pageIdsParam = searchParams.get("pageIds");
 
   const pages = job.pages as unknown as WebImportPageRow[];
+  const idsFromParam =
+    pageIdsParam
+      ?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) ?? [];
+
   const selected =
-    pageId && pages.length
-      ? pages.filter((p) => p.id === pageId)
-      : pages.filter((p) => p.markdown && p.status === "done");
+    idsFromParam.length > 0 && pages.length
+      ? pages.filter((p) => idsFromParam.includes(p.id))
+      : pageId && pages.length
+        ? pages.filter((p) => p.id === pageId)
+        : pages.filter((p) => p.markdown && p.status === "done");
 
   if (!selected.length) {
     return NextResponse.json({ error: "Нет данных для экспорта" }, { status: 400 });
