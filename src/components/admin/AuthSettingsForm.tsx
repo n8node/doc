@@ -51,12 +51,15 @@ export function AuthSettingsForm() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { vkClientSecret, vkSecretSet: _sk, ...rest } = values;
+      const vkClientSecret = values.vkClientSecret;
+      const payload: Record<string, unknown> = { ...values };
+      delete payload.vkClientSecret;
+      delete payload.vkSecretSet;
       const res = await fetch("/api/v1/admin/auth-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...rest,
+          ...payload,
           telegramBotUsername: values.telegramBotUsername || undefined,
           vkClientId: values.vkClientId.trim(),
           ...(vkClientSecret.trim() ? { vkClientSecret: vkClientSecret.trim() } : {}),
