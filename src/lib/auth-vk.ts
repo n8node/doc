@@ -53,7 +53,20 @@ export async function validateVkSignIn(params: {
   const settings = await getAuthSettings();
   if (!settings.vkOAuthEnabled) return false;
 
-  if (mode === "register") {
+  if (mode === "login") {
+    const raw = profile.email;
+    if (typeof raw === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw.trim())) {
+      const byEmail = await prisma.user.findUnique({
+        where: { email: raw.trim().toLowerCase() },
+        select: { isBlocked: true, vkUserId: true },
+      });
+      if (byEmail && !byEmail.isBlocked && byEmail.vkUserId == null) {
+        return true;
+      }
+    }
+  }
+
+  if (mode === "register" || mode === "login") {
     if (settings.inviteRegistrationEnabled) {
       const code = cookieStore.get("oauth_vk_invite")?.value ?? "";
       if (!isInviteCodeFormatValid(normalizeInviteCode(code))) return false;
@@ -61,6 +74,12 @@ export async function validateVkSignIn(params: {
     const derived = deriveVkUserEmail(profile, vkId);
     const conflict = await prisma.user.findUnique({ where: { email: derived.email } });
     if (conflict) return false;
+    if (mode === "login") {
+      const raw = profile.email;
+      if (!raw || typeof raw !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw.trim())) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -136,8 +155,40 @@ export async function handleVkJwt(params: {
     };
   }
 
+  if (mode === "login") {
+    const raw = profile.email;
+    if (typeof raw === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw.trim())) {
+      const u = await prisma.user.findUnique({
+        where: { email: raw.trim().toLowerCase() },
+        select: { id: true, isBlocked: true, vkUserId: true, role: true, email: true },
+      });
+      if (u && !u.isBlocked && u.vkUserId == null) {
+        const screenName =
+          typeof profile.screen_name === "string" && profile.screen_name.trim()
+            ? profile.screen_name.trim()
+            : null;
+        await prisma.user.update({
+          where: { id: u.id },
+          data: {
+            vkUserId: vkId,
+            vkScreenName: screenName,
+            lastLoginAt: new Date(),
+          },
+        });
+        await clearVkOAuthCookies();
+        return {
+          ...token,
+          id: u.id,
+          role: u.role,
+          email: u.email,
+          checkedAt: Date.now(),
+        };
+      }
+    }
+  }
+
   const settings = await getAuthSettings();
-  if (!settings.vkOAuthEnabled || mode !== "register") {
+  if (!settings.vkOAuthEnabled || (mode !== "register" && mode !== "login")) {
     await clearVkOAuthCookies();
     throw new Error("VK_REGISTER_DENIED");
   }
