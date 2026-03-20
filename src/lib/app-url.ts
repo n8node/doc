@@ -18,3 +18,38 @@ export function getNextAuthBaseUrl(): string {
   if (fromNextAuth && !fromNextAuth.includes("localhost")) return fromNextAuth;
   return getPublicBaseUrl();
 }
+
+/**
+ * Cookie для oauth-prep (режим VK): общий registrable domain, чтобы работало и с www, и без;
+ * secure по схеме NEXTAUTH_URL, не только по NODE_ENV.
+ */
+export function getOAuthCookieOptions(): {
+  httpOnly: true;
+  sameSite: "lax";
+  path: string;
+  maxAge: number;
+  secure: boolean;
+  domain?: string;
+} {
+  const base = getNextAuthBaseUrl();
+  let secure = false;
+  let domain: string | undefined;
+  try {
+    const u = new URL(base.startsWith("http") ? base : `https://${base}`);
+    secure = u.protocol === "https:";
+    const host = u.hostname;
+    if (host !== "localhost" && !host.startsWith("127.")) {
+      domain = host.startsWith("www.") ? host.slice(4) : host;
+    }
+  } catch {
+    secure = process.env.NODE_ENV === "production";
+  }
+  return {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 600,
+    secure,
+    ...(domain ? { domain } : {}),
+  };
+}

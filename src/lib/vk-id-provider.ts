@@ -69,6 +69,8 @@ export function VkProviderVkId(
           expires_in: typeof json.expires_in === "number" ? json.expires_in : undefined,
           id_token: typeof json.id_token === "string" ? json.id_token : undefined,
           scope: typeof json.scope === "string" ? json.scope : undefined,
+          /** VK ID часто отдаёт email в ответе токена, а не в user_info — нужно для привязки по почте. */
+          email: typeof json.email === "string" ? json.email : undefined,
         };
         return { tokens };
       },
@@ -89,19 +91,28 @@ export function VkProviderVkId(
         if (!res.ok || !json.user) {
           throw new Error("VK ID: не удалось получить user_info");
         }
-        return json.user;
+        const tok = tokens as { email?: string };
+        const u = json.user;
+        if (!u.email && typeof tok.email === "string" && tok.email.trim()) {
+          return { ...u, email: tok.email.trim() };
+        }
+        return u;
       },
     },
-    profile(profile) {
+    profile(profile, tokens) {
       const row = profile as VkIdUserRow;
+      const tok = tokens as { email?: string };
+      const emailFromToken = typeof tok.email === "string" && tok.email.trim() ? tok.email.trim() : null;
       const id = row.user_id != null ? String(row.user_id) : "";
       const first = typeof row.first_name === "string" ? row.first_name : "";
       const last = typeof row.last_name === "string" ? row.last_name : "";
       const name = [first, last].filter(Boolean).join(" ").trim();
+      const email =
+        typeof row.email === "string" && row.email.trim() ? row.email.trim() : emailFromToken;
       return {
         id,
         name: name || "",
-        email: typeof row.email === "string" ? row.email : null,
+        email,
         image: typeof row.avatar === "string" ? row.avatar : null,
         screen_name: null,
       };

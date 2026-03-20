@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { Account, Profile } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import { prisma } from "./prisma";
@@ -12,6 +12,45 @@ import {
 } from "./invite";
 import { getTelegramConfig, sendTelegramMessage, formatRegisterMessage } from "./telegram";
 import { evaluateRegistrationSpamAndNotify } from "./invite-abuse";
+
+/** В колбэке OAuth иногда `cookies()` пустой; заголовок Cookie надёжнее. */
+function parseCookieHeader(cookieHeader: string | null, name: string): string | undefined {
+  if (!cookieHeader) return undefined;
+  const parts = cookieHeader.split(";").map((p) => p.trim());
+  const prefix = `${name}=`;
+  for (const p of parts) {
+    if (p.startsWith(prefix)) {
+      try {
+        return decodeURIComponent(p.slice(prefix.length));
+      } catch {
+        return p.slice(prefix.length);
+      }
+    }
+  }
+  return undefined;
+}
+
+async function getVkOAuthPayload(): Promise<{
+  mode: string;
+  linkUserId: string | null;
+  inviteCode: string;
+}> {
+  const cookieStore = await cookies();
+  const h = await headers();
+  const raw = h.get("cookie") ?? "";
+
+  const get = (name: string): string | undefined => {
+    const v = cookieStore.get(name)?.value;
+    if (v != null && v !== "") return v;
+    return parseCookieHeader(raw, name);
+  };
+
+  return {
+    mode: get("oauth_vk_mode") ?? "login",
+    linkUserId: get("oauth_vk_link_user") ?? null,
+    inviteCode: get("oauth_vk_invite") ?? "",
+  };
+}
 
 export async function clearVkOAuthCookies(): Promise<void> {
   try {
@@ -34,9 +73,7 @@ export async function validateVkSignIn(params: {
 
   const vkId = BigInt(account.providerAccountId);
   const existing = await prisma.user.findUnique({ where: { vkUserId: vkId } });
-  const cookieStore = await cookies();
-  const mode = cookieStore.get("oauth_vk_mode")?.value ?? "login";
-  const linkUserId = cookieStore.get("oauth_vk_link_user")?.value ?? null;
+  const { mode, linkUserId, inviteCode } = await getVkOAuthPayload();
 
   if (existing) {
     if (existing.isBlocked) return false;
@@ -68,8 +105,7 @@ export async function validateVkSignIn(params: {
 
   if (mode === "register" || mode === "login") {
     if (settings.inviteRegistrationEnabled) {
-      const code = cookieStore.get("oauth_vk_invite")?.value ?? "";
-      if (!isInviteCodeFormatValid(normalizeInviteCode(code))) return false;
+      if (!isInviteCodeFormatValid(normalizeInviteCode(inviteCode))) return false;
     }
     const derived = deriveVkUserEmail(profile, vkId);
     const conflict = await prisma.user.findUnique({ where: { email: derived.email } });
@@ -122,10 +158,7 @@ export async function handleVkJwt(params: {
     };
   }
 
-  const cookieStore = await cookies();
-  const mode = cookieStore.get("oauth_vk_mode")?.value ?? "login";
-  const inviteCookie = cookieStore.get("oauth_vk_invite")?.value;
-  const linkUserId = cookieStore.get("oauth_vk_link_user")?.value;
+  const { mode, linkUserId, inviteCode: inviteCookie } = await getVkOAuthPayload();
 
   if (mode === "link" && linkUserId) {
     const target = await prisma.user.findUnique({ where: { id: linkUserId } });

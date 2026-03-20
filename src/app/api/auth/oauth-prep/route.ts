@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-
-const COOKIE_OPTS = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: 600,
-  secure: process.env.NODE_ENV === "production",
-};
+import { getOAuthCookieOptions } from "@/lib/app-url";
 
 /**
  * Перед signIn("vk") задаёт cookie с режимом (login | register | link) и опционально инвайт.
  */
 export async function POST(req: NextRequest) {
+  const COOKIE_OPTS = getOAuthCookieOptions();
   const body = await req.json().catch(() => ({}));
   const mode = body.mode as string | undefined;
   const inviteCode = typeof body.inviteCode === "string" ? body.inviteCode.trim() : undefined;
