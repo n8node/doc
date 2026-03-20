@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Укажите URL" }, { status: 400 });
       }
       normalizeHttpUrl(startUrl);
-    } else if (mode === "batch") {
+    } else if (mode === "batch" || mode === "links_batch") {
       const urls = Array.isArray(b.urls) ? b.urls : [];
       if (urls.length === 0) {
         return NextResponse.json({ error: "Добавьте хотя бы один URL" }, { status: 400 });
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       return NextResponse.json(
-        { error: "Режим: single | crawl | batch | links_only" },
+        { error: "Режим: single | crawl | batch | links_only | links_batch" },
         { status: 400 },
       );
     }

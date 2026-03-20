@@ -220,6 +220,96 @@ export async function processWebImportStep(jobId: string): Promise<void> {
       return;
     }
 
+    if (mode === "links_batch") {
+      let state = job.state as unknown as BatchState | null;
+      if (!state || !Array.isArray(state.urls)) {
+        const raw = Array.isArray(input.urls) ? input.urls : [];
+        const urls: string[] = [];
+        for (const x of raw) {
+          if (typeof x !== "string") continue;
+          try {
+            urls.push(normalizeHttpUrl(x));
+          } catch {
+            /* skip bad */
+          }
+        }
+        const trimmed = urls.slice(0, MAX_BATCH_HARD);
+        if (trimmed.length === 0) {
+          await prisma.webImportJob.update({
+            where: { id: jobId },
+            data: {
+              status: "failed",
+              errorMessage: "Нет корректных URL для списка ссылок",
+            },
+          });
+          return;
+        }
+        state = { urls: trimmed, index: 0 };
+        await prisma.webImportJob.update({
+          where: { id: jobId },
+          data: { state: state as object, pages: [] },
+        });
+      }
+
+      if (job.cancelRequested) {
+        await prisma.webImportJob.update({
+          where: { id: jobId },
+          data: { status: "cancelled" },
+        });
+        return;
+      }
+
+      const idx = state.index;
+      if (idx >= state.urls.length) {
+        await prisma.webImportJob.update({
+          where: { id: jobId },
+          data: { status: "completed" },
+        });
+        return;
+      }
+
+      const u = state.urls[idx];
+      const row: WebImportPageRow = {
+        id: nanoid(12),
+        url: u,
+        title: "Список ссылок",
+        markdown: null,
+        status: "fetching",
+      };
+      const nextPages = [...pages, row];
+      await prisma.webImportJob.update({
+        where: { id: jobId },
+        data: {
+          pages: nextPages as unknown as object[],
+          state: { ...state, index: idx + 1 } as object,
+        },
+      });
+
+      try {
+        const html = await fetchHtmlOnly(u);
+        const links = extractLinks(html, u);
+        const md =
+          `# Ссылки\n\nИсточник: ${u}\n\n` + links.map((l) => `- ${l}`).join("\n");
+        row.markdown = md;
+        row.status = "done";
+        row.links = links;
+      } catch (e) {
+        row.status = "error";
+        row.error = e instanceof Error ? e.message : String(e);
+      }
+
+      const updated = nextPages.map((p) => (p.id === row.id ? row : p));
+      const done = idx + 1 >= state.urls.length;
+      await prisma.webImportJob.update({
+        where: { id: jobId },
+        data: {
+          pages: updated as unknown as object[],
+          status: done ? "completed" : "running",
+        },
+      });
+      return;
+    }
+
     if (mode === "crawl") {
       let state = job.state as unknown as CrawlState | null;
       const startUrl = typeof input.startUrl === "string" ? input.startUrl : "";

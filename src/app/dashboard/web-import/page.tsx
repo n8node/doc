@@ -14,6 +14,7 @@ import {
   Phone,
   AlertCircle,
   Check,
+  ListChecks,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,6 +110,46 @@ export default function WebImportPage() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
+  };
+
+  const selectAllPages = () => {
+    if (!job?.pages.length) return;
+    setSelectedIds(job.pages.map((p) => p.id));
+  };
+
+  /** После обхода: новая задача — извлечение ссылок с выбранных URL (как «Список ссылок», но для нескольких страниц). */
+  const startLinksBatchFromSelection = async () => {
+    if (!job?.pages.length || selectedIds.length === 0) return;
+    setError(null);
+    setAiText(null);
+    pollCancel.current = false;
+    const urls = job.pages
+      .filter((p) => selectedIds.includes(p.id))
+      .map((p) => p.url);
+    if (urls.length === 0) return;
+    try {
+      const res = await fetch("/api/v1/web-import/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "links_batch", urls }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Ошибка запуска");
+        return;
+      }
+      setJobId(data.id);
+      setJob({
+        id: data.id,
+        mode: "links_batch",
+        status: "pending",
+        pages: [],
+      });
+      setSelectedIds([]);
+      setPreviewId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка сети");
+    }
   };
 
   const startJob = async () => {
@@ -397,8 +438,32 @@ export default function WebImportPage() {
       {job && job.pages.length > 0 && (
         <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
           <Card className="h-fit min-w-0 w-full max-w-full lg:sticky lg:top-24">
-            <CardHeader className="pb-2">
+            <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-start sm:justify-between">
               <CardTitle className="text-base">Страницы</CardTitle>
+              {job.mode === "crawl" && job.status === "completed" && (
+                <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={selectAllPages}
+                  >
+                    <ListChecks className="mr-2 h-4 w-4" />
+                    Выбрать все
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={selectedIds.length === 0}
+                    onClick={() => void startLinksBatchFromSelection()}
+                  >
+                    <Link2 className="mr-2 h-4 w-4" />
+                    Ссылки с выбранных
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="max-h-[min(60vh,520px)] min-w-0 space-y-2 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
               {job.pages.map((p) => {
@@ -542,7 +607,7 @@ export default function WebImportPage() {
               <CardContent>
                 {previewPage?.links &&
                   previewPage.links.length > 0 &&
-                  mode === "links_only" && (
+                  (job.mode === "links_only" || job.mode === "links_batch") && (
                   <div className="mb-4 max-h-48 overflow-y-auto rounded-md border border-border p-2 text-xs font-mono">
                     {previewPage.links.slice(0, 200).map((l) => (
                       <div key={l} className="truncate py-0.5">
