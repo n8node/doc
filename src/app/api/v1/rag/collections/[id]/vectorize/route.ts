@@ -70,7 +70,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     ((meta as { transcriptText: string }).transcriptText as string).trim().length > 0;
   const processableCount = collection.files.filter(
     (f) =>
-      isProcessable(f.file.mimeType) ||
+      isProcessable(f.file.mimeType, f.file.name) ||
       (isTranscribable(f.file.mimeType) && hasTranscript(f.file.aiMetadata)),
   ).length;
 

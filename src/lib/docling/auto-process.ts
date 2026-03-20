@@ -1,5 +1,6 @@
 import { isProcessable, processDocument } from "./processing-service";
 import { getDoclingClient } from "./client";
+import { isMarkdownFastPath } from "./mime-processable";
 
 /**
  * Fire-and-forget: trigger document processing in background.
@@ -13,13 +14,15 @@ export function triggerProcessingInBackground(params: {
   mimeType: string;
   userId: string;
 }): void {
-  if (!isProcessable(params.mimeType)) return;
+  if (!isProcessable(params.mimeType, params.filename)) return;
 
   (async () => {
     try {
-      const docling = getDoclingClient();
-      const available = await docling.isAvailable();
-      if (!available) return;
+      if (!isMarkdownFastPath(params.mimeType, params.filename)) {
+        const docling = getDoclingClient();
+        const available = await docling.isAvailable();
+        if (!available) return;
+      }
 
       await processDocument(
         params.fileId,

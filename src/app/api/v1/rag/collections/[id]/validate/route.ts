@@ -72,7 +72,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
       mimeType: file.mimeType,
       size: Number(file.size),
     };
-    if (isProcessable(file.mimeType)) {
+    if (isProcessable(file.mimeType, file.name)) {
       processable.push(item);
     } else if (isTranscribable(file.mimeType)) {
       if (hasTranscriptText(file.aiMetadata)) {

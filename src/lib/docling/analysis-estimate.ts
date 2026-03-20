@@ -40,33 +40,40 @@ export interface AnalysisTimeEstimate {
 /**
  * Оценка времени анализа документа по размеру и формату.
  */
+function baseMime(mimeType: string): string {
+  const s = mimeType.trim().toLowerCase();
+  const semi = s.indexOf(";");
+  return semi === -1 ? s : s.slice(0, semi).trim();
+}
+
 export function estimateAnalysisTime(
   sizeBytes: number | bigint,
   mimeType: string
 ): AnalysisTimeEstimate {
   const bytes = typeof sizeBytes === "bigint" ? Number(sizeBytes) : Math.max(0, sizeBytes);
   const sizeMb = bytes / (1024 * 1024);
+  const m = baseMime(mimeType);
 
   let base: number;
   let factor: number;
   let format: AnalysisTimeEstimate["format"];
 
-  if (mimeType === PDF_MIME) {
+  if (m === PDF_MIME) {
     base = PDF_BASE;
     factor = PDF_FACTOR;
     format = "pdf";
   } else if (
-    mimeType === DOCX_MIME ||
-    mimeType === PPTX_MIME ||
-    mimeType === XLSX_MIME
+    m === DOCX_MIME ||
+    m === PPTX_MIME ||
+    m === XLSX_MIME
   ) {
     base = OFFICE_BASE;
     factor = OFFICE_FACTOR;
     format = "office";
   } else if (
-    mimeType === MSWORD_MIME ||
-    mimeType === MSEXCEL_MIME ||
-    mimeType === MSPOWERPOINT_MIME
+    m === MSWORD_MIME ||
+    m === MSEXCEL_MIME ||
+    m === MSPOWERPOINT_MIME
   ) {
     base = MSWORD_BASE;
     factor = MSWORD_FACTOR;

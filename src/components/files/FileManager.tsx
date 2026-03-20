@@ -77,6 +77,7 @@ import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { cn, formatBytes } from "@/lib/utils";
 import { buildDashboardFilesUrl, parseFilesSection } from "@/lib/files-navigation";
+import { isProcessableMime } from "@/lib/docling/mime-processable";
 
 const EXCEL_FILE_MIMES = new Set([
   "application/vnd.ms-excel",
@@ -1192,20 +1193,6 @@ export function FileManager() {
     // "video/x-m4v",
   ]);
 
-  const PROCESSABLE_MIMES = new Set([
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/msword",
-    "application/vnd.ms-excel",
-    "application/vnd.ms-powerpoint",
-    "text/html",
-    "text/plain",
-    "text/csv",
-    "text/markdown",
-  ]);
-
   const embeddingQuotaExceeded =
     embeddingTokensQuota != null && embeddingTokensUsedThisMonth >= embeddingTokensQuota;
 
@@ -1217,7 +1204,7 @@ export function FileManager() {
     files.some(
       (f) =>
         selectedFiles.has(f.id) &&
-        PROCESSABLE_MIMES.has(f.mimeType) &&
+        isProcessableMime(f.mimeType, f.name) &&
         !f.aiMetadata?.processedAt
     );
 
@@ -1613,7 +1600,7 @@ export function FileManager() {
 
   const handleBulkAnalyze = async () => {
     const processableIds = files
-      .filter((f) => selectedFiles.has(f.id) && PROCESSABLE_MIMES.has(f.mimeType) && !f.aiMetadata?.processedAt)
+      .filter((f) => selectedFiles.has(f.id) && isProcessableMime(f.mimeType, f.name) && !f.aiMetadata?.processedAt)
       .map((f) => f.id);
 
     if (processableIds.length === 0) {
@@ -2407,14 +2394,14 @@ export function FileManager() {
         setShareLinksTarget({ type: "FILE", id: file.id, name: file.name })
       }
       onProcess={
-        PROCESSABLE_MIMES.has(file.mimeType) &&
+        isProcessableMime(file.mimeType, file.name) &&
         !file.aiMetadata?.processedAt &&
         !analyzingFiles.has(file.id)
           ? () => openAnalysisIfAllowed(file.id)
           : undefined
       }
       processLocked={
-        PROCESSABLE_MIMES.has(file.mimeType) &&
+        isProcessableMime(file.mimeType, file.name) &&
         !file.aiMetadata?.processedAt &&
         !analyzingFiles.has(file.id) &&
         !documentAnalysisAllowed
@@ -2441,7 +2428,7 @@ export function FileManager() {
       }
       onChat={
         documentChatAllowed &&
-        ((PROCESSABLE_MIMES.has(file.mimeType) && !!file.aiMetadata?.processedAt) ||
+        ((isProcessableMime(file.mimeType, file.name) && !!file.aiMetadata?.processedAt) ||
           (TRANSCRIBABLE_MIMES.has(file.mimeType) &&
             !!file.aiMetadata?.transcriptProcessedAt &&
             !!file.hasEmbedding))
@@ -2477,7 +2464,7 @@ export function FileManager() {
       }
       onDelete={() => handleDeleteFile(file.id)}
       index={index}
-      isProcessable={PROCESSABLE_MIMES.has(file.mimeType)}
+      isProcessable={isProcessableMime(file.mimeType, file.name)}
       isAnalyzing={analyzingFiles.has(file.id)}
       importedSheetId={file.importedSheetId}
       onImportToTable={
@@ -3494,7 +3481,7 @@ export function FileManager() {
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </button>
-                                  {PROCESSABLE_MIMES.has(file.mimeType) && analyzingFiles.has(file.id) && (() => {
+                                  {isProcessableMime(file.mimeType, file.name) && analyzingFiles.has(file.id) && (() => {
                                     const estMin = analyzeEstimateMinutes.get(file.id);
                                     const startedAt = analyzeStartedAt.get(file.id);
                                     if (estMin != null && estMin > 0 && startedAt != null) {
@@ -3517,12 +3504,12 @@ export function FileManager() {
                                       </span>
                                     );
                                   })()}
-                                  {PROCESSABLE_MIMES.has(file.mimeType) && analyzeError.get(file.id) && !analyzingFiles.has(file.id) && (
+                                  {isProcessableMime(file.mimeType, file.name) && analyzeError.get(file.id) && !analyzingFiles.has(file.id) && (
                                     <span className="flex items-center rounded-md p-1.5 text-red-500" title={analyzeError.get(file.id)}>
                                       <BrainCircuit className="h-4 w-4" />
                                     </span>
                                   )}
-                                  {PROCESSABLE_MIMES.has(file.mimeType) &&
+                                  {isProcessableMime(file.mimeType, file.name) &&
                                     !file.aiMetadata?.processedAt &&
                                     !analyzingFiles.has(file.id) && (
                                       <Tooltip>
@@ -3547,7 +3534,7 @@ export function FileManager() {
                                         </TooltipContent>
                                       </Tooltip>
                                     )}
-                                  {PROCESSABLE_MIMES.has(file.mimeType) && file.aiMetadata?.processedAt && !analyzingFiles.has(file.id) && (
+                                  {isProcessableMime(file.mimeType, file.name) && file.aiMetadata?.processedAt && !analyzingFiles.has(file.id) && (
                                     <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-600" title="Обработан AI">
                                       <BrainCircuit className="h-3.5 w-3.5" />
                                       AI

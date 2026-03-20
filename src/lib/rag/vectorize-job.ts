@@ -109,7 +109,7 @@ export async function processVectorizeJob(taskId: string): Promise<void> {
     const allFiles = collection.files;
     const total = allFiles.length;
     const isVectorizable = (f: (typeof allFiles)[0]) =>
-      isProcessable(f.file.mimeType) ||
+      isProcessable(f.file.mimeType, f.file.name) ||
       (isTranscribable(f.file.mimeType) && hasTranscriptText(f.file.aiMetadata));
     const processableFiles = allFiles.filter(isVectorizable);
     const processableCount = processableFiles.length;
@@ -190,7 +190,7 @@ export async function processVectorizeJob(taskId: string): Promise<void> {
       await updateProgress(file.name);
 
       try {
-        if (isProcessable(file.mimeType)) {
+        if (isProcessable(file.mimeType, file.name)) {
           await processDocument(
             file.id,
             file.s3Key,

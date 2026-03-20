@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     folder: c.folder,
     embeddingConfig: c.embeddingConfig,
     filesCount: c.files.length,
-    processableCount: c.files.filter((f) => isProcessable(f.file.mimeType)).length,
+    processableCount: c.files.filter((f) => isProcessable(f.file.mimeType, f.file.name)).length,
     filesWithEmbeddings: c.files.filter((f) => f.file.hasEmbedding).length,
     files: c.files.map((f) => ({
       id: f.file.id,
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
   });
 
   const processableCount = collection.files.filter((f) =>
-    isProcessable(f.file.mimeType)
+    isProcessable(f.file.mimeType, f.file.name)
   ).length;
 
   return NextResponse.json({

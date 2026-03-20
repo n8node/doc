@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Config } from "../s3-config";
 import { createS3Client } from "../s3";
@@ -7,23 +8,13 @@ import { createNotificationIfEnabled } from "../notification-service";
 import { prisma } from "../prisma";
 import type { DocumentProcessingResult, ProcessingStatus } from "./types";
 import type { ResolvedEmbeddingConfig } from "../ai/embedding-config";
+import {
+  isMarkdownFastPath,
+  isProcessableMime,
+} from "./mime-processable";
 
-const PROCESSABLE_MIMES = new Set([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/msword",
-  "application/vnd.ms-excel",
-  "application/vnd.ms-powerpoint",
-  "text/html",
-  "text/plain",
-  "text/csv",
-  "text/markdown",
-]);
-
-export function isProcessable(mimeType: string): boolean {
-  return PROCESSABLE_MIMES.has(mimeType);
+export function isProcessable(mimeType: string, fileName?: string): boolean {
+  return isProcessableMime(mimeType, fileName);
 }
 
 async function downloadFileFromS3(s3Key: string): Promise<Buffer> {
@@ -64,8 +55,35 @@ export async function processDocument(
 
   try {
     const buffer = await downloadFileFromS3(s3Key);
-    const docling = getDoclingClient();
-    const result = await docling.extractFromBuffer(buffer, filename, "markdown");
+
+    let result: {
+      text: string;
+      tables: Array<{ index: number; content: string }>;
+      content_hash: string;
+      num_pages: number | null;
+    };
+
+    if (isMarkdownFastPath(mimeType, filename)) {
+      const text = buffer.toString("utf-8");
+      if (!text.length) {
+        throw new Error("Пустой файл markdown");
+      }
+      result = {
+        text,
+        tables: [],
+        content_hash: createHash("sha256").update(text, "utf-8").digest("hex"),
+        num_pages: null,
+      };
+    } else {
+      const docling = getDoclingClient();
+      const extracted = await docling.extractFromBuffer(buffer, filename, "markdown");
+      result = {
+        text: extracted.text,
+        tables: extracted.tables,
+        content_hash: extracted.content_hash,
+        num_pages: extracted.num_pages,
+      };
+    }
 
     await prisma.aiTask.update({
       where: { id: task.id },
@@ -111,7 +129,10 @@ export async function processDocument(
       type: "AI_TASK",
       category: "success",
       title: "Анализ завершён",
-      body: `Документ обработан: ${result.num_pages ? `${result.num_pages} стр.` : ""}`.trim() || undefined,
+      body:
+        result.num_pages != null
+          ? `Документ обработан: ${result.num_pages} стр.`
+          : "Документ обработан (текст/markdown)",
       payload: { fileId, filename },
     }).catch(() => {});
 

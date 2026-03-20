@@ -11,6 +11,7 @@ import { estimateAnalysisTime } from "@/lib/docling/analysis-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
 import { userUsesOwnKey } from "@/lib/ai/get-provider-for-user";
 import { checkDocumentAnalysisAccess } from "@/lib/docling/process-access";
+import { isMarkdownFastPath } from "@/lib/docling/mime-processable";
 import { getPlanTokenQuotas, getTokenUsageSummary, getUserBillingContext } from "@/lib/ai/token-usage";
 
 /**
@@ -34,13 +35,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "fileId or fileIds is required" }, { status: 400 });
   }
 
-  const docling = getDoclingClient();
-  const available = await docling.isAvailable();
-  if (!available) {
-    return NextResponse.json(
-      { error: "Сервис обработки документов недоступен (QoQon)" },
-      { status: 503 },
-    );
+  const filesMeta = await prisma.file.findMany({
+    where: { id: { in: fileIds }, userId, deletedAt: null },
+    select: { id: true, mimeType: true, name: true },
+  });
+  if (filesMeta.length !== fileIds.length) {
+    return NextResponse.json({ error: "Один или несколько файлов не найдены" }, { status: 404 });
+  }
+  for (const f of filesMeta) {
+    if (!isProcessable(f.mimeType, f.name)) {
+      return NextResponse.json(
+        { error: `Формат ${f.mimeType} не поддерживается` },
+        { status: 415 },
+      );
+    }
+  }
+
+  const needsDocling = filesMeta.some(
+    (f) => !isMarkdownFastPath(f.mimeType, f.name),
+  );
+  if (needsDocling) {
+    const docling = getDoclingClient();
+    const available = await docling.isAvailable();
+    if (!available) {
+      return NextResponse.json(
+        { error: "Сервис обработки документов недоступен (QoQon)" },
+        { status: 503 },
+      );
+    }
   }
 
   const docAnalysisError = await checkDocumentAnalysisAccess(userId, fileIds.length);
@@ -96,7 +118,7 @@ async function processSingle(fileId: string, userId: string) {
   if (!file) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
-  if (!isProcessable(file.mimeType)) {
+  if (!isProcessable(file.mimeType, file.name)) {
     return NextResponse.json(
       { error: `Формат ${file.mimeType} не поддерживается` },
       { status: 415 },
@@ -146,7 +168,7 @@ async function processBulk(fileIds: string[], userId: string) {
   }> = [];
 
   for (const file of files) {
-    if (!isProcessable(file.mimeType)) {
+    if (!isProcessable(file.mimeType, file.name)) {
       results.push({ fileId: file.id, fileName: file.name, success: false, error: "Формат не поддерживается" });
       continue;
     }
