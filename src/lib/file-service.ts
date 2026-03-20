@@ -203,6 +203,51 @@ export async function uploadFile(input: UploadFileInput) {
   });
 }
 
+/** Сохранение произвольного буфера в S3 и запись File (как при загрузке). */
+export async function uploadUserFileFromBuffer(input: {
+  userId: string;
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
+  folderId?: string | null;
+}) {
+  const { userId, fileName, mimeType, buffer, folderId } = input;
+  const config = await getS3Config();
+
+  const s3Key = buildS3Key({
+    userId,
+    fileName,
+    folderId,
+  });
+
+  const client = createS3Client({
+    ...config,
+    forcePathStyle: true,
+  });
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: s3Key,
+      Body: buffer,
+      ContentType: mimeType,
+      Metadata: {
+        "x-user-id": userId,
+        "x-original-name": Buffer.from(fileName, "utf-8").toString("base64url"),
+      },
+    }),
+  );
+
+  return createFileRecordFromS3Object({
+    userId,
+    name: fileName,
+    mimeType,
+    size: buffer.length,
+    s3Key,
+    folderId: folderId ?? null,
+  });
+}
+
 export async function deleteFile(id: string, userId: string) {
   const file = await prisma.file.findFirst({
     where: { id, userId, deletedAt: null },

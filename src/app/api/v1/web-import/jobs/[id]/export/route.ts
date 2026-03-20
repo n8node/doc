@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { uploadUserFileFromBuffer } from "@/lib/file-service";
+import { getEffectiveMaxFileSize } from "@/lib/plan-service";
+import {
+  buildParsingExportFileName,
+  getWebImportSiteSlugForFilename,
+} from "@/lib/web-import/export-filename";
 import type { WebImportPageRow } from "@/lib/web-import/process-job";
 
 export async function GET(
@@ -62,13 +68,45 @@ export async function GET(
       null,
       2,
     );
-    return new NextResponse(body, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Content-Disposition": `attachment; filename="web-import-${id}.json"`,
-      },
+    const siteSlug = getWebImportSiteSlugForFilename({
+      input: job.input,
+      pages: selected,
     });
+    const downloadName = buildParsingExportFileName(siteSlug, "json");
+    const buf = Buffer.from(body, "utf-8");
+    const maxSize = await getEffectiveMaxFileSize(
+      session.user.id,
+      "application/json",
+      downloadName,
+    );
+    if (BigInt(buf.length) > maxSize) {
+      return NextResponse.json(
+        { error: "Экспорт слишком большой для сохранения по тарифу" },
+        { status: 413 },
+      );
+    }
+    try {
+      const saved = await uploadUserFileFromBuffer({
+        userId: session.user.id,
+        fileName: downloadName,
+        mimeType: "application/json; charset=utf-8",
+        buffer: buf,
+      });
+      return new NextResponse(body, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${downloadName}"`,
+          "X-Saved-File-Id": saved.id,
+        },
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Ошибка сохранения";
+      return NextResponse.json(
+        { error: msg, code: "EXPORT_SAVE_FAILED" },
+        { status: 500 },
+      );
+    }
   }
 
   if (format === "pdf") {
@@ -81,11 +119,43 @@ export async function GET(
       `# ${p.title ?? "Без заголовка"}\n\n**URL:** ${p.url}\n\n${p.markdown ?? ""}`,
   );
   const md = mdParts.join("\n\n---\n\n");
-  return new NextResponse(md, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/markdown; charset=utf-8",
-      "Content-Disposition": `attachment; filename="web-import-${id}.md"`,
-    },
+  const siteSlug = getWebImportSiteSlugForFilename({
+    input: job.input,
+    pages: selected,
   });
+  const downloadName = buildParsingExportFileName(siteSlug, "md");
+  const buf = Buffer.from(md, "utf-8");
+  const maxSize = await getEffectiveMaxFileSize(
+    session.user.id,
+    "text/markdown",
+    downloadName,
+  );
+  if (BigInt(buf.length) > maxSize) {
+    return NextResponse.json(
+      { error: "Экспорт слишком большой для сохранения по тарифу" },
+      { status: 413 },
+    );
+  }
+  try {
+    const saved = await uploadUserFileFromBuffer({
+      userId: session.user.id,
+      fileName: downloadName,
+      mimeType: "text/markdown; charset=utf-8",
+      buffer: buf,
+    });
+    return new NextResponse(md, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${downloadName}"`,
+        "X-Saved-File-Id": saved.id,
+      },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Ошибка сохранения";
+    return NextResponse.json(
+      { error: msg, code: "EXPORT_SAVE_FAILED" },
+      { status: 500 },
+    );
+  }
 }

@@ -259,10 +259,25 @@ export default function WebImportPage() {
     }
     const blob = await r.blob();
     const ext = format === "md" ? "md" : "json";
+    const cd = r.headers.get("Content-Disposition");
+    let downloadName = `parsing_site.${ext}`;
+    if (cd) {
+      const utf8m = /filename\*=UTF-8''([^;\s]+)/i.exec(cd);
+      if (utf8m?.[1]) {
+        try {
+          downloadName = decodeURIComponent(utf8m[1]);
+        } catch {
+          /* ignore */
+        }
+      } else {
+        const qm = /filename="([^"]+)"/i.exec(cd);
+        if (qm?.[1]) downloadName = qm[1];
+      }
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `web-import.${ext}`;
+    a.download = downloadName;
     a.click();
     URL.revokeObjectURL(url);
   };
