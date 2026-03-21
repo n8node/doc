@@ -15,9 +15,22 @@ import { MarketplaceOpenRouterActivityForm } from "@/components/admin/Marketplac
 import { MarketplaceMarginForm } from "@/components/admin/MarketplaceMarginForm";
 import { SeoSettingsForm } from "@/components/admin/SeoSettingsForm";
 import { FooterSettingsForm } from "@/components/admin/FooterSettingsForm";
+import { HeaderNavSettingsForm } from "@/components/admin/HeaderNavSettingsForm";
 import { YandexMetrikaSettingsForm } from "@/components/admin/YandexMetrikaSettingsForm";
 
-type Tab = "s3" | "yookassa" | "ai" | "marketplace" | "telegram" | "auth" | "email" | "branding" | "seo" | "footer" | "analytics";
+type Tab =
+  | "s3"
+  | "yookassa"
+  | "ai"
+  | "marketplace"
+  | "telegram"
+  | "auth"
+  | "email"
+  | "branding"
+  | "seo"
+  | "header"
+  | "footer"
+  | "analytics";
 
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
@@ -27,6 +40,7 @@ function AdminSettingsContent() {
   const tabLabels: Record<Tab, string> = {
     branding: "Брендинг",
     seo: "SEO",
+    header: "Шапка",
     footer: "Футер",
     analytics: "Яндекс.Метрика",
     auth: "Авторизация",
@@ -41,7 +55,22 @@ function AdminSettingsContent() {
   return (
     <div className="space-y-6">
       <div className="flex gap-2 border-b border-border pb-2">
-        {(["branding", "seo", "footer", "analytics", "auth", "email", "s3", "yookassa", "ai", "marketplace", "telegram"] as const).map((t) => (
+        {(
+          [
+            "branding",
+            "seo",
+            "header",
+            "footer",
+            "analytics",
+            "auth",
+            "email",
+            "s3",
+            "yookassa",
+            "ai",
+            "marketplace",
+            "telegram",
+          ] as const
+        ).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -59,6 +88,7 @@ function AdminSettingsContent() {
       <Card className="p-6">
         {tab === "branding" && <BrandingSettingsForm />}
         {tab === "seo" && <SeoSettingsForm />}
+        {tab === "header" && <HeaderNavSettingsForm />}
         {tab === "footer" && <FooterSettingsForm />}
         {tab === "analytics" && <YandexMetrikaSettingsForm />}
         {tab === "s3" && <S3SettingsForm />}

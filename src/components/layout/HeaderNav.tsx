@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import type { Session } from "next-auth";
+import type { HeaderNavItem } from "@/lib/header-nav-config";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -16,31 +17,25 @@ import {
 
 interface HeaderNavProps {
   session: Session | null;
+  items: HeaderNavItem[];
 }
 
 const navLinkClass =
   "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground";
 
-export function HeaderNav({ session }: HeaderNavProps) {
+const mobileLinkClass =
+  "rounded-lg px-4 py-3 text-base font-medium text-foreground hover:bg-surface2";
+
+export function HeaderNav({ session, items }: HeaderNavProps) {
   const [open, setOpen] = useState(false);
 
   const navLinks = (
     <>
-      <Link href="/#features" className={navLinkClass}>
-        Возможности
-      </Link>
-      <Link href="/#how-it-works" className={navLinkClass}>
-        Как это работает
-      </Link>
-      <Link href="/docs" className={navLinkClass}>
-        Документация
-      </Link>
-      <Link href="/roadmap" className={navLinkClass}>
-        Дорожная карта
-      </Link>
-      <Link href="/dashboard" className={navLinkClass}>
-        Личный кабинет
-      </Link>
+      {items.map((item, i) => (
+        <Link key={`${item.href}-${i}`} href={item.href} className={navLinkClass}>
+          {item.label}
+        </Link>
+      ))}
       {session?.user?.role === "ADMIN" && (
         <Link href="/admin" className={navLinkClass}>
           Админка
@@ -88,52 +83,16 @@ export function HeaderNav({ session }: HeaderNavProps) {
           </SheetTrigger>
           <SheetContent side="right" className="w-[min(320px,85vw)]">
             <nav className="flex flex-col gap-1 pt-8">
-              <SheetClose asChild>
-                <Link
-                  href="/#features"
-                  className="rounded-lg px-4 py-3 text-base font-medium text-foreground hover:bg-surface2"
-                >
-                  Возможности
-                </Link>
-              </SheetClose>
-              <SheetClose asChild>
-                <Link
-                  href="/#how-it-works"
-                  className="rounded-lg px-4 py-3 text-base font-medium text-foreground hover:bg-surface2"
-                >
-                  Как это работает
-                </Link>
-              </SheetClose>
-              <SheetClose asChild>
-                <Link
-                  href="/docs"
-                  className="rounded-lg px-4 py-3 text-base font-medium text-foreground hover:bg-surface2"
-                >
-                  Документация
-                </Link>
-              </SheetClose>
-              <SheetClose asChild>
-                <Link
-                  href="/roadmap"
-                  className="rounded-lg px-4 py-3 text-base font-medium text-foreground hover:bg-surface2"
-                >
-                  Дорожная карта
-                </Link>
-              </SheetClose>
-              <SheetClose asChild>
-                <Link
-                  href="/dashboard"
-                  className="rounded-lg px-4 py-3 text-base font-medium text-foreground hover:bg-surface2"
-                >
-                  Личный кабинет
-                </Link>
-              </SheetClose>
+              {items.map((item, i) => (
+                <SheetClose asChild key={`${item.href}-${i}`}>
+                  <Link href={item.href} className={mobileLinkClass}>
+                    {item.label}
+                  </Link>
+                </SheetClose>
+              ))}
               {session?.user?.role === "ADMIN" && (
                 <SheetClose asChild>
-                  <Link
-                    href="/admin"
-                    className="rounded-lg px-4 py-3 text-base font-medium text-foreground hover:bg-surface2"
-                  >
+                  <Link href="/admin" className={mobileLinkClass}>
                     Админка
                   </Link>
                 </SheetClose>

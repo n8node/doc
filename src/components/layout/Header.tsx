@@ -2,11 +2,13 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getBrandingConfig } from "@/lib/branding";
+import { getHeaderNavConfig } from "@/lib/header-nav-config";
 import { HeaderNav } from "./HeaderNav";
 
 export async function Header() {
   const session = await getServerSession(authOptions);
   const branding = await getBrandingConfig();
+  const headerNav = await getHeaderNavConfig();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/95 shadow-soft backdrop-blur-md">
@@ -20,7 +22,7 @@ export async function Header() {
           ) : null}
           <span className="truncate">{branding.siteName}</span>
         </Link>
-        <HeaderNav session={session} />
+        <HeaderNav session={session} items={headerNav.items} />
       </div>
     </header>
   );

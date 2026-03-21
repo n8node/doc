@@ -12,6 +12,7 @@ const navItems = [
   { href: "/admin/docs", label: "Документация", icon: "📚" },
   { href: "/admin/pages", label: "Публичные страницы", icon: "📄" },
   { href: "/admin/n8n-guide", label: "Инструкция n8n", icon: "🔗" },
+  { href: "/admin/settings?tab=header", label: "Шапка", icon: "📐" },
   { href: "/admin/settings?tab=footer", label: "Футер", icon: "🔗" },
   { href: "/admin/settings?tab=auth", label: "Авторизация", icon: "🔐" },
   { href: "/admin/plans", label: "Тарифы", icon: "👑" },
