@@ -14,6 +14,19 @@ function getKey(): Buffer {
   return scryptSync(envKey.slice(0, 32), "dropbox-ru-salt", KEY_LEN);
 }
 
+/** Дубли из .env для известных ключей (см. vk-oauth, .env.example). */
+function envFallbackForConfigKey(key: string): string | null {
+  if (key === "auth.vk_client_id") {
+    const v = process.env.VK_CLIENT_ID?.trim();
+    return v || null;
+  }
+  if (key === "auth.vk_client_secret") {
+    const v = process.env.VK_CLIENT_SECRET?.trim();
+    return v || null;
+  }
+  return null;
+}
+
 export class ConfigStore {
   async get(key: string): Promise<string | null> {
     const cached = CACHE.get(key);
@@ -22,7 +35,7 @@ export class ConfigStore {
     const row = await prisma.adminConfig.findUnique({ where: { key } });
     if (!row) {
       const envKey = `CONFIG_${key.toUpperCase().replace(/\./g, "_")}`;
-      return process.env[envKey] ?? null;
+      return process.env[envKey] ?? envFallbackForConfigKey(key);
     }
 
     try {
@@ -30,9 +43,14 @@ export class ConfigStore {
       CACHE.set(key, value);
       return value;
     } catch (err) {
-      // Неверный CONFIG_ENCRYPTION_KEY, битые данные или isEncrypted без шифрования — не роняем весь запрос
+      // Неверный CONFIG_ENCRYPTION_KEY после деплоя, битые данные и т.п. — не роняем весь запрос
       console.error(`[config-store] get("${key}") failed:`, err);
-      return null;
+      const envKey = `CONFIG_${key.toUpperCase().replace(/\./g, "_")}`;
+      return (
+        envFallbackForConfigKey(key) ??
+        process.env[envKey] ??
+        null
+      );
     }
   }
 
