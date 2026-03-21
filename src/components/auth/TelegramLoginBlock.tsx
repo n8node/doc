@@ -112,6 +112,14 @@ export function TelegramLoginBlock({
 
   return (
     <div className="flex w-full flex-col items-center space-y-4 text-center">
+      <div
+        role="note"
+        className="w-full rounded-xl border border-border bg-muted/50 px-3 py-2.5 text-left text-xs leading-relaxed text-muted-foreground"
+      >
+        <span className="font-medium text-foreground">Не видно кнопки Telegram?</span> В России доступ к
+        сервисам Telegram может блокироваться — виджет иногда не загружается. Попробуйте VPN или войдите по
+        email и паролю ниже.
+      </div>
       {methods.telegramWidgetEnabled && methods.telegramBotUsername && (
         <div className="flex w-full flex-col items-center">
           <p className="mb-2 text-sm text-muted-foreground">Войти через Telegram</p>
