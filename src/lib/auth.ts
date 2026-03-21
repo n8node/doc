@@ -144,7 +144,9 @@ export function resolveVkProtocol(raw: string | null | undefined): "classic" | "
 export async function buildAuthOptions(): Promise<NextAuthOptions> {
   const vkFlag = await configStore.get("auth.vk_oauth_enabled");
   const creds = await resolveVkOAuthCredentials();
-  const vkEnabled = vkFlag !== "false" && creds !== null;
+  /** В БД могло остаться auth.vk_oauth_enabled=false; `VK_OAUTH_ENABLED=true` в .env включает VK при заданных ключах. */
+  const vkForcedByEnv = process.env.VK_OAUTH_ENABLED === "true";
+  const vkEnabled = creds !== null && (vkFlag !== "false" || vkForcedByEnv);
   const vkProtocol = resolveVkProtocol(await configStore.get("auth.vk_oauth_protocol"));
   const vkProviders =
     vkEnabled && creds

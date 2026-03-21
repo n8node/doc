@@ -37,7 +37,9 @@ export async function getAuthSettings(): Promise<AuthSettings> {
     telegramWidgetEnabled: tgWidget === "true",
     telegramQrEnabled: tgQr === "true",
     telegramDomain: tgDomain || "qoqon.ru",
-    vkOAuthEnabled: vkFlag !== "false" && vkCreds !== null,
+    vkOAuthEnabled:
+      vkCreds !== null &&
+      (vkFlag !== "false" || process.env.VK_OAUTH_ENABLED === "true"),
   };
 }
 
