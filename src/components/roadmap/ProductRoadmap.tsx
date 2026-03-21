@@ -1,48 +1,16 @@
 import type { RoadmapStepDTO } from "@/lib/roadmap";
+import { formatRoadmapDateRu } from "@/lib/roadmap-date-format";
+import {
+  ROADMAP_VW,
+  buildSnakeLayout,
+  segmentPathD,
+  segmentSolid,
+} from "@/lib/roadmap-layout";
 import { cn } from "@/lib/utils";
 
 type Props = {
   steps: RoadmapStepDTO[];
 };
-
-const VW = 1000;
-const MARGIN = 70;
-const Y_TOP = 100;
-const Y_BOT = 250;
-const VIEW_H = 410;
-
-function buildLayout(n: number) {
-  if (n === 0) return { coords: [] as { x: number; y: number }[], topCount: 0 };
-  const topCount = Math.ceil(n / 2);
-  const bottomCount = n - topCount;
-  const width = VW - 2 * MARGIN;
-  const coords: { x: number; y: number }[] = [];
-  for (let i = 0; i < topCount; i++) {
-    const x = topCount === 1 ? MARGIN + width : MARGIN + (i / (topCount - 1)) * width;
-    coords.push({ x, y: Y_TOP });
-  }
-  for (let j = 0; j < bottomCount; j++) {
-    const x =
-      bottomCount === 1 ? MARGIN + width : MARGIN + width - (j / (bottomCount - 1)) * width;
-    coords.push({ x, y: Y_BOT });
-  }
-  return { coords, topCount };
-}
-
-function segmentPathD(topCount: number, k: number, coords: { x: number; y: number }[]) {
-  const a = coords[k];
-  const b = coords[k + 1];
-  if (k === topCount - 1) {
-    const midY = (Y_TOP + Y_BOT) / 2;
-    const bulge = 115;
-    return `M ${a.x} ${Y_TOP} Q ${a.x + bulge} ${midY} ${b.x} ${Y_BOT}`;
-  }
-  return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
-}
-
-function segmentSolid(steps: RoadmapStepDTO[], k: number) {
-  return steps[k].completed && steps[k + 1].completed;
-}
 
 export function ProductRoadmap({ steps }: Props) {
   const n = steps.length;
@@ -54,25 +22,27 @@ export function ProductRoadmap({ steps }: Props) {
     );
   }
 
-  const { coords, topCount } = buildLayout(n);
+  const { pathSteps, coords, viewHeight } = buildSnakeLayout(steps);
+  const m = pathSteps.length;
 
   return (
-    <div className="w-full">
-      <div className="hidden md:block">
+    <div className="w-full overflow-x-auto px-1 md:px-2">
+      <div className="hidden min-w-0 md:block">
         <svg
-          viewBox={`0 0 ${VW} ${VIEW_H}`}
-          className="h-auto w-full text-primary"
+          viewBox={`0 0 ${ROADMAP_VW} ${viewHeight}`}
+          className="h-auto w-full min-w-[640px] text-primary"
           role="img"
           aria-label="Дорожная карта продукта"
+          preserveAspectRatio="xMidYMin meet"
         >
           <title>Дорожная карта продукта</title>
-          {n > 1 &&
-            Array.from({ length: n - 1 }, (_, k) => {
-              const solid = segmentSolid(steps, k);
-              const d = segmentPathD(topCount, k, coords);
+          {m > 1 &&
+            Array.from({ length: m - 1 }, (_, k) => {
+              const solid = segmentSolid(pathSteps, k);
+              const d = segmentPathD(k, coords);
               return (
                 <path
-                  key={`seg-${k}`}
+                  key={`seg-${pathSteps[k].id}-${pathSteps[k + 1].id}`}
                   d={d}
                   fill="none"
                   stroke="currentColor"
@@ -85,9 +55,10 @@ export function ProductRoadmap({ steps }: Props) {
               );
             })}
           {coords.map((c, i) => {
-            const done = steps[i].completed;
+            const done = pathSteps[i].completed;
+            const labelY = c.y + 32;
             return (
-              <g key={steps[i].id}>
+              <g key={pathSteps[i].id}>
                 <circle
                   cx={c.x}
                   cy={c.y}
@@ -98,15 +69,12 @@ export function ProductRoadmap({ steps }: Props) {
                 {done ? (
                   <circle cx={c.x} cy={c.y} r={4} className="fill-current opacity-80" />
                 ) : null}
-                <foreignObject
-                  x={c.x - 95}
-                  y={i < topCount ? 128 : 283}
-                  width="190"
-                  height="120"
-                >
+                <foreignObject x={c.x - 100} y={labelY} width="200" height="130">
                   <div className="text-center font-sans text-[13px] leading-snug text-foreground">
-                    <p className="font-medium">{steps[i].title}</p>
-                    <p className="mt-1.5 text-xs text-muted-foreground">{steps[i].dateLabel}</p>
+                    <p className="font-medium">{pathSteps[i].title}</p>
+                    <p className="mt-1.5 text-xs text-primary">
+                      {formatRoadmapDateRu(pathSteps[i].targetDate)}
+                    </p>
                     {done ? (
                       <p className="mt-1 text-xs font-medium text-primary">Готово</p>
                     ) : null}
@@ -119,9 +87,9 @@ export function ProductRoadmap({ steps }: Props) {
       </div>
 
       <div className="space-y-0 md:hidden">
-        {steps.map((s, i) => {
-          const hasNext = i < n - 1;
-          const solid = hasNext && segmentSolid(steps, i);
+        {pathSteps.map((s, i) => {
+          const hasNext = i < m - 1;
+          const solid = hasNext && segmentSolid(pathSteps, i);
           return (
             <div key={s.id} className="flex gap-4">
               <div className="flex w-9 shrink-0 flex-col items-center pt-1">
@@ -148,7 +116,7 @@ export function ProductRoadmap({ steps }: Props) {
               </div>
               <div className={cn("pb-8", !hasNext && "pb-0")}>
                 <p className="text-sm font-medium text-foreground">{s.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{s.dateLabel}</p>
+                <p className="mt-1 text-xs text-primary">{formatRoadmapDateRu(s.targetDate)}</p>
                 {s.completed && (
                   <p className="mt-1 text-xs font-medium text-primary">Готово</p>
                 )}

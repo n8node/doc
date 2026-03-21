@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-guard";
+import { parseIsoDateInput } from "@/lib/roadmap-date-format";
 import { prisma } from "@/lib/prisma";
 
 async function renormalizeSortOrder() {
@@ -35,12 +36,18 @@ export async function PATCH(
 
   const data: {
     title?: string;
-    dateLabel?: string;
+    targetDate?: Date;
     completed?: boolean;
   } = {};
 
   if (typeof body.title === "string") data.title = body.title.trim();
-  if (typeof body.dateLabel === "string") data.dateLabel = body.dateLabel.trim();
+  if (typeof body.targetDate === "string") {
+    const d = parseIsoDateInput(body.targetDate);
+    if (!d) {
+      return NextResponse.json({ error: "Некорректная дата" }, { status: 400 });
+    }
+    data.targetDate = d;
+  }
   if (typeof body.completed === "boolean") data.completed = body.completed;
 
   if (Object.keys(data).length === 0) {
@@ -49,9 +56,6 @@ export async function PATCH(
 
   if (data.title !== undefined && !data.title) {
     return NextResponse.json({ error: "Пустой заголовок" }, { status: 400 });
-  }
-  if (data.dateLabel !== undefined && !data.dateLabel) {
-    return NextResponse.json({ error: "Пустая дата" }, { status: 400 });
   }
 
   try {
@@ -86,7 +90,7 @@ export async function DELETE(
 
   await renormalizeSortOrder();
   const steps = await prisma.roadmapStep.findMany({
-    orderBy: { sortOrder: "asc" },
+    orderBy: [{ targetDate: "asc" }, { sortOrder: "asc" }],
   });
   return NextResponse.json({ steps });
 }

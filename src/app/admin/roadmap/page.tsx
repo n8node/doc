@@ -5,9 +5,10 @@ export default function AdminRoadmapPage() {
     <div>
       <h1 className="mb-6 text-2xl font-bold text-foreground">Дорожная карта</h1>
       <p className="mb-6 text-sm text-muted-foreground">
-        Публичная страница: <code className="rounded bg-muted px-1">/roadmap</code>. Порядок этапов
-        соответствует «змейке»: первая половина — верхний ряд слева направо, вторая — нижний справа
-        налево. Линия между двумя готовыми этапами сплошная, иначе пунктир.
+        Публичная страница: <code className="rounded bg-muted px-1">/roadmap</code>. Этапы
+        группируются по месяцу: каждая горизонталь — один календарный месяц, ряды чередуются
+        слева направо и справа налево. Дата — из календаря. Между двумя выполненными этапами линия
+        сплошная, иначе пунктир.
       </p>
       <RoadmapAdminForm />
     </div>

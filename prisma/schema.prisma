@@ -866,14 +866,15 @@ model Notification {
 
 /// Шаги дорожной карты продукта (публичная страница /roadmap)
 model RoadmapStep {
-  id        String   @id @default(cuid()) @map("id")
-  title     String   @map("title")
-  dateLabel String   @map("date_label")
-  sortOrder Int      @map("sort_order")
-  completed Boolean  @default(false) @map("completed")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(cuid()) @map("id")
+  title      String   @map("title")
+  targetDate DateTime @map("target_date") @db.Date
+  sortOrder  Int      @map("sort_order")
+  completed  Boolean  @default(false) @map("completed")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@index([sortOrder])
+  @@index([targetDate])
   @@map("roadmap_steps")
 }

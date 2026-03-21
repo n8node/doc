@@ -4,15 +4,24 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toIsoDateInput } from "@/lib/roadmap-date-format";
 import { cn } from "@/lib/utils";
 
 type Step = {
   id: string;
   title: string;
-  dateLabel: string;
+  targetDate: string;
   sortOrder: number;
   completed: boolean;
 };
+
+function todayIsoDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export function RoadmapAdminForm() {
   const [steps, setSteps] = useState<Step[]>([]);
@@ -20,7 +29,7 @@ export function RoadmapAdminForm() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
-  const [newDate, setNewDate] = useState("");
+  const [newDate, setNewDate] = useState(todayIsoDate);
 
   const load = useCallback(async () => {
     setError(null);
@@ -39,7 +48,11 @@ export function RoadmapAdminForm() {
     load();
   }, [load]);
 
-  async function savePatch(id: string, patch: Partial<Pick<Step, "title" | "dateLabel" | "completed">>) {
+  function normalizeTargetDate(raw: string): string {
+    return toIsoDateInput(new Date(raw));
+  }
+
+  async function savePatch(id: string, patch: Partial<Pick<Step, "title" | "targetDate" | "completed">>) {
     setSavingId(id);
     setError(null);
     const res = await fetch(`/api/v1/admin/roadmap/${id}`, {
@@ -54,7 +67,16 @@ export function RoadmapAdminForm() {
       return;
     }
     const updated = await res.json();
-    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...updated } : s)));
+    setSteps((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        const next = { ...s, ...updated } as Step;
+        if (updated.targetDate != null) {
+          next.targetDate = toIsoDateInput(new Date(updated.targetDate as string | Date));
+        }
+        return next;
+      })
+    );
   }
 
   async function reorder(orderedIds: string[]) {
@@ -97,16 +119,15 @@ export function RoadmapAdminForm() {
 
   async function add() {
     const title = newTitle.trim();
-    const dateLabel = newDate.trim();
-    if (!title || !dateLabel) {
-      setError("Укажите название и дату/период");
+    if (!title || !newDate) {
+      setError("Укажите название и дату");
       return;
     }
     setError(null);
     const res = await fetch("/api/v1/admin/roadmap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, dateLabel, completed: false }),
+      body: JSON.stringify({ title, targetDate: newDate, completed: false }),
     });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
@@ -114,7 +135,7 @@ export function RoadmapAdminForm() {
       return;
     }
     setNewTitle("");
-    setNewDate("");
+    setNewDate(todayIsoDate());
     await load();
   }
 
@@ -143,12 +164,13 @@ export function RoadmapAdminForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="new-date">Дата / период</Label>
+            <Label htmlFor="new-date">Дата (календарь)</Label>
             <Input
               id="new-date"
+              type="date"
               value={newDate}
               onChange={(e) => setNewDate(e.target.value)}
-              placeholder="Например: Ноябрь 2024"
+              className="bg-background"
             />
           </div>
         </div>
@@ -206,13 +228,18 @@ export function RoadmapAdminForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor={`date-${s.id}`}>Дата / период</Label>
+                <Label htmlFor={`date-${s.id}`}>Дата</Label>
                 <Input
+                  key={`dt-${s.id}-${s.targetDate}`}
                   id={`date-${s.id}`}
-                  defaultValue={s.dateLabel}
+                  type="date"
+                  className="bg-background"
+                  defaultValue={normalizeTargetDate(s.targetDate)}
                   onBlur={(e) => {
-                    const v = e.target.value.trim();
-                    if (v && v !== s.dateLabel) void savePatch(s.id, { dateLabel: v });
+                    const v = e.target.value;
+                    if (v && v !== normalizeTargetDate(s.targetDate)) {
+                      void savePatch(s.id, { targetDate: v });
+                    }
                   }}
                 />
               </div>

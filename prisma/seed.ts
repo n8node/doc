@@ -829,37 +829,37 @@ async function main() {
       data: [
         {
           title: "Выбор ключевых функций",
-          dateLabel: "Май 2024",
+          targetDate: new Date("2024-05-01T00:00:00.000Z"),
           sortOrder: 0,
           completed: true,
         },
         {
           title: "Проработка дизайна",
-          dateLabel: "Июнь 2024",
+          targetDate: new Date("2024-06-01T00:00:00.000Z"),
           sortOrder: 1,
           completed: true,
         },
         {
           title: "Создание MVP (минимально жизнеспособного продукта)",
-          dateLabel: "Июль–октябрь 2024",
+          targetDate: new Date("2024-08-01T00:00:00.000Z"),
           sortOrder: 2,
           completed: false,
         },
         {
           title: "Тестирование",
-          dateLabel: "Ноябрь 2024",
+          targetDate: new Date("2024-11-01T00:00:00.000Z"),
           sortOrder: 3,
           completed: false,
         },
         {
           title: "Доработка продукта",
-          dateLabel: "Декабрь 2024",
+          targetDate: new Date("2024-12-01T00:00:00.000Z"),
           sortOrder: 4,
           completed: false,
         },
         {
           title: "Релиз 🏁",
-          dateLabel: "5 января 2025",
+          targetDate: new Date("2025-01-05T00:00:00.000Z"),
           sortOrder: 5,
           completed: false,
         },

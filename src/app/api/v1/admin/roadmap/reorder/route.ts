@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   );
 
   const steps = await prisma.roadmapStep.findMany({
-    orderBy: { sortOrder: "asc" },
+    orderBy: [{ targetDate: "asc" }, { sortOrder: "asc" }],
   });
   return NextResponse.json({ steps });
 }
