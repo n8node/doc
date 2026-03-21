@@ -35,6 +35,9 @@ export function HeaderNav({ session }: HeaderNavProps) {
       <Link href="/docs" className={navLinkClass}>
         Документация
       </Link>
+      <Link href="/roadmap" className={navLinkClass}>
+        Дорожная карта
+      </Link>
       <Link href="/dashboard" className={navLinkClass}>
         Личный кабинет
       </Link>
@@ -107,6 +110,14 @@ export function HeaderNav({ session }: HeaderNavProps) {
                   className="rounded-lg px-4 py-3 text-base font-medium text-foreground hover:bg-surface2"
                 >
                   Документация
+                </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link
+                  href="/roadmap"
+                  className="rounded-lg px-4 py-3 text-base font-medium text-foreground hover:bg-surface2"
+                >
+                  Дорожная карта
                 </Link>
               </SheetClose>
               <SheetClose asChild>

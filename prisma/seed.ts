@@ -823,6 +823,51 @@ async function main() {
   });
   console.log("Seed: public page refund");
 
+  const roadmapCount = await prisma.roadmapStep.count();
+  if (roadmapCount === 0) {
+    await prisma.roadmapStep.createMany({
+      data: [
+        {
+          title: "Выбор ключевых функций",
+          dateLabel: "Май 2024",
+          sortOrder: 0,
+          completed: true,
+        },
+        {
+          title: "Проработка дизайна",
+          dateLabel: "Июнь 2024",
+          sortOrder: 1,
+          completed: true,
+        },
+        {
+          title: "Создание MVP (минимально жизнеспособного продукта)",
+          dateLabel: "Июль–октябрь 2024",
+          sortOrder: 2,
+          completed: false,
+        },
+        {
+          title: "Тестирование",
+          dateLabel: "Ноябрь 2024",
+          sortOrder: 3,
+          completed: false,
+        },
+        {
+          title: "Доработка продукта",
+          dateLabel: "Декабрь 2024",
+          sortOrder: 4,
+          completed: false,
+        },
+        {
+          title: "Релиз 🏁",
+          dateLabel: "5 января 2025",
+          sortOrder: 5,
+          completed: false,
+        },
+      ],
+    });
+    console.log("Seed: roadmap steps", 6);
+  }
+
   const supportThemes = [
     { name: "Финансы", slug: "finance", sortOrder: 1 },
     { name: "Технический сбой", slug: "technical", sortOrder: 2 },
