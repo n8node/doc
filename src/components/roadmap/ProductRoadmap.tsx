@@ -2,6 +2,7 @@ import type { RoadmapStepDTO } from "@/lib/roadmap";
 import { formatRoadmapDateRu } from "@/lib/roadmap-date-format";
 import {
   ROADMAP_VW,
+  ROADMAP_VIEW_PAD_X,
   buildSnakeLayout,
   segmentPathD,
   segmentSolid,
@@ -25,12 +26,14 @@ export function ProductRoadmap({ steps }: Props) {
   const { pathSteps, coords, viewHeight } = buildSnakeLayout(steps);
   const m = pathSteps.length;
 
+  const vbW = ROADMAP_VW + 2 * ROADMAP_VIEW_PAD_X;
+
   return (
-    <div className="w-full overflow-x-auto px-1 md:px-2">
+    <div className="w-full px-1 md:px-2">
       <div className="hidden min-w-0 md:block">
         <svg
-          viewBox={`0 0 ${ROADMAP_VW} ${viewHeight}`}
-          className="h-auto w-full min-w-[640px] text-primary"
+          viewBox={`${-ROADMAP_VIEW_PAD_X} 0 ${vbW} ${viewHeight}`}
+          className="h-auto w-full min-w-[640px] overflow-visible text-primary"
           role="img"
           aria-label="Дорожная карта продукта"
           preserveAspectRatio="xMidYMin meet"

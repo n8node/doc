@@ -9,6 +9,12 @@ export const ROADMAP_ROW_DY = 195;
 /** Сглаженная дуга: смещение контрольных точек (больше = плавнее дуга) */
 const CURVE_BULGE = 210;
 
+/**
+ * Запас по X для viewBox SVG: дуги C выходят за [0, ROADMAP_VW], иначе обрезаются краями.
+ * + небольшой запас под штрих и «хвосты» кривых между разными x.
+ */
+export const ROADMAP_VIEW_PAD_X = CURVE_BULGE + 56;
+
 export type RoadmapLayoutPoint = { x: number; y: number; rowIndex: number };
 
 export type SnakeLayout = {
