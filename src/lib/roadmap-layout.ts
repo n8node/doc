@@ -1,19 +1,23 @@
 import type { RoadmapStepDTO } from "@/lib/roadmap";
 
+/** Ширина логической области (узлы и линии в 0…ROADMAP_VW — без отрицательных X, схема не «мельчает» при scale) */
 export const ROADMAP_VW = 1000;
-/** Отступ слева/справа (текст не обрезается у краёв) */
-export const ROADMAP_MARGIN = 115;
-const ROW_Y0 = 95;
-/** Вертикальный шаг между «полосами» месяцев */
-export const ROADMAP_ROW_DY = 195;
-/** Сглаженная дуга: смещение контрольных точек (больше = плавнее дуга) */
-const CURVE_BULGE = 210;
-
 /**
- * Запас по X для viewBox SVG: дуги C выходят за [0, ROADMAP_VW], иначе обрезаются краями.
- * + небольшой запас под штрих и «хвосты» кривых между разными x.
+ * Горизонтальные поля: подпись ~200px по центру узла → половина 100 + запас.
+ * Узлы в [MARGIN, VW−MARGIN], дуги C укладываются в [0, VW] при CURVE_BULGE ≤ MARGIN.
  */
-export const ROADMAP_VIEW_PAD_X = CURVE_BULGE + 56;
+export const ROADMAP_MARGIN = 120;
+const ROW_Y0 = 108;
+/** Вертикальный шаг между «полосами» месяцев */
+export const ROADMAP_ROW_DY = 228;
+/**
+ * Выпуклость U-образных поворотов (в тех же единицах, что и координаты).
+ * Должна быть ≤ ROADMAP_MARGIN, иначе кривая выйдет за 0…ROADMAP_VW.
+ */
+const CURVE_BULGE = 118;
+
+/** Половина ширины блока подписи под узлом (foreignObject), симметрично центру */
+export const ROADMAP_LABEL_HALF_WIDTH = 112;
 
 export type RoadmapLayoutPoint = { x: number; y: number; rowIndex: number };
 
@@ -84,7 +88,7 @@ export function buildSnakeLayout(steps: RoadmapStepDTO[]): SnakeLayout {
 
   const rowCount = groups.length;
   const lastY = ROW_Y0 + (rowCount - 1) * ROADMAP_ROW_DY;
-  const viewHeight = lastY + 200;
+  const viewHeight = lastY + 240;
 
   return { pathSteps, coords, rowCount, viewHeight };
 }
