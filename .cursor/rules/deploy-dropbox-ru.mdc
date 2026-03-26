@@ -42,10 +42,9 @@ docker compose build app && docker compose up -d
 
 ## ONLYOFFICE: в логах `app` нет `[onlyoffice document] incoming` при открытии редактора
 
-Если ручной `wget` из контейнера `onlyoffice` на `http://app:3000/api/onlyoffice/document/...` с валидным Bearer даёт 200, а при открытии файла в браузере запросов к `/api/onlyoffice/document` нет:
+В `docker-compose` по умолчанию `ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL` берётся из `APP_URL` (публичный https), чтобы Document Server качал файл через **системный nginx**, а не `http://app:3000` (иначе DS часто не доходит до app). Нужен **`location /api/`** → порт приложения на хосте (см. `docker/nginx/host-ubuntu-onlyoffice.example.conf`).
 
-1. После `git pull` на сервере выполнить: `sh docker/onlyoffice/apply-request-filter.sh` (включает в DS `request-filtering-agent.allowPrivateIPAddress` в `local.json`; см. ONLYOFFICE DocumentServer issue #2268).
-2. Либо задать в `.env` приложения `ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL=https://<домен>` и в системном nginx добавить `location /api/` → порт приложения (см. `docker/nginx/host-ubuntu-onlyoffice.example.conf`).
+Если ручной `wget` с onlyoffice на `http://app:3000/...` работает, а из браузера — нет: проверить nginx на `/api/`, затем опционально `sh docker/onlyoffice/apply-request-filter.sh` (issue #2268). Откат только на Docker-сеть: в `.env` `ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL=http://app:3000`.
 
 ---
 
