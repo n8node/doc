@@ -1,6 +1,7 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { NextFetchEvent, NextRequest } from "next/server";
+import { buildOnlyofficeUpstreamUrl } from "@/lib/onlyoffice/middleware-proxy";
 import { tryParseVkIdPayloadParam } from "@/lib/vk-id-payload";
 
 /** openid-client выкидывает device_id из query (pickCb); пробрасываем в token.request через заголовок. */
@@ -58,7 +59,23 @@ function forwardVkDeviceIdHeader(req: NextRequest): NextResponse | null {
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
+/**
+ * Прокси на Document Server до маршрутизации Next — надёжнее, чем rewrites на внешний origin в standalone.
+ */
+function tryOnlyofficeRewrite(req: NextRequest): NextResponse | null {
+  const upstream = buildOnlyofficeUpstreamUrl(req);
+  if (!upstream) return null;
+  const requestHeaders = new Headers(req.headers);
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  if (host) requestHeaders.set("x-forwarded-host", host);
+  const proto = req.nextUrl.protocol.replace(":", "") || "https";
+  requestHeaders.set("x-forwarded-proto", proto);
+  return NextResponse.rewrite(upstream, { request: { headers: requestHeaders } });
+}
+
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
+  const ooRewrite = tryOnlyofficeRewrite(req);
+  if (ooRewrite) return ooRewrite;
   const vkRedirect = normalizeVkIdCallbackPayload(req);
   if (vkRedirect) return vkRedirect;
   const vkForwarded = forwardVkDeviceIdHeader(req);
@@ -68,5 +85,28 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/api/auth/callback/vk"],
+  matcher: [
+    "/dashboard/:path*",
+    "/admin/:path*",
+    "/api/auth/callback/vk",
+    "/onlyoffice",
+    "/onlyoffice/:path*",
+    "/web-apps",
+    "/web-apps/:path*",
+    "/cache",
+    "/cache/:path*",
+    "/coauthoring",
+    "/coauthoring/:path*",
+    "/sdkjs",
+    "/sdkjs/:path*",
+    "/sdkjs-plugins",
+    "/sdkjs-plugins/:path*",
+    "/fonts",
+    "/fonts/:path*",
+    "/dictionaries",
+    "/dictionaries/:path*",
+    "/meta",
+    "/meta/:path*",
+    "/document_editor_service_worker.js",
+  ],
 };

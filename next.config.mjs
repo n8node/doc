@@ -39,8 +39,8 @@ const nextConfig = {
 
     const oo = onlyofficeInternal;
     /**
-     * beforeFiles — до проверки файлов/страниц, чтобы /onlyoffice и корневые пути DS не ловились приложением.
-     * Редирект на /welcome в коде проекта нет — если он есть, ищите nginx/панель хостинга.
+     * beforeFiles — дублируют прокси из middleware (на случай если matcher не сработал).
+     * Основной путь ONLYOFFICE: middleware → NextResponse.rewrite на ONLYOFFICE_INTERNAL_ORIGIN.
      */
     return {
       beforeFiles: [favicon, ...onlyofficeRewrites(oo)],
