@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isN8nDbTarget } from "@/lib/n8n-db/client";
 import { renameSheetColumnInN8n } from "@/lib/n8n-db/sheet-sync";
+import { pushSheetToAllN8nConnections } from "@/lib/n8n-db/sheet-n8n-bridge";
 
 type Ctx = { params: Promise<{ id: string; columnId: string }> };
 
@@ -76,6 +77,14 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     }
   }
 
+  if (data.name === undefined) {
+    try {
+      await pushSheetToAllN8nConnections(sheetId, session.user.id);
+    } catch (err) {
+      console.error("[sheets PATCH column] push to n8n-db:", err);
+    }
+  }
+
   return NextResponse.json({
     id: updated.id,
     order: updated.order,
@@ -108,5 +117,10 @@ export async function DELETE(_request: NextRequest, ctx: Ctx) {
   }
 
   await prisma.sheetColumn.delete({ where: { id: columnId } });
+  try {
+    await pushSheetToAllN8nConnections(sheetId, session.user.id);
+  } catch (err) {
+    console.error("[sheets DELETE column] push to n8n-db:", err);
+  }
   return NextResponse.json({ ok: true });
 }

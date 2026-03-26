@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -109,6 +109,7 @@ export default function SheetDetailPage() {
   const [editColumnDataType, setEditColumnDataType] = useState("text");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
+  const backgroundSyncInFlightRef = useRef(false);
   const [columnSizingInfo, setColumnSizingInfo] = useState<{
     isResizingColumn: false | string;
     startOffset: number | null;
@@ -160,9 +161,57 @@ export default function SheetDetailPage() {
     }
   }, [id]);
 
+  const fetchSheetSilently = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/v1/sheets/${id}`, { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSheet(data);
+      setEditName((prev) => (prev ? prev : data.name ?? ""));
+    } catch {
+      // Silent refresh should not interrupt user with toasts.
+    }
+  }, [id]);
+
+  const syncWithN8nInBackground = useCallback(async () => {
+    if (!id || backgroundSyncInFlightRef.current || document.visibilityState !== "visible") return;
+    backgroundSyncInFlightRef.current = true;
+    try {
+      const res = await fetch(`/api/v1/sheets/${id}/n8n-connections/sync-all`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      await fetchSheetSilently();
+    } catch {
+      // Ignore background sync errors; manual sync remains available.
+    } finally {
+      backgroundSyncInFlightRef.current = false;
+    }
+  }, [id, fetchSheetSilently]);
+
   useEffect(() => {
     loadSheet();
   }, [loadSheet]);
+
+  useEffect(() => {
+    if (!id) return;
+    const timer = window.setInterval(() => {
+      void syncWithN8nInBackground();
+    }, 10000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void syncWithN8nInBackground();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    void syncWithN8nInBackground();
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [id, syncWithN8nInBackground]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));

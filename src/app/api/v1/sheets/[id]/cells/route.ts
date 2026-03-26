@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { pushSheetToAllN8nConnections } from "@/lib/n8n-db/sheet-n8n-bridge";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -216,6 +217,13 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     });
   }
 
+  // Best-effort push in n8n-db; app DB update stays primary.
+  try {
+    await pushSheetToAllN8nConnections(id, session.user.id);
+  } catch (err) {
+    console.error("[sheets PATCH cells] push to n8n-db:", err);
+  }
+
   return NextResponse.json({ ok: true, updated: updates.length });
 }
 
@@ -256,6 +264,13 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
       rowIndex: { gte: startRow, lte: endRow },
     },
   });
+
+  // Best-effort push in n8n-db after range clear.
+  try {
+    await pushSheetToAllN8nConnections(id, session.user.id);
+  } catch (err) {
+    console.error("[sheets DELETE cells] push to n8n-db:", err);
+  }
 
   return NextResponse.json({ ok: true, deleted: result.count });
 }

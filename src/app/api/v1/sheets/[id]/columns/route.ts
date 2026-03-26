@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { pushSheetToAllN8nConnections } from "@/lib/n8n-db/sheet-n8n-bridge";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -76,6 +77,12 @@ export async function POST(request: NextRequest, ctx: Ctx) {
       config,
     },
   });
+
+  try {
+    await pushSheetToAllN8nConnections(id, session.user.id);
+  } catch (err) {
+    console.error("[sheets POST columns] push to n8n-db:", err);
+  }
 
   return NextResponse.json({
     id: column.id,
