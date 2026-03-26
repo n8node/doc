@@ -29,6 +29,9 @@ export function OnlyofficeEditor({
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const stuckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rawFromDsRef = useRef(false);
+  const rawLogCountRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [debugLines, setDebugLines] = useState<string[]>([]);
 
@@ -48,6 +51,39 @@ export function OnlyofficeEditor({
       }
     };
 
+    const clearHintTimer = () => {
+      if (hintTimerRef.current) {
+        clearTimeout(hintTimerRef.current);
+        hintTimerRef.current = null;
+      }
+    };
+
+    let dsOrigin = "";
+    try {
+      dsOrigin = new URL(documentServerUrl).origin;
+    } catch {
+      /* ignore */
+    }
+
+    const onWindowMessage = (ev: MessageEvent) => {
+      if (!dsOrigin || ev.origin !== dsOrigin) return;
+      rawFromDsRef.current = true;
+      if (rawLogCountRef.current >= 12) return;
+      rawLogCountRef.current += 1;
+      const preview =
+        typeof ev.data === "string"
+          ? ev.data.slice(0, 220)
+          : (() => {
+              try {
+                return JSON.stringify(ev.data).slice(0, 220);
+              } catch {
+                return "[object]";
+              }
+            })();
+      pushDebug(`postMessage ← ${preview}`);
+    };
+    window.addEventListener("message", onWindowMessage);
+
     const scriptSrc = `${documentServerUrl.replace(/\/+$/, "")}/web-apps/apps/api/documents/api.js`;
 
     const formatOoEvent = (data: unknown) =>
@@ -66,7 +102,18 @@ export function OnlyofficeEditor({
       if (!placeholder) return;
       try {
         clearStuckTimer();
+        clearHintTimer();
+        rawFromDsRef.current = false;
+        rawLogCountRef.current = 0;
         pushDebug("DocEditor: init");
+        hintTimerRef.current = setTimeout(() => {
+          if (!rawFromDsRef.current) {
+            pushDebug(
+              "⚠ За 8 с нет postMessage от origin документ-сервера — проверьте Network (iframe), mixed content (HTTPS→HTTP), nginx: /web-apps/ и /coauthoring/ → onlyoffice."
+            );
+          }
+          hintTimerRef.current = null;
+        }, 8000);
         stuckTimerRef.current = setTimeout(() => {
           setError(
             "Документ не открылся за 90 с. Проверьте: 1) onlyoffice с ALLOW_PRIVATE_IP_ADDRESS=true и пересозданием контейнера 2) системный nginx: /coauthoring и /web-apps → onlyoffice 3) строки «Диагностика ONLYOFFICE» ниже — пришлите скрин."
@@ -121,6 +168,8 @@ export function OnlyofficeEditor({
       run();
       return () => {
         clearStuckTimer();
+        clearHintTimer();
+        window.removeEventListener("message", onWindowMessage);
         container.innerHTML = "";
       };
     }
@@ -131,6 +180,8 @@ export function OnlyofficeEditor({
       if (window.DocsAPI) onLoad();
       return () => {
         clearStuckTimer();
+        clearHintTimer();
+        window.removeEventListener("message", onWindowMessage);
         existing.removeEventListener("load", onLoad);
         container.innerHTML = "";
       };
@@ -145,6 +196,8 @@ export function OnlyofficeEditor({
 
     return () => {
       clearStuckTimer();
+      clearHintTimer();
+      window.removeEventListener("message", onWindowMessage);
       script.onload = null;
       script.onerror = null;
       container.innerHTML = "";
