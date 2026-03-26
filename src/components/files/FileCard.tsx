@@ -32,6 +32,7 @@ import {
   Table2,
   MoreVertical,
   FilePenLine,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -65,6 +66,12 @@ interface FileCardProps {
   } | null;
   hasShareLink?: boolean;
   shareLinksCount?: number;
+  /** Приглашения по email (владелец) */
+  emailShareGrantsCount?: number;
+  onEmailSharesClick?: () => void;
+  /** Файл открыт получателю по гранту (чужой файл в «Мои файлы») */
+  isIncomingShared?: boolean;
+  sharedFromLabel?: string;
   selected: boolean;
   onSelect: (id: string, selected: boolean) => void;
   onPlay?: () => void;
@@ -112,6 +119,10 @@ interface FolderCardProps {
   createdAt: string;
   hasShareLink?: boolean;
   shareLinksCount?: number;
+  emailShareGrantsCount?: number;
+  onEmailSharesClick?: () => void;
+  isIncomingShared?: boolean;
+  sharedFromLabel?: string;
   filesCount?: number;
   selected: boolean;
   onSelect: (id: string, selected: boolean) => void;
@@ -259,6 +270,10 @@ export function FileCard({
   aiMetadata,
   hasShareLink = false,
   shareLinksCount = 0,
+  emailShareGrantsCount = 0,
+  onEmailSharesClick,
+  isIncomingShared = false,
+  sharedFromLabel,
   selected,
   onSelect,
   onPlay,
@@ -529,6 +544,33 @@ export function FileCard({
                 </button>
               </span>
             )}
+            {!isIncomingShared && emailShareGrantsCount > 0 && onEmailSharesClick && (
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEmailSharesClick();
+                  }}
+                  className="flex items-center gap-1 rounded bg-sky-500/10 px-1.5 py-0.5 text-sky-600 transition-colors hover:bg-sky-500/20 dark:text-sky-400"
+                  title="Доступ по email"
+                >
+                  <Users className="h-3 w-3" />
+                  Доступ по email
+                  {emailShareGrantsCount > 1 ? ` (${emailShareGrantsCount})` : ""}
+                </button>
+              </span>
+            )}
+            {isIncomingShared && sharedFromLabel && (
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
+                <span>•</span>
+                <span className="flex items-center gap-1 rounded-full bg-sky-500/10 px-1.5 py-0.5 font-medium text-sky-600 dark:text-sky-400">
+                  <Users className="h-3 w-3" />
+                  От {sharedFromLabel}
+                </span>
+              </span>
+            )}
             {onChat && (isProcessed || (isTranscribable && !!hasEmbedding)) && (
               <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
@@ -612,23 +654,25 @@ export function FileCard({
                 Редактирование
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Поделиться
-            </DropdownMenuItem>
-            {onMove && (
+            {!isIncomingShared && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Поделиться
+              </DropdownMenuItem>
+            )}
+            {!isIncomingShared && onMove && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove(); }}>
                 <FolderInput className="mr-2 h-4 w-4" />
                 Переместить
               </DropdownMenuItem>
             )}
-            {onCopy && (
+            {!isIncomingShared && onCopy && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCopy(); }}>
                 <Copy className="mr-2 h-4 w-4" />
                 Копировать
               </DropdownMenuItem>
             )}
-            {onRename && (
+            {!isIncomingShared && onRename && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(); }}>
                 <Pencil className="mr-2 h-4 w-4" />
                 Переименовать
@@ -652,13 +696,15 @@ export function FileCard({
                 AI-обработка транскрипта
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="text-error focus:text-error"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Удалить
-            </DropdownMenuItem>
+            {!isIncomingShared && (
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="text-error focus:text-error"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Удалить
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="hidden items-center gap-1 sm:flex sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
@@ -738,6 +784,8 @@ export function FileCard({
             </Tooltip>
           )}
 
+          {!isIncomingShared && (
+            <>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -806,6 +854,8 @@ export function FileCard({
               </TooltipTrigger>
               <TooltipContent>Переименовать</TooltipContent>
             </Tooltip>
+          )}
+            </>
           )}
 
           {(onProcess || (processLocked && isProcessable)) && (
@@ -892,6 +942,7 @@ export function FileCard({
             </Tooltip>
           )}
 
+          {!isIncomingShared && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -910,6 +961,7 @@ export function FileCard({
             </TooltipTrigger>
             <TooltipContent>Удалить</TooltipContent>
           </Tooltip>
+          )}
         </div>
       </motion.div>
     </TooltipProvider>
@@ -922,6 +974,10 @@ export function FolderCard({
   createdAt,
   hasShareLink = false,
   shareLinksCount = 0,
+  emailShareGrantsCount = 0,
+  onEmailSharesClick,
+  isIncomingShared = false,
+  sharedFromLabel,
   filesCount,
   selected,
   onSelect,
@@ -1005,6 +1061,33 @@ export function FolderCard({
                 </button>
               </span>
             )}
+            {!isIncomingShared && emailShareGrantsCount > 0 && onEmailSharesClick && (
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEmailSharesClick();
+                  }}
+                  className="flex items-center gap-1 rounded bg-sky-500/10 px-1.5 py-0.5 text-sky-600 transition-colors hover:bg-sky-500/20 dark:text-sky-400"
+                  title="Доступ по email"
+                >
+                  <Users className="h-3 w-3" />
+                  Доступ по email
+                  {emailShareGrantsCount > 1 ? ` (${emailShareGrantsCount})` : ""}
+                </button>
+              </span>
+            )}
+            {isIncomingShared && sharedFromLabel && (
+              <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
+                <span>•</span>
+                <span className="flex items-center gap-1 rounded-full bg-sky-500/10 px-1.5 py-0.5 font-medium text-sky-600 dark:text-sky-400">
+                  <Users className="h-3 w-3" />
+                  От {sharedFromLabel}
+                </span>
+              </span>
+            )}
           </div>
         </div>
 
@@ -1021,38 +1104,43 @@ export function FolderCard({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Поделиться
-            </DropdownMenuItem>
-            {onMove && (
+            {!isIncomingShared && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Поделиться
+              </DropdownMenuItem>
+            )}
+            {!isIncomingShared && onMove && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove(); }}>
                 <FolderInput className="mr-2 h-4 w-4" />
                 Переместить
               </DropdownMenuItem>
             )}
-            {onCopy && (
+            {!isIncomingShared && onCopy && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCopy(); }}>
                 <Copy className="mr-2 h-4 w-4" />
                 Копировать
               </DropdownMenuItem>
             )}
-            {onRename && (
+            {!isIncomingShared && onRename && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(); }}>
                 <Pencil className="mr-2 h-4 w-4" />
                 Переименовать
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="text-error focus:text-error"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Удалить
-            </DropdownMenuItem>
+            {!isIncomingShared && (
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="text-error focus:text-error"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Удалить
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="hidden items-center gap-1 sm:flex sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+          {!isIncomingShared && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -1065,8 +1153,9 @@ export function FolderCard({
             </TooltipTrigger>
             <TooltipContent>Поделиться</TooltipContent>
           </Tooltip>
+          )}
 
-          {onMove && (
+          {!isIncomingShared && onMove && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -1081,7 +1170,7 @@ export function FolderCard({
             </Tooltip>
           )}
 
-          {onCopy && (
+          {!isIncomingShared && onCopy && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -1096,7 +1185,7 @@ export function FolderCard({
             </Tooltip>
           )}
 
-          {onRename && (
+          {!isIncomingShared && onRename && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -1111,6 +1200,7 @@ export function FolderCard({
             </Tooltip>
           )}
 
+          {!isIncomingShared && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -1123,6 +1213,7 @@ export function FolderCard({
             </TooltipTrigger>
             <TooltipContent>Удалить</TooltipContent>
           </Tooltip>
+          )}
         </div>
       </motion.div>
     </TooltipProvider>

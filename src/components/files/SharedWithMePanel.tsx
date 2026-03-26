@@ -17,7 +17,16 @@ import {
   Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn, formatBytes } from "@/lib/utils";
+
+const ICON_ACTION =
+  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface2 hover:text-foreground";
 import { getFileIcon, formatRelativeDate } from "@/components/files/FileCard";
 
 type GrantRow = {
@@ -214,6 +223,7 @@ export function SharedWithMePanel() {
     const ownerLabel = browse?.owner.name || browse?.owner.email || "";
 
     return (
+      <TooltipProvider delayDuration={300}>
       <div className="space-y-4 px-4 py-2 sm:px-6">
         <div className="flex flex-wrap items-center gap-2 border-b border-border/60 pb-3">
           <Button type="button" variant="ghost" size="sm" onClick={() => setBrowseUrl(null, null)}>
@@ -351,16 +361,19 @@ export function SharedWithMePanel() {
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 sm:opacity-100">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 gap-1"
-                            onClick={() => openFileDownload(fi.id)}
-                          >
-                            <Download className="h-4 w-4" />
-                            <span className="hidden sm:inline">Скачать</span>
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className={ICON_ACTION}
+                                onClick={() => openFileDownload(fi.id)}
+                                aria-label="Скачать"
+                              >
+                                <Download className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>Скачать</TooltipContent>
+                          </Tooltip>
                         </div>
                       </motion.div>
                     );
@@ -373,7 +386,7 @@ export function SharedWithMePanel() {
               browse.files.length === 1 &&
               browse.folders.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Нажмите «Скачать», чтобы открыть или сохранить файл.
+                  Нажмите иконку загрузки, чтобы скачать файл.
                 </p>
               )}
 
@@ -383,6 +396,7 @@ export function SharedWithMePanel() {
           </div>
         )}
       </div>
+      </TooltipProvider>
     );
   }
 
@@ -390,6 +404,7 @@ export function SharedWithMePanel() {
   const fileGrants = grants.filter((g) => g.targetType === "FILE");
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="space-y-6 px-4 py-2 sm:px-6">
       <p className="text-sm text-muted-foreground">
         Файлы и папки, к которым вам открыли доступ по email. Публичные ссылки — в разделе «Публичные ссылки».
@@ -461,23 +476,51 @@ export function SharedWithMePanel() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap justify-end gap-2 pl-14 sm:pl-0">
+                  <div className="flex shrink-0 flex-wrap justify-end gap-1 pl-14 sm:pl-0">
                     {g.status === "PENDING" && (
                       <>
-                        <Button size="sm" className="gap-1" onClick={() => accept(g.id)}>
-                          <Check className="h-4 w-4" />
-                          Принять
-                        </Button>
-                        <Button size="sm" variant="outline" className="gap-1" onClick={() => decline(g.id)}>
-                          <X className="h-4 w-4" />
-                          Отклонить
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className={cn(ICON_ACTION, "text-success hover:bg-success/10")}
+                              onClick={() => accept(g.id)}
+                              aria-label="Принять"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Принять</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className={cn(ICON_ACTION, "text-muted-foreground hover:text-destructive")}
+                              onClick={() => decline(g.id)}
+                              aria-label="Отклонить"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Отклонить</TooltipContent>
+                        </Tooltip>
                       </>
                     )}
                     {g.status === "ACTIVE" && (
-                      <Button size="sm" variant="secondary" onClick={() => setBrowseUrl(g.id, null)}>
-                        Открыть
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(ICON_ACTION, "text-primary hover:bg-primary/10")}
+                            onClick={() => setBrowseUrl(g.id, null)}
+                            aria-label="Открыть папку"
+                          >
+                            <FolderOpen className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Открыть папку</TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 </motion.div>
@@ -554,29 +597,51 @@ export function SharedWithMePanel() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap justify-end gap-2 pl-14 sm:pl-0">
+                  <div className="flex shrink-0 flex-wrap justify-end gap-1 pl-14 sm:pl-0">
                     {g.status === "PENDING" && (
                       <>
-                        <Button size="sm" className="gap-1" onClick={() => accept(g.id)}>
-                          <Check className="h-4 w-4" />
-                          Принять
-                        </Button>
-                        <Button size="sm" variant="outline" className="gap-1" onClick={() => decline(g.id)}>
-                          <X className="h-4 w-4" />
-                          Отклонить
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className={cn(ICON_ACTION, "text-success hover:bg-success/10")}
+                              onClick={() => accept(g.id)}
+                              aria-label="Принять"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Принять</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className={cn(ICON_ACTION, "text-muted-foreground hover:text-destructive")}
+                              onClick={() => decline(g.id)}
+                              aria-label="Отклонить"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Отклонить</TooltipContent>
+                        </Tooltip>
                       </>
                     )}
                     {g.status === "ACTIVE" && g.file && (
-                      <>
-                        <Button size="sm" variant="outline" className="gap-1" onClick={() => openFileDownload(g.file!.id)}>
-                          <Download className="h-4 w-4" />
-                          Скачать
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => setBrowseUrl(g.id, null)}>
-                          Открыть
-                        </Button>
-                      </>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className={ICON_ACTION}
+                            onClick={() => openFileDownload(g.file!.id)}
+                            aria-label="Скачать"
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Скачать</TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 </motion.div>
@@ -586,5 +651,6 @@ export function SharedWithMePanel() {
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 }

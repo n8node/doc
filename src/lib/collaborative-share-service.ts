@@ -432,6 +432,89 @@ export async function listOutgoingGrantsForTarget(
   });
 }
 
+/** ACTIVE гранты на файлы для показа в «Мои файлы» / «Недавние» (корень и scope=all). */
+export async function listActiveIncomingSharedFileGrantsForMerge(
+  recipientUserId: string,
+  recipientEmail: string
+) {
+  const email = normalizeShareEmail(recipientEmail);
+  return prisma.shareGrant.findMany({
+    where: {
+      status: "ACTIVE",
+      targetType: "FILE",
+      OR: [{ recipientUserId }, { recipientEmail: email, recipientUserId: null }],
+      AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }],
+      file: { is: { deletedAt: null } },
+    },
+    include: {
+      owner: { select: { id: true, email: true, name: true } },
+      file: {
+        select: {
+          id: true,
+          name: true,
+          mimeType: true,
+          size: true,
+          s3Key: true,
+          folderId: true,
+          mediaMetadata: true,
+          aiMetadata: true,
+          hasEmbedding: true,
+          createdAt: true,
+          shareLinks: {
+            where: {
+              OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+            select: { id: true },
+          },
+          sheetsFromFile: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+          },
+        },
+      },
+    },
+  });
+}
+
+/** ACTIVE гранты на папки для корня «Мои файлы». */
+export async function listActiveIncomingSharedFolderGrantsForMerge(
+  recipientUserId: string,
+  recipientEmail: string
+) {
+  const email = normalizeShareEmail(recipientEmail);
+  return prisma.shareGrant.findMany({
+    where: {
+      status: "ACTIVE",
+      targetType: "FOLDER",
+      OR: [{ recipientUserId }, { recipientEmail: email, recipientUserId: null }],
+      AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }],
+      folder: { is: { deletedAt: null } },
+    },
+    include: {
+      owner: { select: { id: true, email: true, name: true } },
+      folder: {
+        select: {
+          id: true,
+          name: true,
+          parentId: true,
+          createdAt: true,
+          shareLinks: {
+            where: {
+              OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+            select: { id: true },
+          },
+          files: {
+            where: { deletedAt: null },
+            select: { id: true },
+          },
+        },
+      },
+    },
+  });
+}
+
 export async function listIncomingGrants(recipientUserId: string, recipientEmail: string) {
   const email = normalizeShareEmail(recipientEmail);
   return prisma.shareGrant.findMany({

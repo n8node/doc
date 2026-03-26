@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { createFolder } from "@/lib/folder-service";
+import { listActiveIncomingSharedFolderGrantsForMerge } from "@/lib/collaborative-share-service";
 
 export async function GET(request: NextRequest) {
   const userId = await getUserIdFromRequest(request);
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
   const parentId = searchParams.get("parentId");
   const scope = searchParams.get("scope");
   const hasShareLink = searchParams.get("hasShareLink");
+  const mergeIncomingShared = searchParams.get("mergeIncomingShared") === "true";
 
   const where: {
     userId: string;
@@ -52,20 +54,76 @@ export async function GET(request: NextRequest) {
         where: { deletedAt: null },
         select: { id: true },
       },
+      shareGrants: {
+        where: { status: { in: ["PENDING", "ACTIVE"] } },
+        select: { id: true },
+      },
     },
   });
 
-  return NextResponse.json({
-    folders: folders.map((f) => ({
-      id: f.id,
-      name: f.name,
-      parentId: f.parentId,
-      createdAt: f.createdAt,
-      hasShareLink: f.shareLinks.length > 0,
-      shareLinksCount: f.shareLinks.length,
-      filesCount: f.files.length,
-    })),
+  const mapOwned = (f: (typeof folders)[0]) => ({
+    id: f.id,
+    name: f.name,
+    parentId: f.parentId,
+    createdAt: f.createdAt,
+    hasShareLink: f.shareLinks.length > 0,
+    shareLinksCount: f.shareLinks.length,
+    filesCount: f.files.length,
+    emailShareGrantsCount: f.shareGrants.length,
+    isIncomingShared: false as const,
   });
+
+  type OwnedFolderRow = ReturnType<typeof mapOwned>;
+  type IncomingSharedMergedFolderRow = Omit<OwnedFolderRow, "isIncomingShared"> & {
+    isIncomingShared: true;
+    sharedGrantId: string;
+    sharedFrom: { name: string | null; email: string | null };
+  };
+
+  const merged: Array<OwnedFolderRow | IncomingSharedMergedFolderRow> =
+    folders.map(mapOwned);
+
+  if (mergeIncomingShared && hasShareLink !== "true" && scope !== "all") {
+    const me = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (me?.email) {
+      const grants = await listActiveIncomingSharedFolderGrantsForMerge(userId, me.email);
+      const incoming = grants
+        .filter((g) => g.folder)
+        .map((g) => {
+          const fo = g.folder!;
+          return {
+            id: fo.id,
+            name: fo.name,
+            parentId: fo.parentId,
+            createdAt: fo.createdAt,
+            hasShareLink: false,
+            shareLinksCount: 0,
+            filesCount: fo.files.length,
+            emailShareGrantsCount: 0,
+            isIncomingShared: true as const,
+            sharedGrantId: g.id,
+            sharedFrom: {
+              name: g.owner.name,
+              email: g.owner.email,
+            },
+          };
+        });
+
+      const seen = new Set(merged.map((x) => x.id));
+      for (const row of incoming) {
+        if (!seen.has(row.id)) {
+          seen.add(row.id);
+          merged.push(row);
+        }
+      }
+      merged.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    }
+  }
+
+  return NextResponse.json({ folders: merged });
 }
 
 export async function POST(request: NextRequest) {

@@ -68,6 +68,7 @@ import { SelectionBar } from "./SelectionBar";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { ShareDialog } from "./ShareDialog";
 import { ShareLinksListDialog } from "./ShareLinksListDialog";
+import { EmailShareGrantsDialog } from "./EmailShareGrantsDialog";
 import { SharedWithMePanel } from "./SharedWithMePanel";
 import { MoveDialog } from "./MoveDialog";
 import { RenameDialog } from "./RenameDialog";
@@ -103,8 +104,12 @@ interface FileItem {
   createdAt: string;
   hasShareLink?: boolean;
   shareLinksCount?: number;
+  emailShareGrantsCount?: number;
   deletedAt?: string | null;
   importedSheetId?: string | null;
+  isIncomingShared?: boolean;
+  sharedGrantId?: string;
+  sharedFrom?: { name: string | null; email: string };
 }
 
 interface HistoryEntry {
@@ -127,7 +132,11 @@ interface FolderItem {
   hasShareLink?: boolean;
   shareLinksCount?: number;
   filesCount?: number;
+  emailShareGrantsCount?: number;
   deletedAt?: string | null;
+  isIncomingShared?: boolean;
+  sharedGrantId?: string;
+  sharedFrom?: { name: string | null; email: string };
 }
 
 interface Breadcrumb {
@@ -292,6 +301,12 @@ export function FileManager() {
   } | null>(null);
 
   const [shareLinksTarget, setShareLinksTarget] = useState<{
+    type: "FILE" | "FOLDER";
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const [emailShareGrantsTarget, setEmailShareGrantsTarget] = useState<{
     type: "FILE" | "FOLDER";
     id: string;
     name: string;
@@ -527,6 +542,19 @@ export function FileManager() {
       params.set("type", filterType);
     }
     if (isSharedSection || filterHasShareLink) params.set("hasShareLink", "true");
+    const mergeShared =
+      isRecentSection ||
+      isPhotosSection ||
+      isVideosSection ||
+      (!isRecentSection &&
+        !isPhotosSection &&
+        !isVideosSection &&
+        !isSharedSection &&
+        !isSharedWithMeSection &&
+        !isHistorySection &&
+        !isTrashSection &&
+        !currentFolderId);
+    if (mergeShared) params.set("mergeIncomingShared", "true");
     if (filterSize !== "all") {
       if (filterSize === "small") {
         params.set("sizeMax", String(10 * 1024 * 1024)); // 10 MB
@@ -548,6 +576,7 @@ export function FileManager() {
     filterType,
     filterSize,
     filterHasShareLink,
+    isSharedWithMeSection,
   ]);
 
   const loadData = useCallback(async (showRefresh = false) => {
@@ -643,7 +672,18 @@ export function FileManager() {
       if (isSharedSection) {
         foldersRes = await fetch("/api/v1/folders?scope=all&hasShareLink=true");
       } else if (!isRecentSection && !isPhotosSection && !isVideosSection) {
-        foldersRes = await fetch(`/api/v1/folders?parentId=${currentFolderId || ""}`);
+        const fp = new URLSearchParams();
+        fp.set("parentId", currentFolderId || "");
+        if (
+          !currentFolderId &&
+          !isSharedSection &&
+          !isSharedWithMeSection &&
+          !isHistorySection &&
+          !isTrashSection
+        ) {
+          fp.set("mergeIncomingShared", "true");
+        }
+        foldersRes = await fetch(`/api/v1/folders?${fp.toString()}`);
       }
 
       if (filesRes.ok) {
@@ -1778,8 +1818,14 @@ export function FileManager() {
   };
 
   const handleBulkDelete = async () => {
-    const fileIds = Array.from(selectedFiles);
-    const folderIds = Array.from(selectedFolders);
+    const fileIds = Array.from(selectedFiles).filter((id) => {
+      const f = files.find((x) => x.id === id);
+      return f && !f.isIncomingShared;
+    });
+    const folderIds = Array.from(selectedFolders).filter((id) => {
+      const fo = folders.find((x) => x.id === id);
+      return fo && !fo.isIncomingShared;
+    });
     const total = fileIds.length + folderIds.length;
     if (total === 0) return;
     const msg = trashRetentionDays > 0
@@ -1916,8 +1962,14 @@ export function FileManager() {
   };
 
   const handleBulkMove = async (targetFolderId: string | null) => {
-    const fileIds = Array.from(selectedFiles);
-    const folderIds = Array.from(selectedFolders);
+    const fileIds = Array.from(selectedFiles).filter((id) => {
+      const f = files.find((x) => x.id === id);
+      return f && !f.isIncomingShared;
+    });
+    const folderIds = Array.from(selectedFolders).filter((id) => {
+      const fo = folders.find((x) => x.id === id);
+      return fo && !fo.isIncomingShared;
+    });
     if (fileIds.length === 0 && folderIds.length === 0) return;
 
     setMoving(true);
@@ -2058,8 +2110,14 @@ export function FileManager() {
   };
 
   const handleBulkCopy = async (targetFolderId: string | null) => {
-    const fileIds = Array.from(selectedFiles);
-    const folderIds = Array.from(selectedFolders);
+    const fileIds = Array.from(selectedFiles).filter((id) => {
+      const f = files.find((x) => x.id === id);
+      return f && !f.isIncomingShared;
+    });
+    const folderIds = Array.from(selectedFolders).filter((id) => {
+      const fo = folders.find((x) => x.id === id);
+      return fo && !fo.isIncomingShared;
+    });
     if (fileIds.length === 0 && folderIds.length === 0) return;
 
     setCopying(true);
@@ -2184,6 +2242,7 @@ export function FileManager() {
         copyDialogOpen ||
         !!shareTarget ||
         !!shareLinksTarget ||
+        !!emailShareGrantsTarget ||
         !!renameTarget ||
         createFolderOpen ||
         !!mediaModal;
@@ -2241,6 +2300,7 @@ export function FileManager() {
     copyDialogOpen,
     shareTarget,
     shareLinksTarget,
+    emailShareGrantsTarget,
     renameTarget,
     createFolderOpen,
     mediaModal,
@@ -2306,6 +2366,18 @@ export function FileManager() {
   };
 
   const navigateToFolder = (id: string | null) => {
+    if (id) {
+      const folder = folders.find((f) => f.id === id);
+      if (folder?.isIncomingShared && folder.sharedGrantId) {
+        const next = new URLSearchParams(searchParams.toString());
+        next.set("section", "shared-with-me");
+        next.set("sharedGrantId", folder.sharedGrantId);
+        next.delete("sharedBrowseFolderId");
+        next.delete("folderId");
+        router.push(`/dashboard/files?${next.toString()}`);
+        return;
+      }
+    }
     const section =
       id && isSharedSection ? "my-files" : activeSection;
     router.push(
@@ -2383,6 +2455,23 @@ export function FileManager() {
       aiMetadata={file.aiMetadata}
       hasShareLink={file.hasShareLink}
       shareLinksCount={file.shareLinksCount}
+      emailShareGrantsCount={file.emailShareGrantsCount ?? 0}
+      onEmailSharesClick={
+        !file.isIncomingShared && (file.emailShareGrantsCount ?? 0) > 0
+          ? () =>
+              setEmailShareGrantsTarget({
+                type: "FILE",
+                id: file.id,
+                name: file.name,
+              })
+          : undefined
+      }
+      isIncomingShared={!!file.isIncomingShared}
+      sharedFromLabel={
+        file.sharedFrom
+          ? file.sharedFrom.name || file.sharedFrom.email
+          : undefined
+      }
       selected={selectedFiles.has(file.id)}
       onSelect={handleFileSelect}
       onPlay={
@@ -2396,31 +2485,44 @@ export function FileManager() {
           : undefined
       }
       onDownload={() => handleDownload(file.id)}
-      onShare={() =>
-        setShareTarget({ type: "FILE", id: file.id, name: file.name })
-      }
+      onShare={() => {
+        if (!file.isIncomingShared) {
+          setShareTarget({ type: "FILE", id: file.id, name: file.name });
+        }
+      }}
       onMove={
-        hasMoveTargets
+        file.isIncomingShared
+          ? undefined
+          : hasMoveTargets
           ? () => {
               setSingleMoveTarget({ type: "FILE", id: file.id });
               setMoveDialogOpen(true);
             }
           : undefined
       }
-      onCopy={() => {
-        setSingleCopyTarget({
-          type: "FILE",
-          id: file.id,
-          name: file.name,
-          currentFolderId: currentFolderId,
-        });
-        setCopyDialogOpen(true);
-      }}
-      onRename={() =>
-        setRenameTarget({ type: "file", id: file.id, name: file.name })
+      onCopy={
+        file.isIncomingShared
+          ? undefined
+          : () => {
+              setSingleCopyTarget({
+                type: "FILE",
+                id: file.id,
+                name: file.name,
+                currentFolderId: currentFolderId,
+              });
+              setCopyDialogOpen(true);
+            }
       }
-      onShareLinksClick={() =>
-        setShareLinksTarget({ type: "FILE", id: file.id, name: file.name })
+      onRename={
+        file.isIncomingShared
+          ? undefined
+          : () => setRenameTarget({ type: "file", id: file.id, name: file.name })
+      }
+      onShareLinksClick={
+        file.isIncomingShared
+          ? undefined
+          : () =>
+              setShareLinksTarget({ type: "FILE", id: file.id, name: file.name })
       }
       onProcess={
         isProcessableMime(file.mimeType, file.name) &&
@@ -2491,7 +2593,9 @@ export function FileManager() {
           ? () => setTranscriptFile({ id: file.id, name: file.name })
           : undefined
       }
-      onDelete={() => handleDeleteFile(file.id)}
+      onDelete={() => {
+        if (!file.isIncomingShared) handleDeleteFile(file.id);
+      }}
       index={index}
       isProcessable={isProcessableMime(file.mimeType, file.name)}
       isAnalyzing={analyzingFiles.has(file.id)}
@@ -3335,37 +3439,74 @@ export function FileManager() {
                         createdAt={folder.createdAt}
                         hasShareLink={folder.hasShareLink}
                         shareLinksCount={folder.shareLinksCount}
+                        emailShareGrantsCount={folder.emailShareGrantsCount ?? 0}
+                        onEmailSharesClick={
+                          !folder.isIncomingShared && (folder.emailShareGrantsCount ?? 0) > 0
+                            ? () =>
+                                setEmailShareGrantsTarget({
+                                  type: "FOLDER",
+                                  id: folder.id,
+                                  name: folder.name,
+                                })
+                            : undefined
+                        }
+                        isIncomingShared={!!folder.isIncomingShared}
+                        sharedFromLabel={
+                          folder.sharedFrom
+                            ? folder.sharedFrom.name || folder.sharedFrom.email
+                            : undefined
+                        }
                         filesCount={folder.filesCount}
                         selected={selectedFolders.has(folder.id)}
                         onSelect={handleFolderSelect}
                         onClick={() => navigateToFolder(folder.id)}
-                        onShare={() =>
-                          setShareTarget({ type: "FOLDER", id: folder.id, name: folder.name })
-                        }
-                        onShareLinksClick={() =>
-                          setShareLinksTarget({ type: "FOLDER", id: folder.id, name: folder.name })
+                        onShare={() => {
+                          if (!folder.isIncomingShared) {
+                            setShareTarget({ type: "FOLDER", id: folder.id, name: folder.name });
+                          }
+                        }}
+                        onShareLinksClick={
+                          folder.isIncomingShared
+                            ? undefined
+                            : () =>
+                                setShareLinksTarget({
+                                  type: "FOLDER",
+                                  id: folder.id,
+                                  name: folder.name,
+                                })
                         }
                         onMove={
-                          hasMoveTargets
+                          folder.isIncomingShared
+                            ? undefined
+                            : hasMoveTargets
                             ? () => {
                                 setSingleMoveTarget({ type: "FOLDER", id: folder.id });
                                 setMoveDialogOpen(true);
                               }
                             : undefined
                         }
-                        onCopy={() => {
-                          setSingleCopyTarget({
-                            type: "FOLDER",
-                            id: folder.id,
-                            name: folder.name,
-                            currentFolderId: currentFolderId,
-                          });
-                          setCopyDialogOpen(true);
-                        }}
-                        onRename={() =>
-                          setRenameTarget({ type: "folder", id: folder.id, name: folder.name })
+                        onCopy={
+                          folder.isIncomingShared
+                            ? undefined
+                            : () => {
+                                setSingleCopyTarget({
+                                  type: "FOLDER",
+                                  id: folder.id,
+                                  name: folder.name,
+                                  currentFolderId: currentFolderId,
+                                });
+                                setCopyDialogOpen(true);
+                              }
                         }
-                        onDelete={() => handleDeleteFolder(folder.id)}
+                        onRename={
+                          folder.isIncomingShared
+                            ? undefined
+                            : () =>
+                                setRenameTarget({ type: "folder", id: folder.id, name: folder.name })
+                        }
+                        onDelete={() => {
+                          if (!folder.isIncomingShared) handleDeleteFolder(folder.id);
+                        }}
                         index={index}
                       />
                     ))}
@@ -4292,6 +4433,17 @@ export function FileManager() {
         fileId={shareLinksTarget?.type === "FILE" ? shareLinksTarget.id : null}
         folderId={shareLinksTarget?.type === "FOLDER" ? shareLinksTarget.id : null}
         targetName={shareLinksTarget?.name ?? ""}
+      />
+
+      <EmailShareGrantsDialog
+        open={!!emailShareGrantsTarget}
+        onClose={() => {
+          setEmailShareGrantsTarget(null);
+          loadData();
+        }}
+        fileId={emailShareGrantsTarget?.type === "FILE" ? emailShareGrantsTarget.id : null}
+        folderId={emailShareGrantsTarget?.type === "FOLDER" ? emailShareGrantsTarget.id : null}
+        targetName={emailShareGrantsTarget?.name ?? ""}
       />
 
       <FullPageDropOverlay />
