@@ -112,6 +112,8 @@ services:
       JWT_HEADER: Authorization
       # Иначе DS не качает файл по http://app:3000/... (приватная сеть Docker) — вечный скелет в редакторе.
       ALLOW_PRIVATE_IP_ADDRESS: "true"
+      # Если в логах app нет incoming GET при открытии редактора, а wget с onlyoffice на app работает —
+      # часто нужен патч local.json (request-filtering-agent): docker/onlyoffice/apply-request-filter.sh
     # Проброс на хост: системный nginx (Ubuntu) проксирует /onlyoffice/ → 127.0.0.1:8088
     ports:
       - "127.0.0.1:8088:80"
