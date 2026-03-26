@@ -7,6 +7,8 @@ type Props = {
   documentServerUrl: string;
   token: string;
   documentType: string;
+  /** База URL в JWT для скачивания файла (должна быть доступна из контейнера onlyoffice) */
+  documentFetchBase: string;
 };
 
 declare global {
@@ -39,6 +41,7 @@ export function OnlyofficeEditor({
   documentServerUrl,
   token,
   documentType,
+  documentFetchBase,
 }: Props) {
   const editorId = useMemo(
     () => `onlyoffice-${fileId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
@@ -123,7 +126,7 @@ export function OnlyofficeEditor({
         clearHintTimer();
         rawFromDsRef.current = false;
         rawLogCountRef.current = 0;
-        pushDebug("DocEditor: init");
+        pushDebug(`DocEditor: init (DS качает файл с: ${documentFetchBase})`);
         hintTimerRef.current = setTimeout(() => {
           if (!rawFromDsRef.current) {
             pushDebug(
@@ -220,7 +223,7 @@ export function OnlyofficeEditor({
       script.onerror = null;
       container.innerHTML = "";
     };
-  }, [documentServerUrl, token, documentType, editorId, pushDebug]);
+  }, [documentServerUrl, token, documentType, documentFetchBase, editorId, pushDebug]);
 
   return (
     <div className="flex h-[calc(100vh-10rem)] min-h-[480px] w-full flex-col">

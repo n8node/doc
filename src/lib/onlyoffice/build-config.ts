@@ -1,7 +1,7 @@
 import { SignJWT } from "jose";
 import type { OnlyOfficeDocumentKind } from "@/lib/onlyoffice/mime-editable";
 import {
-  getAppInternalUrlForOnlyoffice,
+  getOnlyofficeDocumentAndCallbackBaseUrl,
   getOnlyofficeJwtSecret,
   getOnlyofficePublicUrl,
 } from "@/lib/onlyoffice/env";
@@ -21,6 +21,8 @@ export interface OnlyofficeClientBootstrap {
   documentServerUrl: string;
   token: string;
   documentType: OnlyOfficeDocumentKind;
+  /** Откуда DS качает файл (для диагностики скелета без onDocumentReady) */
+  documentFetchBase: string;
 }
 
 /**
@@ -38,14 +40,14 @@ export async function buildSignedOnlyofficeEditorBootstrap(
     };
   }
 
-  const internal = getAppInternalUrlForOnlyoffice();
+  const base = getOnlyofficeDocumentAndCallbackBaseUrl();
   const downloadToken = await signDocumentDownloadJwt({
     fileId: input.fileId,
     userId: input.userId,
   });
 
-  const documentUrl = `${internal}/api/onlyoffice/document/${encodeURIComponent(input.fileId)}?token=${encodeURIComponent(downloadToken)}`;
-  const callbackUrl = `${internal}/api/onlyoffice/callback`;
+  const documentUrl = `${base}/api/onlyoffice/document/${encodeURIComponent(input.fileId)}?token=${encodeURIComponent(downloadToken)}`;
+  const callbackUrl = `${base}/api/onlyoffice/callback`;
 
   const config: Record<string, unknown> = {
     document: {
@@ -58,20 +60,13 @@ export async function buildSignedOnlyofficeEditorBootstrap(
     editorConfig: {
       mode: "edit",
       callbackUrl,
-      /** fast — при рабочем /coauthoring (nginx → onlyoffice). Если скелет без WS — верните strict. */
-      coEditing: { mode: "fast", change: false },
+      /** strict — меньше зависимость от WebSocket; при рабочем /coauthoring можно попробовать fast */
+      coEditing: { mode: "strict", change: false },
       user: {
         id: input.userId,
         name: input.userName.slice(0, 200) || "User",
       },
       lang: "ru",
-      permissions: {
-        comment: true,
-        download: true,
-        edit: true,
-        print: true,
-        review: true,
-      },
       customization: {
         forcesave: true,
         compactToolbar: false,
@@ -88,5 +83,6 @@ export async function buildSignedOnlyofficeEditorBootstrap(
     documentServerUrl: publicUrl,
     token,
     documentType: input.documentType,
+    documentFetchBase: base,
   };
 }

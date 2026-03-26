@@ -10,6 +10,7 @@ type ConfigOk = {
   documentServerUrl: string;
   token: string;
   documentType: string;
+  documentFetchBase: string;
 };
 
 export function OnlyofficeEditorClient({ fileId }: { fileId: string }) {
@@ -73,6 +74,7 @@ export function OnlyofficeEditorClient({ fileId }: { fileId: string }) {
           documentServerUrl={data.documentServerUrl}
           token={data.token}
           documentType={data.documentType}
+          documentFetchBase={data.documentFetchBase}
         />
       )}
     </div>
