@@ -9,7 +9,8 @@ import { verifyDownloadTicket } from "@/lib/onlyoffice/download-ticket";
 import { tryVerifyOnlyofficeBearerDocument } from "@/lib/onlyoffice/verify-document-request";
 
 function logDocument(label: string, data: Record<string, unknown>) {
-  console.info(`[onlyoffice document] ${label}`, data);
+  /** Одна строка — иначе docker logs | grep часто не видит второй аргумент console.info. */
+  console.log(`[onlyoffice document] ${label} ${JSON.stringify(data)}`);
 }
 
 type AuthOk = {
@@ -90,6 +91,7 @@ export async function HEAD(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params;
+  console.log(`[onlyoffice document] incoming HEAD id=${id}`);
   const auth = await authorizeDocumentRequest(req, id);
   if (!auth.ok) return auth.res;
 
@@ -147,6 +149,7 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params;
+  console.log(`[onlyoffice document] incoming GET id=${id}`);
   const ua = (req.headers.get("user-agent") ?? "").slice(0, 160);
   const authHdr = req.headers.get("authorization");
   const hasBearer = authHdr?.startsWith("Bearer ") ?? false;
