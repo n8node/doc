@@ -405,6 +405,8 @@ export function FileCard({
               <Clock className="h-3 w-3" />
               {formatRelativeDate(createdAt)}
             </span>
+            {!isIncomingShared && (
+              <>
             {isProcessable && isAnalyzing && (
               <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
@@ -528,6 +530,8 @@ export function FileCard({
                 )}
               </span>
             )}
+              </>
+            )}
             {hasShareLink && (
               <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
@@ -571,7 +575,7 @@ export function FileCard({
                 </span>
               </span>
             )}
-            {onChat && (isProcessed || (isTranscribable && !!hasEmbedding)) && (
+            {!isIncomingShared && onChat && (isProcessed || (isTranscribable && !!hasEmbedding)) && (
               <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <button
@@ -588,7 +592,7 @@ export function FileCard({
                 </button>
               </span>
             )}
-            {(isProcessed || (isTranscribable && !!hasEmbedding)) && (
+            {!isIncomingShared && (isProcessed || (isTranscribable && !!hasEmbedding)) && (
               <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <Link
@@ -602,7 +606,7 @@ export function FileCard({
                 </Link>
               </span>
             )}
-            {importedSheetId && (
+            {!isIncomingShared && importedSheetId && (
               <span className="hidden shrink-0 sm:inline-flex sm:items-center sm:gap-1">
                 <span>•</span>
                 <Link
@@ -638,7 +642,7 @@ export function FileCard({
                 {isVideo ? "Смотреть видео" : "Слушать аудио"}
               </DropdownMenuItem>
             )}
-            {isExcelFile && onImportToTable && (
+            {!isIncomingShared && isExcelFile && onImportToTable && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onImportToTable?.(); }} disabled={importingToTable}>
                 <Table2 className="mr-2 h-4 w-4" />
                 Импорт в таблицу
@@ -678,19 +682,19 @@ export function FileCard({
                 Переименовать
               </DropdownMenuItem>
             )}
-            {(onProcess || (processLocked && isProcessable)) && (
+            {!isIncomingShared && (onProcess || (processLocked && isProcessable)) && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onProcess?.(); }} disabled={!!processLocked}>
                 <ScanSearch className="mr-2 h-4 w-4" />
                 Анализ документа
               </DropdownMenuItem>
             )}
-            {(onTranscribe || (transcribeLocked && isTranscribable)) && (
+            {!isIncomingShared && (onTranscribe || (transcribeLocked && isTranscribable)) && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onTranscribe?.(); }} disabled={!!transcribeLocked}>
                 <Mic2 className="mr-2 h-4 w-4" />
                 Транскрибировать
               </DropdownMenuItem>
             )}
-            {(onEmbedTranscript || (embedTranscriptLocked && isTranscribable && isTranscribed)) && (
+            {!isIncomingShared && (onEmbedTranscript || (embedTranscriptLocked && isTranscribable && isTranscribed)) && (
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEmbedTranscript?.(); }} disabled={!!embedTranscriptLocked || isEmbeddingTranscript}>
                 <BrainCircuit className="mr-2 h-4 w-4" />
                 AI-обработка транскрипта
@@ -726,7 +730,7 @@ export function FileCard({
             </Tooltip>
           )}
 
-          {isExcelFile && onImportToTable && (
+          {!isIncomingShared && isExcelFile && onImportToTable && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -858,7 +862,7 @@ export function FileCard({
             </>
           )}
 
-          {(onProcess || (processLocked && isProcessable)) && (
+          {!isIncomingShared && (onProcess || (processLocked && isProcessable)) && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -884,7 +888,7 @@ export function FileCard({
             </Tooltip>
           )}
 
-          {(onTranscribe || (transcribeLocked && isTranscribable)) && (
+          {!isIncomingShared && (onTranscribe || (transcribeLocked && isTranscribable)) && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -910,7 +914,7 @@ export function FileCard({
             </Tooltip>
           )}
 
-          {(onEmbedTranscript || (embedTranscriptLocked && isTranscribable && isTranscribed)) && (
+          {!isIncomingShared && (onEmbedTranscript || (embedTranscriptLocked && isTranscribable && isTranscribed)) && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

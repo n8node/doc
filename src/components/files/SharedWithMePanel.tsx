@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Clock,
   Users,
-  BrainCircuit,
   Download,
 } from "lucide-react";
 import { IncomingShareSelectionBar } from "@/components/files/IncomingShareSelectionBar";
@@ -459,15 +458,6 @@ export function SharedWithMePanel() {
                               <Clock className="h-3 w-3" />
                               {formatRelativeDate(fi.createdAt)}
                             </span>
-                            {fi.hasEmbedding && (
-                              <>
-                                <span className="hidden sm:inline">•</span>
-                                <span className="hidden items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-600 sm:inline-flex">
-                                  <BrainCircuit className="h-3 w-3" />
-                                  AI
-                                </span>
-                              </>
-                            )}
                             <span>•</span>
                             <SharedAccessBadge ownerLabel={ownerLabel} />
                           </div>

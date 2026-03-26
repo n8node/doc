@@ -1273,6 +1273,7 @@ export function FileManager() {
     files.some(
       (f) =>
         selectedFiles.has(f.id) &&
+        !f.isIncomingShared &&
         isProcessableMime(f.mimeType, f.name) &&
         !f.aiMetadata?.processedAt
     );
@@ -4051,6 +4052,7 @@ export function FileManager() {
             files.some(
               (f) =>
                 selectedFiles.has(f.id) &&
+                !f.isIncomingShared &&
                 TRANSCRIBABLE_MIMES.has(f.mimeType) &&
                 !f.aiMetadata?.transcriptProcessedAt &&
                 (f.mediaMetadata?.durationSeconds != null || f.mimeType.startsWith("audio/")),
