@@ -501,3 +501,78 @@ export async function renameFile(id: string, name: string, userId: string) {
     data: { name: trimmed },
   });
 }
+
+/** Перезапись содержимого файла в S3 (например после сохранения из ONLYOFFICE). */
+export async function replaceUserFileContent(input: {
+  fileId: string;
+  userId: string;
+  buffer: Buffer;
+  mimeType: string;
+}) {
+  const file = await prisma.file.findFirst({
+    where: { id: input.fileId, userId: input.userId, deletedAt: null },
+  });
+  if (!file) throw new Error("Файл не найден");
+
+  const oldSize = file.size;
+  const newSize = BigInt(input.buffer.length);
+  const delta = newSize - oldSize;
+
+  const config = await getS3Config();
+  const client = createS3Client({ ...config, forcePathStyle: true });
+
+  if (delta > BigInt(0)) {
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { storageQuota: true, storageUsed: true },
+    });
+    if (!user) throw new Error("User not found");
+    if (user.storageUsed + delta > user.storageQuota) {
+      throw new Error("Превышен лимит хранилища");
+    }
+  }
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: file.s3Key,
+      Body: input.buffer,
+      ContentType: input.mimeType || file.mimeType,
+      Metadata: {
+        "x-user-id": input.userId,
+        "x-original-name": Buffer.from(file.name, "utf-8").toString("base64url"),
+      },
+    })
+  );
+
+  await prisma.$transaction(async (tx) => {
+    if (delta > BigInt(0)) {
+      const user = await tx.user.findUnique({
+        where: { id: input.userId },
+        select: { storageQuota: true, storageUsed: true },
+      });
+      if (!user) throw new Error("User not found");
+      const maxAllowedUsed = user.storageQuota - delta;
+      const updated = await tx.user.updateMany({
+        where: { id: input.userId, storageUsed: { lte: maxAllowedUsed } },
+        data: { storageUsed: { increment: delta } },
+      });
+      if (updated.count === 0) throw new Error("Превышен лимит хранилища");
+    } else if (delta < BigInt(0)) {
+      await tx.user.update({
+        where: { id: input.userId },
+        data: { storageUsed: { decrement: -delta } },
+      });
+    }
+
+    await tx.file.update({
+      where: { id: file.id },
+      data: {
+        size: newSize,
+        mimeType: input.mimeType || file.mimeType,
+      },
+    });
+  });
+
+  return prisma.file.findUnique({ where: { id: file.id } });
+}

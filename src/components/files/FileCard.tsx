@@ -31,6 +31,7 @@ import {
   Lock,
   Table2,
   MoreVertical,
+  FilePenLine,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -72,6 +73,8 @@ interface FileCardProps {
   onMove?: () => void;
   onCopy?: () => void;
   onRename?: () => void;
+  /** Редактирование в ONLYOFFICE (docx/xlsx/pptx и др.) */
+  onOfficeEdit?: () => void;
   onShareLinksClick?: () => void;
   onProcess?: () => void;
   onTranscribe?: () => void;
@@ -264,6 +267,7 @@ export function FileCard({
   onMove,
   onCopy,
   onRename,
+  onOfficeEdit,
   onShareLinksClick,
   onProcess,
   onTranscribe,
@@ -602,6 +606,12 @@ export function FileCard({
               <Download className="mr-2 h-4 w-4" />
               Скачать
             </DropdownMenuItem>
+            {onOfficeEdit && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOfficeEdit(); }}>
+                <FilePenLine className="mr-2 h-4 w-4" />
+                Редактирование
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
               <Share2 className="mr-2 h-4 w-4" />
               Поделиться
@@ -709,6 +719,24 @@ export function FileCard({
             </TooltipTrigger>
             <TooltipContent>Скачать</TooltipContent>
           </Tooltip>
+
+          {onOfficeEdit && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOfficeEdit();
+                  }}
+                  className={cn(ACTION_BTN, "text-primary hover:bg-primary/10 hover:text-primary")}
+                >
+                  <FilePenLine className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Редактирование</TooltipContent>
+            </Tooltip>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>

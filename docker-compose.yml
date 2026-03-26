@@ -70,6 +70,9 @@ services:
       CONFIG_ENCRYPTION_KEY: ${CONFIG_ENCRYPTION_KEY}
       REDIS_URL: redis://redis:6379
       DOCLING_URL: http://docling:8000
+      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-onlyoffice_dev_change_me}
+      ONLYOFFICE_DOCUMENT_SERVER_URL: ${ONLYOFFICE_DOCUMENT_SERVER_URL:-http://localhost:8088}
+      APP_INTERNAL_URL: http://app:3000
       N8N_DB_URL: ${N8N_DB_URL:-postgresql://n8n_admin:n8n_change_me@n8n-db:5432/n8n_db}
     deploy:
       resources:
@@ -86,6 +89,20 @@ services:
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - app
+    restart: unless-stopped
+
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-onlyoffice_dev_change_me}
+      JWT_HEADER: Authorization
+    ports:
+      - "8088:80"
+    deploy:
+      resources:
+        limits: { memory: 4G }
+        reservations: { memory: 2G }
     restart: unless-stopped
 
   docling:

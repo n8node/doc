@@ -78,6 +78,7 @@ import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { cn, formatBytes } from "@/lib/utils";
 import { buildDashboardFilesUrl, parseFilesSection } from "@/lib/files-navigation";
 import { isProcessableMime } from "@/lib/docling/mime-processable";
+import { isOnlyOfficeEditable } from "@/lib/onlyoffice/mime-editable";
 
 const EXCEL_FILE_MIMES = new Set([
   "application/vnd.ms-excel",
@@ -2389,6 +2390,11 @@ export function FileManager() {
       }}
       onRename={() =>
         setRenameTarget({ type: "file", id: file.id, name: file.name })
+      }
+      onOfficeEdit={
+        !isTrashSection && isOnlyOfficeEditable(file.mimeType, file.name)
+          ? () => router.push(`/dashboard/files/edit/${file.id}`)
+          : undefined
       }
       onShareLinksClick={() =>
         setShareLinksTarget({ type: "FILE", id: file.id, name: file.name })
