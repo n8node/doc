@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
+  TooltipPortal,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -332,38 +333,40 @@ export function ShareDialog({
                                 <span className="min-w-0 truncate">{r.email}</span>
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent
-                              side="top"
-                              sideOffset={10}
-                              className={cn(
-                                "max-w-[min(280px,calc(100vw-2rem))] border px-3.5 py-3 text-left shadow-lg",
-                                "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out",
-                                inSystem
-                                  ? "border-primary/35 bg-gradient-to-br from-primary/[0.14] via-background to-violet-500/[0.06] text-foreground shadow-primary/10 dark:from-primary/25 dark:via-background dark:to-violet-950/40"
-                                  : "border-amber-400/50 bg-gradient-to-br from-amber-50 via-orange-50/95 to-amber-100/80 text-amber-950 shadow-amber-500/15 dark:border-amber-500/45 dark:from-amber-950 dark:via-amber-900/95 dark:to-orange-950/60 dark:text-amber-50",
-                              )}
-                            >
-                              <p
+                            <TooltipPortal>
+                              <TooltipContent
+                                side="top"
+                                sideOffset={10}
                                 className={cn(
-                                  "text-[13px] font-semibold leading-tight tracking-tight",
-                                  !inSystem && "text-amber-900 dark:text-amber-100",
+                                  "z-[120] max-w-[min(280px,calc(100vw-2rem))] border px-3.5 py-3 text-left shadow-lg",
+                                  "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out",
+                                  inSystem
+                                    ? "border-primary/35 bg-gradient-to-br from-primary/[0.14] via-background to-violet-500/[0.06] text-foreground shadow-primary/10 dark:from-primary/25 dark:via-background dark:to-violet-950/40"
+                                    : "border-amber-400/50 bg-gradient-to-br from-amber-50 via-orange-50/95 to-amber-100/80 text-amber-950 shadow-amber-500/15 dark:border-amber-500/45 dark:from-amber-950 dark:via-amber-900/95 dark:to-orange-950/60 dark:text-amber-50",
                                 )}
                               >
-                                {inSystem
-                                  ? "Пользователь в сервисе"
-                                  : "Пока нет аккаунта"}
-                              </p>
-                              <p
-                                className={cn(
-                                  "mt-1.5 text-[11px] leading-snug text-foreground/85 dark:text-amber-100/85",
-                                  !inSystem && "text-amber-900/90 dark:text-amber-50/90",
-                                )}
-                              >
-                                {inSystem
-                                  ? "Сможет принять приглашение сразу после входа."
-                                  : "Письмо с приглашением уйдёт на этот адрес. После регистрации по email доступ подключится автоматически."}
-                              </p>
-                            </TooltipContent>
+                                <p
+                                  className={cn(
+                                    "text-[13px] font-semibold leading-tight tracking-tight",
+                                    !inSystem && "text-amber-900 dark:text-amber-100",
+                                  )}
+                                >
+                                  {inSystem
+                                    ? "Пользователь в сервисе"
+                                    : "Пока нет аккаунта"}
+                                </p>
+                                <p
+                                  className={cn(
+                                    "mt-1.5 text-[11px] leading-snug text-foreground/85 dark:text-amber-100/85",
+                                    !inSystem && "text-amber-900/90 dark:text-amber-50/90",
+                                  )}
+                                >
+                                  {inSystem
+                                    ? "Сможет принять приглашение сразу после входа."
+                                    : "Письмо с приглашением уйдёт на этот адрес. После регистрации по email доступ подключится автоматически."}
+                                </p>
+                              </TooltipContent>
+                            </TooltipPortal>
                           </Tooltip>
                         );
                       })}
