@@ -5,7 +5,7 @@ import {
   getOnlyofficeJwtSecret,
   getOnlyofficePublicUrl,
 } from "@/lib/onlyoffice/env";
-import { createDownloadTicket } from "@/lib/onlyoffice/download-ticket";
+import { signDocumentDownloadJwt } from "@/lib/onlyoffice/download-jwt";
 
 export interface OnlyofficeEditorConfigInput {
   fileId: string;
@@ -41,13 +41,16 @@ export async function buildSignedOnlyofficeEditorBootstrap(
   }
 
   const base = getOnlyofficeDocumentAndCallbackBaseUrl();
-  /** Короткий `t=` вместо JWT в query — длинный URL режет nginx (скелет редактора). */
-  const dlTicket = createDownloadTicket({
+  /**
+   * Stateless JWT в query (не in-memory `t=`): при нескольких репликах/процессах DS иначе
+   * попадает на другой инстанс — тикет не найден, документ не грузится после onAppReady.
+   */
+  const dlJwt = await signDocumentDownloadJwt({
     fileId: input.fileId,
     userId: input.userId,
   });
 
-  const documentUrl = `${base}/api/onlyoffice/document/${encodeURIComponent(input.fileId)}?t=${dlTicket}`;
+  const documentUrl = `${base}/api/onlyoffice/document/${encodeURIComponent(input.fileId)}?token=${encodeURIComponent(dlJwt)}`;
   const callbackUrl = `${base}/api/onlyoffice/callback`;
 
   const config: Record<string, unknown> = {

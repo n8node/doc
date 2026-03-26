@@ -38,9 +38,11 @@ async function authorizeDocumentRequest(
 
   if (shortT) {
     payload = verifyDownloadTicket(shortT);
-  } else if (token) {
+  }
+  if (!payload && token) {
     payload = await verifyDocumentDownloadJwt(token);
-  } else {
+  }
+  if (!payload) {
     payload = await tryVerifyOnlyofficeBearerDocument(req, id);
   }
 
