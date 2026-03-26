@@ -404,13 +404,46 @@ export async function declineShareGrant(
 export async function revokeShareGrant(grantId: string, ownerUserId: string) {
   const grant = await prisma.shareGrant.findFirst({
     where: { id: grantId, ownerUserId, status: { in: ["PENDING", "ACTIVE"] } },
+    include: {
+      file: { select: { name: true } },
+      folder: { select: { name: true } },
+    },
   });
   if (!grant) throw new Error("Запись не найдена");
+
+  const previousStatus = grant.status;
 
   await prisma.shareGrant.update({
     where: { id: grant.id },
     data: { status: "REVOKED", revokedAt: new Date() },
   });
+
+  const targetName =
+    grant.targetType === "FILE"
+      ? grant.file?.name ?? "файл"
+      : grant.folder?.name ?? "папка";
+
+  const recipientUserId =
+    grant.recipientUserId ??
+    (await findUserIdByShareEmail(grant.recipientEmail));
+
+  if (recipientUserId) {
+    const wasActive = previousStatus === "ACTIVE";
+    createNotificationIfEnabled({
+      userId: recipientUserId,
+      type: "SHARE_GRANT",
+      category: "warning",
+      title: wasActive ? "Доступ отозван" : "Приглашение отозвано",
+      body: wasActive
+        ? `Владелец закрыл доступ к «${targetName}».`
+        : `Приглашение к «${targetName}» больше не действует.`,
+      payload: {
+        grantId: grant.id,
+        targetType: grant.targetType,
+        revoked: true,
+      },
+    }).catch(() => {});
+  }
 }
 
 export async function listOutgoingGrantsForTarget(

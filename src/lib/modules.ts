@@ -4,6 +4,7 @@ import {
   Clock3,
   ImageIcon,
   Share2,
+  Users,
   History,
   Trash2,
   Search,
@@ -76,7 +77,7 @@ export const navGroups: NavGroup[] = [
       { href: buildDashboardFilesUrl({ section: "shared" }), icon: Share2, label: "Публичные ссылки", section: "shared" },
       {
         href: buildDashboardFilesUrl({ section: "shared-with-me" }),
-        icon: Share2,
+        icon: Users,
         label: "Доступно мне",
         section: "shared-with-me",
       },
