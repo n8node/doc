@@ -52,6 +52,14 @@ export async function buildSignedOnlyofficeEditorBootstrap(
 
   const documentUrl = `${base}/api/onlyoffice/document/${encodeURIComponent(input.fileId)}?token=${encodeURIComponent(dlJwt)}`;
   const callbackUrl = `${base}/api/onlyoffice/callback`;
+  try {
+    const u = new URL(documentUrl);
+    console.log(
+      `[onlyoffice build] documentUrl origin=${u.origin} path=${u.pathname} tokenQueryLen=${u.searchParams.get("token")?.length ?? 0} callbackOrigin=${new URL(callbackUrl).origin}`
+    );
+  } catch (e) {
+    console.log("[onlyoffice build] documentUrl parse error", String(e));
+  }
 
   const config: Record<string, unknown> = {
     document: {

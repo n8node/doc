@@ -63,5 +63,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: bootstrap.error }, { status: 503 });
   }
 
+  console.log(
+    `[onlyoffice config] ok fileId=${file.id} documentFetchBase=${bootstrap.documentFetchBase}`
+  );
+
   return NextResponse.json(bootstrap);
 }
