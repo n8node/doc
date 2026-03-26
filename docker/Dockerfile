@@ -15,6 +15,11 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# Полный `npm install prisma` — в рантайме нужен только для `migrate deploy` (standalone не тянет effect/c12 и др. для CLI).
+FROM node:20-bookworm-slim AS prisma-migrate
+WORKDIR /migrate
+RUN npm init -y && npm install prisma@6.19.2
+
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -36,8 +41,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=prisma-migrate --chown=nextjs:nodejs /migrate/node_modules /app/prisma-migrate-modules/node_modules
 
 # Бинарники Chromium из этапа deps
 COPY --from=deps --chown=nextjs:nodejs /root/.cache/ms-playwright /home/nextjs/.cache/ms-playwright
