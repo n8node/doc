@@ -17,6 +17,23 @@ declare global {
   }
 }
 
+/** Yandex Metrika и др. шлют postMessage с тем же origin, что и страница — не путать с ONLYOFFICE. */
+function isOnlyofficeLikeMessage(data: unknown): boolean {
+  if (data != null && typeof data === "object" && "event" in (data as object)) {
+    return true;
+  }
+  if (typeof data !== "string") return false;
+  if (data.startsWith("__ym")) return false;
+  const t = data.trimStart();
+  if (!t.startsWith("{") || !t.includes('"event"')) return false;
+  try {
+    const o = JSON.parse(data) as { event?: unknown };
+    return typeof o.event === "string";
+  } catch {
+    return false;
+  }
+}
+
 export function OnlyofficeEditor({
   fileId,
   documentServerUrl,
@@ -67,6 +84,7 @@ export function OnlyofficeEditor({
 
     const onWindowMessage = (ev: MessageEvent) => {
       if (!dsOrigin || ev.origin !== dsOrigin) return;
+      if (!isOnlyofficeLikeMessage(ev.data)) return;
       rawFromDsRef.current = true;
       if (rawLogCountRef.current >= 12) return;
       rawLogCountRef.current += 1;
