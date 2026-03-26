@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Props = {
   fileId: string;
@@ -52,13 +53,26 @@ export function OnlyofficeEditor({
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rawFromDsRef = useRef(false);
   const rawLogCountRef = useRef(0);
+  const overlayPendingRef = useRef(true);
   const [error, setError] = useState<string | null>(null);
   const [debugLines, setDebugLines] = useState<string[]>([]);
+  /** Плейсхолдер поверх iframe, пока DS не подтвердил готовность (onAppReady / onDocumentReady / onInfo). */
+  const [editorShellLoading, setEditorShellLoading] = useState(true);
 
   const pushDebug = useCallback((line: string) => {
     const t = new Date().toISOString().slice(11, 19);
     setDebugLines((prev) => [...prev.slice(-14), `${t} ${line}`]);
   }, []);
+
+  const dismissEditorShellLoading = useCallback(
+    (reason: string) => {
+      if (!overlayPendingRef.current) return;
+      overlayPendingRef.current = false;
+      setEditorShellLoading(false);
+      pushDebug(reason);
+    },
+    [pushDebug]
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -116,16 +130,22 @@ export function OnlyofficeEditor({
 
     const run = () => {
       if (!window.DocsAPI) {
+        dismissEditorShellLoading("DocsAPI отсутствует после загрузки скрипта");
         setError("ONLYOFFICE API не загружен");
         return;
       }
       const placeholder = document.getElementById(editorId);
-      if (!placeholder) return;
+      if (!placeholder) {
+        dismissEditorShellLoading("placeholder редактора не найден в DOM");
+        return;
+      }
       try {
         clearStuckTimer();
         clearHintTimer();
         rawFromDsRef.current = false;
         rawLogCountRef.current = 0;
+        overlayPendingRef.current = true;
+        setEditorShellLoading(true);
         pushDebug(`DocEditor: init (DS качает файл с: ${documentFetchBase})`);
         hintTimerRef.current = setTimeout(() => {
           if (!rawFromDsRef.current) {
@@ -136,6 +156,9 @@ export function OnlyofficeEditor({
           hintTimerRef.current = null;
         }, 8000);
         stuckTimerRef.current = setTimeout(() => {
+          dismissEditorShellLoading(
+            "таймаут 90 с: скрытие оверлея для диагностики (ошибка ниже)"
+          );
           setError(
             "Документ не открылся за 90 с. Проверьте: 1) onlyoffice с ALLOW_PRIVATE_IP_ADDRESS=true и пересозданием контейнера 2) системный nginx: /coauthoring и /web-apps → onlyoffice 3) строки «Диагностика ONLYOFFICE» ниже — пришлите скрин."
           );
@@ -149,16 +172,23 @@ export function OnlyofficeEditor({
           height: "100%",
           type: "desktop",
           events: {
-            /** Не снимать таймер здесь: DS часто шлёт onDocumentReady до фактической загрузки файла — тогда красный текст не показывался. */
-            onDocumentReady: () => pushDebug("onDocumentReady (iframe сообщил готовность)"),
+            /** Снимает оверлей раньше onDocumentReady — у части инсталляций onDocumentReady не доходит до родителя. */
+            onAppReady: () => {
+              dismissEditorShellLoading("onAppReady (приложение редактора загружено)");
+            },
+            onDocumentReady: () => {
+              dismissEditorShellLoading("onDocumentReady (документ в редакторе)");
+            },
             onDocumentStateChange: (e: { data?: unknown }) => {
               pushDebug(`onDocumentStateChange ${formatOoEvent(e?.data)}`);
             },
             onInfo: (e: { data?: unknown }) => {
               pushDebug(`onInfo ${formatOoEvent(e?.data)}`);
+              dismissEditorShellLoading("onInfo (файл открыт в редакторе)");
             },
             onError: (e: { data?: unknown }) => {
               clearStuckTimer();
+              dismissEditorShellLoading("onError");
               const t = formatOoEvent(e?.data);
               pushDebug(`onError ${t}`);
               setError(t || "Ошибка ONLYOFFICE (см. консоль iframe)");
@@ -171,6 +201,7 @@ export function OnlyofficeEditor({
           },
         });
       } catch (e) {
+        dismissEditorShellLoading("исключение при создании DocEditor");
         setError(e instanceof Error ? e.message : "Ошибка редактора");
       }
     };
@@ -212,7 +243,10 @@ export function OnlyofficeEditor({
     script.src = scriptSrc;
     script.async = true;
     script.onload = run;
-    script.onerror = () => setError("Не удалось загрузить скрипт ONLYOFFICE");
+    script.onerror = () => {
+      dismissEditorShellLoading("не загрузился api.js ONLYOFFICE");
+      setError("Не удалось загрузить скрипт ONLYOFFICE");
+    };
     document.body.appendChild(script);
 
     return () => {
@@ -223,7 +257,15 @@ export function OnlyofficeEditor({
       script.onerror = null;
       container.innerHTML = "";
     };
-  }, [documentServerUrl, token, documentType, documentFetchBase, editorId, pushDebug]);
+  }, [
+    documentServerUrl,
+    token,
+    documentType,
+    documentFetchBase,
+    editorId,
+    pushDebug,
+    dismissEditorShellLoading,
+  ]);
 
   return (
     <div className="flex h-[calc(100vh-10rem)] min-h-[480px] w-full flex-col">
@@ -232,10 +274,22 @@ export function OnlyofficeEditor({
           {error}
         </div>
       )}
-      <div
-        ref={containerRef}
-        className="min-h-[480px] flex-1 w-full overflow-hidden rounded-xl border border-border bg-background"
-      />
+      <div className="relative min-h-[480px] flex-1 w-full overflow-hidden rounded-xl border border-border bg-background">
+        <div
+          ref={containerRef}
+          className="absolute inset-0 min-h-[480px] h-full w-full"
+        />
+        {editorShellLoading && (
+          <div
+            className="absolute inset-0 z-10 flex flex-col gap-2 bg-background p-4"
+            aria-busy
+            aria-label="Загрузка редактора"
+          >
+            <Skeleton className="h-9 w-full max-w-xl" />
+            <Skeleton className="min-h-[420px] flex-1 w-full rounded-lg" />
+          </div>
+        )}
+      </div>
       {debugLines.length > 0 && (
         <details className="mt-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left">
           <summary className="cursor-pointer text-xs text-muted-foreground">

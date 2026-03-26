@@ -13,12 +13,25 @@ type ConfigOk = {
   documentFetchBase: string;
 };
 
+/** Убирает «второй» скелет при Strict Mode: повторный mount видит уже загруженный конфиг. */
+const onlyofficeConfigCache = new Map<string, ConfigOk>();
+
 export function OnlyofficeEditorClient({ fileId }: { fileId: string }) {
-  const [data, setData] = useState<ConfigOk | null>(null);
+  const [data, setData] = useState<ConfigOk | null>(
+    () => onlyofficeConfigCache.get(fileId) ?? null
+  );
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !onlyofficeConfigCache.has(fileId));
 
   useEffect(() => {
+    const cached = onlyofficeConfigCache.get(fileId);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     let cancelled = false;
     fetch(`/api/onlyoffice/config?fileId=${encodeURIComponent(fileId)}`)
       .then(async (r) => {
@@ -29,7 +42,10 @@ export function OnlyofficeEditorClient({ fileId }: { fileId: string }) {
         return j as ConfigOk;
       })
       .then((j) => {
-        if (!cancelled) setData(j);
+        if (!cancelled) {
+          onlyofficeConfigCache.set(fileId, j);
+          setData(j);
+        }
       })
       .catch((e: unknown) => {
         if (!cancelled)
