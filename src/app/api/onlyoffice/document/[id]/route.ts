@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStreamFromS3 } from "@/lib/s3-download";
 import { verifyDocumentDownloadJwt } from "@/lib/onlyoffice/download-jwt";
+import { tryVerifyOnlyofficeBearerDocument } from "@/lib/onlyoffice/verify-document-request";
 
 export async function GET(
   req: NextRequest,
@@ -9,13 +10,20 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
   const token = req.nextUrl.searchParams.get("token");
-  if (!token) {
-    return NextResponse.json({ error: "token required" }, { status: 400 });
+
+  let payload: { fileId: string; userId: string } | null = null;
+
+  if (token) {
+    payload = await verifyDocumentDownloadJwt(token);
+  } else {
+    payload = await tryVerifyOnlyofficeBearerDocument(req, id);
   }
 
-  const payload = await verifyDocumentDownloadJwt(token);
   if (!payload || payload.fileId !== id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: token ? 403 : 401 }
+    );
   }
 
   const file = await prisma.file.findFirst({

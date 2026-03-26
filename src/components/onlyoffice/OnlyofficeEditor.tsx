@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
   fileId: string;
@@ -17,9 +17,6 @@ declare global {
   }
 }
 
-/** Защита от двойного init (React Strict Mode) на одном placeholder. */
-const onlyofficeInitGuard = new Set<string>();
-
 export function OnlyofficeEditor({
   fileId,
   documentServerUrl,
@@ -30,28 +27,31 @@ export function OnlyofficeEditor({
     () => `onlyoffice-${fileId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
     [fileId]
   );
+  const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const scriptSrc = `${documentServerUrl}/web-apps/apps/api/documents/api.js`;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const scriptSrc = `${documentServerUrl.replace(/\/+$/, "")}/web-apps/apps/api/documents/api.js`;
+
+    const formatOoEvent = (data: unknown) =>
+      typeof data === "string"
+        ? data
+        : data != null
+          ? JSON.stringify(data)
+          : "";
 
     const run = () => {
-      if (onlyofficeInitGuard.has(editorId)) return;
       if (!window.DocsAPI) {
         setError("ONLYOFFICE API не загружен");
         return;
       }
-      if (!document.getElementById(editorId)) return;
+      const placeholder = document.getElementById(editorId);
+      if (!placeholder) return;
       try {
-        onlyofficeInitGuard.add(editorId);
-        const formatOoEvent = (data: unknown) =>
-          typeof data === "string"
-            ? data
-            : data != null
-              ? JSON.stringify(data)
-              : "";
-
-        new window.DocsAPI.DocEditor(editorId, {
+        new window.DocsAPI!.DocEditor(editorId, {
           documentType,
           documentServerUrl,
           token,
@@ -70,10 +70,16 @@ export function OnlyofficeEditor({
           },
         });
       } catch (e) {
-        onlyofficeInitGuard.delete(editorId);
         setError(e instanceof Error ? e.message : "Ошибка редактора");
       }
     };
+
+    /** DocEditor заменяет placeholder на iframe — без пересоздания div повторный init (Strict Mode / смена token) не находит узел. */
+    container.innerHTML = "";
+    const ph = document.createElement("div");
+    ph.id = editorId;
+    ph.className = "h-full min-h-[480px] w-full";
+    container.appendChild(ph);
 
     const existing = Array.from(document.querySelectorAll("script")).find(
       (s) => s.getAttribute("src") === scriptSrc
@@ -82,16 +88,17 @@ export function OnlyofficeEditor({
     if (window.DocsAPI) {
       run();
       return () => {
-        onlyofficeInitGuard.delete(editorId);
+        container.innerHTML = "";
       };
     }
 
     if (existing) {
       const onLoad = () => run();
       existing.addEventListener("load", onLoad);
+      if (window.DocsAPI) onLoad();
       return () => {
         existing.removeEventListener("load", onLoad);
-        onlyofficeInitGuard.delete(editorId);
+        container.innerHTML = "";
       };
     }
 
@@ -105,7 +112,7 @@ export function OnlyofficeEditor({
     return () => {
       script.onload = null;
       script.onerror = null;
-      onlyofficeInitGuard.delete(editorId);
+      container.innerHTML = "";
     };
   }, [documentServerUrl, token, documentType, editorId]);
 
@@ -117,7 +124,7 @@ export function OnlyofficeEditor({
         </div>
       )}
       <div
-        id={editorId}
+        ref={containerRef}
         className="min-h-[480px] flex-1 w-full overflow-hidden rounded-xl border border-border bg-background"
       />
     </div>
