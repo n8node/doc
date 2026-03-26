@@ -99,10 +99,9 @@ services:
       JWT_ENABLED: "true"
       JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-onlyoffice_dev_change_me}
       JWT_HEADER: Authorization
-    # Прямой доступ с хоста не нужен: только через nginx → /onlyoffice/
-    # Раскомментируйте для отладки без reverse proxy: "8088:80"
-    # ports:
-    #   - "8088:80"
+    # Проброс на хост: системный nginx (Ubuntu) проксирует /onlyoffice/ → 127.0.0.1:8088
+    ports:
+      - "127.0.0.1:8088:80"
     deploy:
       resources:
         limits: { memory: 4G }
