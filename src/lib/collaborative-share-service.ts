@@ -401,6 +401,39 @@ export async function declineShareGrant(
   });
 }
 
+/** Получатель отказывается от приглашения (PENDING → DECLINED) или снимает принятый доступ (ACTIVE → REVOKED). */
+export async function withdrawShareGrantAsRecipient(
+  grantId: string,
+  recipientUserId: string,
+  recipientEmail: string
+) {
+  const email = normalizeShareEmail(recipientEmail);
+  const grant = await prisma.shareGrant.findFirst({
+    where: {
+      id: grantId,
+      status: { in: ["PENDING", "ACTIVE"] },
+      OR: [{ recipientUserId }, { recipientEmail: email, recipientUserId: null }],
+    },
+  });
+  if (!grant) throw new Error("Запись не найдена");
+  if (grant.recipientUserId && grant.recipientUserId !== recipientUserId) {
+    throw new Error("Запись не найдена");
+  }
+
+  if (grant.status === "PENDING") {
+    await prisma.shareGrant.update({
+      where: { id: grant.id },
+      data: { status: "DECLINED", declinedAt: new Date(), recipientUserId },
+    });
+    return;
+  }
+
+  await prisma.shareGrant.update({
+    where: { id: grant.id },
+    data: { status: "REVOKED", revokedAt: new Date(), recipientUserId },
+  });
+}
+
 export async function revokeShareGrant(grantId: string, ownerUserId: string) {
   const grant = await prisma.shareGrant.findFirst({
     where: { id: grantId, ownerUserId, status: { in: ["PENDING", "ACTIVE"] } },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
-import { prisma } from "@/lib/prisma";
+import { resolveFileAccessForUser } from "@/lib/collaborative-share-service";
 import { getStreamFromS3 } from "@/lib/s3-download";
 import archiver from "archiver";
 import { PassThrough, Readable } from "stream";
@@ -30,10 +30,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const files = await prisma.file.findMany({
-    where: { id: { in: fileIds }, userId, deletedAt: null },
-    select: { id: true, name: true, s3Key: true },
-  });
+  const uniqueIds = Array.from(new Set(fileIds));
+  const files: Array<{ id: string; name: string; s3Key: string }> = [];
+  for (const fid of uniqueIds) {
+    const access = await resolveFileAccessForUser(userId, fid);
+    if (access.mode === "none") continue;
+    const f = access.file;
+    if (f.deletedAt) continue;
+    files.push({ id: f.id, name: f.name, s3Key: f.s3Key });
+  }
 
   if (files.length === 0) {
     return NextResponse.json({ error: "Файлы не найдены" }, { status: 404 });

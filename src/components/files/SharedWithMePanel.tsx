@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import {
   BrainCircuit,
   Download,
 } from "lucide-react";
+import { IncomingShareSelectionBar } from "@/components/files/IncomingShareSelectionBar";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -102,6 +103,9 @@ export function SharedWithMePanel() {
   const [grants, setGrants] = useState<GrantRow[]>([]);
   const [browse, setBrowse] = useState<BrowseData | null>(null);
   const [browseLoading, setBrowseLoading] = useState(false);
+
+  const [selectedGrantIds, setSelectedGrantIds] = useState<Set<string>>(new Set());
+  const [leavingBulk, setLeavingBulk] = useState(false);
 
   const loadIncoming = useCallback(async () => {
     setLoading(true);
@@ -200,6 +204,39 @@ export function SharedWithMePanel() {
     }
   };
 
+  const toggleGrantSelection = (grantId: string) => {
+    setSelectedGrantIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(grantId)) next.delete(grantId);
+      else next.add(grantId);
+      return next;
+    });
+  };
+
+  const clearGrantSelection = () => setSelectedGrantIds(new Set());
+
+  const selectedGrants = useMemo(
+    () => grants.filter((g) => selectedGrantIds.has(g.id)),
+    [grants, selectedGrantIds],
+  );
+
+  const selectedSize = useMemo(
+    () =>
+      selectedGrants.reduce((sum, g) => {
+        if (g.targetType === "FILE" && g.file?.size) return sum + g.file.size;
+        return sum;
+      }, 0),
+    [selectedGrants],
+  );
+
+  const canBulkDownload = useMemo(
+    () =>
+      selectedGrants.some(
+        (g) => g.targetType === "FILE" && g.status === "ACTIVE" && !!g.file?.id,
+      ),
+    [selectedGrants],
+  );
+
   const openFileDownload = async (fileId: string) => {
     try {
       const res = await fetch(`/api/v1/files/${fileId}/download`);
@@ -208,6 +245,81 @@ export function SharedWithMePanel() {
       else toast.error(d.error || "Не удалось открыть");
     } catch {
       toast.error("Ошибка");
+    }
+  };
+
+  const bulkDownloadSelected = async () => {
+    const fileIds = Array.from(
+      new Set(
+        selectedGrants
+          .filter((g) => g.targetType === "FILE" && g.status === "ACTIVE" && g.file?.id)
+          .map((g) => g.file!.id),
+      ),
+    );
+    if (fileIds.length === 0) {
+      toast.error("Нет файлов для скачивания — нужен принятый доступ к файлу");
+      return;
+    }
+    if (fileIds.length === 1) {
+      await openFileDownload(fileIds[0]);
+      return;
+    }
+    const toastId = toast.loading(`Формируется архив (${fileIds.length} файлов)...`);
+    try {
+      const res = await fetch("/api/v1/files/download-archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileIds }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Ошибка формирования архива");
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? decodeURIComponent(match[1]) : "files.zip";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Архив скачан (${fileIds.length} файлов)`, { id: toastId });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Ошибка скачивания";
+      toast.error(msg, { id: toastId });
+    }
+  };
+
+  const bulkWithdrawSelected = async () => {
+    if (selectedGrantIds.size === 0) return;
+    setLeavingBulk(true);
+    try {
+      let ok = 0;
+      for (const id of Array.from(selectedGrantIds)) {
+        const res = await fetch(`/api/v1/share/grants/${id}/withdraw`, {
+          method: "POST",
+        });
+        if (res.ok) {
+          ok++;
+        } else {
+          const d = await res.json().catch(() => ({}));
+          toast.error(d.error || "Ошибка");
+          break;
+        }
+      }
+      if (ok > 0) {
+        toast.success(
+          ok === 1 ? "Доступ отключён" : `Отключено доступов: ${ok}`,
+        );
+        clearGrantSelection();
+        loadIncoming();
+      }
+    } finally {
+      setLeavingBulk(false);
     }
   };
 
@@ -438,7 +550,23 @@ export function SharedWithMePanel() {
                   )}
                 >
                   <div className="flex min-w-0 flex-1 items-start gap-4 sm:items-center">
-                    <ListCheckboxPlaceholder />
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={selectedGrantIds.has(g.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleGrantSelection(g.id);
+                      }}
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
+                        selectedGrantIds.has(g.id)
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background hover:border-primary/50",
+                      )}
+                    >
+                      {selectedGrantIds.has(g.id) && <Check className="h-3 w-3" />}
+                    </button>
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                       <FolderOpen className="h-5 w-5 text-primary" />
                     </div>
@@ -555,7 +683,23 @@ export function SharedWithMePanel() {
                   )}
                 >
                   <div className="flex min-w-0 flex-1 items-start gap-4 sm:items-center">
-                    <ListCheckboxPlaceholder />
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={selectedGrantIds.has(g.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleGrantSelection(g.id);
+                      }}
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
+                        selectedGrantIds.has(g.id)
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background hover:border-primary/50",
+                      )}
+                    >
+                      {selectedGrantIds.has(g.id) && <Check className="h-3 w-3" />}
+                    </button>
                     <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", bg)}>
                       <Icon className={cn("h-5 w-5", color)} />
                     </div>
@@ -650,6 +794,16 @@ export function SharedWithMePanel() {
           </div>
         </div>
       )}
+
+      <IncomingShareSelectionBar
+        selectedCount={selectedGrantIds.size}
+        selectedSize={selectedSize}
+        canDownload={canBulkDownload}
+        onDownload={() => void bulkDownloadSelected()}
+        onLeaveShare={() => void bulkWithdrawSelected()}
+        onClear={clearGrantSelection}
+        leaving={leavingBulk}
+      />
     </div>
     </TooltipProvider>
   );
