@@ -50,7 +50,7 @@ const featureLabels: Record<string, string> = {
   audio_player: "Аудиоплеер",
   share_links: "Ссылки для шаринга",
   folder_share: "Шаринг папок",
-  shared_access_email: "Совместный доступ по email",
+  shared_access_email: "Совместный доступ",
   ai_search: "AI-поиск",
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
