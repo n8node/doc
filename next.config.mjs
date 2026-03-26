@@ -19,12 +19,18 @@ const nextConfig = {
      * Когда HTTPS отдаёт системный nginx сразу в Next (без location /onlyoffice/),
      * статика ONLYOFFICE должна проксироваться приложением на контейнер onlyoffice.
      * В Docker: http://onlyoffice. Локально в .env: ONLYOFFICE_INTERNAL_ORIGIN=http://127.0.0.1:8088
+     *
+     * Документ-сервер отдаёт ресурсы с корня: /web-apps/, /cache/, /coauthoring/ — браузер
+     * запрашивает https://домен/web-apps/... (без префикса /onlyoffice), иначе Next даёт 404.
      */
     if (process.env.ONLYOFFICE_REWRITE !== "false") {
-      list.push({
-        source: "/onlyoffice/:path*",
-        destination: `${onlyofficeInternal}/:path*`,
-      });
+      const oo = onlyofficeInternal;
+      list.push(
+        { source: "/onlyoffice/:path*", destination: `${oo}/:path*` },
+        { source: "/web-apps/:path*", destination: `${oo}/web-apps/:path*` },
+        { source: "/cache/:path*", destination: `${oo}/cache/:path*` },
+        { source: "/coauthoring/:path*", destination: `${oo}/coauthoring/:path*` }
+      );
     }
     return list;
   },
