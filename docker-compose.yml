@@ -61,6 +61,7 @@ services:
     depends_on:
       db: { condition: service_healthy }
       docling: { condition: service_healthy }
+      onlyoffice: { condition: service_started }
     environment:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/dropbox_ru?schema=public
       NEXTAUTH_URL: ${NEXTAUTH_URL:-https://qoqon.ru}
@@ -73,6 +74,8 @@ services:
       ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-onlyoffice_dev_change_me}
       # С nginx из репозитория: http://localhost/onlyoffice (локально) или https://qoqon.ru/onlyoffice (прод)
       ONLYOFFICE_DOCUMENT_SERVER_URL: ${ONLYOFFICE_DOCUMENT_SERVER_URL:-http://localhost/onlyoffice}
+      # Прокси /onlyoffice/* → контейнер onlyoffice (next.config rewrites); переопределите при необходимости
+      ONLYOFFICE_INTERNAL_ORIGIN: ${ONLYOFFICE_INTERNAL_ORIGIN:-http://onlyoffice}
       APP_INTERNAL_URL: http://app:3000
       N8N_DB_URL: ${N8N_DB_URL:-postgresql://n8n_admin:n8n_change_me@n8n-db:5432/n8n_db}
     deploy:
