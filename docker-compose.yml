@@ -83,7 +83,12 @@ services:
         limits: { memory: 2G }
     restart: unless-stopped
 
+  # Опционально: только если НЕТ системного nginx на 80/443 (иначе bind: address already in use).
+  # Прод с qoqon.ru: трафик с хоста → app:3000 и onlyoffice:8088; этот сервис не нужен.
+  # Запуск: docker compose --profile docker-nginx up -d
   nginx:
+    profiles:
+      - docker-nginx
     image: nginx:alpine
     ports:
       - "80:80"
