@@ -44,6 +44,13 @@ export function OnlyofficeEditor({
       if (!document.getElementById(editorId)) return;
       try {
         onlyofficeInitGuard.add(editorId);
+        const formatOoEvent = (data: unknown) =>
+          typeof data === "string"
+            ? data
+            : data != null
+              ? JSON.stringify(data)
+              : "";
+
         new window.DocsAPI.DocEditor(editorId, {
           documentType,
           documentServerUrl,
@@ -51,6 +58,16 @@ export function OnlyofficeEditor({
           width: "100%",
           height: "100%",
           type: "desktop",
+          events: {
+            onError: (e: { data?: unknown }) => {
+              const t = formatOoEvent(e?.data);
+              setError(t || "Ошибка ONLYOFFICE (см. консоль iframe)");
+            },
+            onWarning: (e: { data?: unknown }) => {
+              const t = formatOoEvent(e?.data);
+              if (t) console.warn("[ONLYOFFICE]", t);
+            },
+          },
         });
       } catch (e) {
         onlyofficeInitGuard.delete(editorId);
