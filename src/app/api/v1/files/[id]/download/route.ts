@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
-import { prisma } from "@/lib/prisma";
 import { getPresignedDownloadUrl } from "@/lib/s3-download";
+import { resolveFileAccessForUser } from "@/lib/collaborative-share-service";
 
 export async function GET(
   req: NextRequest,
@@ -11,11 +11,11 @@ export async function GET(
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
-  const file = await prisma.file.findFirst({
-    where: { id, userId, deletedAt: null },
-  });
-  if (!file)
+  const access = await resolveFileAccessForUser(userId, id);
+  if (access.mode === "none") {
     return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
+  }
+  const file = access.file;
 
   const url = await getPresignedDownloadUrl(file.s3Key);
   return NextResponse.json({ url, name: file.name });

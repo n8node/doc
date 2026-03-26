@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/api-key-auth";
-import { prisma } from "@/lib/prisma";
 import { deleteFile, moveFile, renameFile } from "@/lib/file-service";
 import { softDeleteFile, getTrashRetentionDays } from "@/lib/trash-service";
+import { resolveFileAccessForUser } from "@/lib/collaborative-share-service";
 
 export async function GET(
   req: NextRequest,
@@ -12,12 +12,12 @@ export async function GET(
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
-  const file = await prisma.file.findFirst({
-    where: { id, userId, deletedAt: null },
-  });
-  if (!file)
+  const access = await resolveFileAccessForUser(userId, id);
+  if (access.mode === "none") {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
-  return NextResponse.json({
+  }
+  const file = access.file;
+  const base = {
     id: file.id,
     name: file.name,
     mimeType: file.mimeType,
@@ -25,7 +25,18 @@ export async function GET(
     folderId: file.folderId,
     mediaMetadata: file.mediaMetadata,
     createdAt: file.createdAt,
-  });
+  };
+  if (access.mode === "shared") {
+    return NextResponse.json({
+      ...base,
+      sharedAccess: true,
+      sharedGrantId: access.grant.id,
+      sharedFrom: { userId: file.userId },
+      allowCollections: access.canUseCollections,
+      allowAiFeatures: access.canUseAi,
+    });
+  }
+  return NextResponse.json(base);
 }
 
 export async function PATCH(
@@ -36,6 +47,16 @@ export async function PATCH(
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
+  const access = await resolveFileAccessForUser(userId, id);
+  if (access.mode === "shared") {
+    return NextResponse.json(
+      { error: "Только просмотр: файл расшарен вам" },
+      { status: 403 }
+    );
+  }
+  if (access.mode === "none") {
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  }
   const body = await req.json();
   const { name, folderId } = body;
   try {
@@ -68,6 +89,16 @@ export async function DELETE(
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
+  const access = await resolveFileAccessForUser(userId, id);
+  if (access.mode === "shared") {
+    return NextResponse.json(
+      { error: "Только просмотр: файл расшарен вам" },
+      { status: 403 }
+    );
+  }
+  if (access.mode === "none") {
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  }
   try {
     const retentionDays = await getTrashRetentionDays(userId);
     if (retentionDays > 0) {

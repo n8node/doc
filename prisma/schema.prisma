@@ -34,6 +34,8 @@ model User {
   payments             Payment[]
   aiTasks              AiTask[]
   shareLinks           ShareLink[]
+  shareGrantsOwned     ShareGrant[]          @relation("ShareGrantOwner")
+  shareGrantsReceived  ShareGrant[]          @relation("ShareGrantRecipient")
   historyEvents        HistoryEvent[]
   documentChatMessages DocumentChatMessage[]
   apiKeys              UserApiKey[]
@@ -148,6 +150,7 @@ model File {
   deletedAt             DateTime?              @map("deleted_at")
   trashBatchId          String?                @map("trash_batch_id")
   shareLinks            ShareLink[]
+  shareGrants           ShareGrant[]
   embeddings            DocumentEmbedding[]
   aiTasks               AiTask[]
   chatMessages          DocumentChatMessage[]
@@ -171,6 +174,7 @@ model Folder {
   user              User               @relation(fields: [userId], references: [id])
   files             File[]
   shareLinks        ShareLink[]
+  shareGrants       ShareGrant[]
   vectorCollections VectorCollection[]
   deletedAt         DateTime?          @map("deleted_at")
   trashBatchId      String?            @map("trash_batch_id")
@@ -328,6 +332,46 @@ model ShareLink {
 
   @@index([createdById])
   @@map("share_links")
+}
+
+enum ShareGrantStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+/// Совместный доступ по email (не публичная ссылка).
+model ShareGrant {
+  id                 String           @id @default(cuid()) @map("id")
+  ownerUserId        String           @map("owner_user_id")
+  owner              User             @relation("ShareGrantOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  recipientEmail     String           @map("recipient_email") // lowercased
+  recipientUserId    String?          @map("recipient_user_id")
+  recipient          User?            @relation("ShareGrantRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  targetType         String           @map("target_type") // FILE | FOLDER
+  shareTargetKey     String           @map("share_target_key") // file:<id> или folder:<id>
+  fileId             String?          @map("file_id")
+  file               File?            @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  folderId           String?          @map("folder_id")
+  folder             Folder?          @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  status             ShareGrantStatus @default(PENDING) @map("status")
+  allowCollections   Boolean          @default(false) @map("allow_collections")
+  allowAiFeatures    Boolean          @default(false) @map("allow_ai_features")
+  expiresAt          DateTime?        @map("expires_at")
+  acceptedAt         DateTime?        @map("accepted_at")
+  declinedAt         DateTime?        @map("declined_at")
+  revokedAt          DateTime?        @map("revoked_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  @@index([ownerUserId, status])
+  @@index([recipientUserId, status])
+  @@index([recipientEmail, status])
+  @@index([expiresAt])
+  @@unique([ownerUserId, recipientEmail, shareTargetKey])
+  @@map("share_grants")
 }
 
 model HistoryEvent {

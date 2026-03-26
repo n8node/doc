@@ -12,6 +12,7 @@ import { VkProviderVkId } from "./vk-id-provider";
 import { resolveVkOAuthCredentials } from "./vk-oauth";
 import { validateVkSignIn, handleVkJwt } from "./auth-vk";
 import { configStore } from "./config-store";
+import { linkPendingGrantsToUser } from "./collaborative-share-service";
 
 function createAuthOptions(vkProviders: AnyOAuth[]): NextAuthOptions {
   return {
@@ -101,6 +102,9 @@ function createAuthOptions(vkProviders: AnyOAuth[]): NextAuthOptions {
           token.role = (user as { role?: "USER" | "ADMIN" }).role;
           const u = user as { email?: string | null };
           if (typeof u.email === "string") token.email = u.email;
+          if (typeof u.email === "string" && typeof user.id === "string") {
+            linkPendingGrantsToUser(user.id, u.email).catch(() => {});
+          }
         }
         if (trigger === "update" || !token.checkedAt || Date.now() - (token.checkedAt as number) > 5 * 60 * 1000) {
           const dbUser = await prisma.user.findUnique({

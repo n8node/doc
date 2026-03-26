@@ -4,6 +4,7 @@ export const FILES_SECTIONS = [
   "photos",
   "videos",
   "shared",
+  "shared-with-me",
   "history",
   "trash",
 ] as const;

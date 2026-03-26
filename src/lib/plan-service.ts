@@ -11,6 +11,7 @@ const FREE_PLAN_DEFAULTS = {
     audio_player: true,
     share_links: true,
     folder_share: true,
+    shared_access_email: false,
     ai_search: false,
     document_chat: false,
     document_analysis: false,

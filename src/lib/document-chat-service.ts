@@ -17,8 +17,11 @@ const DEFAULT_SYSTEM_PROMPT =
 
 export interface SendMessageInput {
   fileId: string;
+  /** Участник чата (квота, история сообщений). */
   userId: string;
   content: string;
+  /** Владелец файла — если чат от получателя расшаренного файла. */
+  fileOwnerUserId?: string;
 }
 
 export interface SendMessageResult {
@@ -30,10 +33,11 @@ export interface SendMessageResult {
 export async function sendDocumentChatMessage(
   input: SendMessageInput,
 ): Promise<SendMessageResult> {
+  const ownerId = input.fileOwnerUserId ?? input.userId;
   const file = await prisma.file.findFirst({
     where: {
       id: input.fileId,
-      userId: input.userId,
+      userId: ownerId,
       deletedAt: null,
     },
   });
@@ -109,7 +113,7 @@ export async function sendDocumentChatMessage(
   const similar = await findSimilarForFile(
     embResult.vector,
     input.fileId,
-    input.userId,
+    ownerId,
     embedConfig.topK,
     embedConfig.similarityThreshold,
   );
@@ -118,7 +122,11 @@ export async function sendDocumentChatMessage(
   if (similar.length > 0) {
     context = similar.map((s) => s.chunkText).join("\n\n");
   } else {
-    const fallbackChunks = await getChunksForFile(input.fileId, input.userId, Math.max(15, embedConfig.topK));
+    const fallbackChunks = await getChunksForFile(
+      input.fileId,
+      ownerId,
+      Math.max(15, embedConfig.topK),
+    );
     context =
       fallbackChunks.length > 0
         ? fallbackChunks.map((c) => c.chunkText).join("\n\n")
@@ -233,9 +241,11 @@ export async function getDocumentChatHistory(
   fileId: string,
   userId: string,
   limit = 100,
+  options?: { fileOwnerUserId?: string },
 ) {
+  const ownerId = options?.fileOwnerUserId ?? userId;
   const file = await prisma.file.findFirst({
-    where: { id: fileId, userId, deletedAt: null },
+    where: { id: fileId, userId: ownerId, deletedAt: null },
   });
   if (!file) return null;
 

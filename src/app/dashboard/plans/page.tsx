@@ -51,6 +51,7 @@ interface UserPlan {
 const featureLabels: Record<string, string> = {
   share_links: "Публичные ссылки",
   folder_share: "Шаринг папок",
+  shared_access_email: "Доступ по email (совместный)",
   rag_memory: "RAG-память",
   n8n_connection: "Подключение к n8n",
   sheets: "Таблицы",

@@ -5,6 +5,7 @@ import {
   getDocumentChatHistory,
 } from "@/lib/document-chat-service";
 import { hasFeature } from "@/lib/plan-service";
+import { resolveFileAccessForUser } from "@/lib/collaborative-share-service";
 import { TokenQuotaExceededError } from "@/lib/ai/token-usage";
 
 /**
@@ -19,6 +20,18 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id: fileId } = await ctx.params;
+  const access = await resolveFileAccessForUser(userId, fileId);
+  if (access.mode === "none") {
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  }
+  if (access.mode === "shared" && !access.canUseAi) {
+    return NextResponse.json(
+      { error: "Владелец не разрешил AI-функции для этого доступа." },
+      { status: 403 },
+    );
+  }
+
   const allowed = await hasFeature(userId, "document_chat");
   if (!allowed) {
     return NextResponse.json(
@@ -27,8 +40,10 @@ export async function GET(
     );
   }
 
-  const { id: fileId } = await ctx.params;
-  const messages = await getDocumentChatHistory(fileId, userId);
+  const ownerId = access.mode === "owner" ? userId : access.file.userId;
+  const messages = await getDocumentChatHistory(fileId, userId, 100, {
+    fileOwnerUserId: ownerId,
+  });
   if (messages === null) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
@@ -49,6 +64,18 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id: fileId } = await ctx.params;
+  const access = await resolveFileAccessForUser(userId, fileId);
+  if (access.mode === "none") {
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  }
+  if (access.mode === "shared" && !access.canUseAi) {
+    return NextResponse.json(
+      { error: "Владелец не разрешил AI-функции для этого доступа." },
+      { status: 403 },
+    );
+  }
+
   const allowed = await hasFeature(userId, "document_chat");
   if (!allowed) {
     return NextResponse.json(
@@ -57,7 +84,6 @@ export async function POST(
     );
   }
 
-  const { id: fileId } = await ctx.params;
   let body: { content?: string };
   try {
     body = await req.json();
@@ -81,6 +107,7 @@ export async function POST(
       fileId,
       userId,
       content,
+      fileOwnerUserId: access.mode === "shared" ? access.file.userId : undefined,
     });
     return NextResponse.json(result);
   } catch (e) {

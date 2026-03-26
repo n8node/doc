@@ -68,6 +68,7 @@ import { SelectionBar } from "./SelectionBar";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { ShareDialog } from "./ShareDialog";
 import { ShareLinksListDialog } from "./ShareLinksListDialog";
+import { SharedWithMePanel } from "./SharedWithMePanel";
 import { MoveDialog } from "./MoveDialog";
 import { RenameDialog } from "./RenameDialog";
 import { DocumentChatDialog } from "./DocumentChatDialog";
@@ -236,6 +237,7 @@ export function FileManager() {
   const isPhotosSection = activeSection === "photos";
   const isVideosSection = activeSection === "videos";
   const isSharedSection = activeSection === "shared";
+  const isSharedWithMeSection = activeSection === "shared-with-me";
   const isHistorySection = activeSection === "history";
   const isTrashSection = activeSection === "trash";
   const normalizedViewMode = parseViewMode(viewParam, isPhotosSection || isVideosSection ? "grid" : "list");
@@ -439,12 +441,29 @@ export function FileManager() {
   }, [loadStorageInfo]);
 
   useEffect(() => {
-    if (isRecentSection || isPhotosSection || isVideosSection || isSharedSection || isHistorySection || isTrashSection) {
+    if (
+      isRecentSection ||
+      isPhotosSection ||
+      isVideosSection ||
+      isSharedSection ||
+      isSharedWithMeSection ||
+      isHistorySection ||
+      isTrashSection
+    ) {
       setCurrentFolderId(null);
       return;
     }
     setCurrentFolderId(folderIdParam || null);
-  }, [folderIdParam, isRecentSection, isPhotosSection, isVideosSection, isSharedSection, isHistorySection, isTrashSection]);
+  }, [
+    folderIdParam,
+    isRecentSection,
+    isPhotosSection,
+    isVideosSection,
+    isSharedSection,
+    isSharedWithMeSection,
+    isHistorySection,
+    isTrashSection,
+  ]);
 
   useEffect(() => {
     if (!selectedCustomDate) return;
@@ -563,6 +582,15 @@ export function FileManager() {
         setFiles([]);
         setFolders([]);
         setBreadcrumbs([{ id: null, name: "История" }]);
+        loadStorageInfo();
+        return;
+      }
+
+      if (isSharedWithMeSection) {
+        setHistoryEntries([]);
+        setFiles([]);
+        setFolders([]);
+        setBreadcrumbs([{ id: null, name: "Доступно мне" }]);
         loadStorageInfo();
         return;
       }
@@ -690,6 +718,7 @@ export function FileManager() {
     isPhotosSection,
     isVideosSection,
     isSharedSection,
+    isSharedWithMeSection,
     isHistorySection,
     isTrashSection,
     buildBaseFileFilterParams,
@@ -2582,7 +2611,12 @@ export function FileManager() {
   };
 
   const showFolders =
-    (!isRecentSection && !isPhotosSection && !isVideosSection && !isHistorySection && !isTrashSection) ||
+    (!isRecentSection &&
+      !isPhotosSection &&
+      !isVideosSection &&
+      !isHistorySection &&
+      !isTrashSection &&
+      !isSharedWithMeSection) ||
     isSharedSection;
   const showTrashFolders = isTrashSection;
   const showPhotoGrid = isPhotosSection && viewMode === "grid";
@@ -2640,6 +2674,29 @@ export function FileManager() {
         )}
       </AnimatePresence>
 
+      {isSharedWithMeSection ? (
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b border-border bg-surface2/30 px-4 py-4 sm:px-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">Доступно мне</h2>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                onClick={() => loadData(true)}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                Обновить
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <SharedWithMePanel />
+          </CardContent>
+        </Card>
+      ) : (
       <Card className="overflow-hidden">
         {/* Header */}
         <CardHeader className="space-y-4 border-b border-border bg-surface2/30">
@@ -3809,6 +3866,7 @@ export function FileManager() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Hidden file input for EmptyState button */}
       <input

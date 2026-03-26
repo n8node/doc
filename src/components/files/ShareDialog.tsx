@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -14,6 +14,7 @@ import {
   Loader2,
   Mail,
   Info,
+  Users,
 } from "lucide-react";
 import {
   Dialog,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { parseEmailList } from "@/lib/share-email-parse";
 
 interface ShareDialogProps {
   targetType: "FILE" | "FOLDER";
@@ -38,18 +40,115 @@ const expiryOptions = [
   { value: "0", label: "Бессрочно", description: "Ссылка будет работать всегда" },
 ];
 
+const emailExpiryOptions = [
+  { value: "7", label: "7 дней" },
+  { value: "30", label: "30 дней" },
+  { value: "90", label: "90 дней" },
+  { value: "0", label: "Без срока" },
+];
+
 export function ShareDialog({
   targetType,
   targetId,
-  targetName: _targetName,
+  targetName,
   onClose,
 }: ShareDialogProps) {
+  const [tab, setTab] = useState<"link" | "email">("link");
   const [expiresIn, setExpiresIn] = useState("7");
+  const [emailExpiresIn, setEmailExpiresIn] = useState("30");
   const [oneTime, setOneTime] = useState(false);
   const [loading, setLoading] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [expiryDate, setExpiryDate] = useState<string | null>(null);
+
+  const [emailFeature, setEmailFeature] = useState<boolean | null>(null);
+  const [emailText, setEmailText] = useState("");
+  const [resolved, setResolved] = useState<Array<{ email: string; userId: string | null }>>(
+    [],
+  );
+  const [resolving, setResolving] = useState(false);
+  const [allowCollections, setAllowCollections] = useState(false);
+  const [allowAi, setAllowAi] = useState(false);
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/v1/plans/me")
+      .then((r) => r.json())
+      .then((d) => {
+        setEmailFeature(!!d.features?.shared_access_email);
+      })
+      .catch(() => setEmailFeature(false));
+  }, []);
+
+  const resolveEmails = async () => {
+    const list = parseEmailList(emailText);
+    if (list.length === 0) {
+      toast.error("Нет корректных адресов");
+      setResolved([]);
+      return;
+    }
+    setResolving(true);
+    try {
+      const res = await fetch("/api/v1/share/grants/resolve-recipients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: list }),
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.results)) {
+        setResolved(data.results);
+      } else {
+        toast.error(data.error || "Ошибка");
+      }
+    } catch {
+      toast.error("Ошибка");
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const submitEmailShares = async () => {
+    const list = parseEmailList(emailText);
+    if (list.length === 0) {
+      toast.error("Укажите email");
+      return;
+    }
+    let expiresAt: string | null = null;
+    if (emailExpiresIn !== "0") {
+      const d = new Date();
+      d.setDate(d.getDate() + (parseInt(emailExpiresIn, 10) || 30));
+      expiresAt = d.toISOString();
+    }
+    setEmailSubmitting(true);
+    try {
+      const res = await fetch("/api/v1/share/grants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetType,
+          fileId: targetType === "FILE" ? targetId : undefined,
+          folderId: targetType === "FOLDER" ? targetId : undefined,
+          emails: list,
+          allowCollections,
+          allowAiFeatures: allowAi,
+          expiresAt,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Отправлено приглашений: ${data.count ?? 0}`);
+        window.dispatchEvent(new CustomEvent("notifications:refresh"));
+        onClose();
+      } else {
+        toast.error(data.error || "Ошибка");
+      }
+    } catch {
+      toast.error("Ошибка");
+    } finally {
+      setEmailSubmitting(false);
+    }
+  };
 
   const handleCreate = async () => {
     setLoading(true);
@@ -65,7 +164,7 @@ export function ShareDialog({
             day: "numeric",
             month: "long",
             year: "numeric",
-          })
+          }),
         );
       } else {
         setExpiryDate(null);
@@ -107,8 +206,12 @@ export function ShareDialog({
 
   const handleMailShare = () => {
     if (url) {
-      const subject = encodeURIComponent(`Доступ к ${targetType === "FILE" ? "файлу" : "папке"}`);
-      const body = encodeURIComponent(`Привет!\n\nДелюсь ${targetType === "FILE" ? "файлом" : "папкой"}:\n${url}\n\nСсылка ${expiryDate ? `действует до ${expiryDate}` : "бессрочная"}.`);
+      const subject = encodeURIComponent(
+        `Доступ к ${targetType === "FILE" ? "файлу" : "папке"}`,
+      );
+      const body = encodeURIComponent(
+        `Привет!\n\nДелюсь ${targetType === "FILE" ? "файлом" : "папкой"}:\n${url}\n\nСсылка ${expiryDate ? `действует до ${expiryDate}` : "бессрочная"}.`,
+      );
       window.open(`mailto:?subject=${subject}&body=${body}`);
     }
   };
@@ -116,22 +219,169 @@ export function ShareDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md min-w-0 overflow-hidden p-0" aria-describedby={undefined}>
-        {/* Header */}
         <div className="border-b border-border bg-surface2/50 px-6 py-4">
           <DialogHeader>
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <Link2 className="h-5 w-5 text-primary" />
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <DialogTitle className="text-left">Поделиться</DialogTitle>
+                <p className="mt-1 truncate text-xs text-muted-foreground" title={targetName}>
+                  {targetName}
+                </p>
               </div>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setTab("link")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-sm font-medium",
+                  tab === "link"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background/80 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Публичная ссылка
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("email")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-sm font-medium",
+                  tab === "email"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background/80 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                По email
+              </button>
             </div>
           </DialogHeader>
         </div>
 
         <AnimatePresence mode="wait">
-          {!url ? (
+          {tab === "email" ? (
+            <motion.div
+              key="email"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="p-6"
+            >
+              {emailFeature === false ? (
+                <p className="text-sm text-muted-foreground">
+                  Совместный доступ по email недоступен на вашем тарифе. Обновите тариф в разделе «Тарифы».
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">Email получателей</label>
+                    <textarea
+                      value={emailText}
+                      onChange={(e) => setEmailText(e.target.value)}
+                      onBlur={() => {
+                        if (emailText.trim()) void resolveEmails();
+                      }}
+                      placeholder="Один или несколько адресов через запятую или с новой строки"
+                      rows={4}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => void resolveEmails()}
+                      disabled={resolving}
+                    >
+                      {resolving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Проверить адреса"
+                      )}
+                    </Button>
+                  </div>
+
+                  {resolved.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {resolved.map((r) => (
+                        <span
+                          key={r.email}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs",
+                            r.userId
+                              ? "bg-primary/10 text-foreground"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                          title={r.userId ? "Пользователь в системе" : "Пока нет аккаунта — приглашение на email"}
+                        >
+                          <Users className="h-3 w-3" />
+                          {r.email}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {emailExpiryOptions.map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => setEmailExpiresIn(o.value)}
+                        className={cn(
+                          "rounded-lg border px-2 py-2 text-sm",
+                          emailExpiresIn === o.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border",
+                        )}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={allowCollections}
+                        onChange={(e) => setAllowCollections(e.target.checked)}
+                      />
+                      Разрешить коллекции / RAG в папке
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={allowAi}
+                        onChange={(e) => setAllowAi(e.target.checked)}
+                      />
+                      Разрешить AI (чат, векторы) — у получателя должен быть тариф с AI
+                    </label>
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    onClick={() => void submitEmailShares()}
+                    disabled={emailSubmitting || emailFeature !== true}
+                  >
+                    {emailSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Отправка...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4" />
+                        Отправить приглашения
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </motion.div>
+          ) : !url ? (
             <motion.div
               key="form"
               initial={{ opacity: 0 }}
@@ -140,7 +390,6 @@ export function ShareDialog({
               className="p-6"
             >
               <div className="space-y-6">
-                {/* Expiry selection */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
@@ -156,7 +405,7 @@ export function ShareDialog({
                           "rounded-xl border-2 px-3 py-2.5 text-left transition-all duration-200",
                           expiresIn === option.value
                             ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
+                            : "border-border hover:border-primary/50",
                         )}
                       >
                         <span className="text-sm font-medium">{option.label}</span>
@@ -169,7 +418,6 @@ export function ShareDialog({
                   </p>
                 </div>
 
-                {/* One-time toggle */}
                 <div className="space-y-3">
                   <button
                     type="button"
@@ -178,15 +426,13 @@ export function ShareDialog({
                       "flex w-full items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200",
                       oneTime
                         ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
+                        : "border-border hover:border-primary/50",
                     )}
                   >
                     <div
                       className={cn(
                         "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all",
-                        oneTime
-                          ? "border-primary bg-primary"
-                          : "border-border"
+                        oneTime ? "border-primary bg-primary" : "border-border",
                       )}
                     >
                       {oneTime && <Check className="h-3 w-3 text-white" />}
@@ -197,20 +443,14 @@ export function ShareDialog({
                         <span className="text-sm font-medium">Одноразовая ссылка</span>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Ссылка станет недействительной после первого скачивания. 
-                        Подходит для конфиденциальных файлов.
+                        Ссылка станет недействительной после первого скачивания. Подходит для
+                        конфиденциальных файлов.
                       </p>
                     </div>
                   </button>
                 </div>
 
-                {/* Create button */}
-                <Button
-                  onClick={handleCreate}
-                  disabled={loading}
-                  className="w-full gap-2"
-                  size="lg"
-                >
+                <Button onClick={handleCreate} disabled={loading} className="w-full gap-2" size="lg">
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -233,7 +473,6 @@ export function ShareDialog({
               className="p-6"
             >
               <div className="space-y-5">
-                {/* Success message */}
                 <div className="flex items-center justify-center">
                   <motion.div
                     initial={{ scale: 0 }}
@@ -251,7 +490,6 @@ export function ShareDialog({
                   </p>
                 </div>
 
-                {/* URL field */}
                 <div className="relative">
                   <input
                     type="text"
@@ -266,7 +504,7 @@ export function ShareDialog({
                       "absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
                       copied
                         ? "bg-success/10 text-success"
-                        : "bg-primary/10 text-primary hover:bg-primary/20"
+                        : "bg-primary/10 text-primary hover:bg-primary/20",
                     )}
                   >
                     {copied ? (
@@ -283,7 +521,6 @@ export function ShareDialog({
                   </button>
                 </div>
 
-                {/* Expiry info */}
                 {expiryDate && (
                   <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
@@ -297,21 +534,12 @@ export function ShareDialog({
                   </div>
                 )}
 
-                {/* Action buttons */}
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-2"
-                    onClick={handleMailShare}
-                  >
+                  <Button variant="outline" className="flex-1 gap-2" onClick={handleMailShare}>
                     <Mail className="h-4 w-4" />
                     Отправить на почту
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => window.open(url, "_blank")}
-                  >
+                  <Button variant="outline" className="gap-2" onClick={() => window.open(url, "_blank")}>
                     <ExternalLink className="h-4 w-4" />
                   </Button>
                 </div>
