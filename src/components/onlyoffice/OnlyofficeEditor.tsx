@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
   fileId: string;
@@ -30,6 +30,12 @@ export function OnlyofficeEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const stuckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [debugLines, setDebugLines] = useState<string[]>([]);
+
+  const pushDebug = useCallback((line: string) => {
+    const t = new Date().toISOString().slice(11, 19);
+    setDebugLines((prev) => [...prev.slice(-14), `${t} ${line}`]);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -60,9 +66,10 @@ export function OnlyofficeEditor({
       if (!placeholder) return;
       try {
         clearStuckTimer();
+        pushDebug("DocEditor: init");
         stuckTimerRef.current = setTimeout(() => {
           setError(
-            "Документ не открылся за 90 с. Частая причина: контейнер onlyoffice без ALLOW_PRIVATE_IP_ADDRESS=true — DS не может скачать файл по http://app:3000. Сделайте docker compose up -d onlyoffice после обновления compose. Также проверьте nginx: WebSocket /coauthoring → onlyoffice."
+            "Документ не открылся за 90 с. Проверьте: 1) onlyoffice с ALLOW_PRIVATE_IP_ADDRESS=true и пересозданием контейнера 2) системный nginx: /coauthoring и /web-apps → onlyoffice 3) строки «Диагностика ONLYOFFICE» ниже — пришлите скрин."
           );
         }, 90000);
 
@@ -74,14 +81,23 @@ export function OnlyofficeEditor({
           height: "100%",
           type: "desktop",
           events: {
-            onDocumentReady: () => clearStuckTimer(),
+            /** Не снимать таймер здесь: DS часто шлёт onDocumentReady до фактической загрузки файла — тогда красный текст не показывался. */
+            onDocumentReady: () => pushDebug("onDocumentReady (iframe сообщил готовность)"),
+            onDocumentStateChange: (e: { data?: unknown }) => {
+              pushDebug(`onDocumentStateChange ${formatOoEvent(e?.data)}`);
+            },
+            onInfo: (e: { data?: unknown }) => {
+              pushDebug(`onInfo ${formatOoEvent(e?.data)}`);
+            },
             onError: (e: { data?: unknown }) => {
               clearStuckTimer();
               const t = formatOoEvent(e?.data);
+              pushDebug(`onError ${t}`);
               setError(t || "Ошибка ONLYOFFICE (см. консоль iframe)");
             },
             onWarning: (e: { data?: unknown }) => {
               const t = formatOoEvent(e?.data);
+              pushDebug(`onWarning ${t}`);
               if (t) console.warn("[ONLYOFFICE]", t);
             },
           },
@@ -91,7 +107,6 @@ export function OnlyofficeEditor({
       }
     };
 
-    /** DocEditor заменяет placeholder на iframe — без пересоздания div повторный init (Strict Mode / смена token) не находит узел. */
     container.innerHTML = "";
     const ph = document.createElement("div");
     ph.id = editorId;
@@ -134,7 +149,7 @@ export function OnlyofficeEditor({
       script.onerror = null;
       container.innerHTML = "";
     };
-  }, [documentServerUrl, token, documentType, editorId]);
+  }, [documentServerUrl, token, documentType, editorId, pushDebug]);
 
   return (
     <div className="flex h-[calc(100vh-10rem)] min-h-[480px] w-full flex-col">
@@ -147,6 +162,16 @@ export function OnlyofficeEditor({
         ref={containerRef}
         className="min-h-[480px] flex-1 w-full overflow-hidden rounded-xl border border-border bg-background"
       />
+      {debugLines.length > 0 && (
+        <details className="mt-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left">
+          <summary className="cursor-pointer text-xs text-muted-foreground">
+            Диагностика ONLYOFFICE (события с редактора)
+          </summary>
+          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-snug text-muted-foreground">
+            {debugLines.join("\n")}
+          </pre>
+        </details>
+      )}
     </div>
   );
 }
