@@ -72,8 +72,8 @@ services:
       REDIS_URL: redis://redis:6379
       DOCLING_URL: http://docling:8000
       ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-onlyoffice_dev_change_me}
-      # С nginx из репозитория: http://localhost/onlyoffice (локально) или https://qoqon.ru/onlyoffice (прод)
-      ONLYOFFICE_DOCUMENT_SERVER_URL: ${ONLYOFFICE_DOCUMENT_SERVER_URL:-http://localhost/onlyoffice}
+      # Браузер грузит api.js с этого origin. Локально Next на :3000 — не :80 (иначе ERR_CONNECTION_REFUSED).
+      ONLYOFFICE_DOCUMENT_SERVER_URL: ${ONLYOFFICE_DOCUMENT_SERVER_URL:-http://localhost:3000/onlyoffice}
       # Прокси /onlyoffice/* → контейнер onlyoffice (next.config rewrites); переопределите при необходимости
       ONLYOFFICE_INTERNAL_ORIGIN: ${ONLYOFFICE_INTERNAL_ORIGIN:-http://onlyoffice}
       APP_INTERNAL_URL: http://app:3000
