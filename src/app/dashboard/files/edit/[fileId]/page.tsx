@@ -1,8 +1,5 @@
-import { OnlyofficeEditorClient } from "./onlyoffice-editor-client";
+import { redirect } from "next/navigation";
 
-type Props = { params: Promise<{ fileId: string }> };
-
-export default async function OnlyofficeEditPage({ params }: Props) {
-  const { fileId } = await params;
-  return <OnlyofficeEditorClient key={fileId} fileId={fileId} />;
+export default async function OnlyofficeEditPage() {
+  redirect("/dashboard/files");
 }
