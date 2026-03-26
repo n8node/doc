@@ -624,7 +624,7 @@ export default function SheetDetailPage() {
       enableResizing: false,
       cell: ({ row }) => (
         <div className="flex h-8 items-center justify-center px-1">
-          <span className="text-muted-foreground text-xs">{(row.original.rowIndex as number) + 1}</span>
+          <span className="text-muted-foreground text-xs">{row.original.rowIndex as number}</span>
         </div>
       ),
     };
