@@ -6,7 +6,7 @@ import { AdminSidebar } from "@/components/layout/AdminSidebar";
 
 function AdminSidebarFallback() {
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-72 animate-pulse rounded-r-2xl border-r border-border bg-surface2" />
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 animate-pulse rounded-r-2xl border-r border-border bg-surface2" />
   );
 }
 
@@ -24,7 +24,7 @@ export default async function AdminLayout({
       <Suspense fallback={<AdminSidebarFallback />}>
         <AdminSidebar />
       </Suspense>
-      <div className="pl-72">
+      <div className="pl-64">
         <main className="min-h-screen p-6">{children}</main>
       </div>
     </div>
