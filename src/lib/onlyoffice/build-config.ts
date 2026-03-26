@@ -58,7 +58,8 @@ export async function buildSignedOnlyofficeEditorBootstrap(
     editorConfig: {
       mode: "edit",
       callbackUrl,
-      coEditing: { mode: "fast", change: true },
+      /** strict снижает зависимость от WebSocket; fast — если nginx отдаёт /coauthoring на DS */
+      coEditing: { mode: "strict", change: false },
       user: {
         id: input.userId,
         name: input.userName.slice(0, 200) || "User",

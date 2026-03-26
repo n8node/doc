@@ -28,11 +28,19 @@ export function OnlyofficeEditor({
     [fileId]
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const stuckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
+    const clearStuckTimer = () => {
+      if (stuckTimerRef.current) {
+        clearTimeout(stuckTimerRef.current);
+        stuckTimerRef.current = null;
+      }
+    };
 
     const scriptSrc = `${documentServerUrl.replace(/\/+$/, "")}/web-apps/apps/api/documents/api.js`;
 
@@ -51,6 +59,13 @@ export function OnlyofficeEditor({
       const placeholder = document.getElementById(editorId);
       if (!placeholder) return;
       try {
+        clearStuckTimer();
+        stuckTimerRef.current = setTimeout(() => {
+          setError(
+            "Документ не открылся за 90 с. Частая причина: контейнер onlyoffice без ALLOW_PRIVATE_IP_ADDRESS=true — DS не может скачать файл по http://app:3000. Сделайте docker compose up -d onlyoffice после обновления compose. Также проверьте nginx: WebSocket /coauthoring → onlyoffice."
+          );
+        }, 90000);
+
         new window.DocsAPI!.DocEditor(editorId, {
           documentType,
           documentServerUrl,
@@ -59,7 +74,9 @@ export function OnlyofficeEditor({
           height: "100%",
           type: "desktop",
           events: {
+            onDocumentReady: () => clearStuckTimer(),
             onError: (e: { data?: unknown }) => {
+              clearStuckTimer();
               const t = formatOoEvent(e?.data);
               setError(t || "Ошибка ONLYOFFICE (см. консоль iframe)");
             },
@@ -88,6 +105,7 @@ export function OnlyofficeEditor({
     if (window.DocsAPI) {
       run();
       return () => {
+        clearStuckTimer();
         container.innerHTML = "";
       };
     }
@@ -97,6 +115,7 @@ export function OnlyofficeEditor({
       existing.addEventListener("load", onLoad);
       if (window.DocsAPI) onLoad();
       return () => {
+        clearStuckTimer();
         existing.removeEventListener("load", onLoad);
         container.innerHTML = "";
       };
@@ -110,6 +129,7 @@ export function OnlyofficeEditor({
     document.body.appendChild(script);
 
     return () => {
+      clearStuckTimer();
       script.onload = null;
       script.onerror = null;
       container.innerHTML = "";

@@ -3,9 +3,10 @@ import { jwtVerify } from "jose";
 import { getOnlyofficeJwtSecret } from "@/lib/onlyoffice/env";
 
 function readUserIdFromPayload(p: Record<string, unknown>): string | null {
-  const ec = p.editorConfig as { user?: { id?: string } } | undefined;
+  const ec = p.editorConfig as { user?: { id?: string | number } } | undefined;
   const uid = ec?.user?.id;
-  return typeof uid === "string" ? uid : null;
+  if (uid === undefined || uid === null) return null;
+  return String(uid);
 }
 
 function findDocumentAccess(
