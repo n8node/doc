@@ -14,23 +14,32 @@ export function getOnlyofficePublicUrl(): string | null {
 /**
  * База URL для document.url и callbackUrl в JWT (должна быть достижима из контейнера onlyoffice).
  *
- * Важно: не подставляем APP_URL (https://домен) по умолчанию — из Docker onlyoffice часто
- * не может сходить на свой же публичный HTTPS (hairpin NAT, DNS), из‑за этого вечный скелет
- * после onAppReady без onDocumentReady.
- *
- * Приоритет:
- * 1) ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL — явная база
- * 2) ONLYOFFICE_USE_PUBLIC_APP_URL=true + APP_URL — если осознанно гоните трафик через nginx наружу
- * 3) APP_INTERNAL_URL
- * 4) http://app:3000 — типичный сервис в docker-compose
+ * По умолчанию для продакшена: APP_URL с https (nginx → app) — так обычно интегрируют ONLYOFFICE.
+ * Внутренний http://app:3000 включайте через ONLYOFFICE_USE_INTERNAL_DOCUMENT_URL=true, если
+ * публичный URL из Docker недоступен (hairpin) или отлаживаете сеть.
  */
 export function getOnlyofficeDocumentAndCallbackBaseUrl(): string {
   const explicit = process.env.ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL?.trim();
   if (explicit?.startsWith("http")) return explicit.replace(/\/+$/, "");
 
+  if (process.env.ONLYOFFICE_USE_INTERNAL_DOCUMENT_URL === "true") {
+    const internal = process.env.APP_INTERNAL_URL?.trim();
+    if (internal?.startsWith("http")) return internal.replace(/\/+$/, "");
+    return "http://app:3000";
+  }
+
   if (process.env.ONLYOFFICE_USE_PUBLIC_APP_URL === "true") {
     const appUrl = process.env.APP_URL?.trim();
     if (appUrl?.startsWith("http")) return appUrl.replace(/\/+$/, "");
+  }
+
+  const appUrl = process.env.APP_URL?.trim();
+  if (appUrl?.startsWith("https://")) return appUrl.replace(/\/+$/, "");
+  if (
+    appUrl?.startsWith("http://localhost") ||
+    appUrl?.startsWith("http://127.0.0.1")
+  ) {
+    return appUrl.replace(/\/+$/, "");
   }
 
   const internal = process.env.APP_INTERNAL_URL?.trim();
@@ -40,7 +49,7 @@ export function getOnlyofficeDocumentAndCallbackBaseUrl(): string {
 }
 
 /**
- * @deprecated используйте getOnlyofficeDocumentAndCallbackBaseUrl (раньше здесь был fallback на APP_URL).
+ * @deprecated используйте getOnlyofficeDocumentAndCallbackBaseUrl
  */
 export function getAppInternalUrlForOnlyoffice(): string {
   return getOnlyofficeDocumentAndCallbackBaseUrl();
