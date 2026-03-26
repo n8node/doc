@@ -5,7 +5,7 @@ import {
   getOnlyofficeJwtSecret,
   getOnlyofficePublicUrl,
 } from "@/lib/onlyoffice/env";
-import { signDocumentDownloadJwt } from "@/lib/onlyoffice/download-jwt";
+import { createDownloadTicket } from "@/lib/onlyoffice/download-ticket";
 
 export interface OnlyofficeEditorConfigInput {
   fileId: string;
@@ -41,12 +41,13 @@ export async function buildSignedOnlyofficeEditorBootstrap(
   }
 
   const base = getOnlyofficeDocumentAndCallbackBaseUrl();
-  const downloadToken = await signDocumentDownloadJwt({
+  /** Короткий `t=` вместо JWT в query — длинный URL режет nginx (скелет редактора). */
+  const dlTicket = createDownloadTicket({
     fileId: input.fileId,
     userId: input.userId,
   });
 
-  const documentUrl = `${base}/api/onlyoffice/document/${encodeURIComponent(input.fileId)}?token=${encodeURIComponent(downloadToken)}`;
+  const documentUrl = `${base}/api/onlyoffice/document/${encodeURIComponent(input.fileId)}?t=${dlTicket}`;
   const callbackUrl = `${base}/api/onlyoffice/callback`;
 
   const config: Record<string, unknown> = {

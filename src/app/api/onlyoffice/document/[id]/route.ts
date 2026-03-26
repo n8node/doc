@@ -5,6 +5,7 @@ import {
   headObjectFromS3,
 } from "@/lib/s3-download";
 import { verifyDocumentDownloadJwt } from "@/lib/onlyoffice/download-jwt";
+import { verifyDownloadTicket } from "@/lib/onlyoffice/download-ticket";
 import { tryVerifyOnlyofficeBearerDocument } from "@/lib/onlyoffice/verify-document-request";
 
 function logDocument(label: string, data: Record<string, unknown>) {
@@ -27,6 +28,7 @@ async function authorizeDocumentRequest(
   req: NextRequest,
   id: string
 ): Promise<AuthOk | AuthFail> {
+  const shortT = req.nextUrl.searchParams.get("t");
   const token = req.nextUrl.searchParams.get("token");
   const ua = (req.headers.get("user-agent") ?? "").slice(0, 160);
   const authHdr = req.headers.get("authorization");
@@ -34,26 +36,34 @@ async function authorizeDocumentRequest(
 
   let payload: { fileId: string; userId: string } | null = null;
 
-  if (token) {
+  if (shortT) {
+    payload = verifyDownloadTicket(shortT);
+  } else if (token) {
     payload = await verifyDocumentDownloadJwt(token);
   } else {
     payload = await tryVerifyOnlyofficeBearerDocument(req, id);
   }
 
   if (!payload || payload.fileId !== id) {
+    const reason = !payload
+      ? shortT
+        ? "bad_ticket"
+        : token
+          ? "bad_jwt"
+          : "no_auth"
+      : "fileId_mismatch";
     logDocument("deny", {
       id,
+      hasT: !!shortT,
       hasToken: !!token,
       hasBearer,
       ua,
-      reason: !payload ? "bad_jwt" : "fileId_mismatch",
+      reason,
     });
+    const status = shortT || token ? 403 : 401;
     return {
       ok: false,
-      res: NextResponse.json(
-        { error: "Forbidden" },
-        { status: token ? 403 : 401 }
-      ),
+      res: NextResponse.json({ error: "Forbidden" }, { status }),
     };
   }
 
@@ -139,6 +149,7 @@ export async function GET(
   const authHdr = req.headers.get("authorization");
   const hasBearer = authHdr?.startsWith("Bearer ") ?? false;
   const token = req.nextUrl.searchParams.get("token");
+  const shortT = req.nextUrl.searchParams.get("t");
 
   const auth = await authorizeDocumentRequest(req, id);
   if (!auth.ok) return auth.res;
@@ -200,6 +211,7 @@ export async function GET(
       name: file.name,
       contentType,
       contentLength,
+      hasT: !!shortT,
       hasToken: !!token,
       hasBearer,
       ua,

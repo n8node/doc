@@ -14,13 +14,17 @@ export function getOnlyofficePublicUrl(): string | null {
 /**
  * База URL для document.url и callbackUrl в JWT (должна быть достижима из контейнера onlyoffice).
  *
- * По умолчанию для продакшена: APP_URL с https (nginx → app) — так обычно интегрируют ONLYOFFICE.
- * Внутренний http://app:3000 включайте через ONLYOFFICE_USE_INTERNAL_DOCUMENT_URL=true, если
- * публичный URL из Docker недоступен (hairpin) или отлаживаете сеть.
+ * По умолчанию: Docker-сеть `http://app:3000` — без hairpin до внешнего HTTPS.
+ * Публичный https://домен: ONLYOFFICE_USE_HTTPS_APP_URL=true (и APP_URL=https://...).
  */
 export function getOnlyofficeDocumentAndCallbackBaseUrl(): string {
   const explicit = process.env.ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL?.trim();
   if (explicit?.startsWith("http")) return explicit.replace(/\/+$/, "");
+
+  if (process.env.ONLYOFFICE_USE_HTTPS_APP_URL === "true") {
+    const appUrl = process.env.APP_URL?.trim();
+    if (appUrl?.startsWith("https://")) return appUrl.replace(/\/+$/, "");
+  }
 
   if (process.env.ONLYOFFICE_USE_INTERNAL_DOCUMENT_URL === "true") {
     const internal = process.env.APP_INTERNAL_URL?.trim();
@@ -34,7 +38,6 @@ export function getOnlyofficeDocumentAndCallbackBaseUrl(): string {
   }
 
   const appUrl = process.env.APP_URL?.trim();
-  if (appUrl?.startsWith("https://")) return appUrl.replace(/\/+$/, "");
   if (
     appUrl?.startsWith("http://localhost") ||
     appUrl?.startsWith("http://127.0.0.1")
