@@ -5,7 +5,6 @@ import {
   getOnlyofficeJwtSecret,
   getOnlyofficePublicUrl,
 } from "@/lib/onlyoffice/env";
-import { signDocumentDownloadJwt } from "@/lib/onlyoffice/download-jwt";
 
 export interface OnlyofficeEditorConfigInput {
   fileId: string;
@@ -42,20 +41,16 @@ export async function buildSignedOnlyofficeEditorBootstrap(
 
   const base = getOnlyofficeDocumentAndCallbackBaseUrl();
   /**
-   * Stateless JWT в query (не in-memory `t=`): при нескольких репликах/процессах DS иначе
-   * попадает на другой инстанс — тикет не найден, документ не грузится после onAppReady.
+   * Без ?token= в query: при JWT_ENABLED DS обычно качает файл с Authorization: Bearer
+   * (тот же JWT, что передаётся в DocEditor). Длинный query режут прокси; Bearer уже есть в verify.
+   * Скачивание по ?token= в route оставлено для ручных проверок и совместимости.
    */
-  const dlJwt = await signDocumentDownloadJwt({
-    fileId: input.fileId,
-    userId: input.userId,
-  });
-
-  const documentUrl = `${base}/api/onlyoffice/document/${encodeURIComponent(input.fileId)}?token=${encodeURIComponent(dlJwt)}`;
+  const documentUrl = `${base}/api/onlyoffice/document/${encodeURIComponent(input.fileId)}`;
   const callbackUrl = `${base}/api/onlyoffice/callback`;
   try {
     const u = new URL(documentUrl);
     console.log(
-      `[onlyoffice build] documentUrl origin=${u.origin} path=${u.pathname} tokenQueryLen=${u.searchParams.get("token")?.length ?? 0} callbackOrigin=${new URL(callbackUrl).origin}`
+      `[onlyoffice build] documentUrl origin=${u.origin} path=${u.pathname} bearerOnly=1 callbackOrigin=${new URL(callbackUrl).origin}`
     );
   } catch (e) {
     console.log("[onlyoffice build] documentUrl parse error", String(e));

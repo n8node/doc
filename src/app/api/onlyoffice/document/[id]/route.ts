@@ -91,7 +91,10 @@ export async function HEAD(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params;
-  console.log(`[onlyoffice document] incoming HEAD id=${id}`);
+  const hasBearerHead = req.headers.get("authorization")?.startsWith("Bearer ") ?? false;
+  console.log(
+    `[onlyoffice document] incoming HEAD id=${id} hasBearer=${hasBearerHead}`
+  );
   const auth = await authorizeDocumentRequest(req, id);
   if (!auth.ok) return auth.res;
 
@@ -149,7 +152,11 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params;
-  console.log(`[onlyoffice document] incoming GET id=${id}`);
+  const authHdrEarly = req.headers.get("authorization");
+  const hasBearerEarly = authHdrEarly?.startsWith("Bearer ") ?? false;
+  console.log(
+    `[onlyoffice document] incoming GET id=${id} hasBearer=${hasBearerEarly}`
+  );
   const ua = (req.headers.get("user-agent") ?? "").slice(0, 160);
   const authHdr = req.headers.get("authorization");
   const hasBearer = authHdr?.startsWith("Bearer ") ?? false;
