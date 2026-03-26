@@ -14,12 +14,20 @@ export function getOnlyofficePublicUrl(): string | null {
 /**
  * База URL для document.url и callbackUrl в JWT (должна быть достижима из контейнера onlyoffice).
  *
- * Приоритет: ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL → APP_INTERNAL_URL → localhost dev → http://app:3000
- * В docker-compose задано по умолчанию http://app:3000 (не внешний https — избегаем hairpin).
+ * Приоритет:
+ * 1) ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL — явная настройка (например http://app:3000 без hairpin).
+ * 2) Публичный https://APP_URL или NEXTAUTH_URL — DS качает через тот же nginx, что и браузер (часто
+ *    решает случай, когда DS не ходит на http://app:3000 при том, что wget из контейнера работает).
+ * 3) APP_INTERNAL_URL
+ * 4) localhost для dev
+ * 5) http://app:3000
  */
 export function getOnlyofficeDocumentAndCallbackBaseUrl(): string {
   const explicit = process.env.ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL?.trim();
   if (explicit?.startsWith("http")) return explicit.replace(/\/+$/, "");
+
+  const publicHttps = pickPublicHttpsAppBaseUrl();
+  if (publicHttps) return publicHttps;
 
   const internal = process.env.APP_INTERNAL_URL?.trim();
   if (internal?.startsWith("http")) return internal.replace(/\/+$/, "");
@@ -33,6 +41,23 @@ export function getOnlyofficeDocumentAndCallbackBaseUrl(): string {
   }
 
   return "http://app:3000";
+}
+
+function pickPublicHttpsAppBaseUrl(): string | null {
+  const candidates = [
+    process.env.APP_URL?.trim(),
+    process.env.NEXTAUTH_URL?.trim(),
+  ];
+  for (const u of candidates) {
+    if (
+      u?.startsWith("https://") &&
+      !u.includes("localhost") &&
+      !u.includes("127.0.0.1")
+    ) {
+      return u.replace(/\/+$/, "");
+    }
+  }
+  return null;
 }
 
 /**
