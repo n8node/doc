@@ -781,6 +781,7 @@ enum NotificationType {
   AI_TASK
   QUOTA
   SHARE_LINK
+  SHARE_GRANT
   SUPPORT_TICKET
 }
 

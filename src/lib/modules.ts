@@ -79,7 +79,6 @@ export const navGroups: NavGroup[] = [
         icon: Share2,
         label: "Доступно мне",
         section: "shared-with-me",
-        featureGate: "shared_access_email",
       },
       { href: buildDashboardFilesUrl({ section: "history" }), icon: History, label: "История", section: "history" },
       { href: buildDashboardFilesUrl({ section: "trash" }), icon: Trash2, label: "Корзина", section: "trash" },

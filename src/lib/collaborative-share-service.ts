@@ -4,6 +4,15 @@ import { recordHistoryEvent } from "./history-service";
 import { sendEmail } from "./email-sender";
 import { getPublicBaseUrl } from "./app-url";
 import { normalizeShareEmail, parseEmailList } from "./share-email-parse";
+import { createNotificationIfEnabled } from "./notification-service";
+
+async function findUserIdByShareEmail(recipientEmail: string): Promise<string | null> {
+  const row = await prisma.user.findFirst({
+    where: { email: { equals: recipientEmail, mode: "insensitive" } },
+    select: { id: true },
+  });
+  return row?.id ?? null;
+}
 
 export const SHARED_ACCESS_EMAIL_FEATURE = "shared_access_email";
 
@@ -254,18 +263,15 @@ export async function createShareGrants(input: CreateShareGrantsInput) {
   const created: ShareGrant[] = [];
   for (const emailRaw of emails) {
     const recipientEmail = normalizeShareEmail(emailRaw);
-    const existingUser = await prisma.user.findUnique({
-      where: { email: recipientEmail },
-      select: { id: true },
-    });
-    if (existingUser?.id === ownerUserId) continue;
+    const existingUserId = await findUserIdByShareEmail(recipientEmail);
+    if (existingUserId === ownerUserId) continue;
 
     try {
       const g = await prisma.shareGrant.create({
         data: {
           ownerUserId,
           recipientEmail,
-          recipientUserId: existingUser?.id ?? null,
+          recipientUserId: existingUserId,
           targetType,
           shareTargetKey,
           fileId: file?.id ?? null,
@@ -308,6 +314,16 @@ export async function createShareGrants(input: CreateShareGrantsInput) {
       text: `Вам предоставлен доступ к «${targetName}». Откройте сервис и примите приглашение в разделе «Доступно мне»: ${link}`,
       html: `<p>Вам предоставлен доступ к «${targetName}».</p><p><a href="${link}">Открыть «Доступно мне»</a></p>`,
     }).catch(() => {});
+    if (g.recipientUserId) {
+      createNotificationIfEnabled({
+        userId: g.recipientUserId,
+        type: "SHARE_GRANT",
+        category: "info",
+        title: `Вам открыли доступ: ${targetName}`,
+        body: "Откройте «Файлы» → «Доступно мне» и примите приглашение.",
+        payload: { grantId: g.id, targetType: g.targetType },
+      }).catch(() => {});
+    }
   }
 
   return created;
@@ -547,10 +563,17 @@ export async function resolveRecipientEmails(
     new Set(emails.map(normalizeShareEmail).filter((e) => e.length > 0))
   );
   if (normalized.length === 0) return [];
-  const users = await prisma.user.findMany({
-    where: { email: { in: normalized } },
-    select: { id: true, email: true },
-  });
+  const users =
+    normalized.length === 0
+      ? []
+      : await prisma.user.findMany({
+          where: {
+            OR: normalized.map((e) => ({
+              email: { equals: e, mode: "insensitive" as const },
+            })),
+          },
+          select: { id: true, email: true },
+        });
   const byEmail = new Map(users.map((u) => [normalizeShareEmail(u.email), u.id]));
   return normalized.map((email) => ({
     email,

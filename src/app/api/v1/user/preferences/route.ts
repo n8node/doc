@@ -12,6 +12,7 @@ const NOTIFICATION_KEYS = [
   "aiTask",
   "quota",
   "shareLink",
+  "shareGrant",
 ] as const;
 
 const MODULE_KEYS = [
@@ -51,6 +52,7 @@ function parseNotificationPrefs(obj: unknown): NotificationPrefs {
     aiTask: true,
     quota: true,
     shareLink: true,
+    shareGrant: true,
   };
   if (!obj || typeof obj !== "object") return def;
   const o = obj as Record<string, unknown>;

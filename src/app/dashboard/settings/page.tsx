@@ -101,6 +101,7 @@ export default function DashboardSettingsPage() {
     aiTask: true,
     quota: true,
     shareLink: true,
+    shareGrant: true,
     supportTicket: true,
   });
   const [savingNotificationPrefs, setSavingNotificationPrefs] = useState(false);
@@ -181,6 +182,7 @@ export default function DashboardSettingsPage() {
             ...(typeof n.aiTask === "boolean" && { aiTask: n.aiTask }),
             ...(typeof n.quota === "boolean" && { quota: n.quota }),
             ...(typeof n.shareLink === "boolean" && { shareLink: n.shareLink }),
+            ...(typeof n.shareGrant === "boolean" && { shareGrant: n.shareGrant }),
             ...(typeof n.supportTicket === "boolean" && { supportTicket: n.supportTicket }),
           }));
         }
@@ -714,6 +716,7 @@ export default function DashboardSettingsPage() {
                 { key: "aiTask" as const, label: "AI анализ и транскрипция" },
                 { key: "quota" as const, label: "Лимиты (токены, минуты)" },
                 { key: "shareLink" as const, label: "Публичные ссылки" },
+                { key: "shareGrant" as const, label: "Доступ по email (приглашения)" },
                 { key: "supportTicket" as const, label: "Ответы в тикетах поддержки" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex cursor-pointer items-center gap-3">
