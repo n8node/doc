@@ -14,28 +14,15 @@ export function getOnlyofficePublicUrl(): string | null {
 /**
  * База URL для document.url и callbackUrl в JWT (должна быть достижима из контейнера onlyoffice).
  *
- * По умолчанию: Docker-сеть `http://app:3000` — без hairpin до внешнего HTTPS.
- * Публичный https://домен: ONLYOFFICE_USE_HTTPS_APP_URL=true (и APP_URL=https://...).
+ * Приоритет: ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL → APP_INTERNAL_URL → localhost dev → http://app:3000
+ * В docker-compose задано по умолчанию http://app:3000 (не внешний https — избегаем hairpin).
  */
 export function getOnlyofficeDocumentAndCallbackBaseUrl(): string {
   const explicit = process.env.ONLYOFFICE_DOCUMENT_DOWNLOAD_BASE_URL?.trim();
   if (explicit?.startsWith("http")) return explicit.replace(/\/+$/, "");
 
-  if (process.env.ONLYOFFICE_USE_HTTPS_APP_URL === "true") {
-    const appUrl = process.env.APP_URL?.trim();
-    if (appUrl?.startsWith("https://")) return appUrl.replace(/\/+$/, "");
-  }
-
-  if (process.env.ONLYOFFICE_USE_INTERNAL_DOCUMENT_URL === "true") {
-    const internal = process.env.APP_INTERNAL_URL?.trim();
-    if (internal?.startsWith("http")) return internal.replace(/\/+$/, "");
-    return "http://app:3000";
-  }
-
-  if (process.env.ONLYOFFICE_USE_PUBLIC_APP_URL === "true") {
-    const appUrl = process.env.APP_URL?.trim();
-    if (appUrl?.startsWith("http")) return appUrl.replace(/\/+$/, "");
-  }
+  const internal = process.env.APP_INTERNAL_URL?.trim();
+  if (internal?.startsWith("http")) return internal.replace(/\/+$/, "");
 
   const appUrl = process.env.APP_URL?.trim();
   if (
@@ -44,9 +31,6 @@ export function getOnlyofficeDocumentAndCallbackBaseUrl(): string {
   ) {
     return appUrl.replace(/\/+$/, "");
   }
-
-  const internal = process.env.APP_INTERNAL_URL?.trim();
-  if (internal?.startsWith("http")) return internal.replace(/\/+$/, "");
 
   return "http://app:3000";
 }
