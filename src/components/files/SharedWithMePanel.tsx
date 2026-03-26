@@ -2,19 +2,23 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
-  Folder,
-  FileIcon,
+  FolderOpen,
   Loader2,
-  User,
   Check,
   X,
   ChevronRight,
   RefreshCw,
+  Clock,
+  Users,
+  BrainCircuit,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatBytes } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
+import { getFileIcon, formatRelativeDate } from "@/components/files/FileCard";
 
 type GrantRow = {
   id: string;
@@ -26,8 +30,14 @@ type GrantRow = {
   acceptedAt: string | null;
   createdAt: string;
   owner: { id: string; email: string; name: string | null };
-  file: { id: string; name: string; mimeType: string } | null;
-  folder: { id: string; name: string } | null;
+  file: {
+    id: string;
+    name: string;
+    mimeType: string;
+    size: number;
+    createdAt: string;
+  } | null;
+  folder: { id: string; name: string; createdAt: string } | null;
 };
 
 type BrowseData = {
@@ -40,7 +50,7 @@ type BrowseData = {
   owner: { id: string; name: string | null; email: string };
   currentFolderId: string | null;
   navUpFolderId: string | null;
-  folders: Array<{ id: string; name: string; parentId: string | null }>;
+  folders: Array<{ id: string; name: string; parentId: string | null; createdAt: string }>;
   files: Array<{
     id: string;
     name: string;
@@ -48,8 +58,30 @@ type BrowseData = {
     size: number;
     folderId: string | null;
     hasEmbedding: boolean;
+    createdAt: string;
   }>;
 };
+
+/** Метка «доступ от пользователя» в стиле AI / Чат / Эмбеддинг */
+function SharedAccessBadge({ ownerLabel }: { ownerLabel: string }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-500/10 px-1.5 py-0.5 font-medium text-sky-600 dark:text-sky-400"
+      title={`Совместный доступ от ${ownerLabel}`}
+    >
+      <Users className="h-3 w-3" />
+      Доступ
+    </span>
+  );
+}
+
+function ListCheckboxPlaceholder() {
+  return (
+    <div className="pointer-events-none flex h-5 w-5 shrink-0 items-center justify-center">
+      <div className="flex h-5 w-5 items-center justify-center rounded-md border-2 border-border bg-background" />
+    </div>
+  );
+}
 
 export function SharedWithMePanel() {
   const router = useRouter();
@@ -159,6 +191,17 @@ export function SharedWithMePanel() {
     }
   };
 
+  const openFileDownload = async (fileId: string) => {
+    try {
+      const res = await fetch(`/api/v1/files/${fileId}/download`);
+      const d = await res.json();
+      if (res.ok && d.url) window.open(d.url, "_blank", "noopener,noreferrer");
+      else toast.error(d.error || "Не удалось открыть");
+    } catch {
+      toast.error("Ошибка");
+    }
+  };
+
   if (loading && !grantIdParam) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -168,15 +211,12 @@ export function SharedWithMePanel() {
   }
 
   if (grantIdParam) {
+    const ownerLabel = browse?.owner.name || browse?.owner.email || "";
+
     return (
-      <div className="space-y-4 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setBrowseUrl(null, null)}
-          >
+      <div className="space-y-4 px-4 py-2 sm:px-6">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border/60 pb-3">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setBrowseUrl(null, null)}>
             ← К списку
           </Button>
           {browse && browseFolderId && (
@@ -194,7 +234,7 @@ export function SharedWithMePanel() {
           )}
           {browse && (
             <span className="text-sm text-muted-foreground">
-              от {browse.owner.name || browse.owner.email}
+              от <span className="font-medium text-foreground">{ownerLabel}</span>
             </span>
           )}
           <Button
@@ -216,52 +256,127 @@ export function SharedWithMePanel() {
         )}
 
         {!browseLoading && browse && (
-          <div className="space-y-2">
-            {browse.folders.map((fo) => (
-              <button
-                key={fo.id}
-                type="button"
-                onClick={() => setBrowseUrl(grantIdParam, fo.id)}
-                className="flex w-full items-center gap-3 rounded-xl border border-border bg-background/60 px-4 py-3 text-left transition hover:bg-surface2/50"
-              >
-                <Folder className="h-5 w-5 shrink-0 text-amber-500" />
-                <span className="min-w-0 flex-1 truncate font-medium">{fo.name}</span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </button>
-            ))}
-            {browse.files.map((fi) => (
-              <button
-                key={fi.id}
-                type="button"
-                onClick={async () => {
-                  try {
-                    const res = await fetch(`/api/v1/files/${fi.id}/download`);
-                    const d = await res.json();
-                    if (res.ok && d.url) window.open(d.url, "_blank", "noopener,noreferrer");
-                    else toast.error(d.error || "Не удалось открыть");
-                  } catch {
-                    toast.error("Ошибка");
-                  }
-                }}
-                className="flex w-full items-center gap-3 rounded-xl border border-border bg-background/60 px-4 py-3 text-left transition hover:bg-surface2/50"
-              >
-                <FileIcon className="h-5 w-5 shrink-0 text-primary" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{fi.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatBytes(fi.size)}
-                    {fi.hasEmbedding ? " · AI" : ""}
-                  </p>
+          <div className="space-y-6">
+            {browse.folders.length > 0 && (
+              <div className="space-y-2">
+                <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Папки ({browse.folders.length})
+                </p>
+                <div className="space-y-1">
+                  {browse.folders.map((fo, index) => (
+                    <motion.button
+                      key={fo.id}
+                      type="button"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.02 }}
+                      onClick={() => setBrowseUrl(grantIdParam, fo.id)}
+                      className={cn(
+                        "group flex w-full items-center gap-4 rounded-xl border border-transparent px-4 py-3 text-left transition-all duration-200",
+                        "bg-surface2/30 hover:bg-surface2/60 hover:shadow-sm"
+                      )}
+                    >
+                      <ListCheckboxPlaceholder />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                        <FolderOpen className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{fo.name}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                          <span>Папка</span>
+                          <span>•</span>
+                          <span className="flex shrink-0 items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formatRelativeDate(fo.createdAt)}
+                          </span>
+                          <span>•</span>
+                          <SharedAccessBadge ownerLabel={ownerLabel} />
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </motion.button>
+                  ))}
                 </div>
-              </button>
-            ))}
+              </div>
+            )}
+
+            {browse.files.length > 0 && (
+              <div className="space-y-2">
+                <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Файлы ({browse.files.length})
+                </p>
+                <div className="space-y-1">
+                  {browse.files.map((fi, index) => {
+                    const { icon: Icon, color, bg } = getFileIcon(fi.mimeType);
+                    return (
+                      <motion.div
+                        key={fi.id}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: index * 0.02 }}
+                        className={cn(
+                          "group flex items-center gap-4 rounded-xl border border-transparent px-4 py-3 transition-all duration-200",
+                          "bg-surface2/30 hover:bg-surface2/60 hover:shadow-sm"
+                        )}
+                      >
+                        <ListCheckboxPlaceholder />
+                        <div
+                          className={cn(
+                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                            bg
+                          )}
+                        >
+                          <Icon className={cn("h-5 w-5", color)} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">{fi.name}</p>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                            <span>{formatBytes(fi.size)}</span>
+                            <span>•</span>
+                            <span className="flex shrink-0 items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatRelativeDate(fi.createdAt)}
+                            </span>
+                            {fi.hasEmbedding && (
+                              <>
+                                <span className="hidden sm:inline">•</span>
+                                <span className="hidden items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-600 sm:inline-flex">
+                                  <BrainCircuit className="h-3 w-3" />
+                                  AI
+                                </span>
+                              </>
+                            )}
+                            <span>•</span>
+                            <SharedAccessBadge ownerLabel={ownerLabel} />
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 sm:opacity-100">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 gap-1"
+                            onClick={() => openFileDownload(fi.id)}
+                          >
+                            <Download className="h-4 w-4" />
+                            <span className="hidden sm:inline">Скачать</span>
+                          </Button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {browse.grant.targetType === "FILE" &&
               browse.files.length === 1 &&
               browse.folders.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Нажмите на файл, чтобы открыть или скачать.
+                  Нажмите «Скачать», чтобы открыть или сохранить файл.
                 </p>
               )}
+
             {browse.folders.length === 0 && browse.files.length === 0 && (
               <p className="py-8 text-center text-sm text-muted-foreground">Пусто</p>
             )}
@@ -271,8 +386,11 @@ export function SharedWithMePanel() {
     );
   }
 
+  const folderGrants = grants.filter((g) => g.targetType === "FOLDER");
+  const fileGrants = grants.filter((g) => g.targetType === "FILE");
+
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-6 px-4 py-2 sm:px-6">
       <p className="text-sm text-muted-foreground">
         Файлы и папки, к которым вам открыли доступ по email. Публичные ссылки — в разделе «Публичные ссылки».
       </p>
@@ -283,70 +401,190 @@ export function SharedWithMePanel() {
         </div>
       )}
 
-      <ul className="space-y-3">
-        {grants.map((g) => {
-          const label =
-            g.targetType === "FILE"
-              ? g.file?.name ?? "Файл"
-              : g.folder?.name ?? "Папка";
-          return (
-            <li
-              key={g.id}
-              className="rounded-xl border border-border bg-background/60 p-4"
-            >
-              <div className="flex flex-wrap items-start gap-3">
-                <div className="flex min-w-0 flex-1 items-start gap-2">
-                  <User className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0">
-                    <p className="font-medium">{label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      от {g.owner.name || g.owner.email}
-                    </p>
-                    {g.expiresAt && (
-                      <p className="text-xs text-muted-foreground">
-                        до {new Date(g.expiresAt).toLocaleString("ru-RU")}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {g.status === "PENDING" && "Ожидает ответа"}
-                      {g.status === "ACTIVE" && "Доступ активен"}
-                    </p>
+      {folderGrants.length > 0 && (
+        <div className="space-y-2">
+          <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Папки ({folderGrants.length})
+          </p>
+          <div className="space-y-1">
+            {folderGrants.map((g, index) => {
+              const ownerLabel = g.owner.name || g.owner.email;
+              const folderName = g.folder?.name ?? "Папка";
+              const createdAt = g.folder?.createdAt ?? g.createdAt;
+              return (
+                <motion.div
+                  key={g.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: index * 0.03 }}
+                  className={cn(
+                    "flex flex-col gap-3 rounded-xl border border-transparent px-4 py-3 sm:flex-row sm:items-center sm:gap-4",
+                    "bg-surface2/30 hover:bg-surface2/60"
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-4 sm:items-center">
+                    <ListCheckboxPlaceholder />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <FolderOpen className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{folderName}</p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        <span>Папка</span>
+                        <span>•</span>
+                        <span>
+                          от <span className="text-foreground">{ownerLabel}</span>
+                        </span>
+                        <span>•</span>
+                        <span className="flex shrink-0 items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatRelativeDate(createdAt)}
+                        </span>
+                        {g.expiresAt && (
+                          <>
+                            <span>•</span>
+                            <span>до {new Date(g.expiresAt).toLocaleString("ru-RU")}</span>
+                          </>
+                        )}
+                        <span>•</span>
+                        <span
+                          className={
+                            g.status === "PENDING"
+                              ? "text-amber-600 dark:text-amber-400"
+                              : "text-emerald-600 dark:text-emerald-400"
+                          }
+                        >
+                          {g.status === "PENDING" ? "Ожидает ответа" : "Доступ активен"}
+                        </span>
+                        <span>•</span>
+                        <SharedAccessBadge ownerLabel={ownerLabel} />
+                      </div>
+                    </div>
                   </div>
-                </div>
+                  <div className="flex shrink-0 flex-wrap justify-end gap-2 pl-14 sm:pl-0">
+                    {g.status === "PENDING" && (
+                      <>
+                        <Button size="sm" className="gap-1" onClick={() => accept(g.id)}>
+                          <Check className="h-4 w-4" />
+                          Принять
+                        </Button>
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => decline(g.id)}>
+                          <X className="h-4 w-4" />
+                          Отклонить
+                        </Button>
+                      </>
+                    )}
+                    {g.status === "ACTIVE" && (
+                      <Button size="sm" variant="secondary" onClick={() => setBrowseUrl(g.id, null)}>
+                        Открыть
+                      </Button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-                <div className="flex flex-wrap gap-2">
-                  {g.status === "PENDING" && (
-                    <>
-                      <Button size="sm" className="gap-1" onClick={() => accept(g.id)}>
-                        <Check className="h-4 w-4" />
-                        Принять
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1"
-                        onClick={() => decline(g.id)}
-                      >
-                        <X className="h-4 w-4" />
-                        Отклонить
-                      </Button>
-                    </>
+      {fileGrants.length > 0 && (
+        <div className="space-y-2">
+          <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Файлы ({fileGrants.length})
+          </p>
+          <div className="space-y-1">
+            {fileGrants.map((g, index) => {
+              const ownerLabel = g.owner.name || g.owner.email;
+              const fileName = g.file?.name ?? "Файл";
+              const mime = g.file?.mimeType ?? "application/octet-stream";
+              const { icon: Icon, color, bg } = getFileIcon(mime);
+              const size = g.file?.size ?? 0;
+              const fileCreated = g.file?.createdAt ?? g.createdAt;
+              return (
+                <motion.div
+                  key={g.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: index * 0.03 }}
+                  className={cn(
+                    "flex flex-col gap-3 rounded-xl border border-transparent px-4 py-3 sm:flex-row sm:items-center sm:gap-4",
+                    "bg-surface2/30 hover:bg-surface2/60"
                   )}
-                  {g.status === "ACTIVE" && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setBrowseUrl(g.id, null)}
-                    >
-                      Открыть
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-4 sm:items-center">
+                    <ListCheckboxPlaceholder />
+                    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", bg)}>
+                      <Icon className={cn("h-5 w-5", color)} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{fileName}</p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        {size > 0 && (
+                          <>
+                            <span>{formatBytes(size)}</span>
+                            <span>•</span>
+                          </>
+                        )}
+                        <span>
+                          от <span className="text-foreground">{ownerLabel}</span>
+                        </span>
+                        <span>•</span>
+                        <span className="flex shrink-0 items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatRelativeDate(fileCreated)}
+                        </span>
+                        {g.expiresAt && (
+                          <>
+                            <span>•</span>
+                            <span>до {new Date(g.expiresAt).toLocaleString("ru-RU")}</span>
+                          </>
+                        )}
+                        <span>•</span>
+                        <span
+                          className={
+                            g.status === "PENDING"
+                              ? "text-amber-600 dark:text-amber-400"
+                              : "text-emerald-600 dark:text-emerald-400"
+                          }
+                        >
+                          {g.status === "PENDING" ? "Ожидает ответа" : "Доступ активен"}
+                        </span>
+                        <span>•</span>
+                        <SharedAccessBadge ownerLabel={ownerLabel} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap justify-end gap-2 pl-14 sm:pl-0">
+                    {g.status === "PENDING" && (
+                      <>
+                        <Button size="sm" className="gap-1" onClick={() => accept(g.id)}>
+                          <Check className="h-4 w-4" />
+                          Принять
+                        </Button>
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => decline(g.id)}>
+                          <X className="h-4 w-4" />
+                          Отклонить
+                        </Button>
+                      </>
+                    )}
+                    {g.status === "ACTIVE" && g.file && (
+                      <>
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => openFileDownload(g.file!.id)}>
+                          <Download className="h-4 w-4" />
+                          Скачать
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => setBrowseUrl(g.id, null)}>
+                          Открыть
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

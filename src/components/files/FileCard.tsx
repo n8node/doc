@@ -147,7 +147,7 @@ function isImageFile(mimeType: string, fileName: string) {
   return !!ext && IMAGE_EXTENSIONS.has(ext);
 }
 
-function getFileIcon(mimeType: string) {
+export function getFileIcon(mimeType: string) {
   if (mimeType.startsWith("image/")) {
     return { icon: FileImage, color: "text-pink-500", bg: "bg-pink-500/10" };
   }
@@ -217,7 +217,7 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function formatRelativeDate(dateStr: string): string {
+export function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());

@@ -446,9 +446,16 @@ export async function listIncomingGrants(recipientUserId: string, recipientEmail
     include: {
       owner: { select: { id: true, email: true, name: true } },
       file: {
-        select: { id: true, name: true, mimeType: true, folderId: true },
+        select: {
+          id: true,
+          name: true,
+          mimeType: true,
+          folderId: true,
+          size: true,
+          createdAt: true,
+        },
       },
-      folder: { select: { id: true, name: true, parentId: true } },
+      folder: { select: { id: true, name: true, parentId: true, createdAt: true } },
     },
   });
 }

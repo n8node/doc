@@ -34,9 +34,21 @@ export async function GET(request: NextRequest) {
       createdAt: g.createdAt.toISOString(),
       owner: g.owner,
       file: g.file
-        ? { id: g.file.id, name: g.file.name, mimeType: g.file.mimeType }
+        ? {
+            id: g.file.id,
+            name: g.file.name,
+            mimeType: g.file.mimeType,
+            size: Number(g.file.size),
+            createdAt: g.file.createdAt.toISOString(),
+          }
         : null,
-      folder: g.folder ? { id: g.folder.id, name: g.folder.name } : null,
+      folder: g.folder
+        ? {
+            id: g.folder.id,
+            name: g.folder.name,
+            createdAt: g.folder.createdAt.toISOString(),
+          }
+        : null,
     })),
   });
 }
