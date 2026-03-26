@@ -157,7 +157,10 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
       if (res.ok) {
         toast.success("Тариф изменён");
         const updated = await fetch(`/api/v1/admin/users/${user.id}`).then((r) => r.json());
-        if (updated.id) setUser(updated);
+        if (updated.id) {
+          setUser(updated);
+          setSelectedPlanId(updated.plan?.id ?? "none");
+        }
         onUpdated();
       } else {
         const data = await res.json();
@@ -278,6 +281,36 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
             </DialogHeader>
 
             <div className="mt-4 space-y-5">
+              {/* Plan — сразу под шапкой, чтобы админ видел назначение тарифа */}
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  Тариф
+                </div>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Квота хранилища и максимальный размер файла подтягиваются из выбранного тарифа после «Применить».
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={selectedPlanId}
+                    onChange={(e) => setSelectedPlanId(e.target.value)}
+                    className="min-w-[12rem] flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="none">Без тарифа</option>
+                    {plans.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    onClick={handleChangePlan}
+                    disabled={saving || selectedPlanId === (user.plan?.id ?? "none")}
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Применить"}
+                  </Button>
+                </div>
+              </div>
+
               {/* Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2 text-sm">
@@ -386,30 +419,6 @@ export function UserDetailDialog({ userId, onClose, onUpdated }: UserDetailDialo
                   <CreditCard className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
                   <p className="text-lg font-bold">{user.paymentsCount}</p>
                   <p className="text-[10px] text-muted-foreground">Платежей</p>
-                </div>
-              </div>
-
-              {/* Change plan */}
-              <div className="rounded-xl border border-border p-4">
-                <p className="mb-3 text-sm font-medium">Тариф</p>
-                <div className="flex items-center gap-3">
-                  <select
-                    value={selectedPlanId}
-                    onChange={(e) => setSelectedPlanId(e.target.value)}
-                    className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="none">Без тарифа</option>
-                    {plans.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                  <Button
-                    size="sm"
-                    onClick={handleChangePlan}
-                    disabled={saving || selectedPlanId === (user.plan?.id ?? "none")}
-                  >
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Применить"}
-                  </Button>
                 </div>
               </div>
 

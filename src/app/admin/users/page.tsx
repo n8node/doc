@@ -8,7 +8,7 @@ import {
   Users,
   Shield,
   ShieldOff,
-  Crown,
+  ShieldPlus,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -45,6 +45,11 @@ interface UserItem {
   telegramUsername: string | null;
 }
 
+interface PlanOption {
+  id: string;
+  name: string;
+}
+
 interface Stats {
   totalUsers: number;
   blockedUsers: number;
@@ -68,6 +73,8 @@ export default function AdminUsersPage() {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [roleFilter, setRoleFilter] = useState("");
   const [blockedFilter, setBlockedFilter] = useState("");
+  const [planFilter, setPlanFilter] = useState("");
+  const [planOptions, setPlanOptions] = useState<PlanOption[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
@@ -82,6 +89,7 @@ export default function AdminUsersPage() {
       if (search) params.set("search", search);
       if (roleFilter) params.set("role", roleFilter);
       if (blockedFilter) params.set("blocked", blockedFilter);
+      if (planFilter) params.set("planId", planFilter);
 
       const res = await fetch(`/api/v1/admin/users?${params}`);
       const data = await res.json();
@@ -95,7 +103,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, sort, order, search, roleFilter, blockedFilter]);
+  }, [page, sort, order, search, roleFilter, blockedFilter, planFilter]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -112,6 +120,17 @@ export default function AdminUsersPage() {
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    fetch("/api/v1/admin/plans")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.plans)) {
+          setPlanOptions(data.plans.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSort = (field: string) => {
     if (sort === field) {
@@ -205,7 +224,7 @@ export default function AdminUsersPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Пользователи</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Управление пользователями, ролями и статистика
+            Управление пользователями, ролями и статистика. Тариф пользователю: откройте карточку («глаз» или клик по колонке «Тариф»), выберите план и нажмите «Применить».
           </p>
         </div>
         <Button variant="outline" onClick={() => { loadUsers(); loadStats(); }} className="gap-2">
@@ -325,6 +344,18 @@ export default function AdminUsersPage() {
             <option value="true">Заблокированные</option>
           </select>
 
+          <select
+            value={planFilter}
+            onChange={(e) => { setPlanFilter(e.target.value); setPage(1); }}
+            className="rounded-xl border border-border bg-background px-3 py-2 text-sm min-w-[10rem]"
+          >
+            <option value="">Все тарифы</option>
+            <option value="none">Без тарифа</option>
+            {planOptions.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+
           <span className="text-sm text-muted-foreground">
             Найдено: {total}
           </span>
@@ -423,13 +454,20 @@ export default function AdminUsersPage() {
 
                       {/* Plan */}
                       <td className="px-4 py-3">
-                        {user.plan ? (
-                          <span className={`text-xs font-medium ${user.plan.isFree ? "text-success" : "text-secondary"}`}>
-                            {user.plan.name}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedUser(user.id)}
+                          className="max-w-[11rem] truncate text-left text-xs font-medium underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"
+                          title="Открыть карточку — назначить или сменить тариф"
+                        >
+                          {user.plan ? (
+                            <span className={user.plan.isFree ? "text-success" : "text-secondary"}>
+                              {user.plan.name}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Без тарифа</span>
+                          )}
+                        </button>
                       </td>
 
                       {/* Telegram */}
@@ -502,7 +540,7 @@ export default function AdminUsersPage() {
                             {user.role === "ADMIN" ? (
                               <ShieldOff className="h-3.5 w-3.5" />
                             ) : (
-                              <Crown className="h-3.5 w-3.5" />
+                              <ShieldPlus className="h-3.5 w-3.5" />
                             )}
                           </button>
                           <button
