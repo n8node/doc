@@ -1,4 +1,27 @@
 /**
+ * База для `metadata` (icons, OG): Next без неё может собрать URL из HOSTNAME=0.0.0.0 в Docker
+ * → `http://0.0.0.0:3000/...` в head, ERR_ADDRESS_INVALID и ошибки гидратации React (#418/#423).
+ */
+export function getMetadataBaseUrl(): string {
+  const raw = (process.env.APP_URL || process.env.NEXTAUTH_URL || "").trim().replace(/\/$/, "");
+  if (raw.startsWith("http")) {
+    try {
+      const u = new URL(raw);
+      if (u.hostname === "0.0.0.0" || u.hostname === "[::]") {
+        return "https://qoqon.ru";
+      }
+      return raw;
+    } catch {
+      /* fall through */
+    }
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return "http://localhost:3000";
+  }
+  return "https://qoqon.ru";
+}
+
+/**
  * Public base URL for the app (no trailing slash).
  * Used for share links, auth redirects, etc.
  * Prefers APP_URL/NEXTAUTH_URL when not localhost; otherwise fallback.

@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { getBrandingConfig } from "@/lib/branding";
+import { getMetadataBaseUrl } from "@/lib/app-url";
 import { getSeoConfig } from "@/lib/seo";
 import { getYandexMetrikaConfig, buildYandexMetrikaScriptInline } from "@/lib/yandex-metrika";
 
@@ -19,6 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = seo.title || `${branding.siteName} — ${DEFAULT_TITLE}`;
   const description = seo.description || DEFAULT_DESCRIPTION;
   return {
+    metadataBase: new URL(getMetadataBaseUrl()),
     title,
     description,
     keywords: seo.keywords || undefined,

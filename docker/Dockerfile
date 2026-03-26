@@ -48,5 +48,6 @@ RUN chmod +x ./docker-entrypoint.sh
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
+# Слушать все интерфейсы; публичные URL для metadata/icons — через APP_URL/NEXTAUTH_URL и metadataBase в layout, не из HOSTNAME.
 ENV HOSTNAME="0.0.0.0"
 ENTRYPOINT ["./docker-entrypoint.sh"]
