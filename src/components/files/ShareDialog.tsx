@@ -74,8 +74,6 @@ export function ShareDialog({
     [],
   );
   const [resolving, setResolving] = useState(false);
-  const [allowCollections, setAllowCollections] = useState(false);
-  const [allowAi, setAllowAi] = useState(false);
   const [emailSubmitting, setEmailSubmitting] = useState(false);
 
   useEffect(() => {
@@ -136,8 +134,8 @@ export function ShareDialog({
           fileId: targetType === "FILE" ? targetId : undefined,
           folderId: targetType === "FOLDER" ? targetId : undefined,
           emails: list,
-          allowCollections,
-          allowAiFeatures: allowAi,
+          allowCollections: false,
+          allowAiFeatures: false,
           expiresAt,
         }),
       });
@@ -389,25 +387,6 @@ export function ShareDialog({
                         {o.label}
                       </button>
                     ))}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={allowCollections}
-                        onChange={(e) => setAllowCollections(e.target.checked)}
-                      />
-                      Разрешить коллекции / RAG в папке
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={allowAi}
-                        onChange={(e) => setAllowAi(e.target.checked)}
-                      />
-                      Разрешить AI (чат, векторы) — у получателя должен быть тариф с AI
-                    </label>
                   </div>
 
                   <Button
