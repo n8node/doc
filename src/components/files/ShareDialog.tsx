@@ -23,6 +23,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { parseEmailList } from "@/lib/share-email-parse";
 
@@ -306,21 +311,62 @@ export function ShareDialog({
 
                   {resolved.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {resolved.map((r) => (
-                        <span
-                          key={r.email}
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs",
-                            r.userId
-                              ? "bg-primary/10 text-foreground"
-                              : "bg-muted text-muted-foreground",
-                          )}
-                          title={r.userId ? "Пользователь в системе" : "Пока нет аккаунта — приглашение на email"}
-                        >
-                          <Users className="h-3 w-3" />
-                          {r.email}
-                        </span>
-                      ))}
+                      {resolved.map((r) => {
+                        const inSystem = !!r.userId;
+                        return (
+                          <Tooltip key={r.email} delayDuration={180}>
+                            <TooltipTrigger asChild>
+                              <span
+                                className={cn(
+                                  "inline-flex max-w-full cursor-default items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium shadow-sm transition-colors",
+                                  inSystem
+                                    ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15"
+                                    : "border-amber-500/80 bg-amber-50 text-amber-950 ring-1 ring-amber-400/35 hover:bg-amber-100 dark:border-amber-400/70 dark:bg-amber-950/50 dark:text-amber-50 dark:ring-amber-500/40 dark:hover:bg-amber-900/60",
+                                )}
+                              >
+                                {inSystem ? (
+                                  <Users className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                                ) : (
+                                  <Mail className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-200" />
+                                )}
+                                <span className="min-w-0 truncate">{r.email}</span>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              sideOffset={10}
+                              className={cn(
+                                "max-w-[min(280px,calc(100vw-2rem))] border px-3.5 py-3 text-left shadow-lg",
+                                "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out",
+                                inSystem
+                                  ? "border-primary/35 bg-gradient-to-br from-primary/[0.14] via-background to-violet-500/[0.06] text-foreground shadow-primary/10 dark:from-primary/25 dark:via-background dark:to-violet-950/40"
+                                  : "border-amber-400/50 bg-gradient-to-br from-amber-50 via-orange-50/95 to-amber-100/80 text-amber-950 shadow-amber-500/15 dark:border-amber-500/45 dark:from-amber-950 dark:via-amber-900/95 dark:to-orange-950/60 dark:text-amber-50",
+                              )}
+                            >
+                              <p
+                                className={cn(
+                                  "text-[13px] font-semibold leading-tight tracking-tight",
+                                  !inSystem && "text-amber-900 dark:text-amber-100",
+                                )}
+                              >
+                                {inSystem
+                                  ? "Пользователь в сервисе"
+                                  : "Пока нет аккаунта"}
+                              </p>
+                              <p
+                                className={cn(
+                                  "mt-1.5 text-[11px] leading-snug text-foreground/85 dark:text-amber-100/85",
+                                  !inSystem && "text-amber-900/90 dark:text-amber-50/90",
+                                )}
+                              >
+                                {inSystem
+                                  ? "Сможет принять приглашение сразу после входа."
+                                  : "Письмо с приглашением уйдёт на этот адрес. После регистрации по email доступ подключится автоматически."}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
                     </div>
                   )}
 
