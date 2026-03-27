@@ -34,6 +34,16 @@ export function toIsoDateInput(isoDate: Date | string): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Миллисекунды UTC-полуночи для календарного дня (без сдвига из-за времени в ISO).
+ * Используется для сортировки этапов дорожной карты.
+ */
+export function roadmapUtcCalendarDayMs(isoDate: string | Date): number {
+  const d = typeof isoDate === "string" ? new Date(isoDate) : isoDate;
+  if (Number.isNaN(d.getTime())) return 0;
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 /** Парсинг YYYY-MM-DD в Date UTC полночь */
 export function parseIsoDateInput(s: string): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());

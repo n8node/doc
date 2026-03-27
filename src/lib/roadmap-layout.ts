@@ -1,4 +1,5 @@
 import type { RoadmapStepDTO } from "@/lib/roadmap";
+import { roadmapUtcCalendarDayMs } from "@/lib/roadmap-date-format";
 
 /** Ширина логической области (узлы и линии в 0…ROADMAP_VW — без отрицательных X, схема не «мельчает» при scale) */
 export const ROADMAP_VW = 1000;
@@ -33,27 +34,34 @@ function monthKey(d: Date | string): string {
   return `${x.getUTCFullYear()}-${String(x.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Сортировка и группировка по месяцам; внутри месяца — по дате и sortOrder */
-export function sortAndGroupByMonth(steps: RoadmapStepDTO[]): RoadmapStepDTO[][] {
-  const sorted = [...steps].sort((a, b) => {
-    const ta = new Date(a.targetDate).getTime();
-    const tb = new Date(b.targetDate).getTime();
-    if (ta !== tb) return ta - tb;
-    return a.sortOrder - b.sortOrder;
-  });
+/** Стабильная хронология: календарный день UTC → sortOrder → id */
+export function compareRoadmapSteps(a: RoadmapStepDTO, b: RoadmapStepDTO): number {
+  const da = roadmapUtcCalendarDayMs(a.targetDate);
+  const db = roadmapUtcCalendarDayMs(b.targetDate);
+  if (da !== db) return da - db;
+  if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+  return a.id.localeCompare(b.id);
+}
 
-  const groups: RoadmapStepDTO[][] = [];
-  let lastKey = "";
+/**
+ * Сортировка и группировка по календарным месяцам (UTC).
+ * Порядок линии на схеме = строго по дате планирования, не по списку в админке.
+ */
+export function sortAndGroupByMonth(steps: RoadmapStepDTO[]): RoadmapStepDTO[][] {
+  if (steps.length === 0) return [];
+
+  const sorted = [...steps].sort(compareRoadmapSteps);
+
+  const buckets = new Map<string, RoadmapStepDTO[]>();
   for (const s of sorted) {
     const key = monthKey(s.targetDate);
-    if (key !== lastKey || groups.length === 0) {
-      groups.push([s]);
-      lastKey = key;
-    } else {
-      groups[groups.length - 1].push(s);
-    }
+    const arr = buckets.get(key);
+    if (arr) arr.push(s);
+    else buckets.set(key, [s]);
   }
-  return groups;
+
+  const monthKeys = Array.from(buckets.keys()).sort();
+  return monthKeys.map((k) => buckets.get(k)!);
 }
 
 export function buildSnakeLayout(steps: RoadmapStepDTO[]): SnakeLayout {
