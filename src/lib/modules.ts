@@ -114,7 +114,7 @@ export const navGroups: NavGroup[] = [
       {
         href: "/dashboard/calendar-bridge",
         icon: Calendar,
-        label: "Календарь (n8n)",
+        label: "Календари (CalDav)",
         featureGate: "calendar_bridge",
       },
     ],

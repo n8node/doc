@@ -289,9 +289,9 @@ export default function CalendarBridgePage() {
 
   if (!featureOn) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="w-full max-w-2xl space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold">Календарь для n8n</h1>
+          <h1 className="text-2xl font-semibold">Календари (CalDav)</h1>
           <p className="mt-2 text-muted-foreground">
             Мост между Яндекс.Календарём (CalDAV) и вашими сценариями автоматизации. Доступно на тарифах с
             функцией «Мост календаря».
@@ -317,11 +317,11 @@ export default function CalendarBridgePage() {
   const authExample = `Authorization: Bearer cal_ВАШ_КЛЮЧ`;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="w-full max-w-4xl space-y-8">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
-          <Calendar className="h-7 w-7 text-primary" />
-          Календарь для n8n
+        <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
+          <Calendar className="h-7 w-7 shrink-0 text-muted-foreground" />
+          Календари (CalDav)
         </h1>
         <p className="mt-2 text-muted-foreground">
           Основной календарь остаётся в Яндексе. Здесь вы передаёте учётные данные только в QoQon: мы синхронизируем
@@ -458,10 +458,15 @@ export default function CalendarBridgePage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Отдельно от обычного API-ключа файлов. Заголовок:{" "}
-            <InlineCode>Authorization: Bearer cal_…</InlineCode>
-          </p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              Отдельно от обычного API-ключа файлов. Для запросов к календарю задайте HTTP-заголовок (не вводите пароль
+              Яндекса в n8n):
+            </p>
+            <div className="inline-block max-w-full rounded-md border border-border bg-surface2 px-3 py-2 font-mono text-xs leading-snug text-foreground break-all">
+              Authorization: Bearer cal_…
+            </div>
+          </div>
           <form onSubmit={createAutomationKey} className="flex flex-wrap items-end gap-2">
             <div>
               <Label>Название</Label>
