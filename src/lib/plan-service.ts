@@ -20,6 +20,7 @@ const FREE_PLAN_DEFAULTS = {
     sheets: false,
     web_import: false,
     calendar_bridge: false,
+    mail_bridge: false,
   } as Record<string, boolean>,
 };
 

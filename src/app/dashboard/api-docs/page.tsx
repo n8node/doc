@@ -5,7 +5,7 @@ import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit, Bell, Store, Sparkles, Calendar } from "lucide-react";
+import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit, Bell, Store, Sparkles, Calendar, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -950,6 +950,90 @@ export default function ApiDocsPage() {
                     method="POST"
                     path="/api/v1/cron/calendar-bridge-sync"
                     desc="Фоновая синхронизация всех аккаунтов (Authorization: Bearer CRON_SECRET, не пользовательский ключ)"
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="mail" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  Почта Яндекс (IMAP) (13 методов)
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <p className="text-sm text-muted-foreground border-b border-border/70 pb-3">
+                    Доступ к кэшу писем из «Входящих» и отправка через SMTP Яндекса. Для{" "}
+                    <code className="rounded bg-surface2 px-1">/api/v1/integrations/mail/...</code> используйте ключ{" "}
+                    <code className="rounded bg-surface2 px-1">mail_…</code> (кабинет «Почта (Яндекс)»), не{" "}
+                    <code className="rounded bg-surface2 px-1">qk_…</code>. Тариф:{" "}
+                    <code className="rounded bg-surface2 px-1">mail_bridge</code>. Несколько ящиков: в запросах указывайте{" "}
+                    <code className="rounded bg-surface2 px-1">accountId</code> нужного ящика.
+                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Публичный API</p>
+                  <Section
+                    method="GET"
+                    path="/api/v1/integrations/mail/messages"
+                    desc="Список писем из кэша. Query: accountId (обязательно), folder (по умолчанию INBOX), from, to (ISO 8601), limit (1–200)"
+                  />
+                  <Section method="GET" path="/api/v1/integrations/mail/messages/{id}" desc="Одно письмо с телом (bodyText)" />
+                  <Section
+                    method="POST"
+                    path="/api/v1/integrations/mail/send"
+                    desc="Отправить письмо через smtp.yandex.ru от имени ящика"
+                    body={{
+                      accountId: "string",
+                      to: "string",
+                      subject: "string",
+                      text: "string (optional)",
+                      html: "string (optional)",
+                    }}
+                  />
+                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground pt-2 border-t border-border/70">
+                    Ящики в кабинете (только сессия)
+                  </p>
+                  <Section method="GET" path="/api/v1/mail-bridge/accounts" desc="Список подключённых ящиков" />
+                  <Section
+                    method="POST"
+                    path="/api/v1/mail-bridge/accounts"
+                    desc="Добавить ящик"
+                    body={{
+                      email: "string",
+                      password: "string (пароль приложения)",
+                      label: "string (optional)",
+                      syncDaysBack: "number (optional, 1–365)",
+                    }}
+                  />
+                  <Section method="GET" path="/api/v1/mail-bridge/accounts/{id}" desc="Один ящик" />
+                  <Section
+                    method="PATCH"
+                    path="/api/v1/mail-bridge/accounts/{id}"
+                    desc="Подпись, глубина синка, опционально новый пароль приложения"
+                    body={{
+                      label: "string | null (optional)",
+                      syncDaysBack: "number (optional)",
+                      password: "string (optional)",
+                    }}
+                  />
+                  <Section method="DELETE" path="/api/v1/mail-bridge/accounts/{id}" desc="Отключить ящик и кэш" />
+                  <Section method="POST" path="/api/v1/mail-bridge/accounts/{id}/sync" desc="Синхронизировать INBOX вручную" />
+                  <Section method="GET" path="/api/v1/mail-bridge/automation-keys" desc="Список ключей mail_" />
+                  <Section
+                    method="POST"
+                    path="/api/v1/mail-bridge/automation-keys"
+                    desc="Создать ключ mail_"
+                    body={{ name: "string (optional)" }}
+                  />
+                  <Section method="DELETE" path="/api/v1/mail-bridge/automation-keys/{id}" desc="Удалить ключ" />
+                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground pt-2 border-t border-border/70">
+                    Служебный cron
+                  </p>
+                  <Section
+                    method="POST"
+                    path="/api/v1/cron/mail-bridge-sync"
+                    desc="Фоновая синхронизация всех ящиков (Authorization: Bearer CRON_SECRET)"
                   />
                 </div>
               </AccordionContent>

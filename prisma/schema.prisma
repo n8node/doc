@@ -67,6 +67,8 @@ model User {
   calendarBridgeAccounts CalendarBridgeAccount[]
   calendarBridgeApiKeys  CalendarBridgeApiKey[]
   calendarBridgeWebhooks CalendarBridgeWebhook[]
+  mailBridgeAccounts     MailBridgeAccount[]
+  mailBridgeApiKeys      MailBridgeApiKey[]
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
 
@@ -1005,6 +1007,87 @@ model CalendarBridgeWebhook {
 
   @@index([userId])
   @@map("calendar_bridge_webhooks")
+}
+
+/// Мост Яндекс IMAP/SMTP → API для n8n (тариф: mail_bridge)
+enum MailBridgeProvider {
+  YANDEX
+}
+
+model MailBridgeAccount {
+  id                   String             @id @default(cuid()) @map("id")
+  userId               String             @map("user_id")
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider             MailBridgeProvider @map("provider")
+  email                String             @map("email")
+  label                String?            @map("label")
+  encryptedCredentials String             @map("encrypted_credentials") @db.Text
+  status               String             @default("active") @map("status")
+  lastError            String?            @map("last_error") @db.Text
+  lastSyncedAt         DateTime?          @map("last_synced_at")
+  /// Синхронизировать письма не старше N дней (папка INBOX)
+  syncDaysBack         Int                @default(90) @map("sync_days_back")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  messages             MailBridgeMessage[]
+  folderStates         MailBridgeFolderState[]
+
+  @@unique([userId, email])
+  @@index([userId])
+  @@map("mail_bridge_accounts")
+}
+
+model MailBridgeFolderState {
+  id          String            @id @default(cuid()) @map("id")
+  accountId   String            @map("account_id")
+  account     MailBridgeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  folderPath  String            @default("INBOX") @map("folder_path")
+  uidValidity String            @map("uid_validity")
+  highestUid  Int               @default(0) @map("highest_uid")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@unique([accountId, folderPath])
+  @@index([accountId])
+  @@map("mail_bridge_folder_states")
+}
+
+model MailBridgeMessage {
+  id               String            @id @default(cuid()) @map("id")
+  accountId        String            @map("account_id")
+  account          MailBridgeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  folderPath       String            @default("INBOX") @map("folder_path")
+  imapUid          Int               @map("imap_uid")
+  uidValidity      String            @map("uid_validity")
+  messageIdHeader  String?           @map("message_id_header")
+  subject          String?           @map("subject")
+  fromAddress      String?           @map("from_address")
+  toAddress        String?           @map("to_address")
+  date             DateTime          @map("date")
+  snippet          String?           @map("snippet") @db.Text
+  bodyText         String?           @map("body_text") @db.Text
+  seen             Boolean           @default(false) @map("seen")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  @@unique([accountId, folderPath, imapUid, uidValidity])
+  @@index([accountId, date(sort: Desc)])
+  @@index([accountId, folderPath])
+  @@map("mail_bridge_messages")
+}
+
+model MailBridgeApiKey {
+  id         String    @id @default(cuid()) @map("id")
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String    @map("name")
+  keyToken   String    @unique @map("key_token")
+  keyHash    String    @map("key_hash")
+  keyPrefix  String    @map("key_prefix")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("mail_bridge_api_keys")
 }
 
 /// Шаги дорожной карты продукта (публичная страница /roadmap)

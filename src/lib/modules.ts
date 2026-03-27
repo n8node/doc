@@ -19,6 +19,7 @@ import {
   Video,
   Globe,
   Calendar,
+  Mail,
 } from "lucide-react";
 import {
   buildDashboardFilesUrl,
@@ -116,6 +117,12 @@ export const navGroups: NavGroup[] = [
         icon: Calendar,
         label: "Календари (CalDav)",
         featureGate: "calendar_bridge",
+      },
+      {
+        href: "/dashboard/mail-bridge",
+        icon: Mail,
+        label: "Почта (Яндекс)",
+        featureGate: "mail_bridge",
       },
     ],
   },
