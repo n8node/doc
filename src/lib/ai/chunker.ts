@@ -91,7 +91,10 @@ export function chunkText(
       idx++;
     }
 
-    start = Math.max(start + 1, end - overlap);
+    // Last window already ends at EOF — do not step by 1 with overlap math, or
+    // short tails (length ≤ overlap) produce a "staircase" of duplicate chunks.
+    start =
+      end >= cleaned.length ? cleaned.length : Math.max(start + 1, end - overlap);
   }
 
   return chunks;
