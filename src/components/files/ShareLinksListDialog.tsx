@@ -19,7 +19,9 @@ import {
   Shield,
   CheckCircle2,
   AlertCircle,
+  QrCode,
 } from "lucide-react";
+import { ShareQrDownloadDialog } from "./ShareQrDownloadDialog";
 
 interface ShareLinkItem {
   id: string;
@@ -51,6 +53,8 @@ export function ShareLinksListDialog({
   const [links, setLinks] = useState<ShareLinkItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrShareUrl, setQrShareUrl] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -107,10 +111,17 @@ export function ShareLinksListDialog({
     }
   };
 
+  const fullShareUrl = (token: string) =>
+    `${typeof window !== "undefined" ? window.location.origin : ""}/s/${token}`;
+
   const copyLink = (token: string) => {
-    const baseUrl = window.location.origin;
-    navigator.clipboard.writeText(`${baseUrl}/s/${token}`);
+    navigator.clipboard.writeText(fullShareUrl(token));
     toast.success("Ссылка скопирована");
+  };
+
+  const openQrDialog = (token: string) => {
+    setQrShareUrl(fullShareUrl(token));
+    setQrDialogOpen(true);
   };
 
   const formatDate = (dateStr: string) => {
@@ -131,6 +142,7 @@ export function ShareLinksListDialog({
   const isUsed = (link: ShareLinkItem) => link.oneTime && link.usedAt;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader>
@@ -174,8 +186,18 @@ export function ShareLinksListDialog({
                       size="sm"
                       onClick={() => copyLink(link.token)}
                       className="h-8 w-8 p-0 shrink-0 bg-background/80 hover:bg-background"
+                      title="Копировать"
                     >
                       <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openQrDialog(link.token)}
+                      className="h-8 w-8 p-0 shrink-0 bg-background/80 hover:bg-background"
+                      title="Скачать QR-код"
+                    >
+                      <QrCode className="h-3.5 w-3.5" />
                     </Button>
                   </div>
 
@@ -252,5 +274,11 @@ export function ShareLinksListDialog({
         )}
       </DialogContent>
     </Dialog>
+    <ShareQrDownloadDialog
+      open={qrDialogOpen}
+      onOpenChange={setQrDialogOpen}
+      shareUrl={qrShareUrl}
+    />
+    </>
   );
 }

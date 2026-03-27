@@ -15,6 +15,7 @@ import {
   Mail,
   Info,
   Users,
+  QrCode,
 } from "lucide-react";
 import {
   Dialog,
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { parseEmailList } from "@/lib/share-email-parse";
+import { ShareQrDownloadDialog } from "./ShareQrDownloadDialog";
 
 interface ShareDialogProps {
   targetType: "FILE" | "FOLDER";
@@ -75,6 +77,7 @@ export function ShareDialog({
   );
   const [resolving, setResolving] = useState(false);
   const [emailSubmitting, setEmailSubmitting] = useState(false);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/v1/plans/me")
@@ -221,6 +224,7 @@ export function ShareDialog({
   };
 
   return (
+    <>
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md min-w-0 overflow-hidden p-0" aria-describedby={undefined}>
         <div className="border-b border-border bg-surface2/50 px-6 py-4">
@@ -562,10 +566,20 @@ export function ShareDialog({
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 gap-2" onClick={handleMailShare}>
-                    <Mail className="h-4 w-4" />
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" className="min-w-0 flex-1 gap-2" onClick={handleMailShare}>
+                    <Mail className="h-4 w-4 shrink-0" />
                     Отправить на почту
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => setQrDialogOpen(true)}
+                    title="Скачать QR-код"
+                  >
+                    <QrCode className="h-4 w-4" />
+                    <span className="hidden sm:inline">QR-код</span>
                   </Button>
                   <Button variant="outline" className="gap-2" onClick={() => window.open(url, "_blank")}>
                     <ExternalLink className="h-4 w-4" />
@@ -577,5 +591,13 @@ export function ShareDialog({
         </AnimatePresence>
       </DialogContent>
     </Dialog>
+    {url ? (
+      <ShareQrDownloadDialog
+        open={qrDialogOpen}
+        onOpenChange={setQrDialogOpen}
+        shareUrl={url}
+      />
+    ) : null}
+    </>
   );
 }
