@@ -376,7 +376,12 @@ async function main() {
 <li><strong>Уведомления</strong> — список и отметка прочитанными</li>
 <li><strong>Пользователь</strong> — профиль, хранилище, настройки, AI-конфиг</li>
 <li><strong>Тарифы</strong> — список планов, текущий тариф</li>
+<li><strong>Календарь (CalDAV)</strong>, <strong>почта (IMAP/SMTP)</strong>, <strong>парсинг сайтов</strong> — отдельные ключи и сценарии; см. <a href="/docs/calendar-mail-webimport">Календарь, почта и парсинг</a></li>
 </ul>
+
+<h2>Календарь, почта и парсинг</h2>
+
+<p>Подробное руководство — <a href="/docs/calendar-mail-webimport">Календарь, почта и парсинг сайтов</a>: мост к Яндекс.Календарю (CalDAV), к Яндекс.Почте (IMAP/SMTP) с выбором папок, парсинг веб-страниц по тарифу. Для автоматизации используются ключи <code>cal_</code> и <code>mail_</code>, не путать с основным ключом файлов <code>qk_</code>.</p>
 
 <h2>Интеграция с n8n</h2>
 
@@ -420,6 +425,9 @@ async function main() {
 <li><strong>AI-анализ документов</strong> — обработка и эмбеддинги (квота док./мес)</li>
 <li><strong>Свой API-ключ</strong> — использование своих ключей провайдеров (токены не списываются)</li>
 <li><strong>Генерация изображений</strong> — Kie.ai (квота кредитов/мес)</li>
+<li><strong>Мост календаря</strong> — синхронизация Яндекс.Календаря (CalDAV) и API для n8n (ключ <code>cal_</code>)</li>
+<li><strong>Мост почты</strong> — Яндекс.Почта через IMAP/SMTP, выбор папок, API (ключ <code>mail_</code>)</li>
+<li><strong>Парсинг сайтов</strong> — извлечение контента со страниц по URL (квота страниц/мес на тарифе)</li>
 </ul>
 
 <p>Квоты обновляются ежемесячно. При исчерпании квоты функция блокируется до следующего периода или до смены тарифа.</p>
@@ -598,6 +606,48 @@ async function main() {
 
 <p>В редакторе таблицы нажмите <strong>«Подключения n8n (PostgreSQL)»</strong>, создайте подключение и скопируйте параметры (Host, Port, Database, User, Password, Table Name) для настройки в n8n.</p>`;
 
+  const calendarMailWebimportContent = `<p><strong>Календарь, почта и парсинг сайтов</strong> — три отдельные функции тарифа с собственными кабинетами и (для календаря и почты) отдельными API-ключами автоматизации. Полный перечень методов — в разделе <a href="/dashboard/api-docs">API настройки</a> (аккордеоны «Календарь (CalDAV)» и «Почта (IMAP/SMTP)»).</p>
+
+<h2>Календарь Яндекс (CalDAV)</h2>
+
+<p>Нужна функция тарифа <strong>calendar_bridge</strong>. Раздел в кабинете: <strong>«Календари (CalDav)»</strong> — <a href="/dashboard/calendar-bridge">/dashboard/calendar-bridge</a>.</p>
+
+<ol>
+<li>Создайте <strong>пароль приложения</strong> в настройках Яндекс ID и укажите логин (email) и этот пароль в форме подключения.</li>
+<li>Нажмите <strong>«Загрузить календари»</strong>, выберите нужные календари и сохраните подписки.</li>
+<li>Запустите <strong>синхронизацию</strong> вручную или дождитесь фонового обновления — события попадают в кэш на сервере.</li>
+</ol>
+
+<p>Для сценариев n8n и скриптов создайте ключ автоматизации с префиксом <code>cal_</code> в том же разделе. Им запрашиваются только эндпоинты <code>/api/v1/integrations/calendar/...</code> (список и CRUD событий). Обычный ключ файлов <code>qk_</code> для этих путей не подходит.</p>
+
+<p>Настройка аккаунта Яндекса, список календарей с сервера и ручной синк доступны по путям <code>/api/v1/calendar-bridge/...</code> — только при входе по сессии в браузере, не по <code>cal_</code>. Фоновая синхронизация для всех пользователей вызывается служебным POST <code>/api/v1/cron/calendar-bridge-sync</code> с секретом <code>CRON_SECRET</code> (настраивается на сервере).</p>
+
+<h2>Почта Яндекс (IMAP/SMTP)</h2>
+
+<p>Нужна функция тарифа <strong>mail_bridge</strong>. Раздел: <strong>«Почта (IMAP/SMTP)»</strong> — <a href="/dashboard/mail-bridge">/dashboard/mail-bridge</a>. Можно подключить <strong>несколько ящиков</strong> (несколько аккаунтов Яндекса).</p>
+
+<ol>
+<li>Добавьте ящик: email и <strong>пароль приложения</strong> Яндекса, при необходимости подпись и глубину синхронизации (дней назад).</li>
+<li>Откройте <strong>«Папки IMAP»</strong> для ящика: загрузите список папок с сервера, отметьте нужные (как правило «Входящие» и другие) и сохраните — синхронизируются только выбранные папки.</li>
+<li>Запустите синхронизацию вручную или дождитесь фонового цикла.</li>
+</ol>
+
+<p>Ключи автоматизации с префиксом <code>mail_</code> выдаются в кабинете почты. Ими вызываются <code>/api/v1/integrations/mail/messages</code> (список и фильтры по датам, параметр <code>folder</code>), <code>/api/v1/integrations/mail/messages/{id}</code> и <code>/api/v1/integrations/mail/send</code>. В запросах к письмам указывайте <code>accountId</code> нужного ящика. Управление ящиками, папками и подписками — через <code>/api/v1/mail-bridge/...</code> только с сессией. Фоновый синк: POST <code>/api/v1/cron/mail-bridge-sync</code> с <code>CRON_SECRET</code>.</p>
+
+<h2>Парсинг сайтов</h2>
+
+<p>Нужна функция тарифа <strong>web_import</strong> (квота страниц в месяц зависит от плана). Раздел: <a href="/dashboard/web-import">/dashboard/web-import</a> — добавление URL, пошаговая загрузка и обработка страниц, экспорт результата, при необходимости вызов AI по извлечённому тексту.</p>
+
+<p>Технические эндпоинты (по сессии пользователя): создание и список задач <code>/api/v1/web-import/jobs</code>, шаг обработки <code>.../jobs/{id}/step</code>, отмена, экспорт, а также <code>/api/v1/web-import/ai</code> для сценариев с моделью. Назначение — получить структурированный текст с веб-страниц для дальнейшей работы в сервисе или в n8n.</p>
+
+<h2>Сводка по ключам</h2>
+
+<ul>
+<li><code>qk_</code> — основной API файлов, папок, RAG и большинства разделов из <a href="/docs/api">API и интеграции</a></li>
+<li><code>cal_</code> — только календарь: <code>/api/v1/integrations/calendar/...</code></li>
+<li><code>mail_</code> — только почта: <code>/api/v1/integrations/mail/...</code></li>
+</ul>`;
+
   const defaultDocPages = [
     { slug: "getting-started", title: "Начало работы", sortOrder: 0, content: gettingStartedContent },
     { slug: "files", title: "Файлы и хранилище", sortOrder: 1, content: filesContent },
@@ -612,6 +662,12 @@ async function main() {
     { slug: "settings", title: "Настройки", sortOrder: 10, content: settingsContent },
     { slug: "n8n-rag", title: "Интеграция Qoqon RAG с n8n (Postgres PGVector Store и HTTP Request)", sortOrder: 11, content: n8nRagContent },
     { slug: "n8n-sheets", title: "Подключение таблиц (Sheets) к n8n", sortOrder: 12, content: n8nSheetsContent },
+    {
+      slug: "calendar-mail-webimport",
+      title: "Календарь, почта и парсинг",
+      sortOrder: 13,
+      content: calendarMailWebimportContent,
+    },
   ];
 
   for (const p of defaultDocPages) {
