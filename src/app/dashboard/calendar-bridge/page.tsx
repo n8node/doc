@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Loader2,
@@ -33,6 +33,22 @@ type AutomationKey = {
   lastUsedAt: string | null;
   createdAt: string;
 };
+
+function InlineCode({ children }: { children: ReactNode }) {
+  return (
+    <code className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-[0.85em] text-foreground">
+      {children}
+    </code>
+  );
+}
+
+function CodeBlock({ children }: { children: ReactNode }) {
+  return (
+    <pre className="mt-2 overflow-x-auto rounded-lg border border-border bg-muted/80 p-3 font-mono text-xs leading-relaxed text-foreground">
+      {children}
+    </pre>
+  );
+}
 
 export default function CalendarBridgePage() {
   const [loading, setLoading] = useState(true);
@@ -297,7 +313,8 @@ export default function CalendarBridgePage() {
     );
   }
 
-  const eventsUrl = `${baseUrl}/api/v1/integrations/calendar/events`;
+  const eventsBase = `${baseUrl}/api/v1/integrations/calendar/events`;
+  const authExample = `Authorization: Bearer cal_ВАШ_КЛЮЧ`;
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -323,9 +340,9 @@ export default function CalendarBridgePage() {
               href="https://id.yandex.ru/security/app-passwords"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary underline inline-flex items-center gap-1"
+              className="inline-flex items-center gap-1 text-foreground underline underline-offset-2 decoration-muted-foreground hover:decoration-foreground"
             >
-              пароль приложения <ExternalLink className="h-3 w-3" />
+              пароль приложения <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
             </a>{" "}
             для почты Яндекса и укажите логин (полный email) и этот пароль ниже — не основной пароль от аккаунта.
           </p>
@@ -416,6 +433,19 @@ export default function CalendarBridgePage() {
                 Подключённые календари: {subs.length}
               </span>
             </div>
+            {subs.length > 0 && (
+              <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-foreground">
+                <p className="mb-2 font-medium">subscriptionId для API (POST создание события):</p>
+                <ul className="space-y-1.5">
+                  {subs.map((s) => (
+                    <li key={s.id} className="flex flex-wrap items-baseline gap-2">
+                      <InlineCode>{s.id}</InlineCode>
+                      <span className="text-muted-foreground">{s.displayName ?? s.resourceHref}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -429,8 +459,8 @@ export default function CalendarBridgePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Отдельно от обычного API-ключа файлов. Используйте заголовок{" "}
-            <code className="rounded bg-muted px-1">Authorization: Bearer cal_…</code> для запросов к календарю.
+            Отдельно от обычного API-ключа файлов. Заголовок:{" "}
+            <InlineCode>Authorization: Bearer cal_…</InlineCode>
           </p>
           <form onSubmit={createAutomationKey} className="flex flex-wrap items-end gap-2">
             <div>
@@ -446,9 +476,9 @@ export default function CalendarBridgePage() {
             </Button>
           </form>
           {newKeyValue && (
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
-              <p className="mb-2 font-medium">Скопируйте ключ сейчас:</p>
-              <code className="break-all text-xs">{newKeyValue}</code>
+            <div className="rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">
+              <p className="mb-2 font-medium text-foreground">Скопируйте ключ сейчас:</p>
+              <code className="break-all text-xs text-foreground">{newKeyValue}</code>
               <Button
                 type="button"
                 variant="ghost"
@@ -489,29 +519,98 @@ export default function CalendarBridgePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Что сделать в n8n</CardTitle>
+          <CardTitle className="text-lg">Публичное API календаря</CardTitle>
         </CardHeader>
-        <CardContent className="prose prose-invert max-w-none text-sm text-muted-foreground dark:prose-invert">
+        <CardContent className="space-y-5 text-sm text-muted-foreground">
+          <p>
+            Базовый URL: <InlineCode>{eventsBase}</InlineCode>. Во всех запросах заголовок{" "}
+            <InlineCode>{authExample}</InlineCode> (или сессия браузера в кабинете). Пароль Яндекса в теле запросов
+            не передаётся.
+          </p>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Список событий (кэш после синка)</p>
+            <p>
+              <InlineCode>GET</InlineCode> — query: <InlineCode>from</InlineCode>, <InlineCode>to</InlineCode> (ISO
+              8601), опционально <InlineCode>subscriptionIds</InlineCode> (через запятую).
+            </p>
+            <CodeBlock>{`${eventsBase}?from=2025-01-01T00:00:00.000Z&to=2025-12-31T23:59:59.999Z`}</CodeBlock>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Одно событие</p>
+            <p>
+              <InlineCode>{`GET ${eventsBase}/:id`}</InlineCode> — параметр <InlineCode>id</InlineCode> из поля{" "}
+              <InlineCode>events[].id</InlineCode>.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Создать событие в Яндексе</p>
+            <p>
+              <InlineCode>POST</InlineCode> — JSON: <InlineCode>subscriptionId</InlineCode> (id подписки в вашем
+              аккаунте), <InlineCode>summary</InlineCode>, <InlineCode>startAt</InlineCode>, <InlineCode>endAt</InlineCode>
+              , опционально <InlineCode>allDay</InlineCode>, <InlineCode>location</InlineCode>,{" "}
+              <InlineCode>description</InlineCode>.
+            </p>
+            <CodeBlock>{`curl -sS -X POST "${eventsBase}" \\
+  -H "Content-Type: application/json" \\
+  -H "${authExample}" \\
+  -d '{"subscriptionId":"SUB_ID","summary":"Встреча","startAt":"2025-06-01T10:00:00.000Z","endAt":"2025-06-01T11:00:00.000Z"}'`}</CodeBlock>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Изменить событие</p>
+            <p>
+              <InlineCode>{`PATCH ${eventsBase}/:id`}</InlineCode> — в теле только нужные поля:{" "}
+              <InlineCode>summary</InlineCode>, <InlineCode>startAt</InlineCode>, <InlineCode>endAt</InlineCode>,{" "}
+              <InlineCode>allDay</InlineCode>, <InlineCode>location</InlineCode>, <InlineCode>description</InlineCode>.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Удалить событие</p>
+            <p>
+              <InlineCode>{`DELETE ${eventsBase}/:id`}</InlineCode>
+            </p>
+          </div>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="font-medium text-foreground">Фоновая синхронизация кэша (сервер)</p>
+            <p>
+              <InlineCode>POST /api/v1/cron/calendar-bridge-sync</InlineCode> с{" "}
+              <InlineCode>Authorization: Bearer CRON_SECRET</InlineCode> — обновляет все подключённые аккаунты.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">n8n: узел HTTP Request</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
           <ol className="list-decimal space-y-3 pl-5">
-            <li>Создайте ключ выше и скопируйте значение <code>cal_…</code> (он показывается один раз).</li>
             <li>
-              Добавьте узел <strong>HTTP Request</strong>: метод GET, URL:
-              <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs text-foreground">
-                {eventsUrl}?from=2025-01-01T00:00:00.000Z&to=2025-12-31T23:59:59.999Z
-              </pre>
+              Создайте ключ <InlineCode>cal_…</InlineCode> выше (показывается один раз). В ноде укажите аутентификацию по
+              заголовку: имя <InlineCode>Authorization</InlineCode>, значение <InlineCode>Bearer …</InlineCode>.
             </li>
             <li>
-              В разделе Authentication выберите Generic Credential или Header Auth: имя заголовка{" "}
-              <code>Authorization</code>, значение <code>Bearer ВАШ_КЛЮЧ_cal_…</code>.
+              <span className="text-foreground font-medium">Чтение списка:</span> метод GET, URL как в блоке выше, подставьте
+              свой диапазон дат (можно выражениями n8n для «сегодня—через месяц»).
             </li>
             <li>
-              Ответ JSON: массив <code>events</code> с полями <code>summary</code>, <code>startAt</code>,{" "}
-              <code>endAt</code>, <code>calendar.displayName</code> и др. Пароль Яндекса в n8n не вводится.
+              <span className="text-foreground font-medium">Создание:</span> метод POST, тот же базовый URL, Body → JSON,
+              поля как в примере curl. <InlineCode>subscriptionId</InlineCode> один раз скопируйте из ответа API кабинета
+              или из <InlineCode>GET</InlineCode> после сохранения подписок.
             </li>
             <li>
-              По расписанию: триггер Schedule → HTTP Request к тому же URL с актуальным диапазоном дат, либо настройте
-              cron на сервере QoQon (<code>POST /api/v1/cron/calendar-bridge-sync</code> с{" "}
-              <code>Authorization: Bearer CRON_SECRET</code>) для фоновой синхронизации.
+              <span className="text-foreground font-medium">Изменение / удаление:</span> PATCH или DELETE на{" "}
+              <InlineCode>…/events/&#123;&#123; $json.id &#125;&#125;</InlineCode> после узла, где есть id события.
+            </li>
+            <li>
+              Расписание: триггер Schedule → цепочка HTTP Request; либо только cron на сервере для синка кэша, а чтение
+              по расписанию из n8n.
             </li>
           </ol>
         </CardContent>
