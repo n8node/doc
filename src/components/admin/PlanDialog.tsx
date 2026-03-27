@@ -524,76 +524,91 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
             </div>
           </div>
 
-          {/* Транскрибация */}
-          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
-            <h4 className="text-sm font-medium">Транскрибация</h4>
-            <p className="text-xs text-muted-foreground">
-              Пока пусты поля «только аудио/видео», действует общая квота. Если задать хотя бы одно из них — учёт
-              минут раздельный; для типа без числа подставляется общая квота.
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Минут в месяц (общая квота)
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={transcriptionMinutesQuota}
-                  onChange={(e) => setTranscriptionMinutesQuota(e.target.value)}
-                  placeholder="Без лимита"
-                />
+          {/* Транскрибация: аудио и видео — отдельные виды; месячные квоты и лимит на файл */}
+          <div className="space-y-4 rounded-xl border border-border bg-surface2/30 p-4">
+            <div>
+              <h4 className="text-sm font-medium">Транскрибация</h4>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Два вида: <strong className="text-foreground">аудиофайлы</strong> и <strong className="text-foreground">видео</strong> (дорожка извлекается с видео). Пока оба поля «Мин/мес — только аудио/видео» пусты, действует
+                общая месячная квота. Если заполнено хотя бы одно — учёт минут раздельный; пустое поле для типа
+                подставляет общую квоту.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Минут в месяц (квоты)</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    Общая (если не заданы раздельно)
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={transcriptionMinutesQuota}
+                    onChange={(e) => setTranscriptionMinutesQuota(e.target.value)}
+                    placeholder="Без лимита"
+                  />
+                </div>
+                <div />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Макс. видео (мин за файл)
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={maxTranscriptionVideoMinutes}
-                  onChange={(e) => setMaxTranscriptionVideoMinutes(e.target.value)}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    Только аудио
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={transcriptionAudioMinutesQuota}
+                    onChange={(e) => setTranscriptionAudioMinutesQuota(e.target.value)}
+                    placeholder="Как общая"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    Только видео
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={transcriptionVideoMinutesQuota}
+                    onChange={(e) => setTranscriptionVideoMinutesQuota(e.target.value)}
+                    placeholder="Как общая"
+                  />
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Минут/мес (только аудио)
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={transcriptionAudioMinutesQuota}
-                  onChange={(e) => setTranscriptionAudioMinutesQuota(e.target.value)}
-                  placeholder="Как общая"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Минут/мес (только видео)
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={transcriptionVideoMinutesQuota}
-                  onChange={(e) => setTranscriptionVideoMinutesQuota(e.target.value)}
-                  placeholder="Как общая"
-                />
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Максимальная длительность одного файла</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    Аудио (мин за файл)
+                  </label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={maxTranscriptionAudioMinutes}
+                    onChange={(e) => setMaxTranscriptionAudioMinutes(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    Видео (мин за файл)
+                  </label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={maxTranscriptionVideoMinutes}
+                    onChange={(e) => setMaxTranscriptionVideoMinutes(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Макс. аудио (мин)
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={maxTranscriptionAudioMinutes}
-                  onChange={(e) => setMaxTranscriptionAudioMinutes(e.target.value)}
-                />
-              </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Премиум-провайдер

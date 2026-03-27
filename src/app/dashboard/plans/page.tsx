@@ -18,7 +18,12 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, cn } from "@/lib/utils";
+import {
+  formatTranscriptionUsageLine,
+  getTranscriptionMonthlyQuotaLines,
+  getTranscriptionPerFileLine,
+} from "@/lib/transcription-quota-display";
 
 interface PlanItem {
   id: string;
@@ -33,6 +38,10 @@ interface PlanItem {
   chatTokensQuota?: number | null;
   searchTokensQuota?: number | null;
   transcriptionMinutesQuota?: number | null;
+  transcriptionAudioMinutesQuota?: number | null;
+  transcriptionVideoMinutesQuota?: number | null;
+  maxTranscriptionAudioMinutes?: number;
+  maxTranscriptionVideoMinutes?: number;
   ragDocumentsQuota?: number | null;
   imageGenerationCreditsQuota?: number | null;
   priceMonthly: number | null;
@@ -40,12 +49,19 @@ interface PlanItem {
   trashRetentionDays: number;
 }
 
-interface UserPlan {
+/** Ответ GET /api/v1/plans/me — используем для бейджа и расхода транскрибации */
+interface CurrentPlanMe {
   id: string;
   name: string;
   storageQuota: number;
   maxFileSize: number;
   features: Record<string, boolean>;
+  transcriptionMinutesQuota?: number | null;
+  transcriptionAudioMinutesQuota?: number | null;
+  transcriptionVideoMinutesQuota?: number | null;
+  transcriptionMinutesUsedThisMonth?: number;
+  transcriptionAudioMinutesUsedThisMonth?: number;
+  transcriptionVideoMinutesUsedThisMonth?: number;
 }
 
 const featureLabels: Record<string, string> = {
@@ -58,6 +74,7 @@ const featureLabels: Record<string, string> = {
   ai_search: "AI-поиск по документам",
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
+  transcription: "Транскрибация (аудио и видео)",
   own_ai_keys: "Свой API-ключ (токены не списываются)",
   content_generation: "Генерация изображений",
 };
@@ -65,7 +82,7 @@ const featureLabels: Record<string, string> = {
 export default function DashboardPlansPage() {
   const searchParams = useSearchParams();
   const [plans, setPlans] = useState<PlanItem[]>([]);
-  const [currentPlan, setCurrentPlan] = useState<UserPlan | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<CurrentPlanMe | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
 
@@ -146,10 +163,18 @@ export default function DashboardPlansPage() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary"
+            className="mt-4 flex flex-col items-center gap-2"
           >
-            <Crown className="h-4 w-4" />
-            Текущий тариф: {currentPlan.name}
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+              <Crown className="h-4 w-4" />
+              Текущий тариф: {currentPlan.name}
+            </div>
+            {currentPlan.features?.transcription &&
+              formatTranscriptionUsageLine(currentPlan) && (
+                <p className="max-w-xl text-center text-xs text-muted-foreground">
+                  {formatTranscriptionUsageLine(currentPlan)}
+                </p>
+              )}
           </motion.div>
         )}
       </div>
@@ -273,18 +298,29 @@ export default function DashboardPlansPage() {
                   {Object.entries(featureLabels).map(([key, label]) => {
                     const enabled = !!plan.features?.[key];
                     return (
-                      <div key={key} className="flex items-center gap-3 text-sm">
+                      <div
+                        key={key}
+                        className={cn(
+                          "flex gap-3 text-sm",
+                          key === "transcription" ? "items-start" : "items-center",
+                        )}
+                      >
                         {enabled ? (
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-success/10">
+                          <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/10">
                             <Check className="h-3 w-3 text-success" />
                           </div>
                         ) : (
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-surface2">
+                          <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface2">
                             <X className="h-3 w-3 text-muted-foreground" />
                           </div>
                         )}
-                        <span className={enabled ? "text-foreground" : "text-muted-foreground"}>
-                          {label}
+                        <span
+                          className={cn(
+                            "min-w-0 flex-1",
+                            enabled ? "text-foreground" : "text-muted-foreground",
+                          )}
+                        >
+                          <span className="font-medium">{label}</span>
                           {key === "document_analysis" && enabled && (
                             <span className="text-muted-foreground">
                               {" "}
@@ -306,9 +342,17 @@ export default function DashboardPlansPage() {
                             </span>
                           )}
                           {key === "transcription" && enabled && (
-                            <span className="text-muted-foreground">
-                              {" "}
-                              ({plan.transcriptionMinutesQuota != null ? `${plan.transcriptionMinutesQuota} мин/мес` : "безлимит"})
+                            <span className="mt-1 block text-xs font-normal leading-relaxed text-muted-foreground">
+                              {getTranscriptionMonthlyQuotaLines(plan).map((line, i) => (
+                                <span key={i} className="block">
+                                  • {line}
+                                </span>
+                              ))}
+                              {getTranscriptionPerFileLine(plan) && (
+                                <span className="mt-1 block opacity-90">
+                                  {getTranscriptionPerFileLine(plan)}
+                                </span>
+                              )}
                             </span>
                           )}
                           {key === "rag_memory" && enabled && (
