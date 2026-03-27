@@ -34,9 +34,10 @@ type AutomationKey = {
   createdAt: string;
 };
 
+/** Нейтральные zinc-цвета — без «синего на синем» от токенов темы */
 function InlineCode({ children }: { children: ReactNode }) {
   return (
-    <code className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-[0.85em] text-foreground">
+    <code className="rounded border border-zinc-300/80 bg-zinc-100/90 px-1.5 py-0.5 font-mono text-[0.88em] text-zinc-800 dark:border-zinc-600/80 dark:bg-zinc-800/70 dark:text-zinc-200">
       {children}
     </code>
   );
@@ -44,7 +45,7 @@ function InlineCode({ children }: { children: ReactNode }) {
 
 function CodeBlock({ children }: { children: ReactNode }) {
   return (
-    <pre className="mt-2 overflow-x-auto rounded-lg border border-border bg-muted/80 p-3 font-mono text-xs leading-relaxed text-foreground">
+    <pre className="mt-2 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs leading-relaxed text-zinc-800 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-200">
       {children}
     </pre>
   );
@@ -434,7 +435,7 @@ export default function CalendarBridgePage() {
               </span>
             </div>
             {subs.length > 0 && (
-              <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-foreground">
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50/90 p-3 text-xs text-zinc-800 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
                 <p className="mb-2 font-medium">subscriptionId для API (POST создание события):</p>
                 <ul className="space-y-1.5">
                   {subs.map((s) => (
@@ -463,7 +464,7 @@ export default function CalendarBridgePage() {
               Отдельно от обычного API-ключа файлов. Для запросов к календарю задайте HTTP-заголовок (не вводите пароль
               Яндекса в n8n):
             </p>
-            <div className="inline-block max-w-full rounded-md border border-border bg-surface2 px-3 py-2 font-mono text-xs leading-snug text-foreground break-all">
+            <div className="inline-block max-w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 font-mono text-xs leading-snug text-zinc-800 break-all shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-200">
               Authorization: Bearer cal_…
             </div>
           </div>
@@ -481,9 +482,9 @@ export default function CalendarBridgePage() {
             </Button>
           </form>
           {newKeyValue && (
-            <div className="rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">
-              <p className="mb-2 font-medium text-foreground">Скопируйте ключ сейчас:</p>
-              <code className="break-all text-xs text-foreground">{newKeyValue}</code>
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-800 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/50 dark:text-zinc-200">
+              <p className="mb-2 font-medium text-zinc-900 dark:text-zinc-100">Скопируйте ключ сейчас:</p>
+              <code className="break-all font-mono text-xs">{newKeyValue}</code>
               <Button
                 type="button"
                 variant="ghost"
@@ -505,7 +506,10 @@ export default function CalendarBridgePage() {
                 className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
               >
                 <span>
-                  {k.name} — <code className="text-xs">{k.keyPrefix}</code>
+                  {k.name} —{" "}
+                  <code className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300">
+                    {k.keyPrefix}
+                  </code>
                 </span>
                 <Button
                   variant="ghost"
@@ -526,8 +530,8 @@ export default function CalendarBridgePage() {
         <CardHeader>
           <CardTitle className="text-lg">Публичное API календаря</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5 text-sm text-muted-foreground">
-          <p>
+        <CardContent className="space-y-6 text-sm text-muted-foreground">
+          <p className="leading-relaxed">
             Базовый URL: <InlineCode>{eventsBase}</InlineCode>. Во всех запросах заголовок{" "}
             <InlineCode>{authExample}</InlineCode> (или сессия браузера в кабинете). Пароль Яндекса в теле запросов
             не передаётся.
