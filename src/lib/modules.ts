@@ -121,7 +121,7 @@ export const navGroups: NavGroup[] = [
       {
         href: "/dashboard/mail-bridge",
         icon: Mail,
-        label: "Почта (Яндекс)",
+        label: "Почта (IMAP/SMTP)",
         featureGate: "mail_bridge",
       },
     ],

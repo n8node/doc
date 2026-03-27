@@ -284,7 +284,7 @@ export default function MailBridgePage() {
     return (
       <div className="w-full max-w-4xl space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold">Почта (Яндекс)</h1>
+          <h1 className="text-2xl font-semibold">Почта (IMAP/SMTP)</h1>
           <p className="mt-2 text-muted-foreground">
             Мост между Яндекс.Почтой (IMAP/SMTP) и вашими сценариями автоматизации. Доступно на тарифах с функцией
             «Мост почты».
@@ -314,7 +314,7 @@ export default function MailBridgePage() {
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
           <Mail className="h-7 w-7 shrink-0 text-muted-foreground" />
-          Почта (Яндекс)
+          Почта (IMAP/SMTP)
         </h1>
         <p className="mt-2 text-muted-foreground">
           Почта остаётся на серверах Яндекса. Вы передаёте в QoQon только пароль приложения: мы подключаемся по IMAP к

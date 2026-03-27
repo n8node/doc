@@ -959,7 +959,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  Почта Яндекс (IMAP) (13 методов)
+                  Почта (IMAP/SMTP) (13 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -967,7 +967,7 @@ export default function ApiDocsPage() {
                   <p className="text-sm text-muted-foreground border-b border-border/70 pb-3">
                     Доступ к кэшу писем из «Входящих» и отправка через SMTP Яндекса. Для{" "}
                     <code className="rounded bg-surface2 px-1">/api/v1/integrations/mail/...</code> используйте ключ{" "}
-                    <code className="rounded bg-surface2 px-1">mail_…</code> (кабинет «Почта (Яндекс)»), не{" "}
+                    <code className="rounded bg-surface2 px-1">mail_…</code> (кабинет «Почта (IMAP/SMTP)»), не{" "}
                     <code className="rounded bg-surface2 px-1">qk_…</code>. Тариф:{" "}
                     <code className="rounded bg-surface2 px-1">mail_bridge</code>. Несколько ящиков: в запросах указывайте{" "}
                     <code className="rounded bg-surface2 px-1">accountId</code> нужного ящика.

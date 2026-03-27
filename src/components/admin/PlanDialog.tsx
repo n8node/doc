@@ -64,7 +64,7 @@ const featureLabels: Record<string, string> = {
   own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
   content_generation: "Генерация изображений",
   calendar_bridge: "Мост календаря (Яндекс → API / n8n)",
-  mail_bridge: "Мост почты Яндекс (IMAP/SMTP → API / n8n)",
+  mail_bridge: "Мост почты (IMAP/SMTP, Яндекс → API / n8n)",
 };
 
 const bytesToGb = (bytes: number) => +(bytes / (1024 * 1024 * 1024)).toFixed(2);

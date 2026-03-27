@@ -8,6 +8,7 @@ const CONFIG_KEY = "header_nav.config_json";
 const DEFAULT_ITEMS: HeaderNavItem[] = [
   { label: "Возможности", href: "/#features" },
   { label: "Как это работает", href: "/#how-it-works" },
+  { label: "Тарифы", href: "/tariffs" },
   { label: "Документация", href: "/docs" },
   { label: "Дорожная карта", href: "/roadmap" },
   { label: "Личный кабинет", href: "/dashboard" },
