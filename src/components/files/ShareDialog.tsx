@@ -55,6 +55,21 @@ const emailExpiryOptions = [
   { value: "0", label: "Без срока" },
 ];
 
+/** Короткая подпись в шапке модалки: не тянет ширину, расширение файла сохраняем. */
+function shortFileLabel(name: string, maxChars = 44): string {
+  const t = name.trim();
+  if (t.length <= maxChars) return t;
+  const m = /\.[^./\\]+$/.exec(t);
+  const ext = m ? m[0] : "";
+  const base = ext ? t.slice(0, -ext.length) : t;
+  const budget = maxChars - ext.length - 1;
+  if (budget < 12) return `${t.slice(0, maxChars - 1)}…`;
+  const left = Math.max(6, Math.floor(budget * 0.55));
+  const right = budget - left - 1;
+  if (right < 2) return `${t.slice(0, maxChars - 1)}…`;
+  return `${base.slice(0, left)}…${base.slice(-right)}${ext}`;
+}
+
 export function ShareDialog({
   targetType,
   targetId,
@@ -226,17 +241,17 @@ export function ShareDialog({
   return (
     <>
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md min-w-0 overflow-hidden p-0" aria-describedby={undefined}>
-        <div className="border-b border-border bg-surface2/50 px-6 py-4">
-          <DialogHeader>
+      <DialogContent className="w-[min(100%,28rem)] max-w-md min-w-0 overflow-hidden p-0" aria-describedby={undefined}>
+        <div className="w-full min-w-0 border-b border-border bg-surface2/50 px-6 py-4">
+          <DialogHeader className="min-w-0">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <Link2 className="h-5 w-5 text-primary" />
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <DialogTitle className="text-left">Поделиться</DialogTitle>
                 <p className="mt-1 truncate text-xs text-muted-foreground" title={targetName}>
-                  {targetName}
+                  {shortFileLabel(targetName)}
                 </p>
               </div>
             </div>
