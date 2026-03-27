@@ -19,6 +19,7 @@ const FREE_PLAN_DEFAULTS = {
     n8n_connection: false,
     sheets: false,
     web_import: false,
+    calendar_bridge: false,
   } as Record<string, boolean>,
 };
 

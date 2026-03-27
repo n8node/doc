@@ -18,6 +18,7 @@ import {
   FileText,
   Video,
   Globe,
+  Calendar,
 } from "lucide-react";
 import {
   buildDashboardFilesUrl,
@@ -110,6 +111,12 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/dashboard/api-docs", icon: Key, label: "API настройки" },
       { href: "/dashboard/marketplace", icon: Store, label: "API маркетплейс" },
+      {
+        href: "/dashboard/calendar-bridge",
+        icon: Calendar,
+        label: "Календарь (n8n)",
+        featureGate: "calendar_bridge",
+      },
     ],
   },
   {

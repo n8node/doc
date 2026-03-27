@@ -33,6 +33,7 @@ async function main() {
         rag_memory: false,
         n8n_connection: false,
         web_import: false,
+        calendar_bridge: false,
       },
       priceMonthly: null,
       priceYearly: null,
@@ -51,6 +52,7 @@ async function main() {
         rag_memory: false,
         n8n_connection: false,
         web_import: false,
+        calendar_bridge: false,
       },
     },
   });

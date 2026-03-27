@@ -63,6 +63,7 @@ const featureLabels: Record<string, string> = {
   transcription_video: "Транскрибация видео",
   own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
   content_generation: "Генерация изображений",
+  calendar_bridge: "Мост календаря (Яндекс → API / n8n)",
 };
 
 const bytesToGb = (bytes: number) => +(bytes / (1024 * 1024 * 1024)).toFixed(2);
@@ -95,6 +96,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     transcription_video: false,
     own_ai_keys: false,
     content_generation: false,
+    calendar_bridge: false,
   });
   const [trashDays, setTrashDays] = useState("0");
   const [aiAnalysisDocumentsQuota, setAiAnalysisDocumentsQuota] = useState("");
@@ -225,6 +227,8 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         transcription_audio: false,
         transcription_video: false,
         own_ai_keys: false,
+        content_generation: false,
+        calendar_bridge: false,
       });
       setPriceMonthly("");
       setPriceYearly("");

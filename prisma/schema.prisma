@@ -64,6 +64,9 @@ model User {
   supportTickets       SupportTicket[]
   imageGenerationTasks ImageGenerationTask[]
   webImportJobs        WebImportJob[]
+  calendarBridgeAccounts CalendarBridgeAccount[]
+  calendarBridgeApiKeys  CalendarBridgeApiKey[]
+  calendarBridgeWebhooks CalendarBridgeWebhook[]
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
 
@@ -909,6 +912,99 @@ model Notification {
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+/// Мост Яндекс CalDAV → API для n8n (тариф: calendar_bridge)
+enum CalendarProvider {
+  YANDEX
+}
+
+model CalendarBridgeAccount {
+  id                   String             @id @default(cuid()) @map("id")
+  userId               String             @map("user_id")
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider             CalendarProvider   @map("provider")
+  encryptedCredentials String             @map("encrypted_credentials") @db.Text
+  status               String             @default("active") @map("status")
+  lastError            String?            @map("last_error") @db.Text
+  lastSyncedAt         DateTime?          @map("last_synced_at")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  subscriptions        CalendarBridgeSubscription[]
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("calendar_bridge_accounts")
+}
+
+model CalendarBridgeSubscription {
+  id           String                  @id @default(cuid()) @map("id")
+  accountId    String                  @map("account_id")
+  account      CalendarBridgeAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  resourceHref String                  @map("resource_href")
+  displayName  String?                 @map("display_name")
+  enabled      Boolean                 @default(true) @map("enabled")
+  ctag         String?                 @map("ctag")
+  createdAt    DateTime                @default(now()) @map("created_at")
+  updatedAt    DateTime                @updatedAt @map("updated_at")
+  events       CalendarBridgeEvent[]
+
+  @@unique([accountId, resourceHref])
+  @@index([accountId])
+  @@map("calendar_bridge_subscriptions")
+}
+
+model CalendarBridgeEvent {
+  id             String                   @id @default(cuid()) @map("id")
+  subscriptionId String                   @map("subscription_id")
+  subscription   CalendarBridgeSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  objectHref     String                   @map("object_href")
+  etag           String?                  @map("etag")
+  uid            String                   @map("uid")
+  recurrenceId   String?                  @map("recurrence_id")
+  rawIcs         String                   @map("raw_ics") @db.Text
+  summary        String?                  @map("summary")
+  location       String?                  @map("location")
+  description    String?                  @map("description") @db.Text
+  startAt        DateTime?                @map("start_at")
+  endAt          DateTime?                @map("end_at")
+  allDay         Boolean                  @default(false) @map("all_day")
+  updatedRemote  DateTime?                @map("updated_remote")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  @@unique([subscriptionId, objectHref])
+  @@index([subscriptionId, startAt])
+  @@map("calendar_bridge_events")
+}
+
+model CalendarBridgeApiKey {
+  id         String    @id @default(cuid()) @map("id")
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String    @map("name")
+  keyToken   String    @unique @map("key_token")
+  keyHash    String    @map("key_hash")
+  keyPrefix  String    @map("key_prefix")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("calendar_bridge_api_keys")
+}
+
+model CalendarBridgeWebhook {
+  id              String   @id @default(cuid()) @map("id")
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url             String   @map("url")
+  secretEncrypted String   @map("secret_encrypted")
+  enabled         Boolean  @default(true) @map("enabled")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("calendar_bridge_webhooks")
 }
 
 /// Шаги дорожной карты продукта (публичная страница /roadmap)
