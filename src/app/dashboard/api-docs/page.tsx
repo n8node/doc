@@ -5,7 +5,7 @@ import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit, Bell, Store, Sparkles } from "lucide-react";
+import { Loader2, Key, Copy, Trash2, FileText, Database, Folder, Share2, Archive, User, Zap, CreditCard, BrainCircuit, Bell, Store, Sparkles, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -857,6 +857,100 @@ export default function ApiDocsPage() {
             />
             <Section method="POST" path="/api/v1/user/link-email" desc="Привязать email" />
             <Section method="POST" path="/api/v1/user/link-telegram" desc="Привязать Telegram" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="calendar" className="rounded-xl border border-border px-4 data-[state=open]:bg-surface2/30">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  Календарь (CalDAV) (15 методов)
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <p className="text-sm text-muted-foreground border-b border-border/70 pb-3">
+                    Интеграция с Яндекс.Календарём через CalDAV на стороне сервиса. Для{" "}
+                    <code className="rounded bg-surface2 px-1">/api/v1/integrations/calendar/...</code> используйте ключ{" "}
+                    <code className="rounded bg-surface2 px-1">cal_…</code> (создаётся в кабинете «Календари (CalDav)»), не
+                    обычный <code className="rounded bg-surface2 px-1">qk_…</code>. Нужен тариф с функцией{" "}
+                    <code className="rounded bg-surface2 px-1">calendar_bridge</code>.
+                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Публичный API событий</p>
+                  <Section
+                    method="GET"
+                    path="/api/v1/integrations/calendar/events"
+                    desc="Список событий из кэша (после синка). Query: from, to (ISO 8601), опционально subscriptionIds (через запятую)"
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/integrations/calendar/events"
+                    desc="Создать событие в Яндекс.Календаре"
+                    body={{
+                      subscriptionId: "string",
+                      summary: "string",
+                      startAt: "ISO string",
+                      endAt: "ISO string",
+                      allDay: "boolean (optional)",
+                      location: "string (optional)",
+                      description: "string (optional)",
+                    }}
+                  />
+                  <Section
+                    method="GET"
+                    path="/api/v1/integrations/calendar/events/{id}"
+                    desc="Одно событие по id из ответа списка"
+                  />
+                  <Section
+                    method="PATCH"
+                    path="/api/v1/integrations/calendar/events/{id}"
+                    desc="Изменить событие"
+                    body={{
+                      summary: "string (optional)",
+                      startAt: "ISO string (optional)",
+                      endAt: "ISO string (optional)",
+                      allDay: "boolean (optional)",
+                      location: "string | null (optional)",
+                      description: "string | null (optional)",
+                    }}
+                  />
+                  <Section method="DELETE" path="/api/v1/integrations/calendar/events/{id}" desc="Удалить событие" />
+                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground pt-2 border-t border-border/70">
+                    Настройка моста (только сессия)
+                  </p>
+                  <Section method="GET" path="/api/v1/calendar-bridge/account" desc="Текущее подключение к Яндексу и подписки" />
+                  <Section
+                    method="POST"
+                    path="/api/v1/calendar-bridge/account"
+                    desc="Сохранить логин и пароль приложения Яндекса"
+                    body={{ login: "string (email)", password: "string" }}
+                  />
+                  <Section method="DELETE" path="/api/v1/calendar-bridge/account" desc="Отключить мост и кэш" />
+                  <Section method="GET" path="/api/v1/calendar-bridge/calendars" desc="Список календарей с сервера Яндекса" />
+                  <Section
+                    method="PUT"
+                    path="/api/v1/calendar-bridge/subscriptions"
+                    desc="Выбрать календари для синхронизации"
+                    body={{ resourceHrefs: "string[] (URL календарей)" }}
+                  />
+                  <Section method="POST" path="/api/v1/calendar-bridge/sync" desc="Запустить синхронизацию вручную" />
+                  <Section method="GET" path="/api/v1/calendar-bridge/automation-keys" desc="Список ключей cal_" />
+                  <Section
+                    method="POST"
+                    path="/api/v1/calendar-bridge/automation-keys"
+                    desc="Создать ключ cal_"
+                    body={{ name: "string (optional)" }}
+                  />
+                  <Section method="DELETE" path="/api/v1/calendar-bridge/automation-keys/{id}" desc="Удалить ключ" />
+                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground pt-2 border-t border-border/70">
+                    Служебный cron
+                  </p>
+                  <Section
+                    method="POST"
+                    path="/api/v1/cron/calendar-bridge-sync"
+                    desc="Фоновая синхронизация всех аккаунтов (Authorization: Bearer CRON_SECRET, не пользовательский ключ)"
+                  />
                 </div>
               </AccordionContent>
             </AccordionItem>
