@@ -1,14 +1,16 @@
 import { spawn } from "child_process";
 import { createRequire } from "node:module";
 import { randomUUID } from "crypto";
+import { existsSync } from "fs";
 import { promises as fs } from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import ffmpegPath from "ffmpeg-static";
-
 const require = createRequire(import.meta.url);
-const ffprobeStatic = require("ffprobe-static") as { path: string };
+
+/** В production-образе (Docker) ставим системный ffmpeg; локально — fallback на ffmpeg-static */
+const SYSTEM_FFMPEG = "/usr/bin/ffmpeg";
+const SYSTEM_FFPROBE = "/usr/bin/ffprobe";
 
 /** OpenAI / OpenRouter лимит на один запрос */
 export const CLOUD_TRANSCRIPTION_MAX_BYTES = 25 * 1024 * 1024;
@@ -16,13 +18,43 @@ export const CLOUD_TRANSCRIPTION_MAX_BYTES = 25 * 1024 * 1024;
 /** Длительность сегмента по умолчанию (~7.5 МБ при 128 kbps mono) */
 const CHUNK_SECONDS_DEFAULT = 8 * 60;
 
+function resolveFfmpegPath(): string {
+  const fromEnv = process.env.FFMPEG_PATH?.trim();
+  if (fromEnv && existsSync(fromEnv)) return fromEnv;
+  if (existsSync(SYSTEM_FFMPEG)) return SYSTEM_FFMPEG;
+  try {
+    const p = require("ffmpeg-static") as string | undefined;
+    if (typeof p === "string" && p && existsSync(p)) return p;
+  } catch {
+    /* optional */
+  }
+  throw new Error(
+    "Не найден ffmpeg. В Docker установите пакет ffmpeg (см. Dockerfile); локально: npm install ffmpeg-static или задайте FFMPEG_PATH.",
+  );
+}
+
+function resolveFfprobePath(): string {
+  const fromEnv = process.env.FFPROBE_PATH?.trim();
+  if (fromEnv && existsSync(fromEnv)) return fromEnv;
+  if (existsSync(SYSTEM_FFPROBE)) return SYSTEM_FFPROBE;
+  try {
+    const mod = require("ffprobe-static") as { path?: string };
+    const p = mod?.path;
+    if (typeof p === "string" && p && existsSync(p)) return p;
+  } catch {
+    /* optional */
+  }
+  throw new Error(
+    "Не найден ffprobe. В Docker: пакет ffmpeg; локально: ffprobe-static или задайте FFPROBE_PATH.",
+  );
+}
+
 function getFfmpegBin(): string {
-  if (!ffmpegPath) throw new Error("ffmpeg-static: бинарник не найден");
-  return ffmpegPath;
+  return resolveFfmpegPath();
 }
 
 function getFfprobeBin(): string {
-  return ffprobeStatic.path;
+  return resolveFfprobePath();
 }
 
 function runProcessStdout(cmd: string, args: string[]): Promise<string> {
