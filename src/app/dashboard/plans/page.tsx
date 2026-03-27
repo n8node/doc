@@ -18,6 +18,12 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipPortal,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatBytes, cn } from "@/lib/utils";
 import {
   formatTranscriptionAudioUsageLine,
@@ -84,6 +90,82 @@ const featureLabels: Record<string, string> = {
   own_ai_keys: "Свой API-ключ (токены не списываются)",
   content_generation: "Генерация изображений",
 };
+
+function getFeatureTooltipContent(
+  plan: PlanItem,
+  key: string,
+  enabled: boolean,
+): { title: string; lines: string[] } {
+  const label = featureLabels[key as keyof typeof featureLabels] ?? key;
+  if (!enabled) {
+    return {
+      title: label,
+      lines: ["Эта возможность не входит в выбранный тариф."],
+    };
+  }
+  switch (key) {
+    case "document_analysis":
+      return {
+        title: label,
+        lines: [
+          plan.aiAnalysisDocumentsQuota != null
+            ? `Квота: ${plan.aiAnalysisDocumentsQuota} документов в месяц.`
+            : "Безлимит по количеству документов для анализа в месяц.",
+        ],
+      };
+    case "document_chat":
+      return {
+        title: label,
+        lines: [
+          plan.chatTokensQuota != null
+            ? `Квота: ${plan.chatTokensQuota.toLocaleString("ru-RU")} токенов в месяц.`
+            : "Безлимит токенов для чатов по документам.",
+        ],
+      };
+    case "ai_search":
+      return {
+        title: label,
+        lines: [
+          plan.searchTokensQuota != null
+            ? `Квота: ${plan.searchTokensQuota.toLocaleString("ru-RU")} токенов в месяц.`
+            : "Безлимит токенов для AI-поиска по документам.",
+        ],
+      };
+    case "transcription_audio":
+      return {
+        title: label,
+        lines: getTranscriptionAudioDetailLines(plan),
+      };
+    case "transcription_video":
+      return {
+        title: label,
+        lines: getTranscriptionVideoDetailLines(plan),
+      };
+    case "rag_memory":
+      return {
+        title: label,
+        lines: [
+          plan.ragDocumentsQuota != null
+            ? `Квота: ${plan.ragDocumentsQuota} документов в RAG-коллекциях.`
+            : "Безлимит документов в коллекциях памяти.",
+        ],
+      };
+    case "content_generation":
+      return {
+        title: label,
+        lines: [
+          plan.imageGenerationCreditsQuota != null
+            ? `Квота: ${plan.imageGenerationCreditsQuota.toLocaleString("ru-RU")} токенов в месяц на генерацию изображений.`
+            : "Безлимит по токенам генерации в рамках тарифа.",
+        ],
+      };
+    default:
+      return {
+        title: label,
+        lines: ["Функция включена в этом тарифе."],
+      };
+  }
+}
 
 export default function DashboardPlansPage() {
   const searchParams = useSearchParams();
@@ -304,7 +386,7 @@ export default function DashboardPlansPage() {
                   </div>
                 </div>
 
-                {/* Features */}
+                {/* Features — только названия; квоты в подсказке при наведении */}
                 <div className="flex-1 space-y-2 border-t border-border px-6 py-4">
                   {Object.entries(featureLabels).map(([key, label]) => {
                     const enabled =
@@ -313,86 +395,57 @@ export default function DashboardPlansPage() {
                         : key === "transcription_video"
                           ? hasTranscriptionVideo(plan.features)
                           : !!plan.features?.[key];
+                    const tip = getFeatureTooltipContent(plan, key, enabled);
                     return (
-                      <div
-                        key={key}
-                        className={cn(
-                          "flex gap-3 text-sm",
-                          key === "transcription_audio" || key === "transcription_video"
-                            ? "items-start"
-                            : "items-center",
-                        )}
-                      >
-                        {enabled ? (
-                          <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/10">
-                            <Check className="h-3 w-3 text-success" />
+                      <Tooltip key={key} delayDuration={180}>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={cn(
+                              "flex cursor-default gap-3 text-sm leading-snug text-left outline-none",
+                              "items-center rounded-lg py-0.5 -mx-1 px-1 transition-colors hover:bg-muted/40",
+                            )}
+                          >
+                            {enabled ? (
+                              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/10">
+                                <Check className="h-3 w-3 text-success" />
+                              </div>
+                            ) : (
+                              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface2">
+                                <X className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            )}
+                            <span
+                              className={cn(
+                                "min-w-0 flex-1 font-medium",
+                                enabled ? "text-foreground" : "text-muted-foreground",
+                              )}
+                            >
+                              {label}
+                            </span>
                           </div>
-                        ) : (
-                          <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface2">
-                            <X className="h-3 w-3 text-muted-foreground" />
-                          </div>
-                        )}
-                        <span
-                          className={cn(
-                            "min-w-0 flex-1",
-                            enabled ? "text-foreground" : "text-muted-foreground",
-                          )}
-                        >
-                          <span className="font-medium">{label}</span>
-                          {key === "document_analysis" && enabled && (
-                            <span className="text-muted-foreground">
-                              {" "}
-                              ({plan.aiAnalysisDocumentsQuota != null
-                                ? `${plan.aiAnalysisDocumentsQuota} док./мес`
-                                : "безлимит"})
-                            </span>
-                          )}
-                          {key === "document_chat" && enabled && (
-                            <span className="text-muted-foreground">
-                              {" "}
-                              ({plan.chatTokensQuota != null ? `${plan.chatTokensQuota.toLocaleString()} ток./мес` : "безлимит"})
-                            </span>
-                          )}
-                          {key === "ai_search" && enabled && (
-                            <span className="text-muted-foreground">
-                              {" "}
-                              ({plan.searchTokensQuota != null ? `${plan.searchTokensQuota.toLocaleString()} ток./мес` : "безлимит"})
-                            </span>
-                          )}
-                          {key === "transcription_audio" && enabled && (
-                            <span className="mt-1 block text-xs font-normal leading-relaxed text-muted-foreground">
-                              {getTranscriptionAudioDetailLines(plan).map((line, i) => (
-                                <span key={i} className="block">
-                                  • {line}
-                                </span>
-                              ))}
-                            </span>
-                          )}
-                          {key === "transcription_video" && enabled && (
-                            <span className="mt-1 block text-xs font-normal leading-relaxed text-muted-foreground">
-                              {getTranscriptionVideoDetailLines(plan).map((line, i) => (
-                                <span key={i} className="block">
-                                  • {line}
-                                </span>
-                              ))}
-                            </span>
-                          )}
-                          {key === "rag_memory" && enabled && (
-                            <span className="text-muted-foreground">
-                              {" "}
-                              ({plan.ragDocumentsQuota != null ? `${plan.ragDocumentsQuota} док.` : "безлимит"})
-                            </span>
-                          )}
-                          {key === "content_generation" && enabled && (
-                            <span className="text-muted-foreground">
-                              {" "}
-                              ({plan.imageGenerationCreditsQuota != null
-                                ? `${plan.imageGenerationCreditsQuota.toLocaleString()} ток./мес`
-                                : "безлимит"})
-                            </span>
-                          )}
-                        </span>
-                      </div>
+                        </TooltipTrigger>
+                        <TooltipPortal>
+                          <TooltipContent
+                            side="top"
+                            sideOffset={10}
+                            className={cn(
+                              "z-[120] max-w-[min(280px,calc(100vw-2rem))] border-0 bg-transparent p-0 text-left text-foreground shadow-none",
+                              "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out",
+                            )}
+                          >
+                            <div className="rounded-xl border border-emerald-400/70 bg-emerald-50 px-3.5 py-3 shadow-lg shadow-emerald-900/10 dark:border-emerald-500/75 dark:bg-emerald-950 dark:shadow-black/30">
+                              <p className="text-[13px] font-semibold leading-tight tracking-tight text-emerald-950 dark:text-emerald-100">
+                                {tip.title}
+                              </p>
+                              <div className="mt-1.5 space-y-1 text-[11px] leading-snug text-emerald-900/95 dark:text-emerald-100/90">
+                                {tip.lines.map((line, i) => (
+                                  <p key={i}>{line}</p>
+                                ))}
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </TooltipPortal>
+                      </Tooltip>
                     );
                   })}
                 </div>
