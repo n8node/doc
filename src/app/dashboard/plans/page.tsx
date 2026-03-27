@@ -20,10 +20,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatBytes, cn } from "@/lib/utils";
 import {
-  formatTranscriptionUsageLine,
-  getTranscriptionMonthlyQuotaLines,
-  getTranscriptionPerFileLine,
+  formatTranscriptionAudioUsageLine,
+  formatTranscriptionVideoUsageLine,
+  getTranscriptionAudioDetailLines,
+  getTranscriptionVideoDetailLines,
 } from "@/lib/transcription-quota-display";
+import {
+  hasTranscriptionAudio,
+  hasTranscriptionVideo,
+} from "@/lib/plan-transcription-features";
 
 interface PlanItem {
   id: string;
@@ -74,7 +79,8 @@ const featureLabels: Record<string, string> = {
   ai_search: "AI-поиск по документам",
   document_chat: "AI чаты по документам",
   document_analysis: "AI-анализ документов",
-  transcription: "Транскрибация (аудио и видео)",
+  transcription_audio: "Транскрибация аудио",
+  transcription_video: "Транскрибация видео",
   own_ai_keys: "Свой API-ключ (токены не списываются)",
   content_generation: "Генерация изображений",
 };
@@ -169,12 +175,17 @@ export default function DashboardPlansPage() {
               <Crown className="h-4 w-4" />
               Текущий тариф: {currentPlan.name}
             </div>
-            {currentPlan.features?.transcription &&
-              formatTranscriptionUsageLine(currentPlan) && (
-                <p className="max-w-xl text-center text-xs text-muted-foreground">
-                  {formatTranscriptionUsageLine(currentPlan)}
-                </p>
-              )}
+            {(() => {
+              const audioU = formatTranscriptionAudioUsageLine(currentPlan);
+              const videoU = formatTranscriptionVideoUsageLine(currentPlan);
+              if (!audioU && !videoU) return null;
+              return (
+                <div className="max-w-xl space-y-1 text-center text-xs text-muted-foreground">
+                  {audioU && <p>{audioU}</p>}
+                  {videoU && <p>{videoU}</p>}
+                </div>
+              );
+            })()}
           </motion.div>
         )}
       </div>
@@ -296,13 +307,20 @@ export default function DashboardPlansPage() {
                 {/* Features */}
                 <div className="flex-1 space-y-2 border-t border-border px-6 py-4">
                   {Object.entries(featureLabels).map(([key, label]) => {
-                    const enabled = !!plan.features?.[key];
+                    const enabled =
+                      key === "transcription_audio"
+                        ? hasTranscriptionAudio(plan.features)
+                        : key === "transcription_video"
+                          ? hasTranscriptionVideo(plan.features)
+                          : !!plan.features?.[key];
                     return (
                       <div
                         key={key}
                         className={cn(
                           "flex gap-3 text-sm",
-                          key === "transcription" ? "items-start" : "items-center",
+                          key === "transcription_audio" || key === "transcription_video"
+                            ? "items-start"
+                            : "items-center",
                         )}
                       >
                         {enabled ? (
@@ -341,18 +359,22 @@ export default function DashboardPlansPage() {
                               ({plan.searchTokensQuota != null ? `${plan.searchTokensQuota.toLocaleString()} ток./мес` : "безлимит"})
                             </span>
                           )}
-                          {key === "transcription" && enabled && (
+                          {key === "transcription_audio" && enabled && (
                             <span className="mt-1 block text-xs font-normal leading-relaxed text-muted-foreground">
-                              {getTranscriptionMonthlyQuotaLines(plan).map((line, i) => (
+                              {getTranscriptionAudioDetailLines(plan).map((line, i) => (
                                 <span key={i} className="block">
                                   • {line}
                                 </span>
                               ))}
-                              {getTranscriptionPerFileLine(plan) && (
-                                <span className="mt-1 block opacity-90">
-                                  {getTranscriptionPerFileLine(plan)}
+                            </span>
+                          )}
+                          {key === "transcription_video" && enabled && (
+                            <span className="mt-1 block text-xs font-normal leading-relaxed text-muted-foreground">
+                              {getTranscriptionVideoDetailLines(plan).map((line, i) => (
+                                <span key={i} className="block">
+                                  • {line}
                                 </span>
-                              )}
+                              ))}
                             </span>
                           )}
                           {key === "rag_memory" && enabled && (

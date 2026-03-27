@@ -18,6 +18,10 @@ import {
 } from "@/lib/ai/transcription-usage";
 import { getTranscriptionQuotaDenyReason, isSplitTranscriptionQuotaMode } from "@/lib/ai/transcription-quota";
 import { getTranscriptionProviderForUser } from "@/lib/ai/get-transcription-provider";
+import {
+  hasTranscriptionAudio,
+  hasTranscriptionVideo,
+} from "@/lib/plan-transcription-features";
 
 /**
  * POST /api/v1/files/transcribe — транскрибация аудио или видео (извлечение дорожки + облако по сегментам)
@@ -107,6 +111,27 @@ export async function POST(request: NextRequest) {
   const plan = await getUserPlan(userId);
   if (!plan) {
     return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+  }
+
+  const feats = plan.features ?? {};
+  if (video) {
+    if (!hasTranscriptionVideo(feats)) {
+      return NextResponse.json(
+        {
+          error: "Транскрибация видео не включена в вашем тарифе",
+          code: "TRANSCRIPTION_VIDEO_DISABLED",
+        },
+        { status: 403 },
+      );
+    }
+  } else if (!hasTranscriptionAudio(feats)) {
+    return NextResponse.json(
+      {
+        error: "Транскрибация аудио не включена в вашем тарифе",
+        code: "TRANSCRIPTION_AUDIO_DISABLED",
+      },
+      { status: 403 },
+    );
   }
 
   const maxVideo = plan.maxTranscriptionVideoMinutes ?? 60;

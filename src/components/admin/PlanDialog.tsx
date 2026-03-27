@@ -59,7 +59,8 @@ const featureLabels: Record<string, string> = {
   n8n_connection: "Подключение к n8n",
   sheets: "Таблицы",
   web_import: "Парсинг сайтов",
-  transcription: "Транскрибация",
+  transcription_audio: "Транскрибация аудио",
+  transcription_video: "Транскрибация видео",
   own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
   content_generation: "Генерация изображений",
 };
@@ -90,6 +91,8 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     n8n_connection: false,
     sheets: false,
     web_import: false,
+    transcription_audio: false,
+    transcription_video: false,
     own_ai_keys: false,
     content_generation: false,
   });
@@ -176,7 +179,13 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         String(plan.maxTranscriptionAudioMinutes ?? 120),
       );
       setTranscriptionProviderId(plan.transcriptionProviderId ?? "");
-      setFeatures(plan.features || {});
+      const raw = plan.features || {};
+      const legacyOn = raw.transcription === true;
+      setFeatures({
+        ...raw,
+        transcription_audio: raw.transcription_audio ?? legacyOn,
+        transcription_video: raw.transcription_video ?? legacyOn,
+      });
       setPriceMonthly(plan.priceMonthly != null ? String(plan.priceMonthly) : "");
       setPriceYearly(plan.priceYearly != null ? String(plan.priceYearly) : "");
     } else {
@@ -213,7 +222,8 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         n8n_connection: false,
         sheets: false,
         web_import: false,
-        transcription: false,
+        transcription_audio: false,
+        transcription_video: false,
         own_ai_keys: false,
       });
       setPriceMonthly("");
@@ -271,7 +281,11 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       maxTranscriptionVideoMinutes: Math.max(1, parseInt(maxTranscriptionVideoMinutes, 10) || 60),
       maxTranscriptionAudioMinutes: Math.max(1, parseInt(maxTranscriptionAudioMinutes, 10) || 120),
       transcriptionProviderId: transcriptionProviderId.trim() || null,
-      features,
+      features: {
+        ...features,
+        transcription:
+          !!(features.transcription_audio || features.transcription_video),
+      },
       priceMonthly: priceMonthly ? parseInt(priceMonthly, 10) : null,
       priceYearly: priceYearly ? parseInt(priceYearly, 10) : null,
     };

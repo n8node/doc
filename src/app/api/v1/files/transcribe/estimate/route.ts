@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { isTranscribable, isVideoMime } from "@/lib/docling/transcription-service";
 import { estimateTranscriptionTime } from "@/lib/docling/transcription-estimate";
 import { getTranscriptionProviderForUser } from "@/lib/ai/get-transcription-provider";
+import { getUserPlan } from "@/lib/plan-service";
+import {
+  hasTranscriptionAudio,
+  hasTranscriptionVideo,
+} from "@/lib/plan-transcription-features";
 
 /**
  * GET /api/v1/files/transcribe/estimate?fileId=xxx — оценить время транскрибации
@@ -35,9 +40,34 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const plan = await getUserPlan(userId);
+  if (!plan) {
+    return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+  }
+  const feats = plan.features ?? {};
+  const video = isVideoMime(file.mimeType);
+  if (video) {
+    if (!hasTranscriptionVideo(feats)) {
+      return NextResponse.json(
+        {
+          error: "Транскрибация видео не включена в вашем тарифе",
+          code: "TRANSCRIPTION_VIDEO_DISABLED",
+        },
+        { status: 403 },
+      );
+    }
+  } else if (!hasTranscriptionAudio(feats)) {
+    return NextResponse.json(
+      {
+        error: "Транскрибация аудио не включена в вашем тарифе",
+        code: "TRANSCRIPTION_AUDIO_DISABLED",
+      },
+      { status: 403 },
+    );
+  }
+
   const metadata = file.mediaMetadata as { durationSeconds?: number } | null;
   let durationSeconds = metadata?.durationSeconds;
-  const video = isVideoMime(file.mimeType);
 
   let source: "metadata" | "file-size-fallback" = "metadata";
   if (

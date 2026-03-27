@@ -402,7 +402,7 @@ model Plan {
   aiAnalysisDocumentsQuota     Int?        @map("ai_analysis_documents_quota") // документов AI-анализа в месяц, null = без лимита
   ragDocumentsQuota            Int?        @map("rag_documents_quota") // документов RAG-коллекций, null = без лимита
   freePlanDurationDays         Int?        @map("free_plan_duration_days") // срок действия бесплатного тарифа в днях (24 часа), null = без ограничения
-  features                     Json?       @map("features") // { "video_player": true, "transcription": true, "document_analysis": true, ... }
+  features                     Json?       @map("features") // { "video_player": true, "transcription_audio", "transcription_video", legacy "transcription", ... }
   transcriptionMinutesQuota    Int?        @map("transcription_minutes_quota") // общая квота мин/мес, если обе ниже null — общий пул
   transcriptionAudioMinutesQuota  Int?     @map("transcription_audio_minutes_quota") // мин/мес только аудио; null = не задано (см. логику квот)
   transcriptionVideoMinutesQuota  Int?     @map("transcription_video_minutes_quota") // мин/мес только видео

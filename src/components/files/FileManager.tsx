@@ -80,6 +80,10 @@ import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { cn, formatBytes } from "@/lib/utils";
 import { buildDashboardFilesUrl, parseFilesSection } from "@/lib/files-navigation";
 import { isProcessableMime } from "@/lib/docling/mime-processable";
+import {
+  hasTranscriptionAudio,
+  hasTranscriptionVideo,
+} from "@/lib/plan-transcription-features";
 
 const EXCEL_FILE_MIMES = new Set([
   "application/vnd.ms-excel",
@@ -292,6 +296,8 @@ export function FileManager() {
     useState<number>(0);
   const [transcriptionVideoMinutesUsedThisMonth, setTranscriptionVideoMinutesUsedThisMonth] =
     useState<number>(0);
+  /** null — план ещё не подгрузился; не блокируем кнопку по фичам до ответа API */
+  const [planFeatures, setPlanFeatures] = useState<Record<string, boolean> | null>(null);
   const [documentChatAllowed, setDocumentChatAllowed] = useState(false);
 
   const [mediaModal, setMediaModal] = useState<{
@@ -749,6 +755,7 @@ export function FileManager() {
           setTranscriptionVideoMinutesUsedThisMonth(
             planData.transcriptionVideoMinutesUsedThisMonth ?? 0,
           );
+          setPlanFeatures(planData.features ?? {});
           setDocumentChatAllowed(!!planData.features?.document_chat);
         }
       } catch {
@@ -763,6 +770,7 @@ export function FileManager() {
         setTranscriptionMinutesUsedThisMonth(0);
         setTranscriptionAudioMinutesUsedThisMonth(0);
         setTranscriptionVideoMinutesUsedThisMonth(0);
+        setPlanFeatures(null);
       }
     } catch {
       toast.error("Ошибка загрузки данных");
@@ -1344,6 +1352,31 @@ export function FileManager() {
       transcriptionAudioMinutesUsedThisMonth,
       transcriptionVideoMinutesUsedThisMonth,
     ],
+  );
+
+  const transcribeFeatureBlockedForMime = useCallback(
+    (mimeType: string) => {
+      if (planFeatures === null) return false;
+      return mimeType.startsWith("video/")
+        ? !hasTranscriptionVideo(planFeatures)
+        : !hasTranscriptionAudio(planFeatures);
+    },
+    [planFeatures],
+  );
+
+  const transcribeFeatureLockedMessage = useCallback(
+    (mimeType: string): string | undefined => {
+      if (planFeatures === null) return undefined;
+      if (mimeType.startsWith("video/")) {
+        return !hasTranscriptionVideo(planFeatures)
+          ? "Транскрибация видео не включена в вашем тарифе. Обновите тариф →"
+          : undefined;
+      }
+      return !hasTranscriptionAudio(planFeatures)
+        ? "Транскрибация аудио не включена в вашем тарифе. Обновите тариф →"
+        : undefined;
+    },
+    [planFeatures],
   );
 
   const pollTranscribeStatus = async (fileId: string, toastId: string | number): Promise<"ok" | "err"> => {
@@ -2586,6 +2619,7 @@ export function FileManager() {
           : undefined
       }
       onTranscribe={
+        !transcribeFeatureBlockedForMime(file.mimeType) &&
         !transcribeQuotaBlockedForMime(file.mimeType) &&
         TRANSCRIBABLE_MIMES.has(file.mimeType) &&
         !file.aiMetadata?.transcriptProcessedAt &&
@@ -2597,14 +2631,16 @@ export function FileManager() {
           : undefined
       }
       transcribeLocked={
-        transcribeQuotaBlockedForMime(file.mimeType) &&
         TRANSCRIBABLE_MIMES.has(file.mimeType) &&
         !file.aiMetadata?.transcriptProcessedAt &&
         !transcribingFiles.has(file.id) &&
         (file.mediaMetadata?.durationSeconds != null ||
           file.mimeType.startsWith("audio/") ||
           file.mimeType.startsWith("video/"))
-          ? "Лимит минут транскрибации исчерпан. Обновите тариф →"
+          ? transcribeFeatureLockedMessage(file.mimeType) ??
+            (transcribeQuotaBlockedForMime(file.mimeType)
+              ? "Лимит минут транскрибации исчерпан. Обновите тариф →"
+              : undefined)
           : undefined
       }
       onChat={
@@ -4115,7 +4151,8 @@ export function FileManager() {
                 (f.mediaMetadata?.durationSeconds != null ||
                   f.mimeType.startsWith("audio/") ||
                   f.mimeType.startsWith("video/")) &&
-                transcribeQuotaBlockedForMime(f.mimeType),
+                (transcribeFeatureBlockedForMime(f.mimeType) ||
+                  transcribeQuotaBlockedForMime(f.mimeType)),
             ) &&
             files.some(
               (f) =>
