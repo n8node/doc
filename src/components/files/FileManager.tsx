@@ -1262,7 +1262,6 @@ export function FileManager() {
     }
   };
 
-  // REMINDER: Video transcription disabled. Uncomment video mimes when restoring.
   const TRANSCRIBABLE_MIMES = new Set([
     "audio/wav",
     "audio/wave",
@@ -1273,11 +1272,11 @@ export function FileManager() {
     "audio/aac",
     "audio/ogg",
     "audio/flac",
-    // "video/mp4",
-    // "video/x-msvideo",
-    // "video/avi",
-    // "video/quicktime",
-    // "video/x-m4v",
+    "video/mp4",
+    "video/x-msvideo",
+    "video/avi",
+    "video/quicktime",
+    "video/x-m4v",
   ]);
 
   const embeddingQuotaExceeded =
