@@ -24,11 +24,6 @@ export function PlansPricingPublic({ headingLevel = "h2" }: PlansPricingPublicPr
       .finally(() => setLoading(false));
   }, []);
 
-  const subtitleClass =
-    headingLevel === "h1"
-      ? "mt-3 text-lg text-muted-foreground"
-      : "mt-2 text-muted-foreground";
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -54,10 +49,6 @@ export function PlansPricingPublic({ headingLevel = "h2" }: PlansPricingPublicPr
         ) : (
           <h2 className={titleClass}>Тарифные планы</h2>
         )}
-        <p className={subtitleClass}>
-          Актуальные цены и возможности подтягиваются из базы — при изменении тарифов в админке блок обновится
-          автоматически.
-        </p>
       </motion.div>
 
       <div className="mt-10">

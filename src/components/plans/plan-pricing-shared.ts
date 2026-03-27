@@ -26,8 +26,8 @@ export const planFeatureLabels: Record<string, string> = {
   transcription_video: "Транскрибация видео",
   own_ai_keys: "Свой API-ключ (токены не списываются)",
   content_generation: "Генерация изображений",
-  calendar_bridge: "Мост календаря (Яндекс → API / n8n)",
-  mail_bridge: "Мост почты (IMAP/SMTP, Яндекс → API / n8n)",
+  calendar_bridge: "Мост календаря",
+  mail_bridge: "Мост Email",
 };
 
 export function getPlanFeatureTooltipContent(
@@ -103,7 +103,7 @@ export function getPlanFeatureTooltipContent(
         title: label,
         lines: [
           plan.webImportPagesQuota != null
-            ? `Квота парсинга: до ${plan.webImportPagesQuota.toLocaleString("ru-RU")} страниц в месяц (настройка в тарифе).`
+            ? `Квота парсинга: до ${plan.webImportPagesQuota.toLocaleString("ru-RU")} страниц в месяц.`
             : "Парсинг сайтов включён; лимит страниц уточняйте в описании тарифа.",
         ],
       };
@@ -111,14 +111,14 @@ export function getPlanFeatureTooltipContent(
       return {
         title: label,
         lines: [
-          "Синхронизация Яндекс.Календаря (CalDAV) и REST API для n8n: ключ cal_, раздел «Календари (CalDav)» в кабинете.",
+          "(Яндекс → API / n8n). Синхронизация Яндекс.Календаря (CalDAV) и REST API для n8n: ключ cal_, раздел «Календари (CalDav)» в кабинете.",
         ],
       };
     case "mail_bridge":
       return {
         title: label,
         lines: [
-          "Яндекс.Почта через IMAP/SMTP: кэш входящих, отправка и ключ mail_, раздел «Почта (IMAP/SMTP)» в кабинете.",
+          "(IMAP/SMTP, Яндекс → API / n8n). Кэш входящих, отправка, ключ mail_, раздел «Почта (IMAP/SMTP)» в кабинете.",
         ],
       };
     case "video_player":
