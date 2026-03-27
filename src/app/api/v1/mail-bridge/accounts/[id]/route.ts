@@ -4,16 +4,33 @@ import { prisma } from "@/lib/prisma";
 import { getMailBridgeSessionUserId } from "@/lib/mail-bridge/session";
 import { testYandexImap } from "@/lib/mail-bridge/imap-test";
 
-function accountPublic(a: {
+function folderSubPublic(s: {
   id: string;
-  email: string;
-  label: string | null;
-  status: string;
-  lastError: string | null;
-  lastSyncedAt: Date | null;
-  syncDaysBack: number;
-  createdAt: Date;
+  folderPath: string;
+  displayName: string | null;
+  enabled: boolean;
 }) {
+  return {
+    id: s.id,
+    folderPath: s.folderPath,
+    displayName: s.displayName,
+    enabled: s.enabled,
+  };
+}
+
+function accountPublic(
+  a: {
+    id: string;
+    email: string;
+    label: string | null;
+    status: string;
+    lastError: string | null;
+    lastSyncedAt: Date | null;
+    syncDaysBack: number;
+    createdAt: Date;
+  },
+  subs?: Array<{ id: string; folderPath: string; displayName: string | null; enabled: boolean }>,
+) {
   return {
     id: a.id,
     email: a.email,
@@ -23,6 +40,7 @@ function accountPublic(a: {
     lastSyncedAt: a.lastSyncedAt?.toISOString() ?? null,
     syncDaysBack: a.syncDaysBack,
     createdAt: a.createdAt.toISOString(),
+    ...(subs !== undefined ? { folderSubscriptions: subs.map(folderSubPublic) } : {}),
   };
 }
 
@@ -34,11 +52,13 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const { id } = await ctx.params;
   const account = await prisma.mailBridgeAccount.findFirst({
     where: { id, userId },
+    include: { folderSubscriptions: { orderBy: { folderPath: "asc" } } },
   });
   if (!account) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json({ account: accountPublic(account) });
+  const { folderSubscriptions, ...rest } = account;
+  return NextResponse.json({ account: accountPublic(rest, folderSubscriptions) });
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -105,9 +125,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       status: "active",
       lastError: null,
     },
+    include: { folderSubscriptions: { orderBy: { folderPath: "asc" } } },
   });
 
-  return NextResponse.json({ ok: true, account: accountPublic(account) });
+  const { folderSubscriptions, ...rest } = account;
+  return NextResponse.json({ ok: true, account: accountPublic(rest, folderSubscriptions) });
 }
 
 export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

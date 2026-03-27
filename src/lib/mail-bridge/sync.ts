@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { decryptYandexCredentials } from "@/lib/calendar-bridge/credentials";
 import {
   BODY_TEXT_MAX_LEN,
-  DEFAULT_FOLDER,
   SYNC_MAX_MESSAGES_PER_RUN,
   YANDEX_IMAP_HOST,
   YANDEX_IMAP_PORT,
@@ -30,6 +29,131 @@ function formatMailparserAddresses(field: AddressObject | AddressObject[] | unde
   return out.length ? out.join(", ") : null;
 }
 
+async function syncOneFolder(params: {
+  client: ImapFlow;
+  accountId: string;
+  folderPath: string;
+  syncDaysBack: number;
+}): Promise<number> {
+  const { client, accountId, folderPath, syncDaysBack } = params;
+  let messagesUpserted = 0;
+
+  const lock = await client.getMailboxLock(folderPath);
+  try {
+    const mbox = client.mailbox;
+    if (!mbox) {
+      throw new Error(`Папка недоступна: ${folderPath}`);
+    }
+    const uidValidity = uidValidityFromMailbox(mbox);
+
+    const state = await prisma.mailBridgeFolderState.findUnique({
+      where: {
+        accountId_folderPath: { accountId, folderPath },
+      },
+    });
+
+    if (state && state.uidValidity !== uidValidity) {
+      await prisma.mailBridgeMessage.deleteMany({
+        where: { accountId, folderPath },
+      });
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - Math.max(1, syncDaysBack));
+
+    const searchResult = await client.search({ since: cutoff }, { uid: true });
+    const uids = Array.isArray(searchResult) ? searchResult : [];
+    const toProcess = uids.slice(0, SYNC_MAX_MESSAGES_PER_RUN);
+
+    for (const uid of toProcess) {
+      const existing = await prisma.mailBridgeMessage.findFirst({
+        where: {
+          accountId,
+          folderPath,
+          imapUid: uid,
+          uidValidity,
+        },
+      });
+      if (existing) continue;
+
+      const fetched = await client.fetchOne(
+        uid,
+        { envelope: true, source: true, internalDate: true, flags: true },
+        { uid: true },
+      );
+      if (!fetched || !fetched.source) continue;
+
+      let parsed;
+      try {
+        parsed = await simpleParser(fetched.source);
+      } catch {
+        continue;
+      }
+
+      const fromAddr =
+        formatMailparserAddresses(parsed.from) || fetched.envelope?.from?.[0]?.address || null;
+      const toAddr =
+        formatMailparserAddresses(parsed.to) ||
+        fetched.envelope?.to?.map((a) => a.address).filter(Boolean).join(", ") ||
+        null;
+
+      let bodyText = parsed.text || "";
+      if (bodyText.length > BODY_TEXT_MAX_LEN) {
+        bodyText = bodyText.slice(0, BODY_TEXT_MAX_LEN);
+      }
+
+      const internalDate =
+        fetched.internalDate instanceof Date
+          ? fetched.internalDate
+          : parsed.date
+            ? new Date(parsed.date)
+            : new Date();
+
+      const seen = fetched.flags?.has("\\Seen") ?? false;
+
+      await prisma.mailBridgeMessage.create({
+        data: {
+          accountId,
+          folderPath,
+          imapUid: uid,
+          uidValidity,
+          messageIdHeader: parsed.messageId ?? null,
+          subject: parsed.subject ?? fetched.envelope?.subject ?? null,
+          fromAddress: fromAddr,
+          toAddress: toAddr,
+          date: internalDate,
+          snippet: (parsed.text || parsed.html || "").replace(/\s+/g, " ").trim().slice(0, 2000) || null,
+          bodyText: bodyText || null,
+          seen,
+        },
+      });
+      messagesUpserted += 1;
+    }
+
+    const highestUid = toProcess.length > 0 ? Math.max(...toProcess) : state?.highestUid ?? 0;
+
+    await prisma.mailBridgeFolderState.upsert({
+      where: {
+        accountId_folderPath: { accountId, folderPath },
+      },
+      create: {
+        accountId,
+        folderPath,
+        uidValidity,
+        highestUid,
+      },
+      update: {
+        uidValidity,
+        highestUid: Math.max(highestUid, state?.highestUid ?? 0),
+      },
+    });
+  } finally {
+    lock.release();
+  }
+
+  return messagesUpserted;
+}
+
 export async function syncMailBridgeAccount(accountId: string): Promise<{
   ok: boolean;
   error?: string;
@@ -37,8 +161,25 @@ export async function syncMailBridgeAccount(accountId: string): Promise<{
 }> {
   const account = await prisma.mailBridgeAccount.findFirst({
     where: { id: accountId },
+    include: {
+      folderSubscriptions: {
+        where: { enabled: true },
+      },
+    },
   });
   if (!account) return { ok: false, error: "Account not found" };
+
+  if (account.folderSubscriptions.length === 0) {
+    await prisma.mailBridgeAccount.update({
+      where: { id: accountId },
+      data: {
+        lastSyncedAt: new Date(),
+        status: "active",
+        lastError: null,
+      },
+    });
+    return { ok: true, messagesUpserted: 0 };
+  }
 
   let creds;
   try {
@@ -60,117 +201,33 @@ export async function syncMailBridgeAccount(accountId: string): Promise<{
     logger: false,
   });
 
-  let messagesUpserted = 0;
+  let totalUpserted = 0;
 
   try {
     await client.connect();
-    const lock = await client.getMailboxLock(DEFAULT_FOLDER);
-    try {
-      const mbox = client.mailbox;
-      if (!mbox) {
-        throw new Error("INBOX not available");
-      }
-      const uidValidity = uidValidityFromMailbox(mbox);
 
-      const state = await prisma.mailBridgeFolderState.findUnique({
-        where: {
-          accountId_folderPath: { accountId, folderPath: DEFAULT_FOLDER },
-        },
-      });
-
-      if (state && state.uidValidity !== uidValidity) {
-        await prisma.mailBridgeMessage.deleteMany({
-          where: { accountId, folderPath: DEFAULT_FOLDER },
-        });
-      }
-
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - Math.max(1, account.syncDaysBack));
-
-      const searchResult = await client.search({ since: cutoff }, { uid: true });
-      const uids = Array.isArray(searchResult) ? searchResult : [];
-      const toProcess = uids.slice(0, SYNC_MAX_MESSAGES_PER_RUN);
-
-      for (const uid of toProcess) {
-        const existing = await prisma.mailBridgeMessage.findFirst({
-          where: {
-            accountId,
-            folderPath: DEFAULT_FOLDER,
-            imapUid: uid,
-            uidValidity,
-          },
-        });
-        if (existing) continue;
-
-        const fetched = await client.fetchOne(uid, { envelope: true, source: true, internalDate: true, flags: true }, { uid: true });
-        if (!fetched || !fetched.source) continue;
-
-        let parsed;
-        try {
-          parsed = await simpleParser(fetched.source);
-        } catch {
-          continue;
-        }
-
-        const fromAddr =
-          formatMailparserAddresses(parsed.from) || fetched.envelope?.from?.[0]?.address || null;
-        const toAddr =
-          formatMailparserAddresses(parsed.to) ||
-          fetched.envelope?.to?.map((a) => a.address).filter(Boolean).join(", ") ||
-          null;
-
-        let bodyText = parsed.text || "";
-        if (bodyText.length > BODY_TEXT_MAX_LEN) {
-          bodyText = bodyText.slice(0, BODY_TEXT_MAX_LEN);
-        }
-
-        const internalDate =
-          fetched.internalDate instanceof Date
-            ? fetched.internalDate
-            : parsed.date
-              ? new Date(parsed.date)
-              : new Date();
-
-        const seen = fetched.flags?.has("\\Seen") ?? false;
-
-        await prisma.mailBridgeMessage.create({
-          data: {
-            accountId,
-            folderPath: DEFAULT_FOLDER,
-            imapUid: uid,
-            uidValidity,
-            messageIdHeader: parsed.messageId ?? null,
-            subject: parsed.subject ?? fetched.envelope?.subject ?? null,
-            fromAddress: fromAddr,
-            toAddress: toAddr,
-            date: internalDate,
-            snippet: (parsed.text || parsed.html || "").replace(/\s+/g, " ").trim().slice(0, 2000) || null,
-            bodyText: bodyText || null,
-            seen,
-          },
-        });
-        messagesUpserted += 1;
-      }
-
-      const highestUid = toProcess.length > 0 ? Math.max(...toProcess) : state?.highestUid ?? 0;
-
-      await prisma.mailBridgeFolderState.upsert({
-        where: {
-          accountId_folderPath: { accountId, folderPath: DEFAULT_FOLDER },
-        },
-        create: {
+    for (const sub of account.folderSubscriptions) {
+      try {
+        const n = await syncOneFolder({
+          client,
           accountId,
-          folderPath: DEFAULT_FOLDER,
-          uidValidity,
-          highestUid,
-        },
-        update: {
-          uidValidity,
-          highestUid: Math.max(highestUid, state?.highestUid ?? 0),
-        },
-      });
-    } finally {
-      lock.release();
+          folderPath: sub.folderPath,
+          syncDaysBack: account.syncDaysBack,
+        });
+        totalUpserted += n;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Folder sync failed";
+        await prisma.mailBridgeAccount.update({
+          where: { id: accountId },
+          data: { status: "error", lastError: `${sub.folderPath}: ${msg}` },
+        });
+        try {
+          await client.logout();
+        } catch {
+          /* ignore */
+        }
+        return { ok: false, error: msg, messagesUpserted: totalUpserted };
+      }
     }
 
     await client.logout();
@@ -184,7 +241,7 @@ export async function syncMailBridgeAccount(accountId: string): Promise<{
       },
     });
 
-    return { ok: true, messagesUpserted };
+    return { ok: true, messagesUpserted: totalUpserted };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "IMAP sync failed";
     await prisma.mailBridgeAccount.update({

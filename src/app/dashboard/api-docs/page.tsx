@@ -959,7 +959,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  Почта (IMAP/SMTP) (13 методов)
+                  Почта (IMAP/SMTP) (15 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -994,7 +994,7 @@ export default function ApiDocsPage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-foreground pt-2 border-t border-border/70">
                     Ящики в кабинете (только сессия)
                   </p>
-                  <Section method="GET" path="/api/v1/mail-bridge/accounts" desc="Список подключённых ящиков" />
+                  <Section method="GET" path="/api/v1/mail-bridge/accounts" desc="Список ящиков и выбранных папок (folderSubscriptions)" />
                   <Section
                     method="POST"
                     path="/api/v1/mail-bridge/accounts"
@@ -1006,7 +1006,7 @@ export default function ApiDocsPage() {
                       syncDaysBack: "number (optional, 1–365)",
                     }}
                   />
-                  <Section method="GET" path="/api/v1/mail-bridge/accounts/{id}" desc="Один ящик" />
+                  <Section method="GET" path="/api/v1/mail-bridge/accounts/{id}" desc="Один ящик с подписками на папки" />
                   <Section
                     method="PATCH"
                     path="/api/v1/mail-bridge/accounts/{id}"
@@ -1018,7 +1018,22 @@ export default function ApiDocsPage() {
                     }}
                   />
                   <Section method="DELETE" path="/api/v1/mail-bridge/accounts/{id}" desc="Отключить ящик и кэш" />
-                  <Section method="POST" path="/api/v1/mail-bridge/accounts/{id}/sync" desc="Синхронизировать INBOX вручную" />
+                  <Section
+                    method="GET"
+                    path="/api/v1/mail-bridge/accounts/{id}/folders"
+                    desc="Список папок IMAP с сервера Яндекса (для выбора)"
+                  />
+                  <Section
+                    method="PUT"
+                    path="/api/v1/mail-bridge/accounts/{id}/subscriptions"
+                    desc="Выбрать папки для синхронизации (как календари в CalDAV)"
+                    body={{ folderPaths: "string[] (пути из ответа folders)" }}
+                  />
+                  <Section
+                    method="POST"
+                    path="/api/v1/mail-bridge/accounts/{id}/sync"
+                    desc="Синхронизировать выбранные папки вручную"
+                  />
                   <Section method="GET" path="/api/v1/mail-bridge/automation-keys" desc="Список ключей mail_" />
                   <Section
                     method="POST"

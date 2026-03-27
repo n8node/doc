@@ -18,6 +18,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
+type MailFolderSub = {
+  id: string;
+  folderPath: string;
+  displayName: string | null;
+  enabled: boolean;
+};
+
 type MailAccount = {
   id: string;
   email: string;
@@ -27,7 +34,10 @@ type MailAccount = {
   lastSyncedAt: string | null;
   syncDaysBack: number;
   createdAt: string;
+  folderSubscriptions: MailFolderSub[];
 };
+
+type RemoteFolder = { path: string; name: string; specialUse?: string };
 
 type AutomationKey = {
   id: string;
@@ -69,6 +79,11 @@ export default function MailBridgePage() {
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [remoteFoldersByAccount, setRemoteFoldersByAccount] = useState<Record<string, RemoteFolder[]>>({});
+  const [loadingFoldersId, setLoadingFoldersId] = useState<string | null>(null);
+  const [savingSubsId, setSavingSubsId] = useState<string | null>(null);
+  const [selectedFolderPaths, setSelectedFolderPaths] = useState<Record<string, Set<string>>>({});
+
   const [editId, setEditId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [editSyncDays, setEditSyncDays] = useState("");
@@ -104,7 +119,13 @@ export default function MailBridgePage() {
         return;
       }
       const accData = await accRes.json();
-      setAccounts(Array.isArray(accData.accounts) ? accData.accounts : []);
+      const list: MailAccount[] = Array.isArray(accData.accounts)
+        ? accData.accounts.map((a: MailAccount) => ({
+            ...a,
+            folderSubscriptions: Array.isArray(a.folderSubscriptions) ? a.folderSubscriptions : [],
+          }))
+        : [];
+      setAccounts(list);
 
       const keysRes = await fetch("/api/v1/mail-bridge/automation-keys");
       if (keysRes.ok) {
@@ -123,6 +144,14 @@ export default function MailBridgePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const next: Record<string, Set<string>> = {};
+    for (const a of accounts) {
+      next[a.id] = new Set((a.folderSubscriptions ?? []).map((s) => s.folderPath));
+    }
+    setSelectedFolderPaths(next);
+  }, [accounts]);
 
   const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,6 +195,55 @@ export default function MailBridgePage() {
       toast.error(err instanceof Error ? err.message : "Ошибка");
     } finally {
       setSyncingId(null);
+    }
+  };
+
+  const loadRemoteFolders = async (accountId: string) => {
+    setLoadingFoldersId(accountId);
+    try {
+      const res = await fetch(`/api/v1/mail-bridge/accounts/${accountId}/folders`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Ошибка");
+      const folders: RemoteFolder[] = Array.isArray(data.folders) ? data.folders : [];
+      setRemoteFoldersByAccount((prev) => ({ ...prev, [accountId]: folders }));
+      toast.success(`Загружено папок: ${folders.length}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка");
+    } finally {
+      setLoadingFoldersId(null);
+    }
+  };
+
+  const toggleFolderPath = (accountId: string, path: string) => {
+    setSelectedFolderPaths((prev) => {
+      const cur = new Set(prev[accountId] ?? []);
+      if (cur.has(path)) cur.delete(path);
+      else cur.add(path);
+      return { ...prev, [accountId]: cur };
+    });
+  };
+
+  const saveFolderSubscriptions = async (accountId: string) => {
+    const paths = Array.from(selectedFolderPaths[accountId] ?? []);
+    if (paths.length === 0) {
+      toast.error("Выберите хотя бы одну папку");
+      return;
+    }
+    setSavingSubsId(accountId);
+    try {
+      const res = await fetch(`/api/v1/mail-bridge/accounts/${accountId}/subscriptions`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderPaths: paths }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Ошибка");
+      toast.success("Папки сохранены");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка");
+    } finally {
+      setSavingSubsId(null);
     }
   };
 
@@ -357,8 +435,8 @@ export default function MailBridgePage() {
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Можно добавить несколько ящиков: каждый хранится отдельно. Поле «Подпись» — только для отображения в списке
-            (например «Рабочий», «Личный»). «Глубина синка» — сколько дней назад подтягивать письма из «Входящих» при
-            синхронизации (по умолчанию 90).
+            (например «Рабочий», «Личный»).             «Глубина синка» — сколько дней назад подтягивать письма в выбранных папках при синхронизации (по умолчанию
+            90). После подключения выберите папки IMAP (как календари в мосте CalDAV).
           </p>
           <form onSubmit={handleAddAccount} className="space-y-3 max-w-lg">
             <div>
@@ -442,7 +520,9 @@ export default function MailBridgePage() {
                         variant="outline"
                         size="sm"
                         onClick={() => void runSync(a.id)}
-                        disabled={syncingId === a.id}
+                        disabled={
+                          syncingId === a.id || (a.folderSubscriptions?.length ?? 0) === 0
+                        }
                       >
                         {syncingId === a.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -465,6 +545,80 @@ export default function MailBridgePage() {
                         {deletingId === a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Удалить"}
                       </Button>
                     </div>
+                  </div>
+
+                  <div className="border-t border-border pt-3 space-y-3">
+                    <p className="text-sm font-medium text-foreground">Папки для синхронизации</p>
+                    <p className="text-xs text-muted-foreground">
+                      Сначала загрузите список папок с сервера, отметьте нужные и нажмите «Сохранить выбор». В API и
+                      кэше письма будут из выбранных папок (поле <InlineCode>folder</InlineCode> в запросах).
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Сейчас в синхронизации:{" "}
+                      <strong className="text-foreground">
+                        {(a.folderSubscriptions ?? []).length > 0
+                          ? (a.folderSubscriptions ?? [])
+                              .map((s) => s.displayName || s.folderPath)
+                              .join(", ")
+                          : "нет — выберите папки"}
+                      </strong>
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void loadRemoteFolders(a.id)}
+                        disabled={loadingFoldersId === a.id}
+                      >
+                        {loadingFoldersId === a.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        Загрузить список папок
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => void saveFolderSubscriptions(a.id)}
+                        disabled={
+                          savingSubsId === a.id ||
+                          !(remoteFoldersByAccount[a.id]?.length) ||
+                          (selectedFolderPaths[a.id]?.size ?? 0) === 0
+                        }
+                      >
+                        {savingSubsId === a.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        Сохранить выбор
+                      </Button>
+                    </div>
+                    {remoteFoldersByAccount[a.id] && remoteFoldersByAccount[a.id].length > 0 ? (
+                      <ul className="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
+                        {remoteFoldersByAccount[a.id].map((f) => (
+                          <li key={f.path}>
+                            <label className="flex cursor-pointer items-start gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                className="mt-1 rounded border-border"
+                                checked={selectedFolderPaths[a.id]?.has(f.path) ?? false}
+                                onChange={() => toggleFolderPath(a.id, f.path)}
+                              />
+                              <span>
+                                <span className="font-medium text-foreground">{f.name}</span>
+                                {f.specialUse ? (
+                                  <span className="ml-1 text-xs text-muted-foreground">
+                                    ({f.specialUse})
+                                  </span>
+                                ) : null}
+                                <span className="block break-all font-mono text-xs text-muted-foreground">
+                                  {f.path}
+                                </span>
+                              </span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
 
                   {editId === a.id && (

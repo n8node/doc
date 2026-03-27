@@ -1025,16 +1025,32 @@ model MailBridgeAccount {
   status               String             @default("active") @map("status")
   lastError            String?            @map("last_error") @db.Text
   lastSyncedAt         DateTime?          @map("last_synced_at")
-  /// Синхронизировать письма не старше N дней (папка INBOX)
+  /// Синхронизировать письма не старше N дней (выбранные папки)
   syncDaysBack         Int                @default(90) @map("sync_days_back")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
   messages             MailBridgeMessage[]
   folderStates         MailBridgeFolderState[]
+  folderSubscriptions  MailBridgeFolderSubscription[]
 
   @@unique([userId, email])
   @@index([userId])
   @@map("mail_bridge_accounts")
+}
+
+model MailBridgeFolderSubscription {
+  id           String            @id @default(cuid()) @map("id")
+  accountId    String            @map("account_id")
+  account      MailBridgeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  folderPath   String            @map("folder_path")
+  displayName  String?           @map("display_name")
+  enabled      Boolean           @default(true) @map("enabled")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  @@unique([accountId, folderPath])
+  @@index([accountId])
+  @@map("mail_bridge_folder_subscriptions")
 }
 
 model MailBridgeFolderState {

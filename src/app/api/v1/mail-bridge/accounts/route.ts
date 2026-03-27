@@ -4,16 +4,33 @@ import { prisma } from "@/lib/prisma";
 import { getMailBridgeSessionUserId } from "@/lib/mail-bridge/session";
 import { testYandexImap } from "@/lib/mail-bridge/imap-test";
 
-function accountPublic(a: {
+function folderSubPublic(s: {
   id: string;
-  email: string;
-  label: string | null;
-  status: string;
-  lastError: string | null;
-  lastSyncedAt: Date | null;
-  syncDaysBack: number;
-  createdAt: Date;
+  folderPath: string;
+  displayName: string | null;
+  enabled: boolean;
 }) {
+  return {
+    id: s.id,
+    folderPath: s.folderPath,
+    displayName: s.displayName,
+    enabled: s.enabled,
+  };
+}
+
+function accountPublic(
+  a: {
+    id: string;
+    email: string;
+    label: string | null;
+    status: string;
+    lastError: string | null;
+    lastSyncedAt: Date | null;
+    syncDaysBack: number;
+    createdAt: Date;
+  },
+  subs?: Array<{ id: string; folderPath: string; displayName: string | null; enabled: boolean }>,
+) {
   return {
     id: a.id,
     email: a.email,
@@ -23,6 +40,9 @@ function accountPublic(a: {
     lastSyncedAt: a.lastSyncedAt?.toISOString() ?? null,
     syncDaysBack: a.syncDaysBack,
     createdAt: a.createdAt.toISOString(),
+    ...(subs !== undefined
+      ? { folderSubscriptions: subs.map(folderSubPublic) }
+      : {}),
   };
 }
 
@@ -35,9 +55,14 @@ export async function GET() {
   const list = await prisma.mailBridgeAccount.findMany({
     where: { userId },
     orderBy: { createdAt: "asc" },
+    include: {
+      folderSubscriptions: { orderBy: { folderPath: "asc" } },
+    },
   });
 
-  return NextResponse.json({ accounts: list.map(accountPublic) });
+  return NextResponse.json({
+    accounts: list.map((a) => accountPublic(a, a.folderSubscriptions)),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -94,10 +119,21 @@ export async function POST(req: NextRequest) {
         status: "active",
         lastError: null,
         syncDaysBack,
+        folderSubscriptions: {
+          create: {
+            folderPath: "INBOX",
+            displayName: "Входящие",
+            enabled: true,
+          },
+        },
       },
+      include: { folderSubscriptions: true },
     });
 
-    return NextResponse.json({ ok: true, account: accountPublic(account) });
+    return NextResponse.json({
+      ok: true,
+      account: accountPublic(account, account.folderSubscriptions),
+    });
   } catch {
     return NextResponse.json(
       { error: "Этот ящик уже подключён или данные не сохранились" },
