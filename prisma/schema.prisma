@@ -403,7 +403,9 @@ model Plan {
   ragDocumentsQuota            Int?        @map("rag_documents_quota") // документов RAG-коллекций, null = без лимита
   freePlanDurationDays         Int?        @map("free_plan_duration_days") // срок действия бесплатного тарифа в днях (24 часа), null = без ограничения
   features                     Json?       @map("features") // { "video_player": true, "transcription": true, "document_analysis": true, ... }
-  transcriptionMinutesQuota    Int?        @map("transcription_minutes_quota") // минут транскрипции в месяц, null = без лимита
+  transcriptionMinutesQuota    Int?        @map("transcription_minutes_quota") // общая квота мин/мес, если обе ниже null — общий пул
+  transcriptionAudioMinutesQuota  Int?     @map("transcription_audio_minutes_quota") // мин/мес только аудио; null = не задано (см. логику квот)
+  transcriptionVideoMinutesQuota  Int?     @map("transcription_video_minutes_quota") // мин/мес только видео
   maxTranscriptionVideoMinutes Int         @default(60) @map("max_transcription_video_minutes") // макс. длительность видео в одном файле
   maxTranscriptionAudioMinutes Int         @default(120) @map("max_transcription_audio_minutes") // макс. длительность аудио в одном файле
   transcriptionProviderId      String?     @map("transcription_provider_id") // премиум-провайдер, null = Docling/Whisper

@@ -17,6 +17,8 @@ export interface TranscriptionTimeEstimate {
   source: "metadata" | "file-size-fallback";
 }
 
+const CHUNK_SECONDS = 8 * 60;
+
 /**
  * Вычисляет приблизительное время транскрибации по длительности аудио.
  * @param audioDurationSeconds — длительность аудио в секундах
@@ -24,10 +26,20 @@ export interface TranscriptionTimeEstimate {
  */
 export function estimateTranscriptionTime(
   audioDurationSeconds: number,
-  source: "metadata" | "file-size-fallback" = "metadata"
+  source: "metadata" | "file-size-fallback" = "metadata",
+  options?: { isVideo?: boolean; cloudProvider?: boolean },
 ): TranscriptionTimeEstimate {
   const sec = Math.max(0, Math.round(audioDurationSeconds));
-  const estimatedSec = Math.max(1, Math.ceil(sec * PROCESSING_RATIO));
+  let estimatedSec = Math.max(1, Math.ceil(sec * PROCESSING_RATIO));
+  if (options?.isVideo) {
+    estimatedSec += 45;
+  }
+  if (options?.cloudProvider) {
+    const chunks = Math.max(1, Math.ceil(sec / CHUNK_SECONDS));
+    if (chunks > 1) {
+      estimatedSec += (chunks - 1) * 15;
+    }
+  }
   const estimatedMin = Math.max(1, Math.ceil(estimatedSec / 60));
 
   return {

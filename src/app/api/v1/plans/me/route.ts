@@ -3,7 +3,12 @@ import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { calculateFreePlanTimer, getUserPlan } from "@/lib/plan-service";
 import { prisma } from "@/lib/prisma";
 import { getEmbeddingTokensUsedThisMonth } from "@/lib/ai/embedding-usage";
-import { getTranscriptionMinutesUsedThisMonth } from "@/lib/ai/transcription-usage";
+import {
+  getTranscriptionAudioMinutesUsedThisMonth,
+  getTranscriptionMinutesUsedThisMonth,
+  getTranscriptionVideoMinutesUsedThisMonth,
+} from "@/lib/ai/transcription-usage";
+import { isSplitTranscriptionQuotaMode } from "@/lib/ai/transcription-quota";
 import { getAnalysisDocumentsUsedThisMonth } from "@/lib/ai/analysis-documents-usage";
 import { getWebImportPagesUsedThisMonth } from "@/lib/web-import/web-import-pages-usage";
 import {
@@ -27,10 +32,33 @@ export async function GET(req: NextRequest) {
       ? await getEmbeddingTokensUsedThisMonth(userId)
       : undefined;
 
-  const transcriptionMinutesUsedThisMonth =
-    plan.transcriptionMinutesQuota != null
-      ? await getTranscriptionMinutesUsedThisMonth(userId)
-      : undefined;
+  const splitTx = isSplitTranscriptionQuotaMode({
+    transcriptionMinutesQuota: plan.transcriptionMinutesQuota,
+    transcriptionAudioMinutesQuota: plan.transcriptionAudioMinutesQuota,
+    transcriptionVideoMinutesQuota: plan.transcriptionVideoMinutesQuota,
+  });
+
+  let transcriptionMinutesUsedThisMonth: number | undefined;
+  let transcriptionAudioMinutesUsedThisMonth: number | undefined;
+  let transcriptionVideoMinutesUsedThisMonth: number | undefined;
+
+  if (splitTx) {
+    const audioQ =
+      plan.transcriptionAudioMinutesQuota ?? plan.transcriptionMinutesQuota;
+    const videoQ =
+      plan.transcriptionVideoMinutesQuota ?? plan.transcriptionMinutesQuota;
+    if (audioQ != null) {
+      transcriptionAudioMinutesUsedThisMonth =
+        await getTranscriptionAudioMinutesUsedThisMonth(userId);
+    }
+    if (videoQ != null) {
+      transcriptionVideoMinutesUsedThisMonth =
+        await getTranscriptionVideoMinutesUsedThisMonth(userId);
+    }
+  } else if (plan.transcriptionMinutesQuota != null) {
+    transcriptionMinutesUsedThisMonth =
+      await getTranscriptionMinutesUsedThisMonth(userId);
+  }
 
   const aiAnalysisDocumentsUsedThisMonth =
     plan.aiAnalysisDocumentsQuota != null
@@ -91,6 +119,8 @@ export async function GET(req: NextRequest) {
     maxFileSize: Number(plan.maxFileSize),
     embeddingTokensUsedThisMonth,
     transcriptionMinutesUsedThisMonth,
+    transcriptionAudioMinutesUsedThisMonth,
+    transcriptionVideoMinutesUsedThisMonth,
     aiAnalysisDocumentsUsedThisMonth,
     webImportPagesUsedThisMonth,
     tokenQuotas: quotas,

@@ -285,7 +285,13 @@ export function FileManager() {
   const [aiAnalysisDocumentsUsedThisMonth, setAiAnalysisDocumentsUsedThisMonth] = useState<number>(0);
   const [documentAnalysisAllowed, setDocumentAnalysisAllowed] = useState(false);
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState<number | null>(null);
+  const [transcriptionAudioMinutesQuota, setTranscriptionAudioMinutesQuota] = useState<number | null>(null);
+  const [transcriptionVideoMinutesQuota, setTranscriptionVideoMinutesQuota] = useState<number | null>(null);
   const [transcriptionMinutesUsedThisMonth, setTranscriptionMinutesUsedThisMonth] = useState<number>(0);
+  const [transcriptionAudioMinutesUsedThisMonth, setTranscriptionAudioMinutesUsedThisMonth] =
+    useState<number>(0);
+  const [transcriptionVideoMinutesUsedThisMonth, setTranscriptionVideoMinutesUsedThisMonth] =
+    useState<number>(0);
   const [documentChatAllowed, setDocumentChatAllowed] = useState(false);
 
   const [mediaModal, setMediaModal] = useState<{
@@ -734,7 +740,15 @@ export function FileManager() {
           setAiAnalysisDocumentsUsedThisMonth(planData.aiAnalysisDocumentsUsedThisMonth ?? 0);
           setDocumentAnalysisAllowed(!!planData.features?.document_analysis);
           setTranscriptionMinutesQuota(planData.transcriptionMinutesQuota ?? null);
+          setTranscriptionAudioMinutesQuota(planData.transcriptionAudioMinutesQuota ?? null);
+          setTranscriptionVideoMinutesQuota(planData.transcriptionVideoMinutesQuota ?? null);
           setTranscriptionMinutesUsedThisMonth(planData.transcriptionMinutesUsedThisMonth ?? 0);
+          setTranscriptionAudioMinutesUsedThisMonth(
+            planData.transcriptionAudioMinutesUsedThisMonth ?? 0,
+          );
+          setTranscriptionVideoMinutesUsedThisMonth(
+            planData.transcriptionVideoMinutesUsedThisMonth ?? 0,
+          );
           setDocumentChatAllowed(!!planData.features?.document_chat);
         }
       } catch {
@@ -744,7 +758,11 @@ export function FileManager() {
         setAiAnalysisDocumentsUsedThisMonth(0);
         setDocumentAnalysisAllowed(false);
         setTranscriptionMinutesQuota(null);
+        setTranscriptionAudioMinutesQuota(null);
+        setTranscriptionVideoMinutesQuota(null);
         setTranscriptionMinutesUsedThisMonth(0);
+        setTranscriptionAudioMinutesUsedThisMonth(0);
+        setTranscriptionVideoMinutesUsedThisMonth(0);
       }
     } catch {
       toast.error("Ошибка загрузки данных");
@@ -1302,9 +1320,32 @@ export function FileManager() {
     handleBulkAnalyze();
   };
 
-  const transcriptionQuotaExceeded =
-    transcriptionMinutesQuota != null &&
-    (transcriptionMinutesUsedThisMonth ?? 0) >= transcriptionMinutesQuota;
+  const transcribeQuotaBlockedForMime = useCallback(
+    (mimeType: string) => {
+      const split =
+        transcriptionAudioMinutesQuota != null || transcriptionVideoMinutesQuota != null;
+      if (!split) {
+        if (transcriptionMinutesQuota == null) return false;
+        return (transcriptionMinutesUsedThisMonth ?? 0) >= transcriptionMinutesQuota;
+      }
+      if (mimeType.startsWith("video/")) {
+        const q = transcriptionVideoMinutesQuota ?? transcriptionMinutesQuota;
+        if (q == null) return false;
+        return (transcriptionVideoMinutesUsedThisMonth ?? 0) >= q;
+      }
+      const q = transcriptionAudioMinutesQuota ?? transcriptionMinutesQuota;
+      if (q == null) return false;
+      return (transcriptionAudioMinutesUsedThisMonth ?? 0) >= q;
+    },
+    [
+      transcriptionMinutesQuota,
+      transcriptionAudioMinutesQuota,
+      transcriptionVideoMinutesQuota,
+      transcriptionMinutesUsedThisMonth,
+      transcriptionAudioMinutesUsedThisMonth,
+      transcriptionVideoMinutesUsedThisMonth,
+    ],
+  );
 
   const pollTranscribeStatus = async (fileId: string, toastId: string | number): Promise<"ok" | "err"> => {
     const maxAttempts = 600;
@@ -1352,7 +1393,12 @@ export function FileManager() {
         const msg = data.error || "Ошибка транскрибации";
         toast.error(msg, { id: toastId });
         setTranscribeError((m) => new Map(m).set(id, msg));
-        if (res.status === 403 && data.code === "TRANSCRIPTION_QUOTA_EXCEEDED") loadData();
+        if (
+          res.status === 403 &&
+          typeof data.code === "string" &&
+          data.code.startsWith("TRANSCRIPTION")
+        )
+          loadData();
         return;
       }
       if (res.status === 202 && data.status === "processing") {
@@ -2541,20 +2587,24 @@ export function FileManager() {
           : undefined
       }
       onTranscribe={
-        !transcriptionQuotaExceeded &&
+        !transcribeQuotaBlockedForMime(file.mimeType) &&
         TRANSCRIBABLE_MIMES.has(file.mimeType) &&
         !file.aiMetadata?.transcriptProcessedAt &&
         !transcribingFiles.has(file.id) &&
-        (file.mediaMetadata?.durationSeconds != null || file.mimeType.startsWith("audio/"))
+        (file.mediaMetadata?.durationSeconds != null ||
+          file.mimeType.startsWith("audio/") ||
+          file.mimeType.startsWith("video/"))
           ? () => handleTranscribeFile(file.id)
           : undefined
       }
       transcribeLocked={
-        transcriptionQuotaExceeded &&
+        transcribeQuotaBlockedForMime(file.mimeType) &&
         TRANSCRIBABLE_MIMES.has(file.mimeType) &&
         !file.aiMetadata?.transcriptProcessedAt &&
         !transcribingFiles.has(file.id) &&
-        (file.mediaMetadata?.durationSeconds != null || file.mimeType.startsWith("audio/"))
+        (file.mediaMetadata?.durationSeconds != null ||
+          file.mimeType.startsWith("audio/") ||
+          file.mimeType.startsWith("video/"))
           ? "Лимит минут транскрибации исчерпан. Обновите тариф →"
           : undefined
       }
@@ -3772,26 +3822,35 @@ export function FileManager() {
                                   {TRANSCRIBABLE_MIMES.has(file.mimeType) &&
                                     !file.aiMetadata?.transcriptProcessedAt &&
                                     !transcribingFiles.has(file.id) &&
-                                    (file.mediaMetadata?.durationSeconds != null || file.mimeType.startsWith("audio/")) && (
+                                    (file.mediaMetadata?.durationSeconds != null ||
+                                      file.mimeType.startsWith("audio/") ||
+                                      file.mimeType.startsWith("video/")) && (
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <button
                                             type="button"
-                                            onClick={() => !transcriptionQuotaExceeded && handleTranscribeFile(file.id)}
-                                            disabled={transcriptionQuotaExceeded}
+                                            onClick={() =>
+                                              !transcribeQuotaBlockedForMime(file.mimeType) &&
+                                              handleTranscribeFile(file.id)
+                                            }
+                                            disabled={transcribeQuotaBlockedForMime(file.mimeType)}
                                             className={cn(
                                               "rounded-md p-1.5 transition-colors",
-                                              transcriptionQuotaExceeded
+                                              transcribeQuotaBlockedForMime(file.mimeType)
                                                 ? "cursor-not-allowed text-muted-foreground opacity-60"
                                                 : "text-amber-500 hover:bg-amber-500/10"
                                             )}
                                             aria-label="Транскрибировать"
                                           >
-                                            {transcriptionQuotaExceeded ? <Lock className="h-4 w-4" /> : <Mic2 className="h-4 w-4" />}
+                                            {transcribeQuotaBlockedForMime(file.mimeType) ? (
+                                              <Lock className="h-4 w-4" />
+                                            ) : (
+                                              <Mic2 className="h-4 w-4" />
+                                            )}
                                           </button>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                          {transcriptionQuotaExceeded
+                                          {transcribeQuotaBlockedForMime(file.mimeType)
                                             ? "Лимит минут транскрибации исчерпан. Обновите тариф →"
                                             : "Транскрибировать"}
                                         </TooltipContent>
@@ -4047,15 +4106,27 @@ export function FileManager() {
           }
           aiAnalyzing={bulkAnalyzing}
           onTranscribe={
-            !transcriptionQuotaExceeded &&
             selectedFiles.size > 0 &&
+            !files.some(
+              (f) =>
+                selectedFiles.has(f.id) &&
+                !f.isIncomingShared &&
+                TRANSCRIBABLE_MIMES.has(f.mimeType) &&
+                !f.aiMetadata?.transcriptProcessedAt &&
+                (f.mediaMetadata?.durationSeconds != null ||
+                  f.mimeType.startsWith("audio/") ||
+                  f.mimeType.startsWith("video/")) &&
+                transcribeQuotaBlockedForMime(f.mimeType),
+            ) &&
             files.some(
               (f) =>
                 selectedFiles.has(f.id) &&
                 !f.isIncomingShared &&
                 TRANSCRIBABLE_MIMES.has(f.mimeType) &&
                 !f.aiMetadata?.transcriptProcessedAt &&
-                (f.mediaMetadata?.durationSeconds != null || f.mimeType.startsWith("audio/")),
+                (f.mediaMetadata?.durationSeconds != null ||
+                  f.mimeType.startsWith("audio/") ||
+                  f.mimeType.startsWith("video/")),
             )
               ? handleBulkTranscribe
               : undefined

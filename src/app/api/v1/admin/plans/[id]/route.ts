@@ -22,7 +22,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     webImportPagesQuota,
     ragDocumentsQuota,
     freePlanDurationDays,
-    transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
+    transcriptionMinutesQuota,
+    transcriptionAudioMinutesQuota,
+    transcriptionVideoMinutesQuota,
+    maxTranscriptionVideoMinutes,
+    maxTranscriptionAudioMinutes,
+    transcriptionProviderId,
     features, priceMonthly, priceYearly, isPopular,
   } = body;
   const data: Record<string, unknown> = {};
@@ -88,6 +93,18 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       transcriptionMinutesQuota === null || transcriptionMinutesQuota === ""
         ? null
         : Math.max(0, parseInt(String(transcriptionMinutesQuota), 10) || 0) || null;
+  }
+  if (transcriptionAudioMinutesQuota !== undefined) {
+    data.transcriptionAudioMinutesQuota =
+      transcriptionAudioMinutesQuota === null || transcriptionAudioMinutesQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(transcriptionAudioMinutesQuota), 10) || 0) || null;
+  }
+  if (transcriptionVideoMinutesQuota !== undefined) {
+    data.transcriptionVideoMinutesQuota =
+      transcriptionVideoMinutesQuota === null || transcriptionVideoMinutesQuota === ""
+        ? null
+        : Math.max(0, parseInt(String(transcriptionVideoMinutesQuota), 10) || 0) || null;
   }
   if (maxTranscriptionVideoMinutes != null) {
     data.maxTranscriptionVideoMinutes = Math.max(1, parseInt(String(maxTranscriptionVideoMinutes), 10) || 60);

@@ -29,6 +29,8 @@ interface PlanData {
   imageGenerationCreditsQuota?: number | null;
   freePlanDurationDays?: number | null;
   transcriptionMinutesQuota?: number | null;
+  transcriptionAudioMinutesQuota?: number | null;
+  transcriptionVideoMinutesQuota?: number | null;
   maxTranscriptionVideoMinutes?: number;
   maxTranscriptionAudioMinutes?: number;
   transcriptionProviderId?: string | null;
@@ -44,7 +46,6 @@ interface PlanDialogProps {
   plan?: PlanData | null;
 }
 
-// REMINDER: Video transcription disabled. Restore "аудио/видео" when re-enabling.
 const featureLabels: Record<string, string> = {
   video_player: "Видеоплеер",
   audio_player: "Аудиоплеер",
@@ -102,6 +103,8 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
   const [searchTokensQuota, setSearchTokensQuota] = useState("");
   const [imageGenerationCreditsQuota, setImageGenerationCreditsQuota] = useState("");
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState("");
+  const [transcriptionAudioMinutesQuota, setTranscriptionAudioMinutesQuota] = useState("");
+  const [transcriptionVideoMinutesQuota, setTranscriptionVideoMinutesQuota] = useState("");
   const [maxTranscriptionVideoMinutes, setMaxTranscriptionVideoMinutes] = useState("60");
   const [maxTranscriptionAudioMinutes, setMaxTranscriptionAudioMinutes] = useState("120");
   const [transcriptionProviderId, setTranscriptionProviderId] = useState("");
@@ -160,6 +163,12 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setTranscriptionMinutesQuota(
         plan.transcriptionMinutesQuota != null ? String(plan.transcriptionMinutesQuota) : "",
       );
+      setTranscriptionAudioMinutesQuota(
+        plan.transcriptionAudioMinutesQuota != null ? String(plan.transcriptionAudioMinutesQuota) : "",
+      );
+      setTranscriptionVideoMinutesQuota(
+        plan.transcriptionVideoMinutesQuota != null ? String(plan.transcriptionVideoMinutesQuota) : "",
+      );
       setMaxTranscriptionVideoMinutes(
         String(plan.maxTranscriptionVideoMinutes ?? 60),
       );
@@ -186,6 +195,8 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setWebImportPagesQuota("");
       setFreePlanDurationDays("");
       setTranscriptionMinutesQuota("");
+      setTranscriptionAudioMinutesQuota("");
+      setTranscriptionVideoMinutesQuota("");
       setMaxTranscriptionVideoMinutes("60");
       setMaxTranscriptionAudioMinutes("120");
       setTranscriptionProviderId("");
@@ -250,6 +261,12 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         : null,
       transcriptionMinutesQuota: transcriptionMinutesQuota.trim()
         ? Math.max(0, parseInt(transcriptionMinutesQuota, 10) || 0) || null
+        : null,
+      transcriptionAudioMinutesQuota: transcriptionAudioMinutesQuota.trim()
+        ? Math.max(0, parseInt(transcriptionAudioMinutesQuota, 10) || 0) || null
+        : null,
+      transcriptionVideoMinutesQuota: transcriptionVideoMinutesQuota.trim()
+        ? Math.max(0, parseInt(transcriptionVideoMinutesQuota, 10) || 0) || null
         : null,
       maxTranscriptionVideoMinutes: Math.max(1, parseInt(maxTranscriptionVideoMinutes, 10) || 60),
       maxTranscriptionAudioMinutes: Math.max(1, parseInt(maxTranscriptionAudioMinutes, 10) || 120),
@@ -507,13 +524,17 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
             </div>
           </div>
 
-          {/* Транскрибация — REMINDER: video fields commented, restore when video transcription enabled */}
+          {/* Транскрибация */}
           <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
             <h4 className="text-sm font-medium">Транскрибация</h4>
+            <p className="text-xs text-muted-foreground">
+              Пока пусты поля «только аудио/видео», действует общая квота. Если задать хотя бы одно из них — учёт
+              минут раздельный; для типа без числа подставляется общая квота.
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Минут в месяц (квота)
+                  Минут в месяц (общая квота)
                 </label>
                 <Input
                   type="number"
@@ -523,10 +544,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
                   placeholder="Без лимита"
                 />
               </div>
-              {/* REMINDER: Video max minutes — uncomment when video transcription restored
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Макс. видео (мин)
+                  Макс. видео (мин за файл)
                 </label>
                 <Input
                   type="number"
@@ -535,7 +555,32 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
                   onChange={(e) => setMaxTranscriptionVideoMinutes(e.target.value)}
                 />
               </div>
-              */}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Минут/мес (только аудио)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={transcriptionAudioMinutesQuota}
+                  onChange={(e) => setTranscriptionAudioMinutesQuota(e.target.value)}
+                  placeholder="Как общая"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Минут/мес (только видео)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={transcriptionVideoMinutesQuota}
+                  onChange={(e) => setTranscriptionVideoMinutesQuota(e.target.value)}
+                  placeholder="Как общая"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

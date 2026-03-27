@@ -50,7 +50,12 @@ export async function POST(req: NextRequest) {
     webImportPagesQuota,
     ragDocumentsQuota,
     freePlanDurationDays,
-    transcriptionMinutesQuota, maxTranscriptionVideoMinutes, maxTranscriptionAudioMinutes, transcriptionProviderId,
+    transcriptionMinutesQuota,
+    transcriptionAudioMinutesQuota,
+    transcriptionVideoMinutesQuota,
+    maxTranscriptionVideoMinutes,
+    maxTranscriptionAudioMinutes,
+    transcriptionProviderId,
     features, priceMonthly, priceYearly, isPopular,
   } = body;
 
@@ -95,6 +100,18 @@ export async function POST(req: NextRequest) {
     transcriptionMinutesQuota === undefined || transcriptionMinutesQuota === null || transcriptionMinutesQuota === ""
       ? null
       : Math.max(0, parseInt(String(transcriptionMinutesQuota), 10) || 0) || null;
+  const transAudioQuota =
+    transcriptionAudioMinutesQuota === undefined ||
+    transcriptionAudioMinutesQuota === null ||
+    transcriptionAudioMinutesQuota === ""
+      ? null
+      : Math.max(0, parseInt(String(transcriptionAudioMinutesQuota), 10) || 0) || null;
+  const transVideoQuota =
+    transcriptionVideoMinutesQuota === undefined ||
+    transcriptionVideoMinutesQuota === null ||
+    transcriptionVideoMinutesQuota === ""
+      ? null
+      : Math.max(0, parseInt(String(transcriptionVideoMinutesQuota), 10) || 0) || null;
   const maxVideoMin = Math.max(1, parseInt(String(maxTranscriptionVideoMinutes), 10) || 60);
   const maxAudioMin = Math.max(1, parseInt(String(maxTranscriptionAudioMinutes), 10) || 120);
 
@@ -129,6 +146,8 @@ export async function POST(req: NextRequest) {
           ? null
           : Math.max(1, parseInt(String(freePlanDurationDays), 10) || 1),
       transcriptionMinutesQuota: transQuota,
+      transcriptionAudioMinutesQuota: transAudioQuota,
+      transcriptionVideoMinutesQuota: transVideoQuota,
       maxTranscriptionVideoMinutes: maxVideoMin,
       maxTranscriptionAudioMinutes: maxAudioMin,
       transcriptionProviderId: transcriptionProviderId || null,

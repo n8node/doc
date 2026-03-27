@@ -1,4 +1,5 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { createHash } from "crypto";
 import { getS3Config } from "../s3-config";
 import { createS3Client } from "../s3";
 import { getDoclingClient } from "./client";
@@ -8,9 +9,12 @@ import { getTranscriptionProviderForUser } from "../ai/get-transcription-provide
 import { transcribeWithOpenAiWhisper } from "../ai/openai-whisper";
 import { transcribeWithOpenRouter } from "../ai/openrouter-transcribe";
 import { recordTokenUsageEvent } from "../ai/token-usage";
+import {
+  cleanupTranscriptionWorkDir,
+  prepareAudioBuffersForCloudTranscription,
+} from "../audio/ffmpeg-transcription";
 import type { ProcessingStatus } from "./types";
 
-// REMINDER: Video transcription disabled. API rejects video before reaching here. Restore when ready.
 const TRANSCRIBABLE_MIMES = new Set([
   "audio/wav",
   "audio/wave",
@@ -27,6 +31,10 @@ const TRANSCRIBABLE_MIMES = new Set([
   "video/quicktime",
   "video/x-m4v",
 ]);
+
+export function isVideoMime(mimeType: string): boolean {
+  return mimeType.startsWith("video/");
+}
 
 export function isTranscribable(mimeType: string): boolean {
   return TRANSCRIBABLE_MIMES.has(mimeType);
@@ -67,6 +75,7 @@ export async function transcribeFile(
   mimeType: string,
   userId: string,
   durationMinutes: number,
+  sourceKind: "audio" | "video",
 ): Promise<TranscriptionResult> {
   const task = await prisma.aiTask.create({
     data: {
@@ -74,7 +83,7 @@ export async function transcribeFile(
       status: "processing",
       userId,
       fileId,
-      input: { action: "transcribe", filename, mimeType },
+      input: { action: "transcribe", filename, mimeType, sourceKind },
     },
   });
 
@@ -92,34 +101,82 @@ export async function transcribeFile(
         provider.name === "openrouter_transcription" ||
         provider.baseUrl.includes("openrouter.ai"));
 
+    const isVideo = isVideoMime(mimeType);
+
     if (useOpenRouter && provider) {
-      const openRouterResult = await transcribeWithOpenRouter(
-        buffer,
-        filename,
-        mimeType,
-        provider.apiKey,
-        provider.baseUrl,
-        provider.modelName,
-      );
-      result = {
-        text: openRouterResult.text,
-        content_hash: openRouterResult.contentHash,
-        format: openRouterResult.format,
-      };
+      let workDir: string | null = null;
+      try {
+        const prepared = await prepareAudioBuffersForCloudTranscription(
+          buffer,
+          filename,
+          mimeType,
+          isVideo,
+        );
+        workDir = prepared.workDir;
+        const texts: string[] = [];
+        for (let i = 0; i < prepared.chunks.length; i++) {
+          const chunkBuf = prepared.chunks[i];
+          const chunkName = `part_${i + 1}.mp3`;
+          const openRouterResult = await transcribeWithOpenRouter(
+            chunkBuf,
+            chunkName,
+            "audio/mpeg",
+            provider.apiKey,
+            provider.baseUrl,
+            provider.modelName,
+          );
+          texts.push(openRouterResult.text);
+        }
+        const mergedText = texts
+          .map((t) => t.trim())
+          .filter((t) => t.length > 0)
+          .join("\n\n");
+        const contentHash = createHash("sha256").update(mergedText).digest("hex");
+        result = {
+          text: mergedText,
+          content_hash: contentHash,
+          format: "txt",
+        };
+      } finally {
+        if (workDir) await cleanupTranscriptionWorkDir(workDir);
+      }
     } else if (useOpenAi && provider) {
-      const openAiResult = await transcribeWithOpenAiWhisper(
-        buffer,
-        filename,
-        mimeType,
-        provider.apiKey,
-        provider.baseUrl,
-        provider.modelName,
-      );
-      result = {
-        text: openAiResult.text,
-        content_hash: openAiResult.contentHash,
-        format: openAiResult.format,
-      };
+      let workDir: string | null = null;
+      try {
+        const prepared = await prepareAudioBuffersForCloudTranscription(
+          buffer,
+          filename,
+          mimeType,
+          isVideo,
+        );
+        workDir = prepared.workDir;
+        const texts: string[] = [];
+        for (let i = 0; i < prepared.chunks.length; i++) {
+          const chunkBuf = prepared.chunks[i];
+          const chunkName = `part_${i + 1}.mp3`;
+          const openAiResult = await transcribeWithOpenAiWhisper(
+            chunkBuf,
+            chunkName,
+            "audio/mpeg",
+            provider.apiKey,
+            provider.baseUrl,
+            provider.modelName,
+          );
+          texts.push(openAiResult.text);
+        }
+        const mergedText = texts
+          .map((t) => t.trim())
+          .filter((t) => t.length > 0)
+          .join("\n\n");
+        const contentHash = createHash("sha256").update(mergedText).digest("hex");
+        result = {
+          text: mergedText,
+          content_hash: contentHash,
+          format: "txt",
+        };
+      } finally {
+        if (workDir) await cleanupTranscriptionWorkDir(workDir);
+      }
     } else {
       const docling = getDoclingClient();
       const doclingResult = await docling.transcribeFromBuffer(buffer, filename);
@@ -149,6 +206,7 @@ export async function transcribeFile(
           contentHash: result.content_hash,
           format: result.format,
           minutesUsed: durationMinutes,
+          sourceKind,
           provider: providerKey,
           modelName: modelDisplay,
         },
@@ -200,6 +258,7 @@ export async function transcribeFile(
         estimated: true,
         durationMinutes,
         textLength: result.text.length,
+        sourceKind,
       },
     });
 

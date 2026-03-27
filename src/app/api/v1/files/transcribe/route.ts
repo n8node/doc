@@ -5,23 +5,22 @@ import {
   transcribeFile,
   getTranscriptionStatus,
   isTranscribable,
+  isVideoMime,
 } from "@/lib/docling/transcription-service";
 import { createNotificationIfEnabled, createQuota80WarningIfNeeded } from "@/lib/notification-service";
 import { estimateTranscriptionTime } from "@/lib/docling/transcription-estimate";
 import { getDoclingClient } from "@/lib/docling/client";
 import { getUserPlan } from "@/lib/plan-service";
-import { getTranscriptionMinutesUsedThisMonth } from "@/lib/ai/transcription-usage";
+import {
+  getTranscriptionAudioMinutesUsedThisMonth,
+  getTranscriptionMinutesUsedThisMonth,
+  getTranscriptionVideoMinutesUsedThisMonth,
+} from "@/lib/ai/transcription-usage";
+import { getTranscriptionQuotaDenyReason, isSplitTranscriptionQuotaMode } from "@/lib/ai/transcription-quota";
 import { getTranscriptionProviderForUser } from "@/lib/ai/get-transcription-provider";
 
-function isVideoMime(mimeType: string): boolean {
-  return mimeType.startsWith("video/");
-}
-
-// REMINDER: Video transcription is temporarily disabled. Restore when stable (memory, timeouts).
-// Search for "REMINDER: Video transcription" to find all related commented code.
-
 /**
- * POST /api/v1/files/transcribe — start audio transcription (video disabled)
+ * POST /api/v1/files/transcribe — транскрибация аудио или видео (извлечение дорожки + облако по сегментам)
  * Body: { fileId: string }
  */
 export async function POST(request: NextRequest) {
@@ -63,14 +62,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
 
-  // REMINDER: Video transcription disabled. Re-enable by removing this block.
-  if (isVideoMime(file.mimeType)) {
-    return NextResponse.json(
-      { error: "Транскрибация видео временно недоступна. Используйте аудиофайлы.", code: "VIDEO_DISABLED" },
-      { status: 503 },
-    );
-  }
-
   if (!isTranscribable(file.mimeType)) {
     return NextResponse.json(
       { error: `Формат ${file.mimeType} не поддерживается для транскрибации` },
@@ -78,30 +69,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const maxSizeCloud = 25 * 1024 * 1024; // 25 MB for OpenAI Whisper / OpenRouter
-  if ((useOpenAi || useOpenRouter) && Number(file.size) > maxSizeCloud) {
-    return NextResponse.json(
-      {
-        error: "Файл слишком большой (макс. 25 МБ для облачного провайдера). Используйте файл меньше или тариф с QoQon.",
-        code: "FILE_TOO_LARGE",
-      },
-      { status: 413 },
-    );
-  }
-
+  const video = isVideoMime(file.mimeType);
   const metadata = file.mediaMetadata as { durationSeconds?: number } | null;
   let durationSeconds = metadata?.durationSeconds;
   let durationSource: "metadata" | "file-size-fallback" = "metadata";
-  // Fallback for audio: estimate duration from file size if unknown (~2 min per MB for compressed audio)
-  if (
-    (durationSeconds == null || !Number.isFinite(durationSeconds) || durationSeconds < 0) &&
-    file.size
-  ) {
-    const sizeMb = Number(file.size) / (1024 * 1024);
-    const estimatedMinutes = Math.max(1, Math.min(120, Math.ceil(sizeMb * 2)));
-    durationSeconds = estimatedMinutes * 60;
-    durationSource = "file-size-fallback";
+
+  if (durationSeconds == null || !Number.isFinite(durationSeconds) || durationSeconds < 0) {
+    if (file.size) {
+      const sizeMb = Number(file.size) / (1024 * 1024);
+      if (video) {
+        const estimatedMinutes = Math.max(1, Math.min(180, Math.ceil(sizeMb * 0.8)));
+        durationSeconds = estimatedMinutes * 60;
+      } else {
+        const estimatedMinutes = Math.max(1, Math.min(120, Math.ceil(sizeMb * 2)));
+        durationSeconds = estimatedMinutes * 60;
+      }
+      durationSource = "file-size-fallback";
+    }
   }
+
   if (
     durationSeconds == null ||
     !Number.isFinite(durationSeconds) ||
@@ -110,7 +96,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Длительность файла неизвестна. Для транскрибации загрузите аудио с метаданными длительности.",
+          "Длительность файла неизвестна. Для транскрибации загрузите файл с метаданными длительности или меньшего размера для оценки.",
         code: "DURATION_UNKNOWN",
       },
       { status: 400 },
@@ -119,12 +105,24 @@ export async function POST(request: NextRequest) {
   const durationMinutes = Math.ceil(durationSeconds / 60);
 
   const plan = await getUserPlan(userId);
-  // const maxVideo = plan?.maxTranscriptionVideoMinutes ?? 60; // REMINDER: Video disabled
-  const maxAudio = plan?.maxTranscriptionAudioMinutes ?? 120;
-  const quota = plan?.transcriptionMinutesQuota ?? null;
+  if (!plan) {
+    return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+  }
 
-  // if (isVideoMime(file.mimeType) && durationMinutes > maxVideo) { ... } // REMINDER: Video disabled
-  if (durationMinutes > maxAudio) {
+  const maxVideo = plan.maxTranscriptionVideoMinutes ?? 60;
+  const maxAudio = plan.maxTranscriptionAudioMinutes ?? 120;
+
+  if (video && durationMinutes > maxVideo) {
+    return NextResponse.json(
+      {
+        error: `Видео не должно превышать ${maxVideo} минут по вашему тарифу`,
+        code: "MAX_VIDEO_MINUTES_EXCEEDED",
+        maxMinutes: maxVideo,
+      },
+      { status: 403 },
+    );
+  }
+  if (!video && durationMinutes > maxAudio) {
     return NextResponse.json(
       {
         error: `Аудио не должно превышать ${maxAudio} минут по вашему тарифу`,
@@ -135,28 +133,59 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (quota != null) {
-    const used = await getTranscriptionMinutesUsedThisMonth(userId);
-    createQuota80WarningIfNeeded(userId, used, quota, "transcription").catch(() => {});
-    if (used + durationMinutes > quota) {
-      createNotificationIfEnabled({
-        userId,
-        type: "QUOTA",
-        category: "warning",
-        title: "Лимит транскрибации исчерпан",
-        body: "Минут транскрибации по тарифу недостаточно. Обновите тариф или дождитесь следующего месяца.",
-        payload: { used, quota },
-      }).catch(() => {});
-      return NextResponse.json(
-        {
-          error:
-            "Лимит минут транскрибации по вашему тарифу исчерпан. Обновите тариф или дождитесь следующего месяца.",
-          code: "TRANSCRIPTION_QUOTA_EXCEEDED",
-          used,
-          quota,
-        },
-        { status: 403 },
-      );
+  const quotaFields = {
+    transcriptionMinutesQuota: plan.transcriptionMinutesQuota,
+    transcriptionAudioMinutesQuota: plan.transcriptionAudioMinutesQuota,
+    transcriptionVideoMinutesQuota: plan.transcriptionVideoMinutesQuota,
+  };
+
+  const deny = await getTranscriptionQuotaDenyReason(
+    userId,
+    quotaFields,
+    video ? "video" : "audio",
+    durationMinutes,
+  );
+  if (deny) {
+    createNotificationIfEnabled({
+      userId,
+      type: "QUOTA",
+      category: "warning",
+      title: "Лимит транскрибации исчерпан",
+      body: deny.message,
+      payload: { used: deny.used, quota: deny.quota },
+    }).catch(() => {});
+    return NextResponse.json(
+      {
+        error: deny.message,
+        code: deny.code,
+        used: deny.used,
+        quota: deny.quota,
+      },
+      { status: 403 },
+    );
+  }
+
+  if (!isSplitTranscriptionQuotaMode(quotaFields)) {
+    const q = plan.transcriptionMinutesQuota;
+    if (q != null) {
+      const used = await getTranscriptionMinutesUsedThisMonth(userId);
+      createQuota80WarningIfNeeded(userId, used, q, "transcription").catch(() => {});
+    }
+  } else {
+    if (video) {
+      const q =
+        plan.transcriptionVideoMinutesQuota ?? plan.transcriptionMinutesQuota ?? null;
+      if (q != null) {
+        const used = await getTranscriptionVideoMinutesUsedThisMonth(userId);
+        createQuota80WarningIfNeeded(userId, used, q, "transcription").catch(() => {});
+      }
+    } else {
+      const q =
+        plan.transcriptionAudioMinutesQuota ?? plan.transcriptionMinutesQuota ?? null;
+      if (q != null) {
+        const used = await getTranscriptionAudioMinutesUsedThisMonth(userId);
+        createQuota80WarningIfNeeded(userId, used, q, "transcription").catch(() => {});
+      }
     }
   }
 
@@ -168,6 +197,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const sourceKind = video ? "video" : "audio";
+
   transcribeFile(
     file.id,
     file.s3Key,
@@ -175,16 +206,19 @@ export async function POST(request: NextRequest) {
     file.mimeType,
     userId,
     durationMinutes,
-  ).catch(
-    (err) => {
-      console.error("[transcribe] Background failed:", err);
-    },
-  );
+    sourceKind,
+  ).catch((err) => {
+    console.error("[transcribe] Background failed:", err);
+  });
 
-  const estimate = estimateTranscriptionTime(durationSeconds, durationSource);
+  const estimate = estimateTranscriptionTime(durationSeconds, durationSource, {
+    isVideo: video,
+    cloudProvider: !!(useOpenAi || useOpenRouter),
+  });
 
-  const providerDisplay =
-    useOpenAi && provider?.name === "openai_whisper"
+  const providerDisplay = useOpenRouter
+    ? "OpenRouter"
+    : useOpenAi && provider?.name === "openai_whisper"
       ? "OpenAI"
       : useOpenAi && provider?.baseUrl.includes("api.openai.com")
         ? "OpenAI"
