@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import {
-  Upload,
   Settings,
   LogOut,
   HardDrive,
@@ -15,7 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SidebarStorageDock } from "@/components/layout/SidebarStorageDock";
-import { SidebarDropZone } from "@/components/files/SidebarDropZone";
+import { SidebarUploadDock } from "@/components/layout/SidebarUploadDock";
 import {
   buildDashboardFilesUrl,
   parseFilesSection,
@@ -156,18 +155,7 @@ export function SidebarV2() {
           </div>
         </div>
 
-        {/* Upload */}
-        <div className="space-y-3 px-4 pt-4">
-          <button
-            type="button"
-            onClick={handleUploadClick}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-secondary px-4 py-3 text-sm font-semibold text-white shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.99]"
-          >
-            <Upload className="h-4 w-4" />
-            Загрузить
-          </button>
-          <SidebarDropZone />
-        </div>
+        <SidebarUploadDock onUploadClick={handleUploadClick} />
 
         {/* Navigation */}
         <nav className="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-5 py-5">

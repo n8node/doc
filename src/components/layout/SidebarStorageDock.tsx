@@ -5,28 +5,10 @@ import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StorageWidget } from "@/components/dashboard/StorageWidget";
-
-function useCompactSidebarStorage() {
-  const [compact, setCompact] = useState(false);
-
-  useEffect(() => {
-    const mqW = window.matchMedia("(max-width: 767px)");
-    const mqH = window.matchMedia("(max-height: 720px)");
-    const update = () => setCompact(mqW.matches || mqH.matches);
-    update();
-    mqW.addEventListener("change", update);
-    mqH.addEventListener("change", update);
-    return () => {
-      mqW.removeEventListener("change", update);
-      mqH.removeEventListener("change", update);
-    };
-  }, []);
-
-  return compact;
-}
+import { useCompactSidebarViewport } from "@/hooks/useCompactSidebarViewport";
 
 export function SidebarStorageDock() {
-  const compact = useCompactSidebarStorage();
+  const compact = useCompactSidebarViewport();
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
