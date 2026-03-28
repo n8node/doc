@@ -14,7 +14,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { StorageWidget } from "@/components/dashboard/StorageWidget";
+import { SidebarStorageDock } from "@/components/layout/SidebarStorageDock";
 import { SidebarDropZone } from "@/components/files/SidebarDropZone";
 import {
   buildDashboardFilesUrl,
@@ -271,10 +271,7 @@ export function SidebarV2() {
           ))}
         </nav>
 
-        {/* Storage widget */}
-        <div className="px-4 pb-4">
-          <StorageWidget />
-        </div>
+        <SidebarStorageDock />
 
         {/* Footer */}
         <div className="space-y-1 border-t border-border/70 px-4 py-4">

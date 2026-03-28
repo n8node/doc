@@ -13,7 +13,7 @@ import {
   Crown,
   ChevronDown,
 } from "lucide-react";
-import { StorageWidget } from "@/components/dashboard/StorageWidget";
+import { SidebarStorageDock } from "@/components/layout/SidebarStorageDock";
 import { SidebarFolderTree } from "./SidebarFolderTree";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import {
@@ -213,9 +213,7 @@ export function Sidebar() {
           <SidebarFolderTree />
         </nav>
 
-        <div className="px-4 pb-4">
-          <StorageWidget />
-        </div>
+        <SidebarStorageDock />
 
         <div className="space-y-1 border-t border-border px-3 py-4">
           <Link href="/dashboard/plans">
