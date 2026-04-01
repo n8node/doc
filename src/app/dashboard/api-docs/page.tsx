@@ -510,7 +510,7 @@ export default function ApiDocsPage() {
               <AccordionTrigger className="hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Store className="h-4 w-4 text-muted-foreground" />
-                  API Маркетплейс (4 методов)
+                  API Маркетплейс (5 методов)
                 </span>
               </AccordionTrigger>
               <AccordionContent>
@@ -541,6 +541,14 @@ export default function ApiDocsPage() {
                     path="/api/v1/marketplace/embeddings"
                     desc="Генерация эмбеддингов"
                     body={{ input: "string | string[]", model: "string" }}
+                  />
+                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground pt-2 border-t border-border/70">
+                    Служебный cron
+                  </p>
+                  <Section
+                    method="POST"
+                    path="/api/v1/cron/openrouter-balance-telegram"
+                    desc="Запрос баланса OpenRouter (/credits) и сообщение в Telegram админу (Bearer CRON_SECRET; нужны Management API ключ в маркетплейсе и настройки Telegram)"
                   />
                 </div>
               </AccordionContent>
