@@ -17,6 +17,7 @@ import {
   OUR_VIDEO_MODEL_IDS,
 } from "@/lib/generation/kie-video-models";
 import { buildKling30VideoPricingVariant, buildKling30MotionPricingVariant } from "@/lib/generation/kie-video-variant";
+import { getMotionReferenceDurationSec } from "@/lib/generation/video-billable-duration";
 import { getPublicBaseUrl } from "@/lib/app-url";
 import { getPresignedDownloadUrl } from "@/lib/s3-download";
 
@@ -118,11 +119,12 @@ export async function POST(request: NextRequest) {
 
   function enqueueAndReturn(kind: string, queuePayload: VideoQueuePayload) {
     return (async () => {
+      const videoDurationSec = Math.min(15, Math.max(3, Math.round(Number(body.duration) || 5)));
       const variant =
         modelId === "kie-kling-30-video"
           ? buildKling30VideoPricingVariant({
               mode: (body.mode === "pro" ? "pro" : "std") as "std" | "pro",
-              durationSec: Number(body.duration) || 5,
+              durationSec: videoDurationSec,
               sound: Boolean(body.sound),
             })
           : buildKling30MotionPricingVariant({
@@ -130,12 +132,20 @@ export async function POST(request: NextRequest) {
               characterOrientation: body.characterOrientation === "image" ? "image" : "video",
             });
 
+      let billableDurationSec: number | null =
+        modelId === "kie-kling-30-video"
+          ? videoDurationSec
+          : typeof body.motionVideoFileId === "string"
+            ? await getMotionReferenceDurationSec(body.motionVideoFileId, uid)
+            : null;
+
       const task = await prisma.videoGenerationTask.create({
         data: {
           userId: uid,
           kieTaskId: null,
           modelId,
           variant,
+          billableDurationSec,
           taskType,
           status: "queued",
         },
@@ -159,12 +169,14 @@ export async function POST(request: NextRequest) {
   let kieTaskId: string | null = null;
   let variant: string | null = null;
   let input: Record<string, unknown>;
+  let billableDurationSec: number | null = null;
 
   if (modelId === "kie-kling-30-video") {
     if (!prompt) {
       return NextResponse.json({ error: "Введите промпт" }, { status: 400 });
     }
     const durationSec = Math.min(15, Math.max(3, Math.round(Number(body.duration) || 5)));
+    billableDurationSec = durationSec;
     const mode = body.mode === "std" ? "std" : "pro";
     const sound = Boolean(body.sound);
     const aspectRatio = (["16:9", "9:16", "1:1"].includes(body.aspectRatio ?? "")
@@ -221,6 +233,7 @@ export async function POST(request: NextRequest) {
     if (!imgId || !vidId) {
       return NextResponse.json({ error: "Нужны референс-изображение и референс-видео" }, { status: 400 });
     }
+    billableDurationSec = await getMotionReferenceDurationSec(vidId, userId);
     const motionMode = body.motionMode === "1080p" ? "1080p" : "720p";
     const characterOrientation = body.characterOrientation === "image" ? "image" : "video";
     const backgroundSource =
@@ -268,6 +281,7 @@ export async function POST(request: NextRequest) {
       kieTaskId,
       modelId,
       variant,
+      billableDurationSec,
       taskType,
       status: "processing",
     },

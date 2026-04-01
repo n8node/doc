@@ -119,20 +119,17 @@ export default function AdminGenerationVideoPage() {
               })),
         );
         if (config.videoPricingFormula && typeof config.videoPricingFormula === "object") {
+          const vf = config.videoPricingFormula as VideoPricingFormulaConfig;
           setVideoFormula({
             ...DEFAULT_VIDEO_PRICING_FORMULA,
-            ...config.videoPricingFormula,
-            kling30Video: {
-              ...DEFAULT_VIDEO_PRICING_FORMULA.kling30Video,
-              ...(config.videoPricingFormula.kling30Video ?? {}),
+            ...vf,
+            klingVideo: {
+              ...DEFAULT_VIDEO_PRICING_FORMULA.klingVideo,
+              ...(vf.klingVideo ?? {}),
             },
-            kling30Motion: {
-              ...DEFAULT_VIDEO_PRICING_FORMULA.kling30Motion,
-              ...(config.videoPricingFormula.kling30Motion ?? {}),
-            },
-            modelExtraCredits: {
-              ...DEFAULT_VIDEO_PRICING_FORMULA.modelExtraCredits,
-              ...(config.videoPricingFormula.modelExtraCredits ?? {}),
+            klingMotion: {
+              ...DEFAULT_VIDEO_PRICING_FORMULA.klingMotion,
+              ...(vf.klingMotion ?? {}),
             },
           });
         }
@@ -173,7 +170,12 @@ export default function AdminGenerationVideoPage() {
     () =>
       PREVIEW_VARIANTS.map((row) => ({
         ...row,
-        credits: computeVideoPriceCredits(row.modelId, row.variant, videoFormula),
+        credits: computeVideoPriceCredits(
+          row.modelId,
+          row.variant,
+          videoFormula,
+          row.modelId === "kie-kling-30-motion" ? 5 : undefined,
+        ),
       })),
     [videoFormula],
   );
@@ -187,7 +189,7 @@ export default function AdminGenerationVideoPage() {
         body: JSON.stringify({ videoPricingFormula: videoFormula }),
       });
       if (!res.ok) throw new Error("Ошибка сохранения");
-      toast.success("Формула цен сохранена");
+      toast.success("Ставки сохранены");
       await loadConfig();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка");
@@ -262,13 +264,6 @@ export default function AdminGenerationVideoPage() {
     );
   };
 
-  const setModelExtra = (modelId: string, value: number) => {
-    setVideoFormula((f) => ({
-      ...f,
-      modelExtraCredits: { ...f.modelExtraCredits, [modelId]: Math.max(0, value) },
-    }));
-  };
-
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -290,7 +285,7 @@ export default function AdminGenerationVideoPage() {
         </Link>
         <h1 className="text-2xl font-semibold text-foreground">Генерация видео (Kling, Kie.ai)</h1>
         <p className="mt-1 text-muted-foreground">
-          Цены на видео считаются по формуле ниже (не из таблицы прайса). Общий API-ключ, процентная наценка на кредиты и курс кошелька — в разделе «Генерация изображений».
+          Стоимость видео — произведение длительности (сек) на вашу ставку «кредитов за 1 с» по строке (не из таблицы Kie). Процентная наценка на кредиты и курс кошелька — в разделе «Генерация изображений».
         </p>
       </div>
 
@@ -321,118 +316,47 @@ export default function AdminGenerationVideoPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Coins className="h-5 w-5" />
-            Формула цен (кредиты)
+            Цены на видео (кредиты за секунду)
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            <strong>Kling 3.0 Video:</strong> кредиты = база (std или pro) + длительность в секундах × коэффициент + (звук ? надбавка : 0) +{" "}
-            <strong>доп. наценка на модель</strong>. Минимум 1 кредит.{" "}
-            <strong>Motion:</strong> фикс за 720p или 1080p + доп. наценка на модель.
+            Укажите ставку в кредитах за одну секунду ролика. Итог: округление (секунды × ставка), минимум 1 кредит. Для сюжетного видео секунды — выбранная длительность (3–15). Для motion — длительность референс-видео пользователя (или оценка по файлу).
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
-            <h4 className="text-sm font-medium">Kling 3.0 Video (сюжет / кадры)</h4>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">База std</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={videoFormula.kling30Video.stdBase}
-                  onChange={(e) =>
-                    setVideoFormula((f) => ({
-                      ...f,
-                      kling30Video: { ...f.kling30Video, stdBase: parseInt(e.target.value, 10) || 0 },
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">База pro</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={videoFormula.kling30Video.proBase}
-                  onChange={(e) =>
-                    setVideoFormula((f) => ({
-                      ...f,
-                      kling30Video: { ...f.kling30Video, proBase: parseInt(e.target.value, 10) || 0 },
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Кредитов за 1 с (std)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={videoFormula.kling30Video.stdPerSec}
-                  onChange={(e) =>
-                    setVideoFormula((f) => ({
-                      ...f,
-                      kling30Video: { ...f.kling30Video, stdPerSec: parseInt(e.target.value, 10) || 0 },
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Кредитов за 1 с (pro)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={videoFormula.kling30Video.proPerSec}
-                  onChange={(e) =>
-                    setVideoFormula((f) => ({
-                      ...f,
-                      kling30Video: { ...f.kling30Video, proPerSec: parseInt(e.target.value, 10) || 0 },
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Надбавка при звуке (snd1)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={videoFormula.kling30Video.soundExtra}
-                  onChange={(e) =>
-                    setVideoFormula((f) => ({
-                      ...f,
-                      kling30Video: { ...f.kling30Video, soundExtra: parseInt(e.target.value, 10) || 0 },
-                    }))
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
             <h4 className="text-sm font-medium">Kling 3.0 Motion Control</h4>
+            <p className="text-xs text-muted-foreground">Video-to-video: ставка за секунду длительности референс-ролика.</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Кредиты 720p</label>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">720p — кредитов за 1 с</label>
                 <Input
                   type="number"
                   min={0}
-                  value={videoFormula.kling30Motion.credits720p}
+                  value={videoFormula.klingMotion.creditsPerSec720p}
                   onChange={(e) =>
                     setVideoFormula((f) => ({
                       ...f,
-                      kling30Motion: { ...f.kling30Motion, credits720p: parseInt(e.target.value, 10) || 0 },
+                      klingMotion: {
+                        ...f.klingMotion,
+                        creditsPerSec720p: parseInt(e.target.value, 10) || 0,
+                      },
                     }))
                   }
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Кредиты 1080p</label>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">1080p — кредитов за 1 с</label>
                 <Input
                   type="number"
                   min={0}
-                  value={videoFormula.kling30Motion.credits1080p}
+                  value={videoFormula.klingMotion.creditsPerSec1080p}
                   onChange={(e) =>
                     setVideoFormula((f) => ({
                       ...f,
-                      kling30Motion: { ...f.kling30Motion, credits1080p: parseInt(e.target.value, 10) || 0 },
+                      klingMotion: {
+                        ...f.klingMotion,
+                        creditsPerSec1080p: parseInt(e.target.value, 10) || 0,
+                      },
                     }))
                   }
                 />
@@ -441,28 +365,84 @@ export default function AdminGenerationVideoPage() {
           </div>
 
           <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
-            <h4 className="text-sm font-medium">Дополнительная наценка на модель (кредиты)</h4>
+            <h4 className="text-sm font-medium">Kling 3.0 — сюжет и кадры</h4>
             <p className="text-xs text-muted-foreground">
-              Прибавляется к результату формулы для каждой генерации этой модели (сверх базы, секунд и звука).
+              Четыре комбинации: режим std/pro и генерация без звука / со звуком. Секунды — выбор пользователя в интерфейсе.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
-              {VIDEO_MODEL_OPTIONS.map((m) => (
-                <div key={m.id}>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{m.name}</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={videoFormula.modelExtraCredits[m.id] ?? 0}
-                    onChange={(e) => setModelExtra(m.id, parseInt(e.target.value, 10) || 0)}
-                  />
-                  <p className="mt-0.5 text-[10px] text-muted-foreground font-mono">{m.id}</p>
-                </div>
-              ))}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">std, без звука — кред/с</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.klingVideo.stdCreditsPerSecNoSound}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      klingVideo: {
+                        ...f.klingVideo,
+                        stdCreditsPerSecNoSound: parseInt(e.target.value, 10) || 0,
+                      },
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">std, со звуком — кред/с</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.klingVideo.stdCreditsPerSecSound}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      klingVideo: {
+                        ...f.klingVideo,
+                        stdCreditsPerSecSound: parseInt(e.target.value, 10) || 0,
+                      },
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">pro, без звука — кред/с</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.klingVideo.proCreditsPerSecNoSound}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      klingVideo: {
+                        ...f.klingVideo,
+                        proCreditsPerSecNoSound: parseInt(e.target.value, 10) || 0,
+                      },
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">pro, со звуком — кред/с</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.klingVideo.proCreditsPerSecSound}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      klingVideo: {
+                        ...f.klingVideo,
+                        proCreditsPerSecSound: parseInt(e.target.value, 10) || 0,
+                      },
+                    }))
+                  }
+                />
+              </div>
             </div>
           </div>
 
           <div className="rounded-xl border border-border p-4">
-            <p className="text-sm font-medium mb-2">Предпросмотр (итоговые кредиты)</p>
+            <p className="text-sm font-medium mb-2">Предпросмотр (кредиты за генерацию)</p>
             <ul className="space-y-1.5 text-sm">
               {previewRows.map((row) => (
                 <li key={row.variant + row.modelId} className="flex justify-between gap-4 border-b border-border/50 py-1 last:border-0">
@@ -477,7 +457,7 @@ export default function AdminGenerationVideoPage() {
 
           <Button onClick={handleSaveVideoFormula} disabled={formulaSaving}>
             {formulaSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Сохранить формулу цен
+            Сохранить ставки
           </Button>
         </CardContent>
       </Card>

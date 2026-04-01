@@ -66,7 +66,11 @@ export async function GET(request: NextRequest) {
         const parsed = parseKieResultJson(record.resultJson);
         const resultUrl = firstMediaUrlFromKieTaskResult(parsed);
         if (resultUrl) {
-          const costCredits = await getPriceCreditsForModel(task.modelId, task.variant ?? null);
+          const costCredits = await getPriceCreditsForModel(
+            task.modelId,
+            task.variant ?? null,
+            task.billableDurationSec
+          );
           const marginPercent = await getGenerationMarginPercent();
           const billedCredits = costCredits != null ? applyGenerationMargin(costCredits, marginPercent) : null;
           await prisma.videoGenerationTask.update({

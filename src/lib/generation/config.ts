@@ -2,6 +2,7 @@ import { configStore } from "@/lib/config-store";
 import {
   DEFAULT_VIDEO_PRICING_FORMULA,
   normalizeVideoPricingFormula,
+  type VideoPerSecondPricingConfig,
   type VideoPricingFormulaConfig,
 } from "@/lib/generation/video-pricing-formula";
 
@@ -17,7 +18,7 @@ const KEYS = {
   kopecksPerCredit: "generation.kopecks_per_credit",
 } as const;
 
-export type { VideoPricingFormulaConfig };
+export type { VideoPricingFormulaConfig, VideoPerSecondPricingConfig };
 
 const DEFAULT_MARGIN = 0;
 const MIN_MARGIN = 0;
@@ -209,8 +210,8 @@ export async function setVideoModelsConfig(models: VideoModelConfig[]): Promise<
   });
 }
 
-/** Формула цен Kling (видео): базы, коэффициенты, доп. кредиты на модель. */
-export async function getVideoPricingFormula(): Promise<VideoPricingFormulaConfig> {
+/** Ставки кредитов за секунду для видео Kling (настройки админки). */
+export async function getVideoPricingFormula(): Promise<VideoPerSecondPricingConfig> {
   const v = await configStore.get(KEYS.videoPricingFormula);
   if (!v || v.trim() === "") return structuredClone(DEFAULT_VIDEO_PRICING_FORMULA);
   try {
@@ -221,11 +222,11 @@ export async function getVideoPricingFormula(): Promise<VideoPricingFormulaConfi
   }
 }
 
-export async function setVideoPricingFormula(formula: VideoPricingFormulaConfig): Promise<void> {
+export async function setVideoPricingFormula(formula: VideoPerSecondPricingConfig): Promise<void> {
   const normalized = normalizeVideoPricingFormula(formula);
   await configStore.set(KEYS.videoPricingFormula, JSON.stringify(normalized), {
     category: "generation",
-    description: "Формула цен генерации видео Kling (база, сек, звук, motion, доп. на модель)",
+    description: "Видео Kling: кредиты за секунду (std/pro × звук, motion 720p/1080p)",
   });
 }
 

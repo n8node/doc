@@ -512,6 +512,8 @@ model VideoGenerationTask {
   kieTaskId     String?   @map("kie_task_id")
   modelId       String    @map("model_id")
   variant       String?   @map("variant")
+  /// Секунды для тарификации motion (длина референс-видео); для kling video дублирует секунды из variant
+  billableDurationSec Int? @map("billable_duration_sec")
   taskType      String    @map("task_type")
   status        String    @map("status")
   costCredits   Int?      @map("cost_credits")

@@ -77,7 +77,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  const costCredits = await getPriceCreditsForModel(task.modelId, task.variant ?? null);
+  const costCredits = await getPriceCreditsForModel(
+    task.modelId,
+    task.variant ?? null,
+    task.billableDurationSec
+  );
   const marginPercent = await getGenerationMarginPercent();
   const billedCredits = costCredits !== null ? applyGenerationMargin(costCredits, marginPercent) : null;
 

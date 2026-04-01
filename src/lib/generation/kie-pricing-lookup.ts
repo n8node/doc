@@ -11,16 +11,17 @@ const RESOLUTION_VARIANT_MODELS = new Set([
 
 /**
  * Возвращает цену в кредитах для модели (и варианта).
- * Видео Kling: считается по формуле из настроек (не из kie_pricing).
+ * Видео Kling: ставки «кредитов/сек» из настроек (не из kie_pricing). Для motion нужен billableDurationSec.
  * Остальное: таблица kie_pricing, затем fallback по variant=null / 1K.
  */
 export async function getPriceCreditsForModel(
   modelId: string,
-  variant: string | null
+  variant: string | null,
+  billableDurationSec?: number | null
 ): Promise<number | null> {
   if (OUR_VIDEO_MODEL_IDS.has(modelId)) {
     const formula = await getVideoPricingFormula();
-    const fromFormula = computeVideoPriceCredits(modelId, variant, formula);
+    const fromFormula = computeVideoPriceCredits(modelId, variant, formula, billableDurationSec);
     if (fromFormula != null) return fromFormula;
   }
 
