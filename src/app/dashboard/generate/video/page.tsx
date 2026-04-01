@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Video, Upload, X, Coins, AlertCircle } from "lucide-react";
+import { Loader2, Video, Upload, X, Coins, AlertCircle, Play } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const PENDING_KEY = "dropbox-ru-video-gen-pending";
 
@@ -54,6 +55,7 @@ export default function GenerateVideoPage() {
   const [billedCredits, setBilledCredits] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [recent, setRecent] = useState<Array<{ url: string; fileId?: string | null }>>([]);
+  const [recentModalUrl, setRecentModalUrl] = useState<string | null>(null);
 
   const loadRecent = useCallback(async () => {
     try {
@@ -696,14 +698,52 @@ export default function GenerateVideoPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Недавние</CardTitle>
+                <p className="text-xs text-muted-foreground font-normal">
+                  Нажмите на превью, чтобы открыть ролик в отдельном окне.
+                </p>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-3">
-                {recent.map((r, i) => (
-                  <video key={i} src={r.url} className="h-28 w-48 rounded border object-cover bg-black" muted playsInline />
+                {recent.map((r) => (
+                  <button
+                    key={r.fileId ?? r.url}
+                    type="button"
+                    onClick={() => setRecentModalUrl(r.url)}
+                    className="group relative h-28 w-48 shrink-0 overflow-hidden rounded-lg border border-border bg-black text-left shadow-sm transition hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Открыть видео"
+                  >
+                    <video
+                      src={`${r.url}#t=0.001`}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="pointer-events-none h-full w-full object-cover"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-80 transition group-hover:bg-black/45 group-hover:opacity-100">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md">
+                        <Play className="h-5 w-5 fill-current" aria-hidden />
+                      </span>
+                    </span>
+                  </button>
                 ))}
               </CardContent>
             </Card>
           )}
+
+          <Dialog open={recentModalUrl != null} onOpenChange={(open) => !open && setRecentModalUrl(null)}>
+            <DialogContent className="max-w-4xl border-border p-4 sm:p-6" aria-describedby={undefined}>
+              <DialogTitle className="sr-only">Просмотр видео</DialogTitle>
+              {recentModalUrl && (
+                <video
+                  key={recentModalUrl}
+                  src={recentModalUrl}
+                  className="max-h-[min(80vh,720px)] w-full rounded-md bg-black"
+                  controls
+                  playsInline
+                  autoPlay
+                />
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>
