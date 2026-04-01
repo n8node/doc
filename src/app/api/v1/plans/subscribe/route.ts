@@ -3,6 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getYookassaConfig, createYookassaPayment } from "@/lib/yookassa";
+import {
+  getRobokassaConfig,
+  buildRobokassaPaymentUrl,
+  formatRobokassaOutSum,
+} from "@/lib/robokassa";
+import { resolveActivePaymentProvider } from "@/lib/payment-active-provider";
 import { nanoid } from "nanoid";
 
 export async function POST(req: NextRequest) {
@@ -53,31 +59,18 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Платный тариф — оплата через ЮKassa
-  const amount = period === "yearly" && plan.priceYearly != null
-    ? plan.priceYearly
-    : plan.priceMonthly ?? 0;
+  const amount =
+    period === "yearly" && plan.priceYearly != null
+      ? plan.priceYearly
+      : plan.priceMonthly ?? 0;
 
   if (amount <= 0) {
-    return NextResponse.json(
-      { error: "Цена тарифа не задана" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Цена тарифа не задана" }, { status: 400 });
   }
 
-  const yookassaConfig = await getYookassaConfig();
-  if (!yookassaConfig) {
-    return NextResponse.json(
-      { error: "Оплата недоступна. Обратитесь к администратору." },
-      { status: 503 }
-    );
-  }
-
-  if (!user?.email?.trim()) {
-    return NextResponse.json(
-      { error: "Укажите email в профиле — он нужен для фискального чека по 54‑ФЗ." },
-      { status: 400 },
-    );
+  const resolved = await resolveActivePaymentProvider();
+  if ("error" in resolved) {
+    return NextResponse.json({ error: resolved.error }, { status: 503 });
   }
 
   const description =
@@ -85,48 +78,118 @@ export async function POST(req: NextRequest) {
       ? `Тариф ${plan.name} — 1 год`
       : `Тариф ${plan.name} — 1 месяц`;
 
-  const payment = await prisma.payment.create({
-    data: {
-      userId: session.user.id,
-      planId: plan.id,
+  if (resolved.provider === "yookassa") {
+    const yookassaConfig = await getYookassaConfig();
+    if (!yookassaConfig) {
+      return NextResponse.json(
+        { error: "Оплата недоступна. Обратитесь к администратору." },
+        { status: 503 }
+      );
+    }
+
+    if (!user?.email?.trim()) {
+      return NextResponse.json(
+        {
+          error:
+            "Укажите email в профиле — он нужен для фискального чека по 54‑ФЗ.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const payment = await prisma.payment.create({
+      data: {
+        userId: session.user.id,
+        planId: plan.id,
+        amount,
+        currency: "RUB",
+        status: "pending",
+      },
+    });
+
+    const idempotenceKey = `${payment.id}-${nanoid(8)}`;
+    const returnUrlWithSuccess = `${yookassaConfig.returnUrl.replace(/\?.*$/, "")}?payment=success`;
+    const result = await createYookassaPayment({
       amount,
-      currency: "RUB",
-      status: "pending",
-    },
-  });
+      description,
+      returnUrl: returnUrlWithSuccess,
+      metadata: { paymentId: payment.id },
+      config: yookassaConfig,
+      idempotenceKey,
+      customerEmail: user.email.trim(),
+    });
 
-  const idempotenceKey = `${payment.id}-${nanoid(8)}`;
-  const returnUrlWithSuccess = `${yookassaConfig.returnUrl.replace(/\?.*$/, "")}?payment=success`;
-  const result = await createYookassaPayment({
-    amount,
-    description,
-    returnUrl: returnUrlWithSuccess,
-    metadata: { paymentId: payment.id },
-    config: yookassaConfig,
-    idempotenceKey,
-    customerEmail: user.email.trim(),
-  });
+    if ("error" in result) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "canceled" },
+      });
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
 
-  if ("error" in result) {
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { status: "canceled" },
+      data: {
+        yookassaPaymentId: result.paymentId,
+        paymentProvider: "yookassa",
+      },
     });
+
+    return NextResponse.json({
+      ok: true,
+      requiresPayment: true,
+      paymentProvider: "yookassa",
+      confirmationUrl: result.confirmationUrl,
+      plan: {
+        id: plan.id,
+        name: plan.name,
+        priceMonthly: plan.priceMonthly,
+      },
+    });
+  }
+
+  const rCfg = await getRobokassaConfig();
+  if (!rCfg) {
     return NextResponse.json(
-      { error: result.error },
-      { status: 400 }
+      { error: "Оплата недоступна. Обратитесь к администратору." },
+      { status: 503 }
     );
   }
 
-  await prisma.payment.update({
-    where: { id: payment.id },
-    data: { yookassaPaymentId: result.paymentId },
+  const { invId } = await prisma.$transaction(async (tx) => {
+    const p = await tx.payment.create({
+      data: {
+        userId: session.user.id,
+        planId: plan.id,
+        amount,
+        currency: "RUB",
+        status: "pending",
+      },
+    });
+    const s = await tx.robokassaSerial.create({ data: {} });
+    await tx.payment.update({
+      where: { id: p.id },
+      data: {
+        robokassaInvId: s.id,
+        paymentProvider: "robokassa",
+      },
+    });
+    return { invId: s.id };
+  });
+
+  const outSum = formatRobokassaOutSum(amount);
+  const confirmationUrl = buildRobokassaPaymentUrl({
+    config: rCfg,
+    outSum,
+    invId,
+    description,
   });
 
   return NextResponse.json({
     ok: true,
     requiresPayment: true,
-    confirmationUrl: result.confirmationUrl,
+    paymentProvider: "robokassa",
+    confirmationUrl,
     plan: {
       id: plan.id,
       name: plan.name,

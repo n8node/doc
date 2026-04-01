@@ -227,6 +227,8 @@ model LlmWalletTopup {
   amountCents         Int      @map("amount_cents")
   status              String   @map("status") // pending | succeeded | canceled
   yookassaPaymentId   String?  @unique @map("yookassa_payment_id")
+  paymentProvider     String?  @map("payment_provider") // yookassa | robokassa
+  robokassaInvId      Int?     @unique @map("robokassa_inv_id")
   createdAt           DateTime @default(now()) @map("created_at")
   succeededAt         DateTime? @map("succeeded_at")
 
@@ -438,10 +440,20 @@ model Payment {
   currency          String        @default("RUB") @map("currency")
   status            PaymentStatus @map("status")
   yookassaPaymentId String?       @unique @map("yookassa_payment_id")
+  paymentProvider   String?       @map("payment_provider") // yookassa | robokassa
+  robokassaInvId    Int?          @unique @map("robokassa_inv_id")
   paidAt            DateTime?     @map("paid_at")
   createdAt         DateTime      @default(now()) @map("created_at")
 
   @@map("payments")
+}
+
+/// Глобальный счётчик счетов Robokassa (InvId) для тарифов и LLM-пополнений.
+model RobokassaSerial {
+  id        Int      @id @default(autoincrement()) @map("id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("robokassa_serial")
 }
 
 model AdminConfig {

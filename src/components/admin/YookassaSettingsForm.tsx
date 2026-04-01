@@ -116,9 +116,9 @@ export function YookassaSettingsForm() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Подключение ЮKassa для приёма платежей</h2>
+        <h2 className="text-lg font-semibold text-foreground">ЮKassa</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Настройки для пополнения кошелька и подписки на тарифы
+          Shop ID и ключ API для тарифов и LLM-кошелька. Активный провайдер выбирается в блоке выше.
         </p>
       </div>
 

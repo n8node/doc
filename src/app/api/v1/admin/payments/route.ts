@@ -87,6 +87,8 @@ export async function GET(req: NextRequest) {
       paidAt: p.paidAt?.toISOString() ?? null,
       createdAt: p.createdAt.toISOString(),
       yookassaPaymentId: p.yookassaPaymentId,
+      paymentProvider: p.paymentProvider,
+      robokassaInvId: p.robokassaInvId,
       user: p.user,
       plan: p.plan,
     })),

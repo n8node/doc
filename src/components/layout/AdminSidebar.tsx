@@ -93,7 +93,7 @@ const groups: NavGroup[] = [
       { href: "/admin/settings?tab=auth", label: "Авторизация", icon: Lock },
       { href: "/admin/storage", label: "Storage", icon: HardDrive },
       { href: "/admin/settings?tab=s3", label: "S3", icon: Cloud },
-      { href: "/admin/settings?tab=yookassa", label: "ЮKassa", icon: CreditCard },
+      { href: "/admin/settings?tab=payments", label: "Платежи", icon: CreditCard },
       { href: "/admin/settings?tab=telegram", label: "Telegram", icon: Smartphone },
       { href: "/admin/telegram-broadcast", label: "Telegram-рассылка", icon: Megaphone },
     ],

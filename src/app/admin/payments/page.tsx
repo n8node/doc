@@ -28,8 +28,18 @@ interface PaymentItem {
   paidAt: string | null;
   createdAt: string;
   yookassaPaymentId: string | null;
+  paymentProvider: string | null;
+  robokassaInvId: number | null;
   user: { id: string; email: string; name: string | null };
   plan: { id: string; name: string };
+}
+
+function paymentGatewayLabel(p: PaymentItem): string {
+  if (p.paymentProvider === "robokassa") return "Robokassa";
+  if (p.paymentProvider === "yookassa") return "ЮKassa";
+  if (p.robokassaInvId != null) return "Robokassa";
+  if (p.yookassaPaymentId) return "ЮKassa";
+  return "—";
 }
 
 interface TokenUsageItem {
@@ -302,6 +312,7 @@ export default function AdminPaymentsPage() {
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Пользователь</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Тариф</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Сумма</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Платёж</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Статус</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Оплачено</th>
                 </tr>
@@ -318,6 +329,7 @@ export default function AdminPaymentsPage() {
                     <td className="px-4 py-3 font-medium">
                       {p.amount} {p.currency}
                     </td>
+                    <td className="px-4 py-3 text-muted-foreground">{paymentGatewayLabel(p)}</td>
                     <td className="px-4 py-3">{statusBadge(p.status)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(p.paidAt)}</td>
                   </tr>

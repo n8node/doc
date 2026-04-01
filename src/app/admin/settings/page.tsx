@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { useState, Suspense } from "react";
 import { S3SettingsForm } from "@/components/admin/S3SettingsForm";
 import { AiProvidersForm } from "@/components/admin/AiProvidersForm";
-import { YookassaSettingsForm } from "@/components/admin/YookassaSettingsForm";
+import { PaymentsSettingsTab } from "@/components/admin/PaymentsSettingsTab";
 import { TelegramSettingsForm } from "@/components/admin/TelegramSettingsForm";
 import { AuthSettingsForm } from "@/components/admin/AuthSettingsForm";
 import { EmailSettingsForm } from "@/components/admin/EmailSettingsForm";
@@ -20,7 +20,7 @@ import { YandexMetrikaSettingsForm } from "@/components/admin/YandexMetrikaSetti
 
 type Tab =
   | "s3"
-  | "yookassa"
+  | "payments"
   | "ai"
   | "marketplace"
   | "telegram"
@@ -32,9 +32,15 @@ type Tab =
   | "footer"
   | "analytics";
 
+function normalizeSettingsTab(t: string | null): Tab | null {
+  if (!t) return null;
+  if (t === "yookassa") return "payments";
+  return t as Tab;
+}
+
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab") as Tab | null;
+  const tabParam = normalizeSettingsTab(searchParams.get("tab"));
   const [tab, setTab] = useState<Tab>(tabParam ?? "branding");
 
   const tabLabels: Record<Tab, string> = {
@@ -46,7 +52,7 @@ function AdminSettingsContent() {
     auth: "Авторизация",
     email: "Email / SMTP",
     s3: "S3 хранилище",
-    yookassa: "ЮKassa",
+    payments: "Платежи",
     ai: "AI-провайдеры",
     marketplace: "Маркетплейс",
     telegram: "Telegram",
@@ -65,7 +71,7 @@ function AdminSettingsContent() {
             "auth",
             "email",
             "s3",
-            "yookassa",
+            "payments",
             "ai",
             "marketplace",
             "telegram",
@@ -92,7 +98,7 @@ function AdminSettingsContent() {
         {tab === "footer" && <FooterSettingsForm />}
         {tab === "analytics" && <YandexMetrikaSettingsForm />}
         {tab === "s3" && <S3SettingsForm />}
-        {tab === "yookassa" && <YookassaSettingsForm />}
+        {tab === "payments" && <PaymentsSettingsTab />}
         {tab === "ai" && <AiProvidersForm />}
         {tab === "marketplace" && (
           <div className="space-y-10">
