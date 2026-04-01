@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { getVideoPricingFormula } from "@/lib/generation/config";
+import { computeVideoPriceCredits } from "@/lib/generation/video-pricing-formula";
+import { OUR_VIDEO_MODEL_IDS } from "@/lib/generation/kie-video-models";
 
 /** Модели с ценами по разрешению (1K/2K/4K). Для старых задач с variant=null используем 1K. */
 const RESOLUTION_VARIANT_MODELS = new Set([
@@ -7,14 +10,20 @@ const RESOLUTION_VARIANT_MODELS = new Set([
 ]);
 
 /**
- * Возвращает цену в кредитах для модели (и варианта) из таблицы kie_pricing.
- * Сначала ищет по (modelId, variant), затем по (modelId, null).
- * Для моделей с разрешением при variant=null пробует вариант "1K".
+ * Возвращает цену в кредитах для модели (и варианта).
+ * Видео Kling: считается по формуле из настроек (не из kie_pricing).
+ * Остальное: таблица kie_pricing, затем fallback по variant=null / 1K.
  */
 export async function getPriceCreditsForModel(
   modelId: string,
   variant: string | null
 ): Promise<number | null> {
+  if (OUR_VIDEO_MODEL_IDS.has(modelId)) {
+    const formula = await getVideoPricingFormula();
+    const fromFormula = computeVideoPriceCredits(modelId, variant, formula);
+    if (fromFormula != null) return fromFormula;
+  }
+
   const v = variant ?? null;
   const row = await prisma.kiePricing.findFirst({
     where: { modelId, variant: v },

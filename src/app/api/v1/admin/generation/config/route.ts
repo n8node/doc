@@ -19,10 +19,13 @@ import {
   setGenerationMarginPercent,
   getGenerationKopecksPerCredit,
   setGenerationKopecksPerCredit,
+  getVideoPricingFormula,
+  setVideoPricingFormula,
   type ImageTaskConfig,
   type ImageModelConfig,
   type VideoTaskConfig,
   type VideoModelConfig,
+  type VideoPricingFormulaConfig,
 } from "@/lib/generation/config";
 
 /**
@@ -37,7 +40,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [imageEnabled, imageTasks, imageModels, videoEnabled, videoTasks, videoModels, marginPercent, kopecksPerCredit] =
+  const [imageEnabled, imageTasks, imageModels, videoEnabled, videoTasks, videoModels, marginPercent, kopecksPerCredit, videoPricingFormula] =
     await Promise.all([
       getImageGenerationEnabled(),
       getImageTasksConfig(),
@@ -47,6 +50,7 @@ export async function GET() {
       getVideoModelsConfig(),
       getGenerationMarginPercent(),
       getGenerationKopecksPerCredit(),
+      getVideoPricingFormula(),
     ]);
 
   return NextResponse.json({
@@ -58,13 +62,14 @@ export async function GET() {
     videoModels,
     marginPercent,
     kopecksPerCredit,
+    videoPricingFormula,
   });
 }
 
 /**
  * PUT /api/v1/admin/generation/config
  * Обновить конфиг генерации.
- * Body: { imageEnabled?, videoEnabled?, imageTasks?, imageModels?, videoTasks?, videoModels?, marginPercent?, kopecksPerCredit? }
+ * Body: { ... , videoPricingFormula? }
  */
 export async function PUT(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -83,6 +88,7 @@ export async function PUT(request: NextRequest) {
     videoModels?: VideoModelConfig[];
     marginPercent?: number;
     kopecksPerCredit?: number;
+    videoPricingFormula?: VideoPricingFormulaConfig;
   };
   try {
     body = await request.json();
@@ -113,6 +119,9 @@ export async function PUT(request: NextRequest) {
   }
   if (typeof body.kopecksPerCredit === "number") {
     await setGenerationKopecksPerCredit(body.kopecksPerCredit);
+  }
+  if (body.videoPricingFormula != null && typeof body.videoPricingFormula === "object") {
+    await setVideoPricingFormula(body.videoPricingFormula);
   }
 
   return NextResponse.json({ ok: true });

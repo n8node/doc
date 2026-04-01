@@ -15,6 +15,11 @@ import {
   BarChart3,
   ArrowLeft,
 } from "lucide-react";
+import type { VideoPricingFormulaConfig } from "@/lib/generation/config";
+import {
+  computeVideoPriceCredits,
+  DEFAULT_VIDEO_PRICING_FORMULA,
+} from "@/lib/generation/video-pricing-formula";
 
 interface VideoTaskConfig {
   id: string;
@@ -53,19 +58,23 @@ const VIDEO_MODEL_OPTIONS: { id: string; name: string; description: string; task
   },
 ];
 
+const PREVIEW_VARIANTS: { modelId: string; variant: string; label: string }[] = [
+  { modelId: "kie-kling-30-video", variant: "std|d5|snd0", label: "Kling Video, std, 5 с, без звука" },
+  { modelId: "kie-kling-30-video", variant: "std|d5|snd1", label: "Kling Video, std, 5 с, со звуком" },
+  { modelId: "kie-kling-30-video", variant: "pro|d10|snd0", label: "Kling Video, pro, 10 с" },
+  { modelId: "kie-kling-30-video", variant: "pro|d15|snd1", label: "Kling Video, pro, 15 с, звук" },
+  { modelId: "kie-kling-30-motion", variant: "720p|image", label: "Motion 720p" },
+  { modelId: "kie-kling-30-motion", variant: "1080p|video", label: "Motion 1080p" },
+];
+
 export default function AdminGenerationVideoPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [formulaSaving, setFormulaSaving] = useState(false);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [videoTasks, setVideoTasks] = useState<VideoTaskConfig[]>([]);
   const [videoModels, setVideoModels] = useState<VideoModelConfig[]>([]);
-  const [pricingItems, setPricingItems] = useState<
-    { id: string; modelId: string; variant: string | null; priceCredits: number; priceUsd: number | null; fetchedAt: string }[]
-  >([]);
-  const [pricingFetchedAt, setPricingFetchedAt] = useState<string | null>(null);
-  const [pricingSyncing, setPricingSyncing] = useState(false);
-  const [pricingEdits, setPricingEdits] = useState<Record<string, number>>({});
-  const [pricingSaving, setPricingSaving] = useState(false);
+  const [videoFormula, setVideoFormula] = useState<VideoPricingFormulaConfig>(DEFAULT_VIDEO_PRICING_FORMULA);
   const [resettingTasksModels, setResettingTasksModels] = useState(false);
   const [statsItems, setStatsItems] = useState<
     {
@@ -109,6 +118,24 @@ export default function AdminGenerationVideoPage() {
                 order: i + 1,
               })),
         );
+        if (config.videoPricingFormula && typeof config.videoPricingFormula === "object") {
+          setVideoFormula({
+            ...DEFAULT_VIDEO_PRICING_FORMULA,
+            ...config.videoPricingFormula,
+            kling30Video: {
+              ...DEFAULT_VIDEO_PRICING_FORMULA.kling30Video,
+              ...(config.videoPricingFormula.kling30Video ?? {}),
+            },
+            kling30Motion: {
+              ...DEFAULT_VIDEO_PRICING_FORMULA.kling30Motion,
+              ...(config.videoPricingFormula.kling30Motion ?? {}),
+            },
+            modelExtraCredits: {
+              ...DEFAULT_VIDEO_PRICING_FORMULA.modelExtraCredits,
+              ...(config.videoPricingFormula.modelExtraCredits ?? {}),
+            },
+          });
+        }
       }
     } catch {
       toast.error("Не удалось загрузить настройки");
@@ -117,26 +144,9 @@ export default function AdminGenerationVideoPage() {
     }
   }, []);
 
-  const loadPricing = useCallback(async () => {
-    try {
-      const res = await fetch("/api/v1/admin/generation/pricing");
-      const data = await res.json();
-      if (res.ok && data.items) {
-        setPricingItems(data.items);
-        setPricingFetchedAt(data.fetchedAt ?? null);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
-
-  useEffect(() => {
-    loadPricing();
-  }, [loadPricing]);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -159,57 +169,30 @@ export default function AdminGenerationVideoPage() {
     loadStats();
   }, [loadStats]);
 
-  const videoPricingRows = useMemo(
-    () => pricingItems.filter((row) => row.modelId.startsWith("kie-kling")),
-    [pricingItems],
+  const previewRows = useMemo(
+    () =>
+      PREVIEW_VARIANTS.map((row) => ({
+        ...row,
+        credits: computeVideoPriceCredits(row.modelId, row.variant, videoFormula),
+      })),
+    [videoFormula],
   );
 
-  const handleSyncPricing = async () => {
-    setPricingSyncing(true);
+  const handleSaveVideoFormula = async () => {
+    setFormulaSaving(true);
     try {
-      const res = await fetch("/api/v1/admin/generation/pricing/sync", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        await loadPricing();
-        setPricingEdits({});
-        toast.success(data.usedDefaults ? "Прайс обновлён (использованы значения по умолчанию)" : "Прайс синхронизирован");
-      } else {
-        toast.error("Ошибка синхронизации прайса");
-      }
-    } catch {
-      toast.error("Ошибка запроса");
+      const res = await fetch("/api/v1/admin/generation/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoPricingFormula: videoFormula }),
+      });
+      if (!res.ok) throw new Error("Ошибка сохранения");
+      toast.success("Формула цен сохранена");
+      await loadConfig();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
     } finally {
-      setPricingSyncing(false);
-    }
-  };
-
-  const setPricingCredit = (id: string, value: number) => {
-    setPricingEdits((prev) => ({ ...prev, [id]: value }));
-  };
-
-  const handleSavePricingEdits = async () => {
-    const ids = Object.keys(pricingEdits);
-    if (ids.length === 0) {
-      toast.info("Нет изменений для сохранения");
-      return;
-    }
-    setPricingSaving(true);
-    try {
-      for (const id of ids) {
-        const res = await fetch("/api/v1/admin/generation/pricing", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, priceCredits: pricingEdits[id] }),
-        });
-        if (!res.ok) throw new Error("PATCH failed");
-      }
-      await loadPricing();
-      setPricingEdits({});
-      toast.success("Стоимость сохранена");
-    } catch {
-      toast.error("Ошибка сохранения");
-    } finally {
-      setPricingSaving(false);
+      setFormulaSaving(false);
     }
   };
 
@@ -279,6 +262,13 @@ export default function AdminGenerationVideoPage() {
     );
   };
 
+  const setModelExtra = (modelId: string, value: number) => {
+    setVideoFormula((f) => ({
+      ...f,
+      modelExtraCredits: { ...f.modelExtraCredits, [modelId]: Math.max(0, value) },
+    }));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -300,7 +290,7 @@ export default function AdminGenerationVideoPage() {
         </Link>
         <h1 className="text-2xl font-semibold text-foreground">Генерация видео (Kling, Kie.ai)</h1>
         <p className="mt-1 text-muted-foreground">
-          Включение раздела для пользователей, задачи и модели Kling, прайс по вариантам (длительность, качество). Общий API-ключ и наценка на кредиты — в разделе «Генерация изображений».
+          Цены на видео считаются по формуле ниже (не из таблицы прайса). Общий API-ключ, процентная наценка на кредиты и курс кошелька — в разделе «Генерация изображений».
         </p>
       </div>
 
@@ -331,71 +321,164 @@ export default function AdminGenerationVideoPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Coins className="h-5 w-5" />
-            Прайс видео Kling (кредиты по модели и варианту)
+            Формула цен (кредиты)
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            <code className="text-xs">kie-kling-30-video</code> — варианты std/pro, длительность, звук;{" "}
-            <code className="text-xs">kie-kling-30-motion</code> — разрешение и режим. Полный список после «Обновить прайс» с{" "}
-            <a href="https://kie.ai/pricing" target="_blank" rel="noopener noreferrer" className="underline">
-              kie.ai/pricing
-            </a>
-            .
+            <strong>Kling 3.0 Video:</strong> кредиты = база (std или pro) + длительность в секундах × коэффициент + (звук ? надбавка : 0) +{" "}
+            <strong>доп. наценка на модель</strong>. Минимум 1 кредит.{" "}
+            <strong>Motion:</strong> фикс за 720p или 1080p + доп. наценка на модель.
           </p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {pricingFetchedAt && (
-            <p className="text-xs text-muted-foreground">
-              Последнее обновление: {new Date(pricingFetchedAt).toLocaleString()}
-            </p>
-          )}
-          {videoPricingRows.length > 0 ? (
-            <div className="overflow-x-auto rounded border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="p-2 text-left font-medium">Модель</th>
-                    <th className="p-2 text-left font-medium">Вариант</th>
-                    <th className="p-2 text-right font-medium">Кредиты</th>
-                    <th className="p-2 text-right font-medium">USD</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {videoPricingRows.map((row) => (
-                    <tr key={row.id} className="border-b last:border-0">
-                      <td className="p-2">{row.modelId}</td>
-                      <td className="p-2 text-muted-foreground">{row.variant ?? "—"}</td>
-                      <td className="p-2 text-right">
-                        <Input
-                          type="number"
-                          min={0}
-                          className="h-8 w-20 text-right"
-                          value={pricingEdits[row.id] ?? row.priceCredits}
-                          onChange={(e) => setPricingCredit(row.id, parseInt(e.target.value, 10) || 0)}
-                        />
-                      </td>
-                      <td className="p-2 text-right">{row.priceUsd != null ? row.priceUsd.toFixed(4) : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <CardContent className="space-y-6">
+          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
+            <h4 className="text-sm font-medium">Kling 3.0 Video (сюжет / кадры)</h4>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">База std</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.kling30Video.stdBase}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      kling30Video: { ...f.kling30Video, stdBase: parseInt(e.target.value, 10) || 0 },
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">База pro</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.kling30Video.proBase}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      kling30Video: { ...f.kling30Video, proBase: parseInt(e.target.value, 10) || 0 },
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Кредитов за 1 с (std)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.kling30Video.stdPerSec}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      kling30Video: { ...f.kling30Video, stdPerSec: parseInt(e.target.value, 10) || 0 },
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Кредитов за 1 с (pro)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.kling30Video.proPerSec}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      kling30Video: { ...f.kling30Video, proPerSec: parseInt(e.target.value, 10) || 0 },
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Надбавка при звуке (snd1)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.kling30Video.soundExtra}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      kling30Video: { ...f.kling30Video, soundExtra: parseInt(e.target.value, 10) || 0 },
+                    }))
+                  }
+                />
+              </div>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Строк Kling в прайсе пока нет. Нажмите «Обновить прайс» на этой странице или в разделе изображений (общая таблица Kie).
-            </p>
-          )}
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={handleSyncPricing} disabled={pricingSyncing}>
-              {pricingSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Обновить прайс
-            </Button>
-            {videoPricingRows.length > 0 && (
-              <Button variant="secondary" onClick={handleSavePricingEdits} disabled={pricingSaving || Object.keys(pricingEdits).length === 0}>
-                {pricingSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Сохранить вручную
-              </Button>
-            )}
           </div>
+
+          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
+            <h4 className="text-sm font-medium">Kling 3.0 Motion Control</h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Кредиты 720p</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.kling30Motion.credits720p}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      kling30Motion: { ...f.kling30Motion, credits720p: parseInt(e.target.value, 10) || 0 },
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Кредиты 1080p</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoFormula.kling30Motion.credits1080p}
+                  onChange={(e) =>
+                    setVideoFormula((f) => ({
+                      ...f,
+                      kling30Motion: { ...f.kling30Motion, credits1080p: parseInt(e.target.value, 10) || 0 },
+                    }))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-border bg-surface2/30 p-4">
+            <h4 className="text-sm font-medium">Дополнительная наценка на модель (кредиты)</h4>
+            <p className="text-xs text-muted-foreground">
+              Прибавляется к результату формулы для каждой генерации этой модели (сверх базы, секунд и звука).
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {VIDEO_MODEL_OPTIONS.map((m) => (
+                <div key={m.id}>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{m.name}</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={videoFormula.modelExtraCredits[m.id] ?? 0}
+                    onChange={(e) => setModelExtra(m.id, parseInt(e.target.value, 10) || 0)}
+                  />
+                  <p className="mt-0.5 text-[10px] text-muted-foreground font-mono">{m.id}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border p-4">
+            <p className="text-sm font-medium mb-2">Предпросмотр (итоговые кредиты)</p>
+            <ul className="space-y-1.5 text-sm">
+              {previewRows.map((row) => (
+                <li key={row.variant + row.modelId} className="flex justify-between gap-4 border-b border-border/50 py-1 last:border-0">
+                  <span className="text-muted-foreground">{row.label}</span>
+                  <span className="font-mono tabular-nums">
+                    {row.credits != null ? row.credits : "—"} <span className="text-xs text-muted-foreground">{row.variant}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <Button onClick={handleSaveVideoFormula} disabled={formulaSaving}>
+            {formulaSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Сохранить формулу цен
+          </Button>
         </CardContent>
       </Card>
 

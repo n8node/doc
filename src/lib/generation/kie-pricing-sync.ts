@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import {
+  buildVideoPricingRowsFromFormula,
+  DEFAULT_VIDEO_PRICING_FORMULA,
+} from "@/lib/generation/video-pricing-formula";
 
 const KIE_PRICING_URL = "https://kie.ai/pricing";
 
@@ -9,35 +13,9 @@ export interface KiePriceRow {
   priceUsd: number | null;
 }
 
-/** Канонические строки прайса для видео (Kling): mode × длительность × звук; motion × разрешение × ориентация. */
+/** Канонические строки прайса для видео (Kling) из формулы по умолчанию (совпадает с runtime-расчётом). */
 export function buildDefaultVideoPricingRows(): KiePriceRow[] {
-  const rows: KiePriceRow[] = [];
-  const durs = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-  for (const mode of ["std", "pro"] as const) {
-    for (const d of durs) {
-      for (const snd of [0, 1] as const) {
-        const base = mode === "std" ? 35 : 70;
-        const credits = base + d * (mode === "std" ? 5 : 10) + snd * 8;
-        rows.push({
-          modelId: "kie-kling-30-video",
-          variant: `${mode}|d${d}|snd${snd}`,
-          priceCredits: credits,
-          priceUsd: null,
-        });
-      }
-    }
-  }
-  for (const mode of ["720p", "1080p"] as const) {
-    for (const orient of ["image", "video"] as const) {
-      rows.push({
-        modelId: "kie-kling-30-motion",
-        variant: `${mode}|${orient}`,
-        priceCredits: mode === "720p" ? 90 : 160,
-        priceUsd: null,
-      });
-    }
-  }
-  return rows;
+  return buildVideoPricingRowsFromFormula(DEFAULT_VIDEO_PRICING_FORMULA) as KiePriceRow[];
 }
 
 /** Цены по умолчанию, если страница не парсится (обновить по https://kie.ai/pricing). Для моделей с разрешением — отдельные строки по 1K/2K/4K. */
