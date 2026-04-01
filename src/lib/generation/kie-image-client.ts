@@ -31,10 +31,12 @@ export interface KieTaskRecord {
 export interface KieTaskResult {
   resultUrls?: string[];
   resultImageUrl?: string;
+  /** Некоторые видео-модели отдают отдельное поле */
+  resultVideoUrl?: string;
 }
 
 /** Ответ Kie API; при HTTP 429 code будет 429. */
-async function kieFetch(
+export async function kieFetch(
   apiKey: string,
   path: string,
   options: { method: "GET" } | { method: "POST"; body: Record<string, unknown> }
@@ -173,14 +175,29 @@ export function parseKieResultJson(resultJson: string | undefined): KieTaskResul
     const parsed = JSON.parse(resultJson) as Record<string, unknown>;
     const resultUrls = parsed.resultUrls as string[] | undefined;
     const resultImageUrl = parsed.resultImageUrl as string | undefined;
+    const resultVideoUrl =
+      (parsed.resultVideoUrl as string | undefined) ||
+      (parsed.result_video_url as string | undefined) ||
+      (parsed.videoUrl as string | undefined);
     if (Array.isArray(resultUrls) && resultUrls.length > 0) {
-      return { resultUrls };
+      return { resultUrls, ...(resultVideoUrl ? { resultVideoUrl } : {}) };
     }
     if (typeof resultImageUrl === "string") {
       return { resultImageUrl };
+    }
+    if (typeof resultVideoUrl === "string") {
+      return { resultVideoUrl };
     }
   } catch {
     // ignore
   }
   return {};
+}
+
+/** Первый URL результата: изображение или видео (Kie callback / recordInfo). */
+export function firstMediaUrlFromKieTaskResult(parsed: KieTaskResult): string | null {
+  if (parsed.resultUrls?.[0]) return parsed.resultUrls[0];
+  if (parsed.resultVideoUrl) return parsed.resultVideoUrl;
+  if (parsed.resultImageUrl) return parsed.resultImageUrl;
+  return null;
 }

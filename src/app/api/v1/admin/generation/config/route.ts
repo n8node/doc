@@ -9,12 +9,20 @@ import {
   setImageTasksConfig,
   getImageModelsConfig,
   setImageModelsConfig,
+  getVideoGenerationEnabled,
+  setVideoGenerationEnabled,
+  getVideoTasksConfig,
+  setVideoTasksConfig,
+  getVideoModelsConfig,
+  setVideoModelsConfig,
   getGenerationMarginPercent,
   setGenerationMarginPercent,
   getGenerationKopecksPerCredit,
   setGenerationKopecksPerCredit,
   type ImageTaskConfig,
   type ImageModelConfig,
+  type VideoTaskConfig,
+  type VideoModelConfig,
 } from "@/lib/generation/config";
 
 /**
@@ -29,18 +37,25 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [imageEnabled, imageTasks, imageModels, marginPercent, kopecksPerCredit] = await Promise.all([
-    getImageGenerationEnabled(),
-    getImageTasksConfig(),
-    getImageModelsConfig(),
-    getGenerationMarginPercent(),
-    getGenerationKopecksPerCredit(),
-  ]);
+  const [imageEnabled, imageTasks, imageModels, videoEnabled, videoTasks, videoModels, marginPercent, kopecksPerCredit] =
+    await Promise.all([
+      getImageGenerationEnabled(),
+      getImageTasksConfig(),
+      getImageModelsConfig(),
+      getVideoGenerationEnabled(),
+      getVideoTasksConfig(),
+      getVideoModelsConfig(),
+      getGenerationMarginPercent(),
+      getGenerationKopecksPerCredit(),
+    ]);
 
   return NextResponse.json({
     imageEnabled,
     imageTasks,
     imageModels,
+    videoEnabled,
+    videoTasks,
+    videoModels,
     marginPercent,
     kopecksPerCredit,
   });
@@ -49,7 +64,7 @@ export async function GET() {
 /**
  * PUT /api/v1/admin/generation/config
  * Обновить конфиг генерации.
- * Body: { imageEnabled?, imageTasks?, imageModels?, marginPercent?, kopecksPerCredit? }
+ * Body: { imageEnabled?, videoEnabled?, imageTasks?, imageModels?, videoTasks?, videoModels?, marginPercent?, kopecksPerCredit? }
  */
 export async function PUT(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -61,8 +76,11 @@ export async function PUT(request: NextRequest) {
 
   let body: {
     imageEnabled?: boolean;
+    videoEnabled?: boolean;
     imageTasks?: ImageTaskConfig[];
     imageModels?: ImageModelConfig[];
+    videoTasks?: VideoTaskConfig[];
+    videoModels?: VideoModelConfig[];
     marginPercent?: number;
     kopecksPerCredit?: number;
   };
@@ -75,11 +93,20 @@ export async function PUT(request: NextRequest) {
   if (typeof body.imageEnabled === "boolean") {
     await setImageGenerationEnabled(body.imageEnabled);
   }
+  if (typeof body.videoEnabled === "boolean") {
+    await setVideoGenerationEnabled(body.videoEnabled);
+  }
   if (Array.isArray(body.imageTasks)) {
     await setImageTasksConfig(body.imageTasks);
   }
   if (Array.isArray(body.imageModels)) {
     await setImageModelsConfig(body.imageModels);
+  }
+  if (Array.isArray(body.videoTasks)) {
+    await setVideoTasksConfig(body.videoTasks);
+  }
+  if (Array.isArray(body.videoModels)) {
+    await setVideoModelsConfig(body.videoModels);
   }
   if (typeof body.marginPercent === "number") {
     await setGenerationMarginPercent(body.marginPercent);

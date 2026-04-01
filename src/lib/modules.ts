@@ -15,7 +15,6 @@ import {
   Store,
   Sparkles,
   Table2,
-  FileText,
   Video,
   Globe,
   Calendar,
@@ -101,7 +100,6 @@ export const navGroups: NavGroup[] = [
     label: "Генерация",
     featureGate: "content_generation",
     items: [
-      { href: "/dashboard/generate/text", icon: FileText, label: "Текст" },
       { href: "/dashboard/generate/image", icon: Sparkles, label: "Изображения" },
       { href: "/dashboard/generate/video", icon: Video, label: "Видео" },
     ],

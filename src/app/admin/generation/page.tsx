@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Key, Wifi, CheckCircle, ImageIcon, Percent, ListOrdered, RefreshCw, Coins, BarChart3, HardDrive } from "lucide-react";
+import { Loader2, Key, Wifi, CheckCircle, ImageIcon, Video, Percent, ListOrdered, RefreshCw, Coins, BarChart3, HardDrive } from "lucide-react";
 
 interface ImageTaskConfig {
   id: string;
@@ -24,10 +24,47 @@ interface ImageModelConfig {
   order: number;
 }
 
+interface VideoTaskConfig {
+  id: string;
+  label: string;
+  enabled: boolean;
+  order: number;
+}
+
+interface VideoModelConfig {
+  id: string;
+  name: string;
+  displayName?: string;
+  description?: string;
+  enabled: boolean;
+  taskIds: string[];
+  order: number;
+}
+
 const TASK_OPTIONS: { id: string; label: string }[] = [
   { id: "text_to_image", label: "Text to image" },
   { id: "edit_image", label: "Edit image" },
   { id: "variations", label: "Image to image" },
+];
+
+const VIDEO_TASK_OPTIONS: { id: string; label: string }[] = [
+  { id: "kling30_video", label: "Kling 3.0 — сюжет и кадры" },
+  { id: "kling30_motion", label: "Kling 3.0 — перенос движения" },
+];
+
+const VIDEO_MODEL_OPTIONS: { id: string; name: string; description: string; taskIds: string[] }[] = [
+  {
+    id: "kie-kling-30-video",
+    name: "Kling 3.0 Video",
+    description: "Текст / кадры, звук, 3–15 с (std/pro)",
+    taskIds: ["kling30_video"],
+  },
+  {
+    id: "kie-kling-30-motion",
+    name: "Kling 3.0 Motion Control",
+    description: "Изображение + референс-видео (720p/1080p)",
+    taskIds: ["kling30_motion"],
+  },
 ];
 
 const MODEL_OPTIONS: { id: string; name: string; description: string }[] = [
@@ -55,17 +92,35 @@ export default function AdminGenerationPage() {
   const [apiKeySet, setApiKeySet] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [imageEnabled, setImageEnabled] = useState(true);
+  const [videoEnabled, setVideoEnabled] = useState(true);
   const [marginPercent, setMarginPercent] = useState(0);
   const [kopecksPerCredit, setKopecksPerCredit] = useState(10);
   const [tasks, setTasks] = useState<ImageTaskConfig[]>([]);
   const [models, setModels] = useState<ImageModelConfig[]>([]);
+  const [videoTasks, setVideoTasks] = useState<VideoTaskConfig[]>([]);
+  const [videoModels, setVideoModels] = useState<VideoModelConfig[]>([]);
   const [pricingItems, setPricingItems] = useState<{ id: string; modelId: string; variant: string | null; priceCredits: number; priceUsd: number | null; fetchedAt: string }[]>([]);
   const [pricingFetchedAt, setPricingFetchedAt] = useState<string | null>(null);
   const [pricingSyncing, setPricingSyncing] = useState(false);
   const [pricingEdits, setPricingEdits] = useState<Record<string, number>>({});
   const [pricingSaving, setPricingSaving] = useState(false);
   const [resettingTasksModels, setResettingTasksModels] = useState(false);
-  const [statsItems, setStatsItems] = useState<{ id: string; userEmail: string; userName: string | null; createdAt: string; modelId: string; variant: string | null; taskType: string; resultUrl: string | null; fileId: string | null; costCredits: number | null; billedCredits: number | null }[]>([]);
+  const [statsItems, setStatsItems] = useState<
+    {
+      id: string;
+      media?: string;
+      userEmail: string;
+      userName: string | null;
+      createdAt: string;
+      modelId: string;
+      variant: string | null;
+      taskType: string;
+      resultUrl: string | null;
+      fileId: string | null;
+      costCredits: number | null;
+      billedCredits: number | null;
+    }[]
+  >([]);
   const [statsTotal, setStatsTotal] = useState(0);
   const [statsLoading, setStatsLoading] = useState(false);
   const [fileSizeLimitImageMb, setFileSizeLimitImageMb] = useState(150);
@@ -86,10 +141,29 @@ export default function AdminGenerationPage() {
       const limitsData = await limitsRes.json();
       if (configRes.ok) {
         setImageEnabled(config.imageEnabled ?? true);
+        setVideoEnabled(config.videoEnabled === true);
         setMarginPercent(config.marginPercent ?? 0);
         setKopecksPerCredit(typeof config.kopecksPerCredit === "number" ? config.kopecksPerCredit : 10);
         setTasks(Array.isArray(config.imageTasks) && config.imageTasks.length > 0 ? config.imageTasks : TASK_OPTIONS.map((t, i) => ({ ...t, enabled: true, order: i + 1 })));
         setModels(Array.isArray(config.imageModels) && config.imageModels.length > 0 ? config.imageModels : MODEL_OPTIONS.map((m, i) => ({ ...m, displayName: m.name, enabled: true, taskIds: m.id === "kie-4o-image" ? ["text_to_image", "edit_image", "variations"] : ["text_to_image", "edit_image"], order: i + 1 })));
+        setVideoTasks(
+          Array.isArray(config.videoTasks) && config.videoTasks.length > 0
+            ? config.videoTasks
+            : VIDEO_TASK_OPTIONS.map((t, i) => ({ ...t, enabled: true, order: i + 1 }))
+        );
+        setVideoModels(
+          Array.isArray(config.videoModels) && config.videoModels.length > 0
+            ? config.videoModels
+            : VIDEO_MODEL_OPTIONS.map((m, i) => ({
+                id: m.id,
+                name: m.name,
+                description: m.description,
+                displayName: m.name,
+                enabled: true,
+                taskIds: m.taskIds,
+                order: i + 1,
+              }))
+        );
       }
       if (keyRes.ok && keyData.apiKeySet) {
         setApiKeySet(true);
@@ -224,13 +298,38 @@ export default function AdminGenerationPage() {
   const handleResetTasksModels = async () => {
     setResettingTasksModels(true);
     try {
-      const res = await fetch("/api/v1/admin/generation/config/reset-tasks-models", { method: "POST" });
+      const res = await fetch("/api/v1/admin/generation/config/reset-tasks-models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: "image" }),
+      });
       if (!res.ok) {
         toast.error("Ошибка сброса");
         return;
       }
       await loadConfig();
-      toast.success("Задачи и модели сброшены к умолчанию");
+      toast.success("Задачи и модели изображений сброшены");
+    } catch {
+      toast.error("Ошибка запроса");
+    } finally {
+      setResettingTasksModels(false);
+    }
+  };
+
+  const handleResetVideoTasksModels = async () => {
+    setResettingTasksModels(true);
+    try {
+      const res = await fetch("/api/v1/admin/generation/config/reset-tasks-models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: "video" }),
+      });
+      if (!res.ok) {
+        toast.error("Ошибка сброса");
+        return;
+      }
+      await loadConfig();
+      toast.success("Задачи и модели видео сброшены");
     } catch {
       toast.error("Ошибка запроса");
     } finally {
@@ -283,10 +382,13 @@ export default function AdminGenerationPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageEnabled,
+          videoEnabled,
           marginPercent: Math.max(0, Math.min(95, Math.round(marginPercent))),
           kopecksPerCredit: Math.max(0, Math.round(kopecksPerCredit)),
           imageTasks: tasks,
           imageModels: models,
+          videoTasks,
+          videoModels,
         }),
       });
       if (!res.ok) throw new Error("Ошибка сохранения");
@@ -320,6 +422,28 @@ export default function AdminGenerationPage() {
     setModels((prev) => prev.map((m) => (m.id === modelId ? { ...m, displayName: displayName.trim() || undefined } : m)));
   };
 
+  const toggleVideoTask = (id: string) => {
+    setVideoTasks((prev) => prev.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t)));
+  };
+
+  const toggleVideoModel = (id: string) => {
+    setVideoModels((prev) => prev.map((m) => (m.id === id ? { ...m, enabled: !m.enabled } : m)));
+  };
+
+  const toggleVideoModelTask = (modelId: string, taskId: string) => {
+    setVideoModels((prev) =>
+      prev.map((m) => {
+        if (m.id !== modelId) return m;
+        const has = m.taskIds.includes(taskId);
+        return { ...m, taskIds: has ? m.taskIds.filter((t) => t !== taskId) : [...m.taskIds, taskId] };
+      })
+    );
+  };
+
+  const setVideoModelDisplayName = (modelId: string, displayName: string) => {
+    setVideoModels((prev) => prev.map((m) => (m.id === modelId ? { ...m, displayName: displayName.trim() || undefined } : m)));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -332,9 +456,9 @@ export default function AdminGenerationPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Генерация изображений (Kie.ai)</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Генерация изображений и видео (Kie.ai)</h1>
         <p className="mt-1 text-muted-foreground">
-          API-ключ Kie.ai, наценка на кредиты и список задач/моделей для раздела «Генерация» у пользователей.
+          API-ключ Kie.ai, наценка на кредиты, задачи/модели для изображений и видео (Kling), прайс с вариантами по длительности и качеству.
         </p>
       </div>
 
@@ -398,6 +522,15 @@ export default function AdminGenerationPage() {
               className="h-4 w-4 rounded"
             />
             <span className="text-sm font-medium">Генерация изображений включена для пользователей</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={videoEnabled}
+              onChange={(e) => setVideoEnabled(e.target.checked)}
+              className="h-4 w-4 rounded"
+            />
+            <span className="text-sm font-medium">Генерация видео (Kling) включена для пользователей</span>
           </label>
           <div className="flex items-center gap-2">
             <Percent className="h-5 w-5 text-muted-foreground" />
@@ -495,7 +628,7 @@ export default function AdminGenerationPage() {
             Прайс Kie (стоимость в кредитах по моделям)
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Список дополняется актуальными моделями и вариантами (Flux Kontext: Pro/Max). Синхронизация с <a href="https://kie.ai/pricing" target="_blank" rel="noopener noreferrer" className="underline">kie.ai/pricing</a> — кнопка «Обновить прайс». Проставьте кредиты для недостающих строк и нажмите «Сохранить вручную».
+            Видео: <code className="text-xs">kie-kling-30-video</code> — вариант <code className="text-xs">std|d5|snd1</code> (режим std/pro, длительность 3–15 с, звук 0/1); <code className="text-xs">kie-kling-30-motion</code> — <code className="text-xs">720p|video</code> / <code className="text-xs">1080p|image</code> и т.д. Синхронизация с <a href="https://kie.ai/pricing" target="_blank" rel="noopener noreferrer" className="underline">kie.ai/pricing</a> — кнопка «Обновить прайс». Проставьте кредиты и «Сохранить вручную».
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -578,6 +711,7 @@ export default function AdminGenerationPage() {
                   <tr className="border-b bg-muted/50">
                     <th className="p-2 text-left font-medium">Пользователь</th>
                     <th className="p-2 text-left font-medium">Когда</th>
+                    <th className="p-2 text-left font-medium">Тип</th>
                     <th className="p-2 text-left font-medium">Модель</th>
                     <th className="p-2 text-left font-medium">Задача</th>
                     <th className="p-2 text-left font-medium">Результат</th>
@@ -593,6 +727,7 @@ export default function AdminGenerationPage() {
                         {row.userName && <span className="text-muted-foreground ml-1">({row.userName})</span>}
                       </td>
                       <td className="p-2 text-muted-foreground">{new Date(row.createdAt).toLocaleString()}</td>
+                      <td className="p-2 text-muted-foreground">{row.media === "video" ? "Видео" : "Изображение"}</td>
                       <td className="p-2">{row.modelId}{row.variant ? ` / ${row.variant}` : ""}</td>
                       <td className="p-2 text-muted-foreground">{row.taskType}</td>
                       <td className="p-2">
@@ -620,10 +755,10 @@ export default function AdminGenerationPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <ListOrdered className="h-5 w-5" />
-            Задачи и модели
+            Задачи и модели (изображения)
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Какие задачи и модели показывать в разделе «Генерация» у пользователей.
+            Раздел «Генерация → Изображения».
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -684,6 +819,65 @@ export default function AdminGenerationPage() {
               ))}
             </ul>
           </div>
+
+          <div className="border-t pt-6 mt-6">
+            <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <Video className="h-4 w-4" />
+              Видео (Kling)
+            </h3>
+            <ul className="space-y-2 mb-4">
+              {videoTasks.map((t) => (
+                <li key={t.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={t.enabled}
+                    onChange={() => toggleVideoTask(t.id)}
+                    className="h-4 w-4 rounded"
+                  />
+                  <span className="text-sm">{t.label}</span>
+                </li>
+              ))}
+            </ul>
+            <ul className="space-y-3">
+              {videoModels.map((m) => (
+                <li key={m.id} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="checkbox"
+                      checked={m.enabled}
+                      onChange={() => toggleVideoModel(m.id)}
+                      className="h-4 w-4 rounded"
+                    />
+                    <span className="font-medium">Системное: {m.name}</span>
+                    {m.description && <span className="text-muted-foreground text-sm">— {m.description}</span>}
+                  </div>
+                  <div className="pl-6 space-y-1">
+                    <label className="text-xs text-muted-foreground">Публичное название</label>
+                    <Input
+                      value={m.displayName ?? ""}
+                      onChange={(e) => setVideoModelDisplayName(m.id, e.target.value)}
+                      placeholder={m.name}
+                      className="max-w-md"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2 pl-6">
+                    {VIDEO_TASK_OPTIONS.map((t) => (
+                      <label key={t.id} className="flex items-center gap-1.5 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={m.taskIds.includes(t.id)}
+                          onChange={() => toggleVideoModelTask(m.id, t.id)}
+                          className="h-3.5 w-3.5 rounded"
+                        />
+                        {t.label}
+                      </label>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <div className="flex gap-2 flex-wrap">
             <Button onClick={handleSaveConfig} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -691,7 +885,11 @@ export default function AdminGenerationPage() {
             </Button>
             <Button variant="outline" onClick={handleResetTasksModels} disabled={resettingTasksModels}>
               {resettingTasksModels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Сбросить к умолчанию
+              Сброс изображений
+            </Button>
+            <Button variant="outline" onClick={handleResetVideoTasksModels} disabled={resettingTasksModels}>
+              {resettingTasksModels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Сброс видео
             </Button>
           </div>
         </CardContent>

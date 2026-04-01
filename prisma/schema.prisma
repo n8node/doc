@@ -63,6 +63,7 @@ model User {
   spamAlerts           SpamAlertEvent[]
   supportTickets       SupportTicket[]
   imageGenerationTasks ImageGenerationTask[]
+  videoGenerationTasks VideoGenerationTask[]
   webImportJobs        WebImportJob[]
   calendarBridgeAccounts CalendarBridgeAccount[]
   calendarBridgeApiKeys  CalendarBridgeApiKey[]
@@ -501,6 +502,40 @@ model ImageGenerationQueue {
 
   @@index([status, createdAt(sort: Asc)])
   @@map("image_generation_queue")
+}
+
+model VideoGenerationTask {
+  id            String    @id @default(cuid()) @map("id")
+  userId        String    @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kieTaskId     String?   @map("kie_task_id")
+  modelId       String    @map("model_id")
+  variant       String?   @map("variant")
+  taskType      String    @map("task_type")
+  status        String    @map("status")
+  costCredits   Int?      @map("cost_credits")
+  billedCredits Int?      @map("billed_credits")
+  resultUrl     String?   @map("result_url")
+  fileId        String?   @map("file_id")
+  errorMessage  String?   @map("error_message")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([kieTaskId])
+  @@map("video_generation_tasks")
+}
+
+model VideoGenerationQueue {
+  id        String   @id @default(cuid()) @map("id")
+  taskId    String   @unique @map("task_id")
+  kind      String   @map("kind")
+  payload   Json     @map("payload")
+  status    String   @map("status")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([status, createdAt(sort: Asc)])
+  @@map("video_generation_queue")
 }
 
 model KiePricing {

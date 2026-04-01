@@ -21,35 +21,59 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10)));
   const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
 
-  const [tasks, marginPercent] = await Promise.all([
+  const [imageTasks, videoTasks, marginPercent] = await Promise.all([
     prisma.imageGenerationTask.findMany({
       where: { status: "success" },
       orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
+      take: limit + offset,
+      skip: 0,
+      include: { user: { select: { id: true, email: true, name: true } } },
+    }),
+    prisma.videoGenerationTask.findMany({
+      where: { status: "success" },
+      orderBy: { createdAt: "desc" },
+      take: limit + offset,
+      skip: 0,
       include: { user: { select: { id: true, email: true, name: true } } },
     }),
     getGenerationMarginPercent(),
   ]);
 
-  const items = tasks.map((t) => ({
-    id: t.id,
-    userId: t.userId,
-    userEmail: t.user.email,
-    userName: t.user.name ?? null,
-    createdAt: t.createdAt.toISOString(),
-    modelId: t.modelId,
-    variant: t.variant,
-    taskType: t.taskType,
-    resultUrl: t.resultUrl,
-    fileId: t.fileId,
-    costCredits: t.costCredits,
-    billedCredits:
-      t.billedCredits ??
-      (t.costCredits != null ? applyGenerationMargin(t.costCredits, marginPercent) : null),
+  const tagged = [
+    ...imageTasks.map((t) => ({ ...t, media: "image" as const })),
+    ...videoTasks.map((t) => ({ ...t, media: "video" as const })),
+  ];
+  const merged = tagged
+    .map((t) => ({
+      id: t.id,
+      media: t.media,
+      userId: t.userId,
+      userEmail: t.user.email,
+      userName: t.user.name ?? null,
+      createdAtMs: t.createdAt.getTime(),
+      modelId: t.modelId,
+      variant: t.variant,
+      taskType: t.taskType,
+      resultUrl: t.resultUrl,
+      fileId: t.fileId,
+      costCredits: t.costCredits,
+      billedCredits:
+        t.billedCredits ??
+        (t.costCredits != null ? applyGenerationMargin(t.costCredits, marginPercent) : null),
+    }))
+    .sort((a, b) => b.createdAtMs - a.createdAtMs)
+    .slice(offset, offset + limit);
+
+  const items = merged.map(({ createdAtMs, ...rest }) => ({
+    ...rest,
+    createdAt: new Date(createdAtMs).toISOString(),
   }));
 
-  const total = await prisma.imageGenerationTask.count({ where: { status: "success" } });
+  const [totalImage, totalVideo] = await Promise.all([
+    prisma.imageGenerationTask.count({ where: { status: "success" } }),
+    prisma.videoGenerationTask.count({ where: { status: "success" } }),
+  ]);
+  const total = totalImage + totalVideo;
 
   return NextResponse.json({ items, total });
 }

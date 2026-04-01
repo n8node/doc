@@ -4,6 +4,9 @@ const KEYS = {
   imageEnabled: "generation.image_enabled",
   imageTasks: "generation.image_tasks",
   imageModels: "generation.image_models",
+  videoEnabled: "generation.video_enabled",
+  videoTasks: "generation.video_tasks",
+  videoModels: "generation.video_models",
   marginPercent: "generation.margin_percent",
   kopecksPerCredit: "generation.kopecks_per_credit",
 } as const;
@@ -24,6 +27,23 @@ export interface ImageModelConfig {
   /** Системное название (Kie / API). */
   name: string;
   /** Публичное название для интерфейса (если задано — показывается вместо name). */
+  displayName?: string;
+  description?: string;
+  enabled: boolean;
+  taskIds: string[];
+  order: number;
+}
+
+export interface VideoTaskConfig {
+  id: string;
+  label: string;
+  enabled: boolean;
+  order: number;
+}
+
+export interface VideoModelConfig {
+  id: string;
+  name: string;
   displayName?: string;
   description?: string;
   enabled: boolean;
@@ -55,6 +75,30 @@ const DEFAULT_MODELS: ImageModelConfig[] = [
   { id: "kie-qwen-image-edit", name: "Qwen Image Edit", description: "Qwen редактирование (image_size, num_images)", enabled: true, taskIds: ["edit_image"], order: 15 },
   { id: "kie-qwen2-text-to-image", name: "Qwen 2 Text to Image", description: "Qwen Image 2.0 текст → изображение", enabled: true, taskIds: ["text_to_image"], order: 16 },
   { id: "kie-qwen2-image-edit", name: "Qwen 2 Image Edit", description: "Qwen Image 2.0 редактирование (до 3 фото)", enabled: true, taskIds: ["edit_image"], order: 17 },
+];
+
+const DEFAULT_VIDEO_TASKS: VideoTaskConfig[] = [
+  { id: "kling30_video", label: "Kling 3.0 — сюжет и кадры", enabled: true, order: 1 },
+  { id: "kling30_motion", label: "Kling 3.0 — перенос движения", enabled: true, order: 2 },
+];
+
+const DEFAULT_VIDEO_MODELS: VideoModelConfig[] = [
+  {
+    id: "kie-kling-30-video",
+    name: "Kling 3.0 Video",
+    description: "Текст / старт-финиш кадр, звук, 3–15 с (std/pro)",
+    enabled: true,
+    taskIds: ["kling30_video"],
+    order: 1,
+  },
+  {
+    id: "kie-kling-30-motion",
+    name: "Kling 3.0 Motion Control",
+    description: "Изображение + референс-видео движения (720p/1080p)",
+    enabled: true,
+    taskIds: ["kling30_motion"],
+    order: 2,
+  },
 ];
 
 export async function getImageGenerationEnabled(): Promise<boolean> {
@@ -107,12 +151,67 @@ export async function setImageModelsConfig(models: ImageModelConfig[]): Promise<
   });
 }
 
+export async function getVideoGenerationEnabled(): Promise<boolean> {
+  const v = await configStore.get(KEYS.videoEnabled);
+  return v === "true" || v === "1";
+}
+
+export async function setVideoGenerationEnabled(enabled: boolean): Promise<void> {
+  await configStore.set(KEYS.videoEnabled, enabled ? "true" : "false", {
+    category: "generation",
+    description: "Включить раздел генерации видео для пользователей",
+  });
+}
+
+export async function getVideoTasksConfig(): Promise<VideoTaskConfig[]> {
+  const v = await configStore.get(KEYS.videoTasks);
+  if (!v || v.trim() === "") return DEFAULT_VIDEO_TASKS;
+  try {
+    const parsed = JSON.parse(v) as unknown;
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed as VideoTaskConfig[];
+  } catch {
+    // ignore
+  }
+  return DEFAULT_VIDEO_TASKS;
+}
+
+export async function setVideoTasksConfig(tasks: VideoTaskConfig[]): Promise<void> {
+  await configStore.set(KEYS.videoTasks, JSON.stringify(tasks), {
+    category: "generation",
+    description: "Задачи генерации видео",
+  });
+}
+
+export async function getVideoModelsConfig(): Promise<VideoModelConfig[]> {
+  const v = await configStore.get(KEYS.videoModels);
+  if (!v || v.trim() === "") return DEFAULT_VIDEO_MODELS;
+  try {
+    const parsed = JSON.parse(v) as unknown;
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed as VideoModelConfig[];
+  } catch {
+    // ignore
+  }
+  return DEFAULT_VIDEO_MODELS;
+}
+
+export async function setVideoModelsConfig(models: VideoModelConfig[]): Promise<void> {
+  await configStore.set(KEYS.videoModels, JSON.stringify(models), {
+    category: "generation",
+    description: "Модели генерации видео",
+  });
+}
+
 /**
  * Сбросить задачи и модели к умолчанию (пустой список в БД → при чтении вернутся DEFAULT_TASKS и DEFAULT_MODELS).
  */
 export async function resetImageGenerationTasksAndModels(): Promise<void> {
   await setImageTasksConfig([]);
   await setImageModelsConfig([]);
+}
+
+export async function resetVideoGenerationTasksAndModels(): Promise<void> {
+  await setVideoTasksConfig([]);
+  await setVideoModelsConfig([]);
 }
 
 /**
@@ -132,7 +231,7 @@ export async function setGenerationMarginPercent(percent: number): Promise<void>
   const value = Math.max(MIN_MARGIN, Math.min(MAX_MARGIN, Math.round(percent)));
   await configStore.set(KEYS.marginPercent, String(value), {
     category: "generation",
-    description: "Наценка % на кредиты при генерации изображений/видео",
+    description: "Наценка % на кредиты при генерации изображений и видео",
   });
 }
 

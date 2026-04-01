@@ -9,6 +9,37 @@ export interface KiePriceRow {
   priceUsd: number | null;
 }
 
+/** Канонические строки прайса для видео (Kling): mode × длительность × звук; motion × разрешение × ориентация. */
+export function buildDefaultVideoPricingRows(): KiePriceRow[] {
+  const rows: KiePriceRow[] = [];
+  const durs = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+  for (const mode of ["std", "pro"] as const) {
+    for (const d of durs) {
+      for (const snd of [0, 1] as const) {
+        const base = mode === "std" ? 35 : 70;
+        const credits = base + d * (mode === "std" ? 5 : 10) + snd * 8;
+        rows.push({
+          modelId: "kie-kling-30-video",
+          variant: `${mode}|d${d}|snd${snd}`,
+          priceCredits: credits,
+          priceUsd: null,
+        });
+      }
+    }
+  }
+  for (const mode of ["720p", "1080p"] as const) {
+    for (const orient of ["image", "video"] as const) {
+      rows.push({
+        modelId: "kie-kling-30-motion",
+        variant: `${mode}|${orient}`,
+        priceCredits: mode === "720p" ? 90 : 160,
+        priceUsd: null,
+      });
+    }
+  }
+  return rows;
+}
+
 /** Цены по умолчанию, если страница не парсится (обновить по https://kie.ai/pricing). Для моделей с разрешением — отдельные строки по 1K/2K/4K. */
 const DEFAULT_PRICES: KiePriceRow[] = [
   { modelId: "kie-4o-image", variant: null, priceCredits: 10, priceUsd: null },
@@ -38,6 +69,7 @@ const DEFAULT_PRICES: KiePriceRow[] = [
   { modelId: "kie-qwen-image-edit", variant: null, priceCredits: 10, priceUsd: null },
   { modelId: "kie-qwen2-text-to-image", variant: null, priceCredits: 8, priceUsd: null },
   { modelId: "kie-qwen2-image-edit", variant: null, priceCredits: 8, priceUsd: null },
+  ...buildDefaultVideoPricingRows(),
 ];
 
 /**
