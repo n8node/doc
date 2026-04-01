@@ -1,0 +1,24 @@
+---
+description: QoQon (qoqon.ru) — URL крон-эндпоинтов генерации; секрет только из .env
+alwaysApply: true
+---
+
+# Крон: очереди генерации (production QoQon)
+
+Публичный базовый URL приложения для вызова из cron на сервере: **https://qoqon.ru** (без слэша в конце перед `/api`).
+
+При ответах пользователю с **полными строками curl** подставляй этот домен. Секрет **`CRON_SECRET`** никогда не записывать в правила, в код и в чат как «дефолт» — только подстановка из `.env` на сервере или явно присланное пользователем значение в ответе.
+
+## Очередь изображений
+
+```bash
+curl -s -X POST "https://qoqon.ru/api/v1/cron/process-image-generation-queue" -H "Authorization: Bearer $CRON_SECRET"
+```
+
+## Очередь видео
+
+```bash
+curl -s -X POST "https://qoqon.ru/api/v1/cron/process-video-generation-queue" -H "Authorization: Bearer $CRON_SECRET"
+```
+
+На сервере задай `export CRON_SECRET='…'` в скрипте cron или используй подстановку из того же значения, что в `/opt/dropbox-ru/.env` (или актуальном пути деплоя).
