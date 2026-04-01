@@ -15,6 +15,7 @@ import {
   Brain,
   LineChart,
   ImageIcon,
+  Video,
   Bot,
   Home,
   Map,
@@ -67,6 +68,7 @@ const groups: NavGroup[] = [
       { href: "/admin/stats", label: "Статистика AI", icon: Brain },
       { href: "/admin/openrouter-account", label: "OpenRouter аккаунт", icon: LineChart },
       { href: "/admin/generation", label: "Генерация изображений", icon: ImageIcon },
+      { href: "/admin/generation-video", label: "Генерация видео", icon: Video },
       { href: "/admin/settings?tab=ai", label: "AI-провайдеры", icon: Bot },
     ],
   },
@@ -129,6 +131,7 @@ function isItemActive(
   if (pathname === "/admin/openrouter-account" && base === "/admin/openrouter-account")
     return true;
   if (pathname === "/admin/generation" && base === "/admin/generation") return true;
+  if (pathname === "/admin/generation-video" && base === "/admin/generation-video") return true;
   if (pathname === "/admin/marketplace-stats" && base === "/admin/marketplace-stats")
     return true;
   if (pathname === "/admin/finance" && base === "/admin/finance") return true;

@@ -49,6 +49,7 @@ export async function getUserPlan(userId: string) {
       maxTranscriptionVideoMinutes: user.plan.maxTranscriptionVideoMinutes,
       maxTranscriptionAudioMinutes: user.plan.maxTranscriptionAudioMinutes,
       imageGenerationCreditsQuota: user.plan.imageGenerationCreditsQuota,
+      videoGenerationCreditsQuota: user.plan.videoGenerationCreditsQuota,
       webImportPagesQuota: user.plan.webImportPagesQuota,
       features: (user.plan.features as Record<string, boolean>) ?? {},
     };
@@ -71,6 +72,7 @@ export async function getUserPlan(userId: string) {
     maxTranscriptionVideoMinutes: 60,
     maxTranscriptionAudioMinutes: 120,
     imageGenerationCreditsQuota: null,
+    videoGenerationCreditsQuota: null,
     webImportPagesQuota: null,
     features: FREE_PLAN_DEFAULTS.features,
   };

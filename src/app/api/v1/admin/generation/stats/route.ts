@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getGenerationMarginPercent, applyGenerationMargin } from "@/lib/generation/config";
 
 /**
- * GET /api/v1/admin/generation/stats?limit=50&offset=0
+ * GET /api/v1/admin/generation/stats?limit=50&offset=0&media=image|video|all
  * Список генераций для статистики: кто, когда, модель, стоимость (факт и с наценкой).
  */
 export async function GET(request: NextRequest) {
@@ -20,23 +20,30 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10)));
   const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
+  const mediaParam = (searchParams.get("media") ?? "all").toLowerCase();
+  const mediaFilter = mediaParam === "image" || mediaParam === "video" ? mediaParam : "all";
 
-  const [imageTasks, videoTasks, marginPercent] = await Promise.all([
-    prisma.imageGenerationTask.findMany({
-      where: { status: "success" },
-      orderBy: { createdAt: "desc" },
-      take: limit + offset,
-      skip: 0,
-      include: { user: { select: { id: true, email: true, name: true } } },
-    }),
-    prisma.videoGenerationTask.findMany({
-      where: { status: "success" },
-      orderBy: { createdAt: "desc" },
-      take: limit + offset,
-      skip: 0,
-      include: { user: { select: { id: true, email: true, name: true } } },
-    }),
-    getGenerationMarginPercent(),
+  const marginPercent = await getGenerationMarginPercent();
+
+  const [imageTasks, videoTasks] = await Promise.all([
+    mediaFilter === "video"
+      ? Promise.resolve([])
+      : prisma.imageGenerationTask.findMany({
+          where: { status: "success" },
+          orderBy: { createdAt: "desc" },
+          take: limit + offset,
+          skip: 0,
+          include: { user: { select: { id: true, email: true, name: true } } },
+        }),
+    mediaFilter === "image"
+      ? Promise.resolve([])
+      : prisma.videoGenerationTask.findMany({
+          where: { status: "success" },
+          orderBy: { createdAt: "desc" },
+          take: limit + offset,
+          skip: 0,
+          include: { user: { select: { id: true, email: true, name: true } } },
+        }),
   ]);
 
   const tagged = [
@@ -73,7 +80,8 @@ export async function GET(request: NextRequest) {
     prisma.imageGenerationTask.count({ where: { status: "success" } }),
     prisma.videoGenerationTask.count({ where: { status: "success" } }),
   ]);
-  const total = totalImage + totalVideo;
+  const total =
+    mediaFilter === "image" ? totalImage : mediaFilter === "video" ? totalVideo : totalImage + totalVideo;
 
   return NextResponse.json({ items, total });
 }

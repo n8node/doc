@@ -98,10 +98,9 @@ export const navGroups: NavGroup[] = [
   {
     id: "generation",
     label: "Генерация",
-    featureGate: "content_generation",
     items: [
-      { href: "/dashboard/generate/image", icon: Sparkles, label: "Изображения" },
-      { href: "/dashboard/generate/video", icon: Video, label: "Видео" },
+      { href: "/dashboard/generate/image", icon: Sparkles, label: "Изображения", featureGate: "content_generation" },
+      { href: "/dashboard/generate/video", icon: Video, label: "Видео", featureGate: "video_generation" },
     ],
   },
   {

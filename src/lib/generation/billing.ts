@@ -26,110 +26,140 @@ function toDisplayCredits(
   return 0;
 }
 
-/**
- * Сумма списанных кредитов генерации за текущий месяц (всегда с наценкой для отображения).
- * Исключает задачу с id = excludeTaskId если передан.
- */
-/** Сумма кредитов генерации (изображения + видео) за месяц с наценкой. */
-export async function getGenerationCreditsUsedThisMonth(
-  userId: string,
-  exclude?: { imageTaskId?: string; videoTaskId?: string }
-): Promise<number> {
-  const { start, end } = currentMonthUtc();
-  const marginPercent = await getGenerationMarginPercent();
-  const [imageTasks, videoTasks] = await Promise.all([
-    prisma.imageGenerationTask.findMany({
-      where: {
-        userId,
-        status: "success",
-        createdAt: { gte: start, lte: end },
-        ...(exclude?.imageTaskId ? { id: { not: exclude.imageTaskId } } : {}),
-      },
-      select: { costCredits: true, billedCredits: true },
-    }),
-    prisma.videoGenerationTask.findMany({
-      where: {
-        userId,
-        status: "success",
-        createdAt: { gte: start, lte: end },
-        ...(exclude?.videoTaskId ? { id: { not: exclude.videoTaskId } } : {}),
-      },
-      select: { costCredits: true, billedCredits: true },
-    }),
-  ]);
-  const sumImg = imageTasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
-  const sumVid = videoTasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
-  return sumImg + sumVid;
-}
-
-/** @deprecated используйте getGenerationCreditsUsedThisMonth */
+/** Сумма кредитов за месяц только по изображениям (с наценкой). */
 export async function getImageGenerationCreditsUsedThisMonth(
   userId: string,
   excludeTaskId?: string
 ): Promise<number> {
-  return getGenerationCreditsUsedThisMonth(userId, { imageTaskId: excludeTaskId });
+  const { start, end } = currentMonthUtc();
+  const marginPercent = await getGenerationMarginPercent();
+  const tasks = await prisma.imageGenerationTask.findMany({
+    where: {
+      userId,
+      status: "success",
+      createdAt: { gte: start, lte: end },
+      ...(excludeTaskId ? { id: { not: excludeTaskId } } : {}),
+    },
+    select: { costCredits: true, billedCredits: true },
+  });
+  return tasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
 }
 
-/** Использовано кредитов (с наценкой) и число успешных генераций за текущий месяц. */
-export async function getImageGenerationStatsThisMonth(userId: string): Promise<{ usedCredits: number; count: number }> {
+/** Сумма кредитов за месяц только по видео (с наценкой). */
+export async function getVideoGenerationCreditsUsedThisMonth(
+  userId: string,
+  excludeTaskId?: string
+): Promise<number> {
   const { start, end } = currentMonthUtc();
-  const [marginPercent, imageTasks, videoTasks] = await Promise.all([
+  const marginPercent = await getGenerationMarginPercent();
+  const tasks = await prisma.videoGenerationTask.findMany({
+    where: {
+      userId,
+      status: "success",
+      createdAt: { gte: start, lte: end },
+      ...(excludeTaskId ? { id: { not: excludeTaskId } } : {}),
+    },
+    select: { costCredits: true, billedCredits: true },
+  });
+  return tasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
+}
+
+/** Изображения + видео (для сводной статистики). */
+export async function getGenerationCreditsUsedThisMonth(
+  userId: string,
+  exclude?: { imageTaskId?: string; videoTaskId?: string }
+): Promise<number> {
+  const [img, vid] = await Promise.all([
+    getImageGenerationCreditsUsedThisMonth(userId, exclude?.imageTaskId),
+    getVideoGenerationCreditsUsedThisMonth(userId, exclude?.videoTaskId),
+  ]);
+  return img + vid;
+}
+
+/** Использовано кредитов и число успешных генераций изображений за месяц. */
+export async function getImageGenerationStatsThisMonth(
+  userId: string
+): Promise<{ usedCredits: number; count: number }> {
+  const { start, end } = currentMonthUtc();
+  const [marginPercent, tasks] = await Promise.all([
     getGenerationMarginPercent(),
     prisma.imageGenerationTask.findMany({
       where: { userId, status: "success", createdAt: { gte: start, lte: end } },
       select: { costCredits: true, billedCredits: true },
     }),
-    prisma.videoGenerationTask.findMany({
-      where: { userId, status: "success", createdAt: { gte: start, lte: end } },
-      select: { costCredits: true, billedCredits: true },
-    }),
   ]);
-  const tasks = [...imageTasks, ...videoTasks];
   const usedCredits = tasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
   return { usedCredits, count: tasks.length };
 }
 
-/** Сумма кредитов генерации (с наценкой) с даты since. */
+/** Использовано кредитов и число успешных генераций видео за месяц. */
+export async function getVideoGenerationStatsThisMonth(
+  userId: string
+): Promise<{ usedCredits: number; count: number }> {
+  const { start, end } = currentMonthUtc();
+  const [marginPercent, tasks] = await Promise.all([
+    getGenerationMarginPercent(),
+    prisma.videoGenerationTask.findMany({
+      where: { userId, status: "success", createdAt: { gte: start, lte: end } },
+      select: { costCredits: true, billedCredits: true },
+    }),
+  ]);
+  const usedCredits = tasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
+  return { usedCredits, count: tasks.length };
+}
+
 export async function getImageGenerationSinceAnchor(userId: string, since: Date): Promise<number> {
-  const [marginPercent, imageTasks, videoTasks] = await Promise.all([
+  const [marginPercent, tasks] = await Promise.all([
     getGenerationMarginPercent(),
     prisma.imageGenerationTask.findMany({
       where: { userId, status: "success", createdAt: { gte: since } },
       select: { costCredits: true, billedCredits: true },
     }),
+  ]);
+  return tasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
+}
+
+export async function getVideoGenerationSinceAnchor(userId: string, since: Date): Promise<number> {
+  const [marginPercent, tasks] = await Promise.all([
+    getGenerationMarginPercent(),
     prisma.videoGenerationTask.findMany({
       where: { userId, status: "success", createdAt: { gte: since } },
       select: { costCredits: true, billedCredits: true },
     }),
   ]);
-  const tasks = [...imageTasks, ...videoTasks];
   return tasks.reduce((sum, t) => sum + toDisplayCredits(t.costCredits, t.billedCredits, marginPercent), 0);
 }
 
-/** Последние успешные генерации для списка списаний (tokensTotal — с наценкой). */
 export async function getRecentImageGenerationEvents(
   userId: string,
   limit: number
 ): Promise<Array<{ id: string; tokensTotal: number; createdAt: Date }>> {
   const marginPercent = await getGenerationMarginPercent();
-  const [imageTasks, videoTasks] = await Promise.all([
-    prisma.imageGenerationTask.findMany({
-      where: { userId, status: "success" },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: { id: true, costCredits: true, billedCredits: true, createdAt: true },
-    }),
-    prisma.videoGenerationTask.findMany({
-      where: { userId, status: "success" },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: { id: true, costCredits: true, billedCredits: true, createdAt: true },
-    }),
-  ]);
-  const merged = [...imageTasks, ...videoTasks]
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, limit);
-  return merged.map((t) => ({
+  const tasks = await prisma.imageGenerationTask.findMany({
+    where: { userId, status: "success" },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { id: true, costCredits: true, billedCredits: true, createdAt: true },
+  });
+  return tasks.map((t) => ({
+    id: t.id,
+    tokensTotal: toDisplayCredits(t.costCredits, t.billedCredits, marginPercent),
+    createdAt: t.createdAt,
+  }));
+}
+
+export async function getRecentVideoGenerationEvents(
+  userId: string,
+  limit: number
+): Promise<Array<{ id: string; tokensTotal: number; createdAt: Date }>> {
+  const marginPercent = await getGenerationMarginPercent();
+  const tasks = await prisma.videoGenerationTask.findMany({
+    where: { userId, status: "success" },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { id: true, costCredits: true, billedCredits: true, createdAt: true },
+  });
+  return tasks.map((t) => ({
     id: t.id,
     tokensTotal: toDisplayCredits(t.costCredits, t.billedCredits, marginPercent),
     createdAt: t.createdAt,
@@ -146,7 +176,7 @@ export interface ApplyGenerationBillingResult {
 
 /**
  * Учитывает генерацию: квота по тарифу, остаток — списание с кошелька по курсу.
- * Вызывать после сохранения задачи с costCredits и billedCredits.
+ * quota null = безлимит по тарифу (не трогаем кошелёк).
  */
 export async function applyGenerationBilling(
   userId: string,
@@ -158,14 +188,20 @@ export async function applyGenerationBilling(
     return { ok: true, fromQuota: 0, fromWalletCredits: 0, costCents: 0 };
   }
 
-  const exclude =
-    media === "video" ? { videoTaskId: taskId } : { imageTaskId: taskId };
-  const [plan, usedBefore] = await Promise.all([
-    getUserPlan(userId),
-    getGenerationCreditsUsedThisMonth(userId, exclude),
-  ]);
-  const quota = plan?.imageGenerationCreditsQuota ?? 0;
-  const remainingQuota = Math.max(0, quota - usedBefore);
+  const plan = await getUserPlan(userId);
+  const quotaRaw =
+    media === "video" ? plan?.videoGenerationCreditsQuota : plan?.imageGenerationCreditsQuota;
+
+  const usedBefore =
+    media === "video"
+      ? await getVideoGenerationCreditsUsedThisMonth(userId, taskId)
+      : await getImageGenerationCreditsUsedThisMonth(userId, taskId);
+
+  if (quotaRaw == null) {
+    return { ok: true, fromQuota: billedCredits, fromWalletCredits: 0, costCents: 0 };
+  }
+
+  const remainingQuota = Math.max(0, quotaRaw - usedBefore);
   const fromQuota = Math.min(billedCredits, remainingQuota);
   const fromWalletCredits = Math.max(0, billedCredits - fromQuota);
 

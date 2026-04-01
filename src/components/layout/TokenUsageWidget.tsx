@@ -53,10 +53,23 @@ interface TokenUsageResponse {
     count: number;
     sinceAnchorUsed: number;
   };
+  videoGeneration?: {
+    quota: number | null;
+    used: number;
+    count: number;
+    sinceAnchorUsed: number;
+  };
   /** Последние списания по генерации картинок (для объединения с recentEvents). */
   recentImageGenerationEvents?: Array<{
     id: string;
     category: "IMAGE_GENERATION";
+    title: string;
+    tokensTotal: number;
+    createdAt: string | Date;
+  }>;
+  recentVideoGenerationEvents?: Array<{
+    id: string;
+    category: "VIDEO_GENERATION";
     title: string;
     tokensTotal: number;
     createdAt: string | Date;
@@ -296,6 +309,26 @@ export function TokenUsageWidget() {
                     <p className="mt-0.5 text-[10px] text-muted-foreground/80">За отчётный период</p>
                   </div>
                 )}
+                {data.videoGeneration != null && (
+                  <div className="rounded-xl border border-border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium">Генерация видео</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatNumber(data.videoGeneration.used)} / {formatNumber(data.videoGeneration.quota)}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Осталось:{" "}
+                      {formatNumber(
+                        data.videoGeneration.quota != null
+                          ? Math.max(0, data.videoGeneration.quota - data.videoGeneration.used)
+                          : null
+                      )}{" "}
+                      · Запросов: {data.videoGeneration.count}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground/80">За отчётный период</p>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-xl border border-border bg-surface2/20 p-4">
@@ -317,6 +350,12 @@ export function TokenUsageWidget() {
                       <span>{formatNumber(data.imageGeneration.sinceAnchorUsed)}</span>
                     </div>
                   )}
+                  {data.videoGeneration != null && (
+                    <div className="flex items-center justify-between">
+                      <span>Генерация видео</span>
+                      <span>{formatNumber(data.videoGeneration.sinceAnchorUsed)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -329,13 +368,19 @@ export function TokenUsageWidget() {
                     tokensTotal: e.tokensTotal,
                     createdAt: typeof e.createdAt === "string" ? e.createdAt : e.createdAt.toISOString(),
                   }));
+                  const videoEvents = (data.recentVideoGenerationEvents ?? []).map((e) => ({
+                    id: e.id,
+                    title: e.title,
+                    tokensTotal: e.tokensTotal,
+                    createdAt: typeof e.createdAt === "string" ? e.createdAt : e.createdAt.toISOString(),
+                  }));
                   const tokenEvents = data.recentEvents.map((e) => ({
                     id: e.id,
                     title: e.title,
                     tokensTotal: e.tokensTotal,
                     createdAt: typeof e.createdAt === "string" ? e.createdAt : new Date(e.createdAt).toISOString(),
                   }));
-                  const merged = [...tokenEvents, ...imageEvents]
+                  const merged = [...tokenEvents, ...imageEvents, ...videoEvents]
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .slice(0, 10);
                   return merged.length === 0 ? (

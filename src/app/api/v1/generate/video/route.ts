@@ -7,7 +7,7 @@ import {
   getVideoTasksConfig,
   getVideoModelsConfig,
 } from "@/lib/generation/config";
-import { getGenerationCreditsUsedThisMonth } from "@/lib/generation/billing";
+import { getVideoGenerationCreditsUsedThisMonth } from "@/lib/generation/billing";
 import { getKieApiKey } from "@/lib/generation/kie-api-key";
 import { createMarketTask, KIE_RATE_LIMIT_MESSAGE } from "@/lib/generation/kie-image-client";
 import {
@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const canGenerate = await hasFeature(userId, "content_generation");
+  const canGenerate = await hasFeature(userId, "video_generation");
   if (!canGenerate) {
-    return NextResponse.json({ error: "Тариф не включает генерацию контента" }, { status: 403 });
+    return NextResponse.json({ error: "Тариф не включает генерацию видео" }, { status: 403 });
   }
 
   const videoOn = await getVideoGenerationEnabled();
@@ -45,10 +45,10 @@ export async function POST(request: NextRequest) {
 
   const [plan, usedCreditsThisMonth, user] = await Promise.all([
     getUserPlan(userId),
-    getGenerationCreditsUsedThisMonth(userId),
+    getVideoGenerationCreditsUsedThisMonth(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { llmWalletBalanceCents: true } }),
   ]);
-  const quota = plan?.imageGenerationCreditsQuota;
+  const quota = plan?.videoGenerationCreditsQuota;
   const remainingQuota = quota != null ? Math.max(0, quota - usedCreditsThisMonth) : null;
   const balanceCents = user?.llmWalletBalanceCents ?? 0;
   const canUseQuota = remainingQuota === null || remainingQuota > 0;

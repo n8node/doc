@@ -11,6 +11,9 @@ import {
   getImageGenerationStatsThisMonth,
   getImageGenerationSinceAnchor,
   getRecentImageGenerationEvents,
+  getVideoGenerationStatsThisMonth,
+  getVideoGenerationSinceAnchor,
+  getRecentVideoGenerationEvents,
 } from "@/lib/generation/billing";
 import { prisma } from "@/lib/prisma";
 
@@ -43,9 +46,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const [plan, canGenerateImages] = await Promise.all([
+  const [plan, canGenerateImages, canGenerateVideo] = await Promise.all([
     getUserPlan(userId),
     hasFeature(userId, "content_generation"),
+    hasFeature(userId, "video_generation"),
   ]);
 
   const [
@@ -57,6 +61,8 @@ export async function GET(request: NextRequest) {
     allBillableEvents,
     imageGenStats,
     imageGenSinceAnchorResult,
+    videoGenStats,
+    videoGenSinceAnchorResult,
   ] = await Promise.all([
     getTokenUsageSummary(userId, { since: billing.cycleStart }),
     getTokenUsageSummary(userId, { since: billing.anchorType === "registration" ? billing.anchorDate : undefined }),
@@ -109,6 +115,13 @@ export async function GET(request: NextRequest) {
       ? Promise.all([
           getImageGenerationSinceAnchor(userId, billing.anchorDate),
           getRecentImageGenerationEvents(userId, 20),
+        ])
+      : Promise.resolve([0, []] as const),
+    canGenerateVideo ? getVideoGenerationStatsThisMonth(userId) : Promise.resolve(null),
+    canGenerateVideo
+      ? Promise.all([
+          getVideoGenerationSinceAnchor(userId, billing.anchorDate),
+          getRecentVideoGenerationEvents(userId, 20),
         ])
       : Promise.resolve([0, []] as const),
   ]);
@@ -237,6 +250,7 @@ export async function GET(request: NextRequest) {
   }
 
   const [imageGenSinceAnchor = 0, recentImageGenEvents = []] = imageGenSinceAnchorResult;
+  const [videoGenSinceAnchor = 0, recentVideoGenEvents = []] = videoGenSinceAnchorResult;
   const imageGeneration =
     canGenerateImages && imageGenStats
       ? {
@@ -246,11 +260,29 @@ export async function GET(request: NextRequest) {
           sinceAnchorUsed: imageGenSinceAnchor,
         }
       : undefined;
+  const videoGeneration =
+    canGenerateVideo && videoGenStats
+      ? {
+          quota: plan?.videoGenerationCreditsQuota ?? null,
+          used: videoGenStats.usedCredits,
+          count: videoGenStats.count,
+          sinceAnchorUsed: videoGenSinceAnchor,
+        }
+      : undefined;
   const recentImageGenerationEvents = canGenerateImages
     ? recentImageGenEvents.map((e) => ({
         id: `img:${e.id}`,
         category: "IMAGE_GENERATION" as const,
         title: "Генерация картинок",
+        tokensTotal: e.tokensTotal,
+        createdAt: e.createdAt,
+      }))
+    : [];
+  const recentVideoGenerationEvents = canGenerateVideo
+    ? recentVideoGenEvents.map((e) => ({
+        id: `vid:${e.id}`,
+        category: "VIDEO_GENERATION" as const,
+        title: "Генерация видео",
         tokensTotal: e.tokensTotal,
         createdAt: e.createdAt,
       }))
@@ -278,6 +310,8 @@ export async function GET(request: NextRequest) {
       firstPaidAt,
     },
     imageGeneration,
+    videoGeneration,
     recentImageGenerationEvents,
+    recentVideoGenerationEvents,
   });
 }

@@ -36,6 +36,7 @@ interface PlanItem {
   chatTokensQuota?: number | null;
   searchTokensQuota?: number | null;
   imageGenerationCreditsQuota?: number | null;
+  videoGenerationCreditsQuota?: number | null;
   aiAnalysisDocumentsQuota?: number | null;
   ragDocumentsQuota?: number | null;
   webImportPagesQuota?: number | null;
@@ -135,11 +136,12 @@ function PlanCard({
             <div className="flex items-center gap-2 text-sm">
               <BrainCircuit className="h-4 w-4 text-muted-foreground" />
               <span>
-                Чат/Поиск/Генерация:{" "}
+                Чат/Поиск / изобр. / видео:{" "}
                 {[
                   plan.chatTokensQuota,
                   plan.searchTokensQuota,
                   plan.imageGenerationCreditsQuota,
+                  plan.videoGenerationCreditsQuota,
                 ]
                   .map((v) => (v != null ? `${v.toLocaleString()}` : "∞"))
                   .join(" / ")}

@@ -26,6 +26,7 @@ export const planFeatureLabels: Record<string, string> = {
   transcription_video: "Транскрибация видео",
   own_ai_keys: "Свой API-ключ (токены не списываются)",
   content_generation: "Генерация изображений",
+  video_generation: "Генерация видео",
   calendar_bridge: "Мост календаря",
   mail_bridge: "Мост Email",
 };
@@ -94,8 +95,17 @@ export function getPlanFeatureTooltipContent(
         title: label,
         lines: [
           plan.imageGenerationCreditsQuota != null
-            ? `Квота: ${plan.imageGenerationCreditsQuota.toLocaleString("ru-RU")} токенов в месяц на генерацию изображений.`
-            : "Безлимит по токенам генерации в рамках тарифа.",
+            ? `Квота: ${plan.imageGenerationCreditsQuota.toLocaleString("ru-RU")} кредитов в месяц на генерацию изображений.`
+            : "Безлимит по кредитам генерации изображений в рамках тарифа.",
+        ],
+      };
+    case "video_generation":
+      return {
+        title: label,
+        lines: [
+          plan.videoGenerationCreditsQuota != null
+            ? `Квота: ${plan.videoGenerationCreditsQuota.toLocaleString("ru-RU")} кредитов в месяц на генерацию видео (Kling).`
+            : "Безлимит по кредитам генерации видео в рамках тарифа.",
         ],
       };
     case "web_import":

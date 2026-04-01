@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     name, isFree, storageQuota, maxFileSize, trashRetentionDays, embeddingTokensQuota,
-    chatTokensQuota, searchTokensQuota, imageGenerationCreditsQuota,
+    chatTokensQuota, searchTokensQuota, imageGenerationCreditsQuota, videoGenerationCreditsQuota,
     aiAnalysisDocumentsQuota,
     webImportPagesQuota,
     ragDocumentsQuota,
@@ -135,6 +135,10 @@ export async function POST(req: NextRequest) {
         imageGenerationCreditsQuota === undefined || imageGenerationCreditsQuota === null || imageGenerationCreditsQuota === ""
           ? null
           : Math.max(0, parseInt(String(imageGenerationCreditsQuota), 10) || 0) || null,
+      videoGenerationCreditsQuota:
+        videoGenerationCreditsQuota === undefined || videoGenerationCreditsQuota === null || videoGenerationCreditsQuota === ""
+          ? null
+          : Math.max(0, parseInt(String(videoGenerationCreditsQuota), 10) || 0) || null,
       aiAnalysisDocumentsQuota: analysisDocsQuota,
       webImportPagesQuota: webImportPagesQuotaVal,
       ragDocumentsQuota:

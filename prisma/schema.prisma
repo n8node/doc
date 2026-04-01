@@ -418,7 +418,8 @@ model Plan {
   maxTranscriptionAudioMinutes Int         @default(120) @map("max_transcription_audio_minutes") // макс. длительность аудио в одном файле
   transcriptionProviderId      String?     @map("transcription_provider_id") // премиум-провайдер, null = Docling/Whisper
   transcriptionProvider        AiProvider? @relation("PlanTranscriptionProvider", fields: [transcriptionProviderId], references: [id])
-  imageGenerationCreditsQuota   Int?        @map("image_generation_credits_quota") // кредитов на генерацию в месяц по тарифу, null = без лимита/отключено
+  imageGenerationCreditsQuota   Int?        @map("image_generation_credits_quota") // кредитов на генерацию изображений в месяц, null = без лимита
+  videoGenerationCreditsQuota   Int?        @map("video_generation_credits_quota") // кредитов на генерацию видео в месяц, null = без лимита
   webImportPagesQuota          Int?        @map("web_import_pages_quota") // страниц парсинга сайтов в месяц, null = без лимита
   priceMonthly                 Int?        @map("price_monthly")
   priceYearly                  Int?        @map("price_yearly")

@@ -18,6 +18,7 @@ export interface PlanItem {
   maxTranscriptionVideoMinutes?: number;
   ragDocumentsQuota?: number | null;
   imageGenerationCreditsQuota?: number | null;
+  videoGenerationCreditsQuota?: number | null;
   webImportPagesQuota?: number | null;
   priceMonthly: number | null;
   priceYearly: number | null;

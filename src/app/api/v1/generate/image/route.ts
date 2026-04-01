@@ -3,7 +3,7 @@ import { getUserIdFromRequest } from "@/lib/api-key-auth";
 import { prisma } from "@/lib/prisma";
 import { hasFeature, getUserPlan } from "@/lib/plan-service";
 import { getImageGenerationEnabled, getImageTasksConfig, getImageModelsConfig } from "@/lib/generation/config";
-import { getGenerationCreditsUsedThisMonth } from "@/lib/generation/billing";
+import { getImageGenerationCreditsUsedThisMonth } from "@/lib/generation/billing";
 import { getKieApiKey } from "@/lib/generation/kie-api-key";
 import {
   create4oImageTask,
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
   const [plan, usedCreditsThisMonth, user] = await Promise.all([
     getUserPlan(userId),
-    getGenerationCreditsUsedThisMonth(userId),
+    getImageGenerationCreditsUsedThisMonth(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { llmWalletBalanceCents: true } }),
   ]);
   const quota = plan?.imageGenerationCreditsQuota;

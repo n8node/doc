@@ -27,6 +27,7 @@ interface PlanData {
   ragDocumentsQuota?: number | null;
   webImportPagesQuota?: number | null;
   imageGenerationCreditsQuota?: number | null;
+  videoGenerationCreditsQuota?: number | null;
   freePlanDurationDays?: number | null;
   transcriptionMinutesQuota?: number | null;
   transcriptionAudioMinutesQuota?: number | null;
@@ -63,6 +64,7 @@ const featureLabels: Record<string, string> = {
   transcription_video: "Транскрибация видео",
   own_ai_keys: "Свой API-ключ для AI (токены не списываются)",
   content_generation: "Генерация изображений",
+  video_generation: "Генерация видео (Kling)",
   calendar_bridge: "Мост календаря (Яндекс → API / n8n)",
   mail_bridge: "Мост почты (IMAP/SMTP, Яндекс → API / n8n)",
 };
@@ -97,6 +99,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
     transcription_video: false,
     own_ai_keys: false,
     content_generation: false,
+    video_generation: false,
     calendar_bridge: false,
     mail_bridge: false,
   });
@@ -109,6 +112,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
   const [chatTokensQuota, setChatTokensQuota] = useState("");
   const [searchTokensQuota, setSearchTokensQuota] = useState("");
   const [imageGenerationCreditsQuota, setImageGenerationCreditsQuota] = useState("");
+  const [videoGenerationCreditsQuota, setVideoGenerationCreditsQuota] = useState("");
   const [transcriptionMinutesQuota, setTranscriptionMinutesQuota] = useState("");
   const [transcriptionAudioMinutesQuota, setTranscriptionAudioMinutesQuota] = useState("");
   const [transcriptionVideoMinutesQuota, setTranscriptionVideoMinutesQuota] = useState("");
@@ -155,6 +159,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setImageGenerationCreditsQuota(
         plan.imageGenerationCreditsQuota != null ? String(plan.imageGenerationCreditsQuota) : "",
       );
+      setVideoGenerationCreditsQuota(
+        plan.videoGenerationCreditsQuota != null ? String(plan.videoGenerationCreditsQuota) : "",
+      );
       setAiAnalysisDocumentsQuota(
         plan.aiAnalysisDocumentsQuota != null ? String(plan.aiAnalysisDocumentsQuota) : "",
       );
@@ -189,6 +196,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         ...raw,
         transcription_audio: raw.transcription_audio ?? legacyOn,
         transcription_video: raw.transcription_video ?? legacyOn,
+        video_generation: raw.video_generation ?? false,
       });
       setPriceMonthly(plan.priceMonthly != null ? String(plan.priceMonthly) : "");
       setPriceYearly(plan.priceYearly != null ? String(plan.priceYearly) : "");
@@ -203,6 +211,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
       setChatTokensQuota("");
       setSearchTokensQuota("");
       setImageGenerationCreditsQuota("");
+      setVideoGenerationCreditsQuota("");
       setAiAnalysisDocumentsQuota("");
       setRagDocumentsQuota("");
       setWebImportPagesQuota("");
@@ -230,6 +239,7 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         transcription_video: false,
         own_ai_keys: false,
         content_generation: false,
+        video_generation: false,
         calendar_bridge: false,
         mail_bridge: false,
       });
@@ -263,6 +273,9 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
         : null,
       imageGenerationCreditsQuota: imageGenerationCreditsQuota.trim()
         ? Math.max(0, parseInt(imageGenerationCreditsQuota, 10) || 0) || null
+        : null,
+      videoGenerationCreditsQuota: videoGenerationCreditsQuota.trim()
+        ? Math.max(0, parseInt(videoGenerationCreditsQuota, 10) || 0) || null
         : null,
       aiAnalysisDocumentsQuota: aiAnalysisDocumentsQuota.trim()
         ? Math.max(0, parseInt(aiAnalysisDocumentsQuota, 10) || 0) || null
@@ -451,13 +464,25 @@ export function PlanDialog({ open, onClose, onSaved, plan }: PlanDialogProps) {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Кредитов на генерацию (изобр.) / мес
+                  Кредитов на изображения / мес
                 </label>
                 <Input
                   type="number"
                   min={0}
                   value={imageGenerationCreditsQuota}
                   onChange={(e) => setImageGenerationCreditsQuota(e.target.value)}
+                  placeholder="Без лимита"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Кредитов на видео / мес
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={videoGenerationCreditsQuota}
+                  onChange={(e) => setVideoGenerationCreditsQuota(e.target.value)}
                   placeholder="Без лимита"
                 />
               </div>

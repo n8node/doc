@@ -12,9 +12,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const canGenerate = await hasFeature(userId, "content_generation");
+  const canGenerate = await hasFeature(userId, "video_generation");
   if (!canGenerate) {
-    return NextResponse.json({ error: "Тариф не включает генерацию контента" }, { status: 403 });
+    return NextResponse.json({ error: "Тариф не включает генерацию видео" }, { status: 403 });
   }
 
   const enabled = await getVideoGenerationEnabled();

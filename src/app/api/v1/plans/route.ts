@@ -24,6 +24,7 @@ export async function GET() {
       maxTranscriptionVideoMinutes: true,
       ragDocumentsQuota: true,
       imageGenerationCreditsQuota: true,
+      videoGenerationCreditsQuota: true,
       webImportPagesQuota: true,
       freePlanDurationDays: true,
       priceMonthly: true,
