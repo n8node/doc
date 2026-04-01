@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
               characterOrientation: body.characterOrientation === "image" ? "image" : "video",
             });
 
-      let billableDurationSec: number | null =
+      const billableDurationSec: number | null =
         modelId === "kie-kling-30-video"
           ? videoDurationSec
           : typeof body.motionVideoFileId === "string"
