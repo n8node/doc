@@ -401,8 +401,7 @@ export default function GenerateVideoPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground">
-            Раздел отключён или недоступен по тарифу. Если вы администратор — включите генерацию видео в админке и задайте прайс для моделей{" "}
-            <code className="text-xs">kie-kling-30-video</code> и <code className="text-xs">kie-kling-30-motion</code>.
+            Раздел отключён или недоступен по вашему тарифу. Выберите тариф с генерацией видео или обратитесь в поддержку.
           </CardContent>
         </Card>
       </div>
@@ -417,7 +416,7 @@ export default function GenerateVideoPage() {
           Генерация видео
         </h1>
         <p className="text-muted-foreground mt-1">
-          Kling 3.0 через Kie.ai. Результат сохраняется в «Мои файлы». Стоимость зависит от длительности, качества (std/pro или 720p/1080p) и опций — см. прайс в админке.
+          Готовые ролики сохраняются в «Мои файлы». Списание кредитов зависит от модели, длительности и выбранных параметров качества.
         </p>
       </div>
 

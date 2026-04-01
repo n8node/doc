@@ -104,7 +104,7 @@ export function getPlanFeatureTooltipContent(
         title: label,
         lines: [
           plan.videoGenerationCreditsQuota != null
-            ? `Квота: ${plan.videoGenerationCreditsQuota.toLocaleString("ru-RU")} кредитов в месяц на генерацию видео (Kling).`
+            ? `Квота: ${plan.videoGenerationCreditsQuota.toLocaleString("ru-RU")} кредитов в месяц на генерацию видео.`
             : "Безлимит по кредитам генерации видео в рамках тарифа.",
         ],
       };

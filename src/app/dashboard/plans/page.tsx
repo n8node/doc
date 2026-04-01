@@ -5,10 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Crown, Loader2 } from "lucide-react";
-import {
-  formatTranscriptionAudioUsageLine,
-  formatTranscriptionVideoUsageLine,
-} from "@/lib/transcription-quota-display";
 import { PlansPricingGrid } from "@/components/plans/PlansPricingGrid";
 import type { PlanItem } from "@/components/plans/plan-pricing-types";
 
@@ -108,17 +104,6 @@ export default function DashboardPlansPage() {
               <Crown className="h-4 w-4" />
               Текущий тариф: {currentPlan.name}
             </div>
-            {(() => {
-              const audioU = formatTranscriptionAudioUsageLine(currentPlan);
-              const videoU = formatTranscriptionVideoUsageLine(currentPlan);
-              if (!audioU && !videoU) return null;
-              return (
-                <div className="max-w-xl space-y-1 text-center text-xs text-muted-foreground">
-                  {audioU && <p>{audioU}</p>}
-                  {videoU && <p>{videoU}</p>}
-                </div>
-              );
-            })()}
           </motion.div>
         )}
       </div>
