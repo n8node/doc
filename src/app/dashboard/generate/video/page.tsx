@@ -156,7 +156,7 @@ export default function GenerateVideoPage() {
     return () => clearInterval(t);
   }, [taskId, status, pollStatus]);
 
-  const uploadFile = async (file: File, kind: "image" | "video") => {
+  const uploadFile = async (file: File) => {
     const initRes = await fetch("/api/v1/files/upload/init", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -191,7 +191,7 @@ export default function GenerateVideoPage() {
     setUploading(true);
     try {
       if (startPreview) URL.revokeObjectURL(startPreview);
-      const id = await uploadFile(f, "image");
+      const id = await uploadFile(f);
       setStartFrameId(id);
       setStartPreview(URL.createObjectURL(f));
       toast.success("Стартовый кадр загружен");
@@ -212,7 +212,7 @@ export default function GenerateVideoPage() {
     setUploading(true);
     try {
       if (endPreview) URL.revokeObjectURL(endPreview);
-      const id = await uploadFile(f, "image");
+      const id = await uploadFile(f);
       setEndFrameId(id);
       setEndPreview(URL.createObjectURL(f));
       toast.success("Финальный кадр загружен");
@@ -233,7 +233,7 @@ export default function GenerateVideoPage() {
     setUploading(true);
     try {
       if (motionImagePreview) URL.revokeObjectURL(motionImagePreview);
-      const id = await uploadFile(f, "image");
+      const id = await uploadFile(f);
       setMotionImageId(id);
       setMotionImagePreview(URL.createObjectURL(f));
       toast.success("Референс-изображение загружено");
@@ -254,7 +254,7 @@ export default function GenerateVideoPage() {
     setUploading(true);
     try {
       if (motionVideoPreview) URL.revokeObjectURL(motionVideoPreview);
-      const id = await uploadFile(f, "video");
+      const id = await uploadFile(f);
       setMotionVideoId(id);
       setMotionVideoPreview(URL.createObjectURL(f));
       toast.success("Референс-видео загружено");
