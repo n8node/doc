@@ -679,9 +679,6 @@ export default function GenerateVideoPage() {
                 <p className="text-sm flex items-center gap-2 text-muted-foreground">
                   <Coins className="h-4 w-4" />
                   Списано кредитов: {billedCredits ?? costCredits}
-                  {costCredits != null && billedCredits != null && billedCredits !== costCredits && (
-                    <span className="text-xs">(база {costCredits} + наценка)</span>
-                  )}
                 </p>
               )}
               {fileId && (
